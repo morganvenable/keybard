@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
 import { Button } from "@/components/ui/button";
@@ -162,27 +162,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
     const isHorizontal = layoutMode === "bottombar";
 
-    // Auto-populate modifiers from selected key
-    useEffect(() => {
-        if (!keyboard?.keymap || !selectedTarget || selectedTarget.type !== "keyboard") {
-            return;
-        }
-        const { layer, row, col } = selectedTarget;
-        if (layer === undefined || row === undefined || col === undefined) return;
-        const matrixCols = keyboard.cols || MATRIX_COLS;
-        const matrixPos = row * matrixCols + col;
-        const numericKeycode = keyboard.keymap[layer]?.[matrixPos];
-        if (numericKeycode === undefined) return;
 
-        const decomposed = decomposeKeycode(numericKeycode);
-        if (decomposed) {
-            setActiveModifiers(decomposed.modifiers);
-            setSelectedKeyModType(decomposed.isModTap ? 'modtap' : 'mods');
-        } else {
-            setActiveModifiers([]);
-            setSelectedKeyModType(null);
-        }
-    }, [selectedTarget, keyboard]);
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -259,10 +239,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         const isBlank = keycode === "KC_NO" || keycode === "KC_TRNS";
         const finalKeycode = isBlank ? mappedKeycode : applyModifiers(mappedKeycode, activeModifiers, false);
         assignKeycode(finalKeycode);
-        // Clear modifiers after placing a key so they don't persist unexpectedly
-        if (activeModifiers.length > 0) {
-            setActiveModifiers([]);
-        }
+
     };
 
     const handleKeyboardInput = (button: string) => {
@@ -318,16 +295,23 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                     if (k.keycode === "BLANK") {
                         return <div key={`blank-${i}`} className={keySizeClass} />;
                     }
-                    const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
+
+                    const finalKeycode = (k.keycode === "BLANK" || k.keycode === "KC_NO" || k.keycode === "KC_TRNS")
+                        ? k.keycode
+                        : applyModifiers(k.keycode, activeModifiers, false);
+
+                    const keyContents = keyboard ? getKeyContents(keyboard, finalKeycode) : undefined;
                     // Use custom label for numpad keys, otherwise fall back to keyService
                     const displayLabel = k.useServiceLabel ? (keyService.define(k.keycode)?.str || k.label || k.keycode) : (k.label || k.keycode);
                     const isDoubleHeight = k.keycode === "KC_KP_ENTER";
+
+
 
                     return (
                         <Key
                             key={`${k.keycode}-${i}`}
                             x={0} y={0} w={1} h={1} row={0} col={0}
-                            keycode={k.keycode}
+                            keycode={finalKeycode}
                             label={displayLabel}
                             keyContents={keyContents as KeyContent | undefined}
                             layerColor="sidebar"
@@ -342,6 +326,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
                             onClick={() => handleKeyClick(k.keycode)}
+                            disableTooltip={true}
                         />
                     );
                 })}
@@ -425,6 +410,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
                                 disableHover={!hasModifiers}
+                                disableTooltip={true}
                             />
                         </div>
                         <span className="text-[7px] font-bold text-slate-400 uppercase">Mod-Tap</span>
@@ -442,6 +428,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
                                 disableHover={!hasModifiers}
+                                disableTooltip={true}
                             />
                         </div>
                         <span className="text-[7px] font-bold text-slate-400 uppercase">One-Shot</span>
@@ -459,6 +446,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
                                 disableHover={!hasModifiers}
+                                disableTooltip={true}
                             />
                         </div>
                     </div>
@@ -466,7 +454,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
                 {/* QWERTY keyboard - main content, no language selector here */}
                 <div className="flex-shrink-0">
-                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector />
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
                 </div>
 
                 {/* Blank/Transparent keys */}
@@ -490,6 +478,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     hoverBackgroundColor={hoverBackgroundColor}
                                     hoverLayerColor={layerColorName}
                                     onClick={() => handleKeyClick(k.keycode)}
+                                    disableTooltip={true}
                                 />
                             );
                         })}
@@ -521,6 +510,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     hoverBackgroundColor={hoverBackgroundColor}
                                     hoverLayerColor={layerColorName}
                                     onClick={() => handleKeyClick(k.keycode)}
+                                    disableTooltip={true}
                                 />
                             );
                         })}
@@ -549,6 +539,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     hoverBackgroundColor={hoverBackgroundColor}
                                     hoverLayerColor={layerColorName}
                                     onClick={() => handleKeyClick(k.keycode)}
+                                    disableTooltip={true}
                                 />
                             );
                         })}
@@ -581,7 +572,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         ))}
                     </select>
                 </div>
-                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector />
+                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
             </div>
 
             <section className="flex flex-col gap-2">
@@ -592,7 +583,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         variant={activeModifiers.length === 0 ? "default" : "secondary"}
                         size="sm"
                         className={cn(
-                            "rounded-md px-4 py-2 h-11 transition-all text-sm font-bold border-none",
+                            "rounded-md px-6 h-8 transition-all text-sm font-bold border-none",
                             activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                         )}
                         onClick={handleClearModifiers}
@@ -609,7 +600,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 variant={isActive ? "default" : "secondary"}
                                 size="sm"
                                 className={cn(
-                                    "rounded-md px-4 py-2 h-11 transition-all text-sm font-bold border-none",
+                                    "rounded-md px-6 h-8 transition-all text-sm font-bold border-none",
                                     isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                 )}
                                 onClick={() => handleModifierToggle(modifier)}
@@ -619,69 +610,49 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         );
                     })}
                 </div>
-                {/* Three constructed keys: Modifier, Mod-Tap, One-Shot */}
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <span className="font-semibold text-lg text-slate-700">Mod-Tap and One-Shot Modifier</span>
                 {(() => {
-                    const sidebarVariant = keyVariant === 'small' ? 'small' as const : 'medium' as const;
-                    const sidebarSizeClass = sidebarVariant === 'small' ? 'h-[30px] w-[90px]' : 'h-[45px] w-[120px]';
                     const dimClass = "opacity-30 pointer-events-none";
                     return (
                         <div className="flex items-end gap-3">
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">Modifier</span>
-                                <div className={cn(!hasModifiers && dimClass)}>
-                                    <Key
-                                        x={0} y={0} w={1} h={1} row={0} col={0}
-                                        keycode={modifierKeycode}
-                                        label={modifierContents?.str || modifierKeycode}
-                                        keyContents={modifierContents as KeyContent | undefined}
-                                        layerColor={hasModifiers ? layerColorName : "sidebar"}
-                                        headerClassName={hasModifiers ? `bg-kb-sidebar-dark ${hoverHeaderClass}` : "bg-kb-sidebar-dark"}
-                                        isRelative variant={sidebarVariant} className={sidebarSizeClass}
-                                        onClick={hasModifiers ? () => assignKeycode(modifierKeycode) : undefined}
-                                        hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
-                                        hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
-                                        hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                        disableHover={!hasModifiers}
-                                    />
-                                </div>
+                            <div className={cn("flex flex-col gap-0.5", !hasModifiers && dimClass)}>
+                                <Key
+                                    x={0} y={0} w={1} h={1} row={0} col={0}
+                                    keycode={modTapKeycode || "KC_NO"}
+                                    label={""}
+                                    keyContents={hasModifiers
+                                        ? (modTapContents as KeyContent)
+                                        : { type: "modtap", str: "MT", top: "MT" } as KeyContent
+                                    }
+                                    layerColor="sidebar"
+                                    headerClassName="bg-kb-sidebar-dark"
+                                    isRelative variant={keyVariant}
+                                    className={keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]'}
+                                    onClick={modTapKeycode ? () => assignKeycode(modTapKeycode) : undefined}
+                                    disableHover={!hasModifiers}
+                                    disableTooltip={true}
+                                />
                             </div>
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">Mod-Tap</span>
-                                <div className={cn(!hasModifiers && dimClass)}>
-                                    <Key
-                                        x={0} y={0} w={1} h={1} row={0} col={0}
-                                        keycode={modTapKeycode || "KC_NO"}
-                                        label={modTapContents?.str || modTapKeycode || ""}
-                                        keyContents={modTapContents as KeyContent | undefined}
-                                        layerColor={hasModifiers ? layerColorName : "sidebar"}
-                                        headerClassName={hasModifiers ? `bg-kb-sidebar-dark ${hoverHeaderClass}` : "bg-kb-sidebar-dark"}
-                                        isRelative variant={sidebarVariant} className={sidebarSizeClass}
-                                        onClick={modTapKeycode ? () => assignKeycode(modTapKeycode) : undefined}
-                                        hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
-                                        hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
-                                        hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                        disableHover={!hasModifiers}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">One-Shot</span>
-                                <div className={cn(!hasModifiers && dimClass)}>
-                                    <Key
-                                        x={0} y={0} w={1} h={1} row={0} col={0}
-                                        keycode={osmKeycode || "OSM(MOD_LCTL)"}
-                                        label={osmContents?.str || "OSM"}
-                                        keyContents={osmContents || (keyboard ? getKeyContents(keyboard, "OSM(MOD_LCTL)") : undefined)}
-                                        layerColor={hasModifiers ? layerColorName : "sidebar"}
-                                        headerClassName={hasModifiers ? `bg-kb-sidebar-dark ${hoverHeaderClass}` : "bg-kb-sidebar-dark"}
-                                        isRelative variant={sidebarVariant} className={sidebarSizeClass}
-                                        onClick={osmKeycode ? () => assignKeycode(osmKeycode) : undefined}
-                                        hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
-                                        hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
-                                        hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                        disableHover={!hasModifiers}
-                                    />
-                                </div>
+                            <div className={cn("flex flex-col gap-0.5", !hasModifiers && dimClass)}>
+                                <Key
+                                    x={0} y={0} w={1} h={1} row={0} col={0}
+                                    keycode={osmKeycode || "OSM(MOD_LCTL)"}
+                                    label={""}
+                                    keyContents={hasModifiers
+                                        ? (osmContents as KeyContent)
+                                        : { type: "OSM", str: "OSM", top: "OSM" } as KeyContent
+                                    }
+                                    layerColor="sidebar"
+                                    headerClassName="bg-kb-sidebar-dark"
+                                    isRelative variant={keyVariant}
+                                    className={keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]'}
+                                    onClick={osmKeycode ? () => assignKeycode(osmKeycode) : undefined}
+                                    disableHover={!hasModifiers}
+                                    disableTooltip={true}
+                                />
                             </div>
                         </div>
                     );
@@ -702,7 +673,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                     {renderKeyGrid(functionKeys)}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

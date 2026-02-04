@@ -111,6 +111,7 @@ const LeaderEditor: FC = () => {
                         className={keyClassName}
                         headerClassName={headerClass}
                         variant={keyVariant}
+                        disableTooltip={true}
                     />
                     {hasContent && (
                         <div className="absolute -top-2 -right-2 opacity-0 group-hover/leader-key:opacity-100 transition-opacity">
@@ -180,6 +181,7 @@ const LeaderEditor: FC = () => {
                         className={keyClassName}
                         headerClassName={headerClass}
                         variant={keyVariant}
+                        disableTooltip={true}
                     />
                     {hasContent && (
                         <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/leader-output:opacity-100 transition-opacity`}>

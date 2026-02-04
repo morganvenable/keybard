@@ -138,6 +138,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                             hoverLayerColor={layerColorName}
                             variant="medium"
                             onClick={hasSelection ? handleAssign : undefined}
+                            disableTooltip={true}
                         />
                     </div>
                 </div>
@@ -203,6 +204,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                             hoverLayerColor={layerColorName}
                             variant={keyVariant}
                             onClick={hasSelection ? handleAssign : undefined}
+                            disableTooltip={true}
                         />
                     </div>
                     {hasSelection && (

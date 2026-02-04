@@ -162,6 +162,7 @@ export const LayerPreviewModal: FC<LayerPreviewModalProps> = ({
                                         headerClassName={headerClass}
                                         variant="small"
                                         disableHover={true}
+                                        disableTooltip={true}
                                     />
                                 );
                             })}

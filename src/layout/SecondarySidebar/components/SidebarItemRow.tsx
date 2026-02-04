@@ -253,6 +253,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={hoverLayerColor}
                             onClick={onAssignKeycode ? () => onAssignKeycode(keycode) : undefined}
+                            disableTooltip={true}
                         />
                     )}
                     {onEdit && (

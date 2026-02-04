@@ -81,6 +81,7 @@ const MacroEditorKey: FC<Props> = ({ label, binding, index, onDelete }) => {
                         hoverLayerColor={layerColorName}
                         selected={isSelected}
                         onClick={() => selectMacroKey(mid!, index)}
+                        disableTooltip={true}
                     />
                 </div>
                 <div className="flex flex-row items-center flex-grow">

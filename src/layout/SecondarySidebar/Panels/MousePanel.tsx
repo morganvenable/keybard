@@ -139,6 +139,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                                 hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
                                 hoverLayerColor={hoverStyles.layerColorName}
                                 onClick={() => assignKeycode(mouseKey.keycode)}
+                                disableTooltip={true}
                             />
                         );
                     })}

@@ -102,6 +102,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         className="border-kb-gray"
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={() => handleEdit(macroIndex)}
+                        disableTooltip={true}
                     />
                 </div>
             );
@@ -171,6 +172,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                                         className="border-kb-gray"
                                         headerClassName="bg-kb-sidebar-dark"
                                         onClick={() => assignKeycode(macroKeycode)}
+                                        disableTooltip={true}
                                     />
                                 </div>
                                 <span className="text-xs font-bold text-slate-600 truncate">

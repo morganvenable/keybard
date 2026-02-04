@@ -167,6 +167,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         keyContents={keyContents}
                         layerColor="sidebar"
                         variant={inline ? "small" : "default"}
+                        disableTooltip={true}
                     />
                 </div>
             );

@@ -177,6 +177,7 @@ export const MatrixTester: FC = () => {
                             variant={keyVariant}
                             disableHover
                             keyContents={{ type: "text", str: "" }}
+                            disableTooltip={true}
                         />
                     );
                 })}

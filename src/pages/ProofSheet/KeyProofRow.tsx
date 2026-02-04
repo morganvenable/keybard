@@ -57,6 +57,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
                         selected={selected}
                         hasPendingChange={hasPendingChange}
                         variant="default"
+                        disableTooltip={true}
                     />
                 </div>
 
@@ -79,6 +80,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
                         selected={selected}
                         hasPendingChange={hasPendingChange}
                         variant="medium"
+                        disableTooltip={true}
                     />
                 </div>
 
@@ -101,6 +103,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
                         selected={selected}
                         hasPendingChange={hasPendingChange}
                         variant="small"
+                        disableTooltip={true}
                     />
                 </div>
             </div>

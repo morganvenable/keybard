@@ -97,6 +97,7 @@ const ComboEditor: FC<Props> = () => {
                     hoverBackgroundColor={hoverBackgroundColor}
                     hoverLayerColor={layerColorName}
                     variant={keyVariant}
+                    disableTooltip={true}
                 />
 
                 {hasContent && (

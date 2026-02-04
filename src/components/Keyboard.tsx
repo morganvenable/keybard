@@ -283,6 +283,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             variant={keyVariant}
                             layerIndex={selectedLayer}
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
+                            disableTooltip={true}
                         />
                     );
                 })}

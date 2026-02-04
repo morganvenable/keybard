@@ -116,6 +116,7 @@ const AltRepeatEditor: FC = () => {
                         layerColor={keyColor}
                         className={keyClassName}
                         headerClassName={headerClass}
+                        disableTooltip={true}
                     />
                     {hasContent && (
                         <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/altrepeat-key:opacity-100 group-hover/altrepeat-key:pointer-events-auto pointer-events-none transition-opacity">

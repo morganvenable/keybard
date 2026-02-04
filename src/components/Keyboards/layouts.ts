@@ -39,7 +39,7 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
         ],
         shift: [
             "{escape} {f1} {f2} {f3} {f4} {f5} {f6} {f7} {f8} {f9} {f10} {f11} {f12}",
-            "¬ ! \" £ $ % ^ & * ( ) _ + {backspace}",
+            '¬ ! " £ $ % ^ & * ( ) _ + {backspace}',
             "{tab} Q W E R T Y U I O P { } ~",
             '{capslock} A S D F G H J K L : @ {enter}',
             "{shiftleft} | Z X C V B N M < > ? {shiftright}",
@@ -348,7 +348,7 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "+": "KC_RBRACKET", "*": "KC_RBRACKET",
         "ö": "KC_SCOLON", "Ö": "KC_SCOLON",
         "ä": "KC_QUOTE", "Ä": "KC_QUOTE",
-        "#": "KC_NUHS"
+        "#": "KC_NUHS", "'": "KC_NUHS"
     },
     french: {
         "a": "KC_Q", "A": "KC_Q", "q": "KC_A", "Q": "KC_A",
@@ -356,11 +356,12 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "m": "KC_SCOLON", "M": "KC_SCOLON",
         "&": "KC_1", "é": "KC_2", "\"": "KC_3", "'": "KC_4", "(": "KC_5", "-": "KC_6", "è": "KC_7", "_": "KC_8", "{cedilla}": "KC_9", "à": "KC_0", ")": "KC_MINUS", "=": "KC_EQUAL",
         "^": "KC_LBRACKET", "$": "KC_RBRACKET", "ù": "KC_QUOTE", "*": "KC_NONUS_HASH", "!": "KC_SLASH", ":": "KC_DOT", ";": "KC_COMMA", ",": "KC_M",
-        "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH"
+        "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH",
+        "°": "KC_MINUS"
     },
     uk: {
-        "\"": "KC_2", "@": "KC_QUOTE", "£": "KC_3", "~": "KC_HASH", "\\": "KC_NONUS_BSLASH", "|": "KC_NONUS_BSLASH",
-        "#": "KC_NUHS" // UK usually puts # near enter
+        "\"": "KC_2", "@": "KC_QUOTE", "£": "KC_3", "~": "KC_NUHS", "\\": "KC_NONUS_BSLASH", "|": "KC_NONUS_BSLASH",
+        "#": "KC_NUHS"
     },
     spanish: {
         "'": "KC_MINUS", "?": "KC_MINUS", "¿": "KC_EQUAL", "¡": "KC_EQUAL",
@@ -370,7 +371,9 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "-": "KC_SLASH", "_": "KC_SLASH",
         ".": "KC_DOT", ":": "KC_DOT",
         ",": "KC_COMMA", ";": "KC_COMMA",
-        "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH"
+        "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH",
+        "!": "KC_1", "\"": "KC_2", "·": "KC_3", "$": "KC_4", "%": "KC_5", "&": "KC_6", "/": "KC_7", "(": "KC_8", ")": "KC_9", "=": "KC_0",
+        "ª": "KC_GRAVE", "º": "KC_GRAVE"
     },
     danish: {
         "+": "KC_MINUS", "´": "KC_EQUAL",
@@ -380,7 +383,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "½": "KC_GRAVE",
         "å": "KC_LBRACKET", "Å": "KC_LBRACKET",
         "æ": "KC_SCOLON", "Æ": "KC_SCOLON",
-        "ø": "KC_QUOTE", "Ø": "KC_QUOTE"
+        "ø": "KC_QUOTE", "Ø": "KC_QUOTE",
+        "!": "KC_1", "\"": "KC_2", "#": "KC_3", "¤": "KC_4", "%": "KC_5", "&": "KC_6", "/": "KC_7", "(": "KC_8", ")": "KC_9", "=": "KC_0"
     },
     russian: {
         ".": "KC_SLASH", ",": "KC_SLASH"
@@ -395,7 +399,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "à": "KC_QUOTE", "°": "KC_QUOTE",
         "ù": "KC_NONUS_HASH", "§": "KC_NONUS_HASH",
         "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH",
-        "-": "KC_SLASH", "_": "KC_SLASH"
+        "-": "KC_SLASH", "_": "KC_SLASH",
+        "!": "KC_1", "\"": "KC_2", "£": "KC_3", "$": "KC_4", "%": "KC_5", "&": "KC_6", "/": "KC_7", "(": "KC_8", ")": "KC_9", "=": "KC_0"
     },
     br: {
         "'": "KC_GRAVE", "\"": "KC_GRAVE",
@@ -420,7 +425,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "ä": "KC_QUOTE", "à": "KC_QUOTE",
         "$": "KC_NONUS_HASH", "£": "KC_NONUS_HASH",
         "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH",
-        "-": "KC_SLASH", "_": "KC_SLASH"
+        "-": "KC_SLASH", "_": "KC_SLASH",
+        "+": "KC_1", "\"": "KC_2", "*": "KC_3", "ç": "KC_4", "%": "KC_5", "&": "KC_6", "/": "KC_7", "(": "KC_8", ")": "KC_9", "=": "KC_0"
     }
 };
 

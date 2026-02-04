@@ -3,7 +3,7 @@ import { DragItem, useDrag } from "@/contexts/DragContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { KeyContent } from "@/types/vial.types";
-import { CODEMAP } from "@/constants/keygen";
+import { keyService } from "@/services/key.service";
 import { UNIT_SIZE, MATRIX_COLS } from "@/constants/svalboard-layout";
 
 export interface UseKeyDragProps {
@@ -135,27 +135,40 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                     );
                 }
             } else {
-                // Check if the dragged item is a modifier wrapping KC_NO — if so,
-                // combine with the drop target's existing base keycode
                 const dragKc = draggedItem.keycode;
-                const modWrapMatch = typeof dragKc === "string" && dragKc.match(/^(\w+)\(KC_NO\)$/);
-                if (modWrapMatch && keyboard?.keymap && layerIndex !== undefined) {
-                    const modPrefix = modWrapMatch[1];
-                    const matrixCols = keyboard.cols || MATRIX_COLS;
-                    const matrixPos = row * matrixCols + col;
-                    const existingNumeric = keyboard.keymap[layerIndex]?.[matrixPos];
-                    if (existingNumeric !== undefined && existingNumeric > 0) {
-                        // Get the base keycode (strip existing modifiers if any)
-                        let baseCode = existingNumeric;
-                        if (existingNumeric >= 0x2000 && existingNumeric <= 0x3FFF) {
-                            baseCode = existingNumeric & 0xFF; // mod-tap inner
-                        } else if (existingNumeric >= 0x0100 && existingNumeric <= 0x1FFF) {
-                            baseCode = existingNumeric & 0xFF; // modmask inner
-                        }
-                        const baseStr = baseCode in CODEMAP ? (CODEMAP[baseCode] as string) : "KC_NO";
-                        assignKeycode(`${modPrefix}(${baseStr})`);
+                const dragNumeric = keyService.parse(dragKc);
+                const matrixCols = keyboard!.cols || MATRIX_COLS;
+                const matrixPos = row * matrixCols + col;
+                const existingNumeric = keyboard?.keymap?.[layerIndex]?.[matrixPos] || 0;
+
+                // Check if the dragged item is a "wrapper" template (e.g., LCTL(KC_NO), LSFT_T(KC_NO), LT1(KC_NO))
+                // OR if it's a smart preview being dragged from the sidebar (draggedItem.row is undefined)
+                const isDragWrapper = (dragNumeric >= 0x0100 && dragNumeric <= 0x4FFF) &&
+                    (dragNumeric & 0xFF) === 0;
+
+                if (isDragWrapper && existingNumeric > 0) {
+                    // Extract the "inner" part of the existing key (the basic key/keycode)
+                    const basePart = existingNumeric & 0x00FF;
+
+                    // Determine the types for combining logic
+                    const dragType = dragNumeric & 0xF000;
+                    const existingType = existingNumeric & 0xF000;
+
+                    // Case 1: Both are same-category wrappers (e.g. both Modifiers or both Mod-Taps)
+                    // We can combine their modifier masks bitwise.
+                    const isModCategory = (t: number) => t === 0x0000 || t === 0x1000;
+                    const isModTapCategory = (t: number) => t === 0x2000 || t === 0x3000;
+
+                    if (isModCategory(dragType) && isModCategory(existingType)) {
+                        // Combine plain modifiers (preserving existing base key)
+                        assignKeycode((dragNumeric | existingNumeric) & 0x1FFF);
+                    } else if (isModTapCategory(dragType) && isModTapCategory(existingType)) {
+                        // Combine mod-tap modifiers (preserving existing base key)
+                        assignKeycode((dragNumeric | existingNumeric) & 0x3FFF);
                     } else {
-                        assignKeycode(dragKc);
+                        // Mixed types or first-time assignment: wrap existing base key with new modifier/type
+                        // This handles LT(layer, basePart), MT(mods, basePart), etc.
+                        assignKeycode((dragNumeric & 0xFF00) | basePart);
                     }
                 } else {
                     assignKeycode(dragKc);

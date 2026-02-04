@@ -185,6 +185,7 @@ const LeadersPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleKeyClick(index, slot, seqIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -215,6 +216,7 @@ const LeadersPanel: React.FC = () => {
                             headerClassName="bg-kb-sidebar-dark"
                             variant="medium"
                             onClick={handleAssignLeaderKey}
+                            disableTooltip={true}
                         />
                     </div>
                 </div>
@@ -304,6 +306,7 @@ const LeadersPanel: React.FC = () => {
                         )}
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={handleAssignLeaderKey}
+                        disableTooltip={true}
                     />
                 </div>
             </div>

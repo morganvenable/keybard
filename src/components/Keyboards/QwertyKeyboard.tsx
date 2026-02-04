@@ -13,9 +13,31 @@ interface IProps {
     onKeyPress?: (button: string) => void;
     activeModifiers?: string[];
     hideLanguageSelector?: boolean;
+    disableTooltip?: boolean;
 }
 
-const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [], hideLanguageSelector = false }) => {
+// Helper to get modifier bitmask (same as BasicKeyboards)
+const getModifierMask = (activeModifiers: string[]): number => {
+    const hasCtrl = activeModifiers.includes("Ctrl");
+    const hasShift = activeModifiers.includes("Shift");
+    const hasAlt = activeModifiers.includes("Alt");
+    const hasGui = activeModifiers.includes("Gui");
+    return (hasCtrl ? 1 : 0) | (hasShift ? 2 : 0) | (hasAlt ? 4 : 0) | (hasGui ? 8 : 0);
+};
+
+const MODIFIER_MAP: Record<number, string> = {
+    1: "LCTL", 2: "LSFT", 3: "C_S", 4: "LALT", 5: "LCA", 6: "LSA", 7: "MEH",
+    8: "LGUI", 9: "LCG", 10: "SGUI", 11: "LSCG", 12: "LAG", 13: "LCAG", 14: "LSAG", 15: "HYPR",
+};
+
+const applyModifiers = (keycode: string, activeModifiers: string[]) => {
+    if (activeModifiers.length === 0) return keycode;
+    const mask = getModifierMask(activeModifiers);
+    const modifierFunc = MODIFIER_MAP[mask];
+    return modifierFunc ? `${modifierFunc}(${keycode})` : keycode;
+};
+
+const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [], hideLanguageSelector = false, disableTooltip = false }) => {
     const [layoutName, setLayoutName] = useState<"default" | "shift">("default");
     const { internationalLayout, setInternationalLayout, layoutMode } = useLayoutSettings();
     const { keyboard } = useVial();
@@ -92,15 +114,40 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // key is "ç" or "a" or "{shift}"
                     const labelKey = visualKey;
 
-                    const keycode = layoutKeyMap[labelKey] ||
+                    let keycode = layoutKeyMap[labelKey] ||
                         layoutKeyMap[labelKey.toLowerCase()] ||
                         BUTTON_TO_KEYCODE_MAP[labelKey] ||
                         BUTTON_TO_KEYCODE_MAP[labelKey.toLowerCase()] ||
                         labelKey;
 
+                    // Don't modify special structural keys
+                    const isStructureKey = keycode.startsWith("KC_") === false && !["{", "}"].some(c => keycode.includes(c));
+                    // Actually check if it is a modifier key itself (e.g. KC_LSFT) or a structural key
+                    // Simplified: if it's a regular keycode (starts with KC_ or is a character), apply modifiers
+                    // But prevent modifying the modifiers themselves if mistakenly passed?
+                    // Safe approach: apply activeModifiers if provided, but skip if keycode is weird.
+
+                    // Actually, if we are DRAGGING, we want the modified keycode.
+                    // If we are CLICKING, onKeyPress handles it (via BasicKeyboards callback which applies modifiers).
+                    // So this change PRIMARILY affects the Key component's `keycode` prop, which determines drag payload.
+
+                    // Exclude special UI keys from being modified
+                    const isSpecial = ["{shiftleft}", "{shiftright}", "{capslock}", "{space}"].includes(defaultKey);
+                    // Note: {space} is KC_SPC, which CAN be modified.
+
+                    // Apply modifiers to the keycode if valid
+                    // We only modify if it looks like a basic keycode
+                    if (activeModifiers.length > 0 &&
+                        !["KC_TRNS", "KC_NO", "KC_LSFT", "KC_LCTL", "KC_LALT", "KC_LGUI", "KC_RSFT", "KC_RCTL", "KC_RALT", "KC_RGUI"].includes(keycode) &&
+                        !keycode.includes("{") // Don't modify UI placeholders
+                    ) {
+                        keycode = applyModifiers(keycode, activeModifiers);
+                    }
+
                     const displayLabel = KEY_DISPLAY_OVERRIDES[visualKey] || visualKey.replace("{", "").replace("}", "");
                     const width = getKeyWidth(defaultKey); // Use default key for width lookup to be consistent
                     const keyContents = keyboard ? getKeyContents(keyboard, keycode) : undefined;
+
 
                     return (
                         <Key
@@ -117,6 +164,8 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
                             onClick={() => onKeyPress(outputKey)}
+                            disableTooltip={disableTooltip}
+                            forceLabel={true}
                         />
                     );
                 })}

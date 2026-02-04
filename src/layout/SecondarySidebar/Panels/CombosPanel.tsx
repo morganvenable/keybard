@@ -155,6 +155,7 @@ const CombosPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(comboIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );

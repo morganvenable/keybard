@@ -99,6 +99,7 @@ const MediaKeys = ({ compact, variant: variantOverride }: Props) => {
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
                             onClick={() => assignKeycode(k.keycode)}
+                            disableTooltip={true}
                         />
                     ))}
             </div>

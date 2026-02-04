@@ -30,7 +30,9 @@ export interface KeyProps {
     hoverBackgroundColor?: string;
     hoverLayerColor?: string;
     disableHover?: boolean;
+    disableTooltip?: boolean;
     hasPendingChange?: boolean;
+    forceLabel?: boolean;
 }
 
 /**
@@ -42,7 +44,7 @@ export const Key: React.FC<KeyProps> = (props) => {
         selected = false, selectedSubsection = null, onClick, onSubsectionClick, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
-        hasPendingChange = false,
+        hasPendingChange = false, forceLabel = false,
     } = props;
 
     const uniqueId = React.useId();
@@ -72,6 +74,12 @@ export const Key: React.FC<KeyProps> = (props) => {
             } else {
                 displayLabel = keyStr;
             }
+
+            // If forceLabel is true, use the provided label instead of the derived one
+            if (forceLabel) {
+                displayLabel = label;
+            }
+
             // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
             const modMatch = keycode.match(/^([A-Z]+)\(/);
             bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
@@ -88,7 +96,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             }
             // Extract modifier prefix from keycode (e.g., "LGUI_T(KC_TAB)" -> "LGUI_T")
             const modMatch = keycode.match(/^(\w+_T)\(/);
-            topLabel = modMatch ? modMatch[1] : "MOD_T";
+            topLabel = keyContents.top || (modMatch ? modMatch[1] : "MOD_T");
         } else if (keyContents?.type === "layerhold") {
             // Layer-tap key (e.g., LT1(KC_ENTER))
             // Show key in center, LT# in header
@@ -218,7 +226,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={keycode}
+                title={props.disableTooltip ? undefined : keycode}
             >
                 <span className={headerClass}>{keyContents?.layertext}</span>
                 <div className={cn("flex flex-row h-full w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
@@ -244,7 +252,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={keycode}
+                title={props.disableTooltip ? undefined : keycode}
             >
                 {/* Header - clicking selects the full key */}
                 <span
@@ -293,7 +301,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             onMouseLeave={drag.handleMouseLeave}
             onMouseDown={drag.handleMouseDown}
             onMouseUp={drag.handleMouseUp}
-            title={keycode}
+            title={props.disableTooltip ? undefined : keycode}
         >
             {keyData.topLabel && (
                 <span className={cn(headerClass, "flex items-center justify-center", isSmall ? "text-[8px] min-h-[10px]" : isMedium ? "text-[10px] min-h-[14px]" : "min-h-[1.2rem]")}>

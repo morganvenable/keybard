@@ -39,7 +39,7 @@ export const DragOverlay: React.FC = () => {
 
     const renderContent = () => {
         if (draggedItem.component === "Key" && draggedItem.props) {
-            return <Key {...draggedItem.props as any} />;
+            return <Key {...draggedItem.props as any} disableTooltip={true} />;
         }
         if (draggedItem.component === "EditorKey" && draggedItem.props) {
             return <EditorKey {...draggedItem.props as any} />;

@@ -158,6 +158,7 @@ const TapdanceEditor: FC<Props> = () => {
                             className={keyClassName}
                             headerClassName={headerClass}
                             variant={effectiveVariant}
+                            disableTooltip={true}
                         />
                         {hasContent && (
                             <button
@@ -195,6 +196,7 @@ const TapdanceEditor: FC<Props> = () => {
                             className={keyClassName}
                             headerClassName={headerClass}
                             variant={effectiveVariant}
+                            disableTooltip={true}
                         />
                     </div>
                     <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>

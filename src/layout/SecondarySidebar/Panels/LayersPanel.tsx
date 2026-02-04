@@ -10,6 +10,7 @@ import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
 import { KeyContent } from "@/types/vial.types";
+import { CODEMAP } from "@/constants/keygen";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 
@@ -39,13 +40,35 @@ interface Props {
 const LayersPanel = ({ isPicker }: Props) => {
     const [activeModifier, setActiveModifier] = useState<LayerModifier>("MO");
     const { keyboard, setKeyboard } = useVial();
-    const { assignKeycode } = useKeyBinding();
+    const { assignKeycode, selectedTarget } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
 
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
+
+    // Compute the base keycode string for use in LT previews
+    const getBaseKeycode = (): string => {
+        if (!keyboard?.keymap || !selectedTarget || selectedTarget.type !== "keyboard") return "KC_NO";
+        const { layer, row, col } = selectedTarget;
+        if (layer === undefined || row === undefined || col === undefined) return "KC_NO";
+        const matrixCols = keyboard.cols || 16; // Use actual columns or fallback
+        const matrixPos = row * matrixCols + col;
+        const numericKeycode = keyboard.keymap[layer]?.[matrixPos];
+        if (numericKeycode === undefined) return "KC_NO";
+
+        let baseCode = numericKeycode;
+        // QK_MODS (0x0100), QK_MOD_TAP (0x2000), QK_LAYER_TAP (0x4000)
+        if (numericKeycode >= 0x0100 && numericKeycode <= 0x4FFF) {
+            baseCode = numericKeycode & 0x00FF;
+        }
+
+        // Return the string name if known
+        return baseCode in CODEMAP ? (CODEMAP[baseCode] as string) : "KC_NO";
+    };
+
+    const baseKeyStr = getBaseKeycode();
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -105,7 +128,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                 <div className="flex flex-row gap-1 flex-wrap items-start">
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
                         const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
-                        const keycode = activeModifier === "LT" ? `LT${i}(kc)` : `${activeModifier}(${i})`;
+                        // LT uses format LT#(key) instead of LT(#)
+                        const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
                         const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
                         return (
@@ -123,6 +147,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 hoverBackgroundColor={hoverBackgroundColor}
                                 hoverLayerColor={layerColorName}
                                 onClick={() => assignKeycode(keycode)}
+                                disableTooltip={true}
                             />
                         );
                     })}
@@ -175,7 +200,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                     const hasCustomName = layerName !== "";
                     const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
                     // LT uses format LT#(key) instead of LT(#)
-                    const keycode = activeModifier === "LT" ? `LT${i}(kc)` : `${activeModifier}(${i})`;
+                    const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
                     return (

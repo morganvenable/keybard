@@ -49,6 +49,7 @@ const FunctionKeys = () => {
                         hoverBackgroundColor={hoverBackgroundColor}
                         hoverLayerColor={layerColorName}
                         onClick={() => assignKeycode(k.keycode)}
+                        disableTooltip={true}
                     />
                 ))}
             </div>

@@ -48,6 +48,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
                 hoverBorderColor={hoverBorderColor}
                 hoverBackgroundColor={hoverBackgroundColor}
                 hoverLayerColor={layerColorName}
+                disableTooltip={true}
             />
         );
     };

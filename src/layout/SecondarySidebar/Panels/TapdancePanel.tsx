@@ -65,6 +65,7 @@ const TapdancePanel: React.FC = () => {
                     }
                     headerClassName={!hasContent ? "hidden" : "bg-kb-sidebar-dark"}
                     onClick={() => handleEdit(tdIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -117,6 +118,7 @@ const TapdancePanel: React.FC = () => {
                                         className="border-kb-gray"
                                         headerClassName="bg-kb-sidebar-dark"
                                         onClick={() => assignKeycode(tdKeycode)}
+                                        disableTooltip={true}
                                     />
                                 </div>
                                 <span className="text-xs font-bold text-slate-600">TD {i}</span>
@@ -136,10 +138,10 @@ const TapdancePanel: React.FC = () => {
                     const states = [td?.tap, td?.hold, td?.taphold, td?.doubletap];
                     return states.some(k => k && k !== "KC_NO");
                 }).length === 0 && (
-                    <div className="text-center text-gray-500 py-4 px-6">
-                        No tapdances configured.
-                    </div>
-                )}
+                        <div className="text-center text-gray-500 py-4 px-6">
+                            No tapdances configured.
+                        </div>
+                    )}
             </div>
         );
     }

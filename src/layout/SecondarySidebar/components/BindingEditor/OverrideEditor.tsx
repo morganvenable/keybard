@@ -148,6 +148,7 @@ const OverrideEditor: FC<Props> = () => {
                         layerColor={keyColor}
                         className={keyClassName}
                         headerClassName={headerClass}
+                        disableTooltip={true}
                     />
                     {hasContent && (
                         <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/override-key:opacity-100 group-hover/override-key:pointer-events-auto pointer-events-none transition-opacity">

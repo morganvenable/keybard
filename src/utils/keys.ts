@@ -149,6 +149,27 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
 
     keystr = keyService.canonical(keystr);
 
+    // Special handling for HYPR_T which keyService often fails to parse
+    m = keystr.match(/^HYPR_T\((.*)\)$/);
+    if (m) {
+        const innerKey = m[1];
+        const kckey = getKeyContents(KBINFO, innerKey);
+        // Fallback for inner title
+        let kctitle = kckey?.title || innerKey;
+        if (kctitle === "KC_NO" || innerKey === "KC_NO") {
+            kctitle = "Selected Key";
+        }
+
+        return {
+            type: "modtap",
+            mods: "HYPR",
+            modids: 0, // No valid ID available, but we don't need it for display
+            top: "HYPR",
+            str: kckey?.str || innerKey,
+            title: "Hyper + " + kctitle,
+        };
+    }
+
     const keyid = keyService.parse(keystr);
 
     if (keyid === 0) {
@@ -261,6 +282,8 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
             };
         }
     }
+
+
 
     m = keystr.match(/^M(\d+)$/);
     if (m) {

@@ -111,6 +111,7 @@ const OverridesPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(overrideIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );

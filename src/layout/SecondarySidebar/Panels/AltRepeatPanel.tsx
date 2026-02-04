@@ -135,6 +135,7 @@ const AltRepeatPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleKeyClick(index, slot)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -165,6 +166,7 @@ const AltRepeatPanel: React.FC = () => {
                             headerClassName="bg-kb-sidebar-dark"
                             variant="medium"
                             onClick={handleAssignAltRepeatKey}
+                            disableTooltip={true}
                         />
                     </div>
                 </div>
@@ -246,6 +248,7 @@ const AltRepeatPanel: React.FC = () => {
                         )}
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={handleAssignAltRepeatKey}
+                        disableTooltip={true}
                     />
                 </div>
             </div>

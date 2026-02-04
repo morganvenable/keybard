@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
 import ExploreLayoutsPage from "./pages/ExploreLayoutsPage";
+import ProofSheetPage from "./pages/ProofSheet/ProofSheetPage";
 
 import { ChangesProvider } from "./contexts/ChangesContext";
 import { DragProvider } from "./contexts/DragContext";
@@ -68,6 +69,8 @@ function AppContent() {
                 <DragProvider>
                     <ExploreLayoutsPage onBack={goBack} />
                 </DragProvider>
+            ) : currentPage === "proof-sheet" ? (
+                <ProofSheetPage onBack={goBack} />
             ) : null}
         </>
     );
