@@ -494,7 +494,7 @@ const EditorLayoutInner = () => {
                     {useBottomLayout && (
                         <div
                             className={cn(
-                                "absolute inset-x-0 bottom-0 z-30 transition-all duration-300 ease-in-out flex items-end justify-center gap-0 max-h-full",
+                                "absolute inset-x-0 bottom-0 z-[60] transition-all duration-300 ease-in-out flex items-end justify-center gap-0 max-h-full",
                                 showEditorOverlay ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                             )}
                             onClick={(e) => e.stopPropagation()}

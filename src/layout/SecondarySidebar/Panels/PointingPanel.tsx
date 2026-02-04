@@ -9,7 +9,7 @@ import { useVial } from "@/contexts/VialContext";
  * - When connected: shows Mouse Keys section at top, then dynamic VIA3 menu content
  */
 const PointingPanel = () => {
-    const { keyboard, isConnected } = useVial();
+    const { keyboard, isConnected, connect } = useVial();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
 
@@ -22,9 +22,15 @@ const PointingPanel = () => {
     // Not connected
     if (!isConnected) {
         return (
-            <section className="h-full flex flex-col items-center justify-center p-4">
-                <p className="text-muted-foreground text-center">
-                    Connect to a keyboard to view pointing device settings
+            <section className="h-full flex flex-col pt-2">
+                <p className="text-muted-foreground text-sm">
+                    <button
+                        onClick={() => connect()}
+                        className="underline underline-offset-2 hover:text-foreground transition-all"
+                    >
+                        Connect
+                    </button>
+                    {" keyboard to view pointing devices settings"}
                 </p>
             </section>
         );

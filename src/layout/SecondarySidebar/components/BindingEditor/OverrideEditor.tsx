@@ -1,9 +1,8 @@
 import { FC, useState, useEffect } from "react";
 import { ArrowRight, Trash2 } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import { Key } from "@/components/Key";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
@@ -26,7 +25,12 @@ const OPTIONS = [
     { label: "No unregister on other key down", bit: 1 << 5 },
 ] as const;
 
+
+
 const ENABLED_BIT = 1 << 7;
+
+import { vialService } from "@/services/vial.service";
+import { KeyContent } from "@/types/vial.types";
 
 const OverrideEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -36,6 +40,34 @@ const OverrideEditor: FC<Props> = () => {
 
     const overrideIndex = itemToEdit!;
     const override = keyboard?.key_overrides?.[overrideIndex];
+
+    useEffect(() => {
+        if (!keyboard?.key_overrides || itemToEdit === null) return;
+        const entry = keyboard.key_overrides[itemToEdit];
+        if (!entry) return;
+
+        const hasTrigger = entry.trigger !== "KC_NO" && entry.trigger !== "";
+        const hasReplacement = entry.replacement !== "KC_NO" && entry.replacement !== "";
+        const isEmpty = !hasTrigger && !hasReplacement;
+        const isEnabled = (entry.options & ENABLED_BIT) !== 0;
+
+        if (isEmpty && !isEnabled) {
+            console.log("Auto-enabling empty override", itemToEdit);
+            const updatedOverrides = [...keyboard.key_overrides];
+            const newOptions = (entry.options || 0) | ENABLED_BIT;
+
+            updatedOverrides[itemToEdit] = {
+                ...entry,
+                options: newOptions
+            };
+
+            const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
+            setKeyboard(updatedKeyboard);
+
+            vialService.updateKeyoverride(updatedKeyboard, itemToEdit)
+                .catch(err => console.error("Failed to auto-enable override:", err));
+        }
+    }, [itemToEdit]);
 
     useEffect(() => {
         selectOverrideKey(overrideIndex, "trigger");
@@ -171,36 +203,11 @@ const OverrideEditor: FC<Props> = () => {
 
     if (!override) return <div className="p-5">Override not found</div>;
 
-    const isEnabled = (override.options & ENABLED_BIT) !== 0;
-
     return (
-        <div className="flex flex-col gap-4 py-8 pl-[84px] pr-5 pb-4">
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-4">
             {/* Active Switch */}
             {/* Active Toggle */}
-            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50 w-fit">
-                <button
-                    onClick={() => updateOption(ENABLED_BIT, true)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    ON
-                </button>
-                <button
-                    onClick={() => updateOption(ENABLED_BIT, false)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        !isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    OFF
-                </button>
-            </div>
+
 
             <div className="flex flex-row gap-8 justify-start items-center">
                 {renderKey("Trigger", "trigger")}
@@ -211,16 +218,16 @@ const OverrideEditor: FC<Props> = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-row items-center gap-1 bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-8">
+            <div className="flex flex-row items-center bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-4">
                 {TABS.map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={cn(
-                            "flex-1 py-2 text-sm uppercase tracking-wider rounded-md transition-all font-bold border",
+                            "flex-1 py-1.5 text-xs uppercase tracking-wider rounded-md transition-all font-bold border-none",
                             activeTab === tab
-                                ? "bg-black text-white shadow-md border-black"
-                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
+                                ? "bg-black text-white shadow-md"
+                                : "text-gray-500 hover:text-black hover:bg-white/50"
                         )}
                     >
                         {tab}
@@ -258,22 +265,18 @@ const OverrideEditor: FC<Props> = () => {
 
 
             {/* Options Switches */}
-            <div className="flex flex-col gap-3 mt-4">
-                {OPTIONS.map((opt) => {
-                    const isChecked = (override.options & opt.bit) !== 0;
-                    return (
-                        <div key={opt.label} className="flex items-center space-x-3">
-                            <Switch
-                                id={`opt-${opt.bit}`}
-                                checked={isChecked}
-                                onCheckedChange={(checked) => updateOption(opt.bit, checked)}
-                            />
-                            <Label htmlFor={`opt-${opt.bit}`} className="font-normal text-slate-700 cursor-pointer">
-                                {opt.label}
-                            </Label>
+            <div className="flex flex-col gap-1 mt-2">
+                {OPTIONS.map((opt) => (
+                    <div key={opt.label} className="flex flex-row items-center justify-between py-1">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                         </div>
-                    );
-                })}
+                        <OnOffToggle
+                            value={(override.options & opt.bit) !== 0}
+                            onToggle={(val) => updateOption(opt.bit, val)}
+                        />
+                    </div>
+                ))}
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 import { FC, useEffect } from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, Trash2, ArrowRightFromLine } from "lucide-react";
 
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -9,6 +9,7 @@ import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { getKeyContents } from "@/utils/keys";
 import { vialService } from "@/services/vial.service";
+import { LeaderOptions } from "@/types/vial.types";
 
 const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -18,13 +19,40 @@ const LeaderEditor: FC = () => {
 
     const isHorizontal = layoutMode === "bottombar";
     const seqKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
-    const outputKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[60px] h-[60px]";
+    const outputKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
     const keyVariant = isHorizontal ? "medium" : "default";
 
     const leaderIndex = itemToEdit!;
     const leaderEntry = keyboard?.leaders?.[leaderIndex];
 
     useEffect(() => {
+        if (!keyboard?.leaders || itemToEdit === null) return;
+
+        const entry = keyboard.leaders[itemToEdit];
+        if (!entry) return;
+
+        const hasSeq = entry.sequence.some(k => k !== "KC_NO" && k !== "");
+        const hasOut = entry.output !== "KC_NO" && entry.output !== "";
+        const isEmpty = !hasSeq && !hasOut;
+        const isEnabled = (entry.options & LeaderOptions.ENABLED) !== 0;
+
+        if (isEmpty && !isEnabled) {
+            console.log("Auto-enabling empty leader", itemToEdit);
+            const updatedLeaders = [...keyboard.leaders];
+            const newOptions = (entry.options || 0) | LeaderOptions.ENABLED;
+
+            updatedLeaders[itemToEdit] = {
+                ...entry,
+                options: newOptions
+            };
+
+            const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
+            setKeyboard(updatedKeyboard);
+
+            vialService.updateLeader(updatedKeyboard, itemToEdit)
+                .catch(err => console.error("Failed to auto-enable leader:", err));
+        }
+
         selectLeaderKey(leaderIndex, "sequence", 0);
         setPanelToGoBack("leaders");
         setAlternativeHeader(true);
@@ -92,7 +120,7 @@ const LeaderEditor: FC = () => {
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className={cn("font-medium text-slate-500", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
+                <span className={cn("font-medium text-black", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
                 <div className={`relative ${seqKeySize} group/leader-key`}>
                     <Key
                         isRelative
@@ -246,32 +274,38 @@ const LeaderEditor: FC = () => {
     // VERTICAL LAYOUT (Sidebar Mode)
     // ==========================================
     return (
-        <div className="flex flex-col gap-4 py-6 pl-[84px] pr-5 pb-4">
-            {/* Sequence Keys */}
-            <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pr-5 pb-4">
+            {/* Sequence & Output Keys */}
+            <div className="flex flex-col gap-3">
                 <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>
-                <div className="flex flex-row gap-2 items-end">
+                <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3, 4].map((idx) => {
                         // Only show slots up to filledKeys + 1 (to allow adding one more)
                         if (idx > filledKeys) return null;
                         return (
-                            <div key={idx} className="flex items-center gap-1">
-                                {idx > 0 && <ArrowRight className="w-4 h-4 text-gray-400 -mx-1" />}
+                            <div key={idx} className="flex flex-row items-end gap-4">
+                                {idx > 0 && (
+                                    <div className="h-[50px] flex items-center justify-center">
+                                        <ArrowRight className="w-5 h-5 text-black" />
+                                    </div>
+                                )}
                                 {renderSequenceKey(idx)}
                             </div>
                         );
                     })}
+
+                    {/* Output Key on same line */}
+                    <div className="flex flex-row gap-4 items-end">
+                        <div className="h-[50px] flex items-center justify-center">
+                            <ArrowRightFromLine className="w-5 h-5 text-black" />
+                        </div>
+                        {renderOutputKey()}
+                    </div>
                 </div>
             </div>
 
-            {/* Output Key */}
-            <div className="flex flex-row gap-4 items-center mt-4">
-                <ArrowRight className="w-6 h-6 text-black" />
-                {renderOutputKey()}
-            </div>
-
             {/* Info */}
-            <div className="text-xs text-muted-foreground mt-4">
+            <div className="text-xs text-muted-foreground mt-2">
                 Press the Leader key, then type this sequence to trigger the output keycode.
             </div>
         </div>

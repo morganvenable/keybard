@@ -159,7 +159,7 @@ const MacroEditor: FC = () => {
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-5">
                 {actions.length > 0 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
                 <AddButton type="tap" label="Key Tap" />
                 <AddButton type="down" label="Key Down" />

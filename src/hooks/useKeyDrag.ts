@@ -19,6 +19,8 @@ export interface UseKeyDragProps {
     keyContents?: KeyContent;
     w: number;
     h: number;
+    dragW?: number;
+    dragH?: number;
     variant: "default" | "medium" | "small";
     onClick?: (row: number, col: number) => void;
     disableHover?: boolean;
@@ -30,7 +32,7 @@ export interface UseKeyDragProps {
 export const useKeyDrag = (props: UseKeyDragProps) => {
     const {
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, variant, onClick, disableHover
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover
     } = props;
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
@@ -96,17 +98,21 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                 // Clear keyboard selection when drag starts
                 clearSelection();
 
+                // Use drag dimensions if provided, otherwise use actual dimensions
+                const effectW = dragW ?? w;
+                const effectH = dragH ?? h;
+
                 const dragPayload: DragItem = {
                     keycode,
                     label: label || keycode,
                     type: keyContents?.type || "keyboard",
                     extra: keyContents,
                     sourceId: uniqueId,
-                    width: w * targetUnitSize,
-                    height: h * targetUnitSize,
+                    width: effectW * targetUnitSize,
+                    height: effectH * targetUnitSize,
                     component: "Key",
                     props: {
-                        x: 0, y: 0, w, h, keycode, label, row, col,
+                        x: 0, y: 0, w: effectW, h: effectH, keycode, label, row, col,
                         layerColor, keyContents, isRelative: true,
                         variant: keyVariant, className: "", selected: false, disableHover: true
                     },
@@ -130,7 +136,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
 
         window.addEventListener("mousemove", checkDrag);
         window.addEventListener("mouseup", handleUp);
-    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag]);
+    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag, dragW, dragH]);
 
     const handleMouseUp = useCallback(() => {
         if (canDrop && isDragHover && draggedItem) {

@@ -1,5 +1,5 @@
 import { SettingDefinition, SettingsCategory, SettingsContextType, SettingsState } from "@/types/settings.types";
-import { SettingsIcon, Import as ImportIcon, FileJson } from "lucide-react";
+import { SettingsIcon, LayoutGrid, FileJson } from "lucide-react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { SettingsService } from "@/services/settings.service";
@@ -163,13 +163,13 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings"],
+        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "print"],
     },
     {
-        name: "import-export",
-        label: "Import / Export",
-        icon: ImportIcon,
-        settings: ["import", "export", "print"],
+        name: "fragments",
+        label: "Fragments",
+        icon: LayoutGrid,
+        settings: [],
     },
     {
         name: "developer",

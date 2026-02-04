@@ -11,7 +11,7 @@ import type { KeyboardInfo } from "../types/vial.types";
 
 interface VialContextType {
     keyboard: KeyboardInfo | null;
-    setKeyboard: (keyboard: KeyboardInfo) => void;
+    setKeyboard: React.Dispatch<React.SetStateAction<KeyboardInfo | null>>;
     originalKeyboard: KeyboardInfo | null;
     resetToOriginal: () => void;
     markAsSaved: () => void;

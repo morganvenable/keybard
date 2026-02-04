@@ -28,6 +28,9 @@ interface SidebarItemRowProps {
     showDottedLine?: boolean;
     showIndex?: boolean;
     showPreviewKey?: boolean;
+    showEditIcon?: boolean;
+    dimmed?: boolean;
+    action?: React.ReactNode;
     children?: React.ReactNode;
     className?: string;
 }
@@ -57,6 +60,9 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
         showDottedLine = true,
         showIndex = true,
         showPreviewKey = true,
+        showEditIcon = true,
+        dimmed = false,
+        action,
         children,
         className,
     }) => {
@@ -139,7 +145,10 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
             >
                 {/* Index and Optional Color Indicator */}
                 <div
-                    className="flex flex-row items-center flex-shrink-0 gap-2"
+                    className={cn(
+                        "flex flex-row items-center flex-shrink-0 gap-2",
+                        dimmed && "opacity-50"
+                    )}
                     title={`Item ${index}`}
                 >
                     {color && (
@@ -187,7 +196,10 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
 
                 {/* Label Area / Children / Dotted Leader */}
                 <div
-                    className="flex-grow flex flex-row items-center min-w-0 relative h-6 mr-3 ml-1"
+                    className={cn(
+                        "flex-grow flex flex-row items-center min-w-0 relative h-6 mr-3 ml-1",
+                        dimmed && "opacity-50"
+                    )}
                 >
                     {children ? (
                         <div className="relative z-10 w-full h-full flex items-center">
@@ -231,8 +243,9 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                     <div className="flex-grow min-w-0" />
                 </div>
 
-                {/* Action Area (Preview Key) */}
+                {/* Action Area (Preview Key, Custom Action, Edit Button) */}
                 <div className="flex flex-row flex-shrink-0 items-center gap-1 ml-auto">
+                    {action}
                     {showPreviewKey && (
                         <Key
                             x={0}
@@ -256,7 +269,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             disableTooltip={true}
                         />
                     )}
-                    {onEdit && (
+                    {onEdit && showEditIcon && (
                         <div
                             className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1"
                             onClick={(e) => {

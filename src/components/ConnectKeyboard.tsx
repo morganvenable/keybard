@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "./ui/button";
 import { useVial } from "@/contexts/VialContext";
 
 const ConnectKeyboard = () => {
@@ -144,26 +143,42 @@ const ConnectKeyboard = () => {
                     </div>
                 ) : (
                     <>
-                        <div className="flex flex-col gap-1 w-50 mx-auto">
+                        <div className="flex flex-col gap-2 w-50 mx-auto">
                             {!isConnected || (loading && !isDisconnecting) ? (
-                                <Button onClick={handleConnect} disabled={loading} variant={"kb-primary"}>
+                                <button
+                                    onClick={handleConnect}
+                                    disabled={loading}
+                                    className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
+                                >
                                     {loading ? "Connecting..." : "Connect Keyboard"}
-                                </Button>
+                                </button>
                             ) : (
-                                <Button onClick={handleDisconnect} disabled={loading}>
+                                <button
+                                    onClick={handleDisconnect}
+                                    disabled={loading}
+                                    className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
+                                >
                                     {loading ? "Disconnecting..." : "Disconnect"}
-                                </Button>
+                                </button>
                             )}
                             {!(loading && !isDisconnecting) && (
                                 <>
-                                    <p className="text-sm font-bold text-center text-gray-700">or</p>
-                                    <Button onClick={() => fileInputRef.current?.click()} disabled={loading} variant={"outline"}>
+                                    <p className="text-sm font-bold text-center text-gray-700 my-1">or</p>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={loading}
+                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full w-full"
+                                    >
                                         {loading ? "Loading..." : "Load File"}
-                                    </Button>
+                                    </button>
                                     <input ref={fileInputRef} type="file" accept=".viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
-                                    <Button onClick={handleLoadDemo} disabled={loading} variant={"outline"}>
+                                    <button
+                                        onClick={handleLoadDemo}
+                                        disabled={loading}
+                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full w-full"
+                                    >
                                         {loading ? "Loading..." : "Sval-QWERTY Example"}
-                                    </Button>
+                                    </button>
                                 </>
                             )}
                         </div>

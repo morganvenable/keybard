@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { FC } from "react";
 
-import { Keyboard, Piano, SquareDot } from "lucide-react";
+import { Keyboard, Piano } from "lucide-react";
 
 export type PickerMode = "keyboard" | "layers" | "macros" | "qmk" | "oneshot" | "special" | "mouse";
 
@@ -14,17 +14,12 @@ const iconsToShow: { icon: React.ReactNode; panel: PickerMode; title: string }[]
     {
         icon: <Keyboard className="w-4 h-4" />,
         panel: "keyboard",
-        title: "Keyboard",
+        title: "Keyboard Keys",
     },
     {
         icon: <Piano className="w-4 h-4" />,
         panel: "special",
-        title: "Special",
-    },
-    {
-        icon: <SquareDot className="w-4 h-4" />,
-        panel: "oneshot",
-        title: "One-Shot",
+        title: "Special Keys",
     },
     {
         icon: <LayersDefaultIcon className="w-4 h-4" />,
@@ -34,7 +29,7 @@ const iconsToShow: { icon: React.ReactNode; panel: PickerMode; title: string }[]
     {
         icon: <MouseIcon className="w-4 h-4" />,
         panel: "mouse",
-        title: "Mouse",
+        title: "Mouse Keys",
     },
     {
         icon: <MacrosIcon className="w-4 h-4" />,

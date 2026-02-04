@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { fileService } from "@/services/file.service";
 import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
+import FragmentsPanel from "./FragmentsPanel";
 
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
@@ -285,22 +286,6 @@ const SettingsPanel = () => {
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs px-2"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            Import
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2"
-                            onClick={() => setIsExportOpen(true)}
-                        >
-                            Export
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2"
                             onClick={() => setIsPrintOpen(true)}
                         >
                             Print
@@ -408,7 +393,7 @@ const SettingsPanel = () => {
                 </DialogContent>
             </Dialog>
 
-            <div className="flex flex-row gap-2 justify-stretch align-stretch mb-3 w-full">
+            <div className="flex flex-row gap-2 justify-stretch align-stretch mb-3 w-full px-4">
                 {settingsCategories.map((category) => (
                     <div
                         key={category.name}
@@ -423,108 +408,114 @@ const SettingsPanel = () => {
                     </div>
                 ))}
             </div>
-            <div className=" flex flex-col overflow-auto flex-grow gap-2">
-                {settingsCategories
-                    .find((cat) => cat.name === activeCategory)
-                    ?.settings.map((se) => {
-                        const setting = settingsDefinitions.find((s) => s.name === se);
-                        if (!setting) return null;
+            <div className=" flex flex-col overflow-hidden flex-grow gap-2">
+                {activeCategory === "fragments" ? (
+                    <FragmentsPanel />
+                ) : (
+                    <div className="flex flex-col overflow-auto px-4 gap-2 h-full scrollbar-thin">
+                        {settingsCategories
+                            .find((cat) => cat.name === activeCategory)
+                            ?.settings.map((se) => {
+                                const setting = settingsDefinitions.find((s) => s.name === se);
+                                if (!setting) return null;
 
-                        if (setting.type === "boolean") {
-                            return (
-                                <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
-                                    <div className="flex flex-col items-start gap-3">
-                                        <span className="text-md text-left">{setting.label}</span>
-                                        <span className="text-xs text-muted-foreground">{setting.description}</span>
-                                    </div>
-                                    <Switch
-                                        checked={getSetting(setting.name, setting.defaultValue) as boolean}
-                                        onCheckedChange={(checked) => {
-                                            updateSetting(setting.name, checked);
-                                        }}
-                                    />
-                                </div>
-                            );
-                        }
-                        if (setting.type === "select") {
-                            return (
-                                <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
-                                    <div className="flex flex-col items-start gap-3">
-                                        <div className="text-md text-left">{setting.label}</div>
-                                        {setting.description && setting.description !== "" && <span className="text-xs text-muted-foreground">{setting.description}</span>}
-                                    </div>
-                                    <select
-                                        value={getSetting(setting.name, setting.defaultValue) as string}
-                                        onChange={(e) => {
-                                            updateSetting(setting.name, e.target.value);
-                                        }}
-                                        className=" h-8 px-3 font-bold rounded-md pr-3 cursor-pointer active:border-none focus:border-none"
-                                    >
-                                        {setting.items?.map((item) => (
-                                            <option key={item.value} value={item.value}>
-                                                {item.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            );
-                        }
-                        if (setting.type === "action") {
-                            return (
-                                <div
-                                    className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
-                                    key={setting.name}
-                                    onClick={() => {
-                                        console.log(`Action ${setting.action} triggered`);
-                                        if (setting.action === "import-settings") {
-                                            fileInputRef.current?.click();
-                                        } else if (setting.action === "export-settings") {
-                                            setIsExportOpen(true);
-                                        } else if (setting.action === "print-keymap") {
-                                            setIsPrintOpen(true);
-                                        } else if (setting.action === "open-qmk-settings") {
-                                            setActivePanel("qmksettings");
-                                        } else if (setting.action === "open-proof-sheet") {
-                                            navigateTo("proof-sheet");
-                                        }
-                                    }}
-                                >
-                                    <div className="flex flex-col gap-2">
-                                        <span className="text-md text-left">{setting.label}</span>
-                                        {setting.description ? <span className="text-xs text-muted-foreground">{setting.description}</span> : undefined}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">›</span>
-                                </div>
-                            );
-                        }
-                        if (setting.type === "slider") {
-                            return (
-                                <div className="flex flex-col gap-2 p-3 panel-layer-item group/item w-full" key={setting.name}>
-                                    <span className="text-md text-left">{setting.label}</span>
-                                    <span className="text-xs text-muted-foreground">{setting.description}</span>
-                                    <div className="flex flex-row items-center justify-between">
-                                        <Slider
-                                            value={[getSetting(setting.name, setting.defaultValue) as number]}
-                                            onValueChange={(values) => updateSetting(setting.name, values[0])}
-                                            min={setting.min}
-                                            max={setting.max}
-                                            step={setting.step}
+                                if (setting.type === "boolean") {
+                                    return (
+                                        <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                            <div className="flex flex-col items-start gap-3">
+                                                <span className="text-md text-left">{setting.label}</span>
+                                                <span className="text-xs text-muted-foreground">{setting.description}</span>
+                                            </div>
+                                            <Switch
+                                                checked={getSetting(setting.name, setting.defaultValue) as boolean}
+                                                onCheckedChange={(checked) => {
+                                                    updateSetting(setting.name, checked);
+                                                }}
+                                            />
+                                        </div>
+                                    );
+                                }
+                                if (setting.type === "select") {
+                                    return (
+                                        <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                            <div className="flex flex-col items-start gap-3">
+                                                <div className="text-md text-left">{setting.label}</div>
+                                                {setting.description && setting.description !== "" && <span className="text-xs text-muted-foreground">{setting.description}</span>}
+                                            </div>
+                                            <select
+                                                value={getSetting(setting.name, setting.defaultValue) as string}
+                                                onChange={(e) => {
+                                                    updateSetting(setting.name, e.target.value);
+                                                }}
+                                                className=" h-8 px-3 font-bold rounded-md pr-3 cursor-pointer active:border-none focus:border-none"
+                                            >
+                                                {setting.items?.map((item) => (
+                                                    <option key={item.value} value={item.value}>
+                                                        {item.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                }
+                                if (setting.type === "action") {
+                                    return (
+                                        <div
+                                            className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
                                             key={setting.name}
-                                            className="flex-grow"
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={getSetting(setting.name, setting.defaultValue) as number}
-                                            onChange={(e) => updateSetting(setting.name, parseInt(e.target.value) || 0)}
-                                            className="w-22 ml-4 text-right select-text"
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        }
+                                            onClick={() => {
+                                                console.log(`Action ${setting.action} triggered`);
+                                                if (setting.action === "import-settings") {
+                                                    fileInputRef.current?.click();
+                                                } else if (setting.action === "export-settings") {
+                                                    setIsExportOpen(true);
+                                                } else if (setting.action === "print-keymap") {
+                                                    setIsPrintOpen(true);
+                                                } else if (setting.action === "open-qmk-settings") {
+                                                    setActivePanel("qmksettings");
+                                                } else if (setting.action === "open-proof-sheet") {
+                                                    navigateTo("proof-sheet");
+                                                }
+                                            }}
+                                        >
+                                            <div className="flex flex-col gap-2">
+                                                <span className="text-md text-left">{setting.label}</span>
+                                                {setting.description ? <span className="text-xs text-muted-foreground">{setting.description}</span> : undefined}
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">›</span>
+                                        </div>
+                                    );
+                                }
+                                if (setting.type === "slider") {
+                                    return (
+                                        <div className="flex flex-col gap-2 p-3 panel-layer-item group/item w-full" key={setting.name}>
+                                            <span className="text-md text-left">{setting.label}</span>
+                                            <span className="text-xs text-muted-foreground">{setting.description}</span>
+                                            <div className="flex flex-row items-center justify-between">
+                                                <Slider
+                                                    value={[getSetting(setting.name, setting.defaultValue) as number]}
+                                                    onValueChange={(values) => updateSetting(setting.name, values[0])}
+                                                    min={setting.min}
+                                                    max={setting.max}
+                                                    step={setting.step}
+                                                    key={setting.name}
+                                                    className="flex-grow"
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    value={getSetting(setting.name, setting.defaultValue) as number}
+                                                    onChange={(e) => updateSetting(setting.name, parseInt(e.target.value) || 0)}
+                                                    className="w-22 ml-4 text-right select-text"
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                }
 
-                        return null;
-                    })}
+                                return null;
+                            })}
+                    </div>
+                )}
             </div>
         </section>
     );

@@ -102,7 +102,7 @@ export const PreviewKey: React.FC<PreviewKeyProps> = ({
         const headerClass = cn(
             "whitespace-nowrap w-full text-center font-semibold py-0 text-white bg-black/30",
             isTiny ? "text-[4px] leading-[6px] rounded-t-[2px]" :
-            isSmall ? "text-[8px] rounded-t-[4px]" : "text-sm rounded-t-sm"
+                isSmall ? "text-[8px] rounded-t-[4px]" : "text-sm rounded-t-sm"
         );
 
         return (
@@ -116,12 +116,12 @@ export const PreviewKey: React.FC<PreviewKeyProps> = ({
                 <div className={cn(
                     "text-center w-full h-full justify-center items-center flex font-semibold overflow-hidden",
                     isTiny ? "text-[6px] leading-[8px] px-0" :
-                    isSmall ? "text-[10px] px-0.5" : "text-[15px]"
+                        isSmall ? "text-[10px] px-0.5" : "text-[15px]"
                 )}>
                     {keyData.centerContent}
                 </div>
                 {keyData.bottomStr && (
-                    <span className={cn(headerClass, "flex items-center justify-center", isTiny ? "min-h-[6px] rounded-b-[2px]" : isSmall ? "min-h-[10px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")}>
+                    <span className={cn(headerClass, "flex items-center justify-center rounded-t-none", isTiny ? "min-h-[6px] rounded-b-[2px]" : isSmall ? "min-h-[10px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")}>
                         {isTiny ? null : keyData.bottomStr}
                     </span>
                 )}

@@ -162,7 +162,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
         <section className="flex h-full max-h-full flex-col space-y-3 pt-3">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Mouse</span>
+                    <span className="font-semibold text-xl text-slate-700">Mouse Keys</span>
                 </div>
             )}
             <div className="scrollbar-thin flex flex-grow flex-col overflow-auto">

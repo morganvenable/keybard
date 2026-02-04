@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -76,9 +77,8 @@ const AltRepeatPanel: React.FC = () => {
 
     const handleAddAltRepeat = () => {
         const emptyIndex = findFirstEmptyAltRepeat();
-        if (emptyIndex < (keyboard.alt_repeat_keys?.length || 0)) {
-            handleEdit(emptyIndex);
-        }
+        if (!keyboard.alt_repeat_keys || emptyIndex >= keyboard.alt_repeat_keys.length) return;
+        handleEdit(emptyIndex);
     };
 
     const isEnabled = (options: number) => {
@@ -244,7 +244,7 @@ const AltRepeatPanel: React.FC = () => {
                         layerColor="sidebar"
                         className={cn(
                             "border-kb-gray cursor-pointer",
-                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
                         )}
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={handleAssignAltRepeatKey}
@@ -275,42 +275,19 @@ const AltRepeatPanel: React.FC = () => {
                                 </div>
                                 {renderSmallKey(entry.alt_keycode, i, "alt_keycode", isEditing)}
                             </div>
-
-                            {isDefined && (
-                                <div
-                                    className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={(e) => {
-                                            if (!enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        ON
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            if (enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            !enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        OFF
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     );
+
+                    const rowAction = isDefined ? (
+                        <OnOffToggle
+                            value={enabled}
+                            onToggle={(val) => {
+                                if (val !== enabled) {
+                                    handleToggleEnabled(i, { stopPropagation: () => { } } as any);
+                                }
+                            }}
+                        />
+                    ) : undefined;
 
                     const keyContents = { type: "altrepeat" } as KeyContent;
 
@@ -327,6 +304,7 @@ const AltRepeatPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
+                            action={rowAction}
                             className={cn("py-4", !enabled && isDefined && "opacity-50")}
                         >
                             {rowChildren}

@@ -162,15 +162,8 @@ const FragmentsPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            <div className="px-4 pb-3 border-b">
-                <p className="text-sm text-muted-foreground">
-                    Select which physical component is installed at each position.
-                    Hardware-detected components are shown; some may be locked.
-                </p>
-            </div>
-
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin px-4 gap-3">
+        <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex flex-col overflow-auto scrollbar-thin px-4 gap-3 py-2">
                 {selectableInstances.map(({ idx, instance }) => {
                     const options = fragmentService.getFragmentOptions(instance);
                     const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
@@ -232,7 +225,7 @@ const FragmentsPanel: React.FC = () => {
                     );
                 })}
             </div>
-        </section>
+        </div>
     );
 };
 

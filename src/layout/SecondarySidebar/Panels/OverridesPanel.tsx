@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useLayer } from "@/contexts/LayerContext";
@@ -79,9 +80,8 @@ const OverridesPanel: React.FC = () => {
 
     const handleAddOverride = () => {
         const emptyIndex = findFirstEmptyOverride();
-        if (emptyIndex < (keyboard.key_overrides?.length || 0)) {
-            handleEdit(emptyIndex);
-        }
+        if (!keyboard.key_overrides || emptyIndex >= keyboard.key_overrides.length) return;
+        handleEdit(emptyIndex);
     };
 
     const updateOverrideOption = (index: number, bit: number, checked: boolean) => {
@@ -122,8 +122,8 @@ const OverridesPanel: React.FC = () => {
         return (
             <div className="flex flex-row gap-3 h-full items-start pt-2">
                 {overrides.map((override, i) => {
-                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
+                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO") || isEnabled;
 
                     if (!isDefined) return null;
 
@@ -152,33 +152,11 @@ const OverridesPanel: React.FC = () => {
                             </button>
                             <div className="flex flex-row items-center justify-between mb-1">
                                 <span className="text-xs font-bold text-slate-600">OR {i}</span>
-                                <div
-                                    className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={() => updateOverrideOption(i, ENABLED_BIT, true)}
-                                        className={cn(
-                                            "px-1.5 py-0 text-[8px] uppercase tracking-wide rounded-[2px] transition-all font-bold border",
-                                            isEnabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent"
-                                        )}
-                                    >
-                                        ON
-                                    </button>
-                                    <button
-                                        onClick={() => updateOverrideOption(i, ENABLED_BIT, false)}
-                                        className={cn(
-                                            "px-1.5 py-0 text-[8px] uppercase tracking-wide rounded-[2px] transition-all font-bold border",
-                                            !isEnabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent"
-                                        )}
-                                    >
-                                        OFF
-                                    </button>
-                                </div>
+                                <OnOffToggle
+                                    value={isEnabled}
+                                    onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
+                                    className="scale-75 origin-right" // Make it smaller for horizontal view if needed, or keep standard size
+                                />
                             </div>
                             <div className="flex flex-row items-center justify-center gap-1">
                                 {renderSmallKey(triggerContent, 0, i)}
@@ -212,8 +190,8 @@ const OverridesPanel: React.FC = () => {
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {overrides.map((override, i) => {
-                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
+                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
 
                     const triggerContent = getKeyContents(keyboard, override.trigger || "KC_NO") as KeyContent;
                     const replacementContent = getKeyContents(keyboard, override.replacement || "KC_NO") as KeyContent;
@@ -225,35 +203,14 @@ const OverridesPanel: React.FC = () => {
                                 <ArrowRight className="w-3 h-3 text-black mx-1" />
                                 {renderSmallKey(replacementContent, 1, i)}
                             </div>
-
-                            <div
-                                className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <button
-                                    onClick={() => updateOverrideOption(i, ENABLED_BIT, true)}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        isEnabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                    )}
-                                >
-                                    ON
-                                </button>
-                                <button
-                                    onClick={() => updateOverrideOption(i, ENABLED_BIT, false)}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        !isEnabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                    )}
-                                >
-                                    OFF
-                                </button>
-                            </div>
                         </div>
+                    ) : undefined;
+
+                    const rowAction = isDefined ? (
+                        <OnOffToggle
+                            value={isEnabled}
+                            onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
+                        />
                     ) : undefined;
 
                     // Still pass KeyContent type for consistency, though preview key is hidden
@@ -272,6 +229,8 @@ const OverridesPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
+                            action={rowAction}
+                            dimmed={!!(isDefined && !isEnabled)}
                             className="py-4"
                         >
                             {rowChildren}

@@ -33,6 +33,8 @@ export interface KeyProps {
     disableTooltip?: boolean;
     hasPendingChange?: boolean;
     forceLabel?: boolean;
+    dragW?: number;
+    dragH?: number;
 }
 
 /**
@@ -44,13 +46,13 @@ export const Key: React.FC<KeyProps> = (props) => {
         selected = false, selectedSubsection = null, onClick, onSubsectionClick, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
-        hasPendingChange = false, forceLabel = false,
+        hasPendingChange = false, forceLabel = false, dragW, dragH
     } = props;
 
     const uniqueId = React.useId();
     const drag = useKeyDrag({
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, variant, onClick, disableHover
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover
     });
 
     const isSmall = variant === "small";
@@ -310,7 +312,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 </div>
 
                 {keyData.bottomStr !== "" && (
-                    <span className={cn(headerClass, "flex items-center justify-center", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
+                    <span className={cn(headerClass, "flex items-center justify-center rounded-t-none", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
                         {keyData.bottomStr}
                     </span>
                 )}
@@ -346,7 +348,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             </div>
 
             {keyData.bottomStr !== "" && (
-                <span className={cn(headerClass, "flex items-center justify-center", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
+                <span className={cn(headerClass, "flex items-center justify-center rounded-t-none", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
                     {keyData.bottomStr}
                 </span>
             )}

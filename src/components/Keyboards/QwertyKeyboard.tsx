@@ -172,6 +172,8 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             onClick={() => onKeyPress(outputKey)}
                             disableTooltip={disableTooltip}
                             forceLabel={true}
+                            dragW={1}
+                            dragH={1}
                         />
                     );
                 })}

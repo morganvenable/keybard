@@ -1,13 +1,11 @@
 import { FC, useEffect } from "react";
 import { ArrowRight, Trash2 } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import { Key } from "@/components/Key";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { cn } from "@/lib/utils";
 import { getKeyContents } from "@/utils/keys";
 import { AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
@@ -27,6 +25,33 @@ const AltRepeatEditor: FC = () => {
     const altRepeatEntry = keyboard?.alt_repeat_keys?.[altRepeatIndex];
 
     useEffect(() => {
+        if (!keyboard?.alt_repeat_keys || itemToEdit === null) return;
+
+        const entry = keyboard.alt_repeat_keys[itemToEdit];
+        if (!entry) return;
+
+        const hasKeycode = entry.keycode !== "KC_NO" && entry.keycode !== "";
+        const hasAltKeycode = entry.alt_keycode !== "KC_NO" && entry.alt_keycode !== "";
+        const isEmpty = !hasKeycode && !hasAltKeycode;
+        const isEnabled = (entry.options & AltRepeatKeyOptions.ENABLED) !== 0;
+
+        if (isEmpty && !isEnabled) {
+            console.log("Auto-enabling empty alt repeat", itemToEdit);
+            const updatedKeys = [...keyboard.alt_repeat_keys];
+            const newOptions = (entry.options || 0) | AltRepeatKeyOptions.ENABLED;
+
+            updatedKeys[itemToEdit] = {
+                ...entry,
+                options: newOptions
+            };
+
+            const updatedKeyboard = { ...keyboard, alt_repeat_keys: updatedKeys };
+            setKeyboard(updatedKeyboard);
+
+            vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit)
+                .catch(err => console.error("Failed to auto-enable alt repeat:", err));
+        }
+
         selectAltRepeatKey(altRepeatIndex, "keycode");
         setPanelToGoBack("altrepeat");
         setAlternativeHeader(true);
@@ -139,35 +164,11 @@ const AltRepeatEditor: FC = () => {
 
     if (!altRepeatEntry) return <div className="p-5">Alt-repeat entry not found</div>;
 
-    const isEnabled = (altRepeatEntry.options & AltRepeatKeyOptions.ENABLED) !== 0;
+
 
     return (
-        <div className="flex flex-col gap-4 py-8 pl-[84px] pr-5 pb-4">
-            {/* Active Toggle */}
-            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50 w-fit">
-                <button
-                    onClick={() => updateOption(AltRepeatKeyOptions.ENABLED, true)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    ON
-                </button>
-                <button
-                    onClick={() => updateOption(AltRepeatKeyOptions.ENABLED, false)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        !isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    OFF
-                </button>
-            </div>
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-4">
+
 
             {/* Key Slots */}
             <div className="flex flex-row gap-8 justify-start items-center">
@@ -179,26 +180,20 @@ const AltRepeatEditor: FC = () => {
             </div>
 
             {/* Options Switches */}
-            <div className="flex flex-col gap-3 mt-8">
+            <div className="flex flex-col gap-1 mt-2">
                 <span className="font-semibold text-lg text-slate-700">Options</span>
-                {OPTIONS.map((opt) => {
-                    const isChecked = (altRepeatEntry.options & opt.bit) !== 0;
-                    return (
-                        <div key={opt.label} className="flex items-center space-x-3">
-                            <Switch
-                                id={`opt-${opt.bit}`}
-                                checked={isChecked}
-                                onCheckedChange={(checked) => updateOption(opt.bit, checked)}
-                            />
-                            <div className="flex flex-col">
-                                <Label htmlFor={`opt-${opt.bit}`} className="font-normal text-slate-700 cursor-pointer">
-                                    {opt.label}
-                                </Label>
-                                <span className="text-xs text-slate-500">{opt.description}</span>
-                            </div>
+                {OPTIONS.map((opt) => (
+                    <div key={opt.bit} className="flex flex-row items-center justify-between py-1">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
+                            <span className="text-xs text-slate-500">{opt.description}</span>
                         </div>
-                    );
-                })}
+                        <OnOffToggle
+                            value={(altRepeatEntry?.options & opt.bit) !== 0}
+                            onToggle={(val) => updateOption(opt.bit, val)}
+                        />
+                    </div>
+                ))}
             </div>
         </div>
     );

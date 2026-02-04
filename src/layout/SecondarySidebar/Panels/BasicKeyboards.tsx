@@ -554,7 +554,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         <div className="space-y-6 relative">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Keyboard</span>
+                    <span className="font-semibold text-xl text-slate-700">Keyboard Keys</span>
                 </div>
             )}
 

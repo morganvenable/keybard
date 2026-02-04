@@ -24,7 +24,6 @@ import { PickerMode } from "../SecondarySidebar/components/EditorSidePanel";
 
 import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
-
 export const BOTTOM_PANEL_HEIGHT = 230;
 
 interface BottomPanelProps {
@@ -122,7 +121,6 @@ const BottomPanel: React.FC<BottomPanelProps> = ({ leftOffset, pickerMode, heigh
             style={{
                 height: panelHeight,
                 left: leftOffset ? `calc(${leftOffset} + 8px)` : 0,
-                transition: "left 320ms cubic-bezier(0.22, 1, 0.36, 1), transform 300ms ease-in-out, opacity 300ms ease-in-out, height 200ms ease-in-out"
             }}
         >
             {/* Content area - allows both horizontal and vertical scrolling for wrapped content */}
