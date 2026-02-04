@@ -83,6 +83,29 @@ export const Key: React.FC<KeyProps> = (props) => {
             // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
             const modMatch = keycode.match(/^([A-Z]+)\(/);
             bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
+
+            // Smart Override for International Keys (e.g. UK Shift+3 = £)
+            // Use case-insensitive check so 'q' doesn't override 'Q' (which would hide the badge)
+            // AND ensure we only hide the badge if it is a SHIFT modifier. We don't want to hide CTRL/ALT/GUI.
+            if (label &&
+                label.toUpperCase() !== keyStr.toUpperCase() &&
+                label !== "KC_NO" &&
+                label !== "KC_TRNS" &&
+                displayLabel !== "" &&
+                (bottomStr === "LSFT" || bottomStr === "RSFT")
+            ) {
+                displayLabel = label;
+                bottomStr = "";
+            }
+
+            // Clean Shifted Characters: If just Shift modifier and single char label that is likely a symbol (not a letter), hide the badge
+            // This hides badge for '!', '@', etc but KEEPS it for 'A', 'S' (as requested)
+            // Also explicitly hide for our smart overrides which are usually symbols
+            if ((bottomStr === "LSFT" || bottomStr === "RSFT") &&
+                displayLabel.length === 1 &&
+                !/[a-zA-Z]/.test(displayLabel)) {
+                bottomStr = "";
+            }
         } else if (keyContents?.type === "modtap") {
             // Modifier-tap key (e.g., LGUI_T(KC_TAB))
             // Show key in center, modifier_T in top header

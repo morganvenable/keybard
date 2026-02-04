@@ -361,7 +361,12 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
     },
     uk: {
         "\"": "KC_2", "@": "KC_QUOTE", "£": "KC_3", "~": "KC_NUHS", "\\": "KC_NONUS_BSLASH", "|": "KC_NONUS_BSLASH",
-        "#": "KC_NUHS"
+        "#": "KC_NUHS", "¬": "KC_GRAVE", "!": "KC_1",
+        "$": "KC_4", "%": "KC_5", "^": "KC_6", "&": "KC_7", "*": "KC_8", "(": "KC_9", ")": "KC_0",
+        "_": "KC_MINUS", "+": "KC_EQUAL",
+        "{": "KC_LBRACKET", "}": "KC_RBRACKET",
+        ":": "KC_SCOLON",
+        "<": "KC_COMMA", ">": "KC_DOT", "?": "KC_SLASH"
     },
     spanish: {
         "'": "KC_MINUS", "?": "KC_MINUS", "¿": "KC_EQUAL", "¡": "KC_EQUAL",
@@ -430,6 +435,17 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
     }
 };
 
+// US Shift Aliases (e.g. KC_HASH -> LSFT(KC_3))
+// This allows us to map semantic keycodes back to physical keys for international layouts
+export const US_SHIFT_ALIASES: Record<string, string> = {
+    "KC_TILD": "KC_GRAVE", "KC_EXLM": "KC_1", "KC_AT": "KC_2", "KC_HASH": "KC_3",
+    "KC_DLR": "KC_4", "KC_PERC": "KC_5", "KC_CIRC": "KC_6", "KC_AMPR": "KC_7",
+    "KC_ASTR": "KC_8", "KC_LPRN": "KC_9", "KC_RPRN": "KC_0", "KC_UNDS": "KC_MINUS",
+    "KC_PLUS": "KC_EQUAL", "KC_LCBR": "KC_LBRACKET", "KC_RCBR": "KC_RBRACKET",
+    "KC_PIPE": "KC_BSLASH", "KC_COLN": "KC_SCOLON", "KC_DQUO": "KC_QUOTE",
+    "KC_LT": "KC_COMMA", "KC_GT": "KC_DOT", "KC_QUES": "KC_SLASH"
+};
+
 export const getLabelForKeycode = (keycode: string, layoutId: string): string | null => {
     // 1. Get the target layout
     const layout = LAYOUTS[layoutId] || LAYOUTS.us;
@@ -445,6 +461,11 @@ export const getLabelForKeycode = (keycode: string, layoutId: string): string | 
         isShifted = true;
     } else if (targetKeycode.startsWith("S(") && targetKeycode.endsWith(")")) {
         targetKeycode = targetKeycode.slice(2, -1);
+        isShifted = true;
+    }
+
+    if (US_SHIFT_ALIASES[targetKeycode]) {
+        targetKeycode = US_SHIFT_ALIASES[targetKeycode];
         isShifted = true;
     }
 
@@ -469,7 +490,10 @@ export const getLabelForKeycode = (keycode: string, layoutId: string): string | 
                 }
 
                 // 5. Compare
-                if (mappedKeycode === targetKeycode) {
+                if (
+                    mappedKeycode === targetKeycode ||
+                    (US_SHIFT_ALIASES[mappedKeycode] && US_SHIFT_ALIASES[mappedKeycode] === targetKeycode)
+                ) {
                     return KEY_DISPLAY_OVERRIDES[key] || key.replace("{", "").replace("}", "");
                 }
             }

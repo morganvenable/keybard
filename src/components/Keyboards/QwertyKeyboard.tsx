@@ -6,7 +6,7 @@ import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { KeyContent } from "@/types/vial.types";
-import { LAYOUTS, BUTTON_TO_KEYCODE_MAP, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS } from "@/components/Keyboards/layouts";
+import { LAYOUTS, BUTTON_TO_KEYCODE_MAP, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 interface IProps {
@@ -141,6 +141,12 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                         !["KC_TRNS", "KC_NO", "KC_LSFT", "KC_LCTL", "KC_LALT", "KC_LGUI", "KC_RSFT", "KC_RCTL", "KC_RALT", "KC_RGUI"].includes(keycode) &&
                         !keycode.includes("{") // Don't modify UI placeholders
                     ) {
+                        // Check if keycode is a US Shift Alias (e.g. KC_EXLM -> KC_1)
+                        // This prevents double-shifting (Shift + KC_EXLM) which causes issues
+                        if (US_SHIFT_ALIASES[keycode]) {
+                            keycode = US_SHIFT_ALIASES[keycode];
+                        }
+
                         keycode = applyModifiers(keycode, activeModifiers);
                     }
 
