@@ -5,6 +5,7 @@ import { useVial } from "@/contexts/VialContext";
 import { KeyContent } from "@/types/vial.types";
 import { keyService } from "@/services/key.service";
 import { UNIT_SIZE, MATRIX_COLS } from "@/constants/svalboard-layout";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 export interface UseKeyDragProps {
     uniqueId: string;
@@ -35,6 +36,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
     const { assignKeycode, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
     const { keyboard } = useVial();
+    const { keyVariant } = useLayoutSettings();
 
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
     const [isDragHover, setIsDragHover] = useState(false);
@@ -44,6 +46,13 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
         if (variant === "medium") return 45;
         return UNIT_SIZE;
     }, [variant]);
+
+    // Calculate the target unit size for the drag payload based on the global key variant
+    const targetUnitSize = useMemo(() => {
+        if (keyVariant === "small") return 30;
+        if (keyVariant === "medium") return 45;
+        return UNIT_SIZE;
+    }, [keyVariant]);
 
     const isDragSource = dragSourceId === uniqueId;
     const canDrop = !isRelative && isDragging;
@@ -93,13 +102,13 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                     type: keyContents?.type || "keyboard",
                     extra: keyContents,
                     sourceId: uniqueId,
-                    width: w * currentUnitSize,
-                    height: h * currentUnitSize,
+                    width: w * targetUnitSize,
+                    height: h * targetUnitSize,
                     component: "Key",
                     props: {
                         x: 0, y: 0, w, h, keycode, label, row, col,
                         layerColor, keyContents, isRelative: true,
-                        variant, className: "", selected: false, disableHover: true
+                        variant: keyVariant, className: "", selected: false, disableHover: true
                     },
                     row: isRelative ? undefined : row,
                     col: isRelative ? undefined : col,

@@ -87,11 +87,13 @@ export const Key: React.FC<KeyProps> = (props) => {
             // Smart Override for International Keys (e.g. UK Shift+3 = £)
             // Use case-insensitive check so 'q' doesn't override 'Q' (which would hide the badge)
             // AND ensure we only hide the badge if it is a SHIFT modifier. We don't want to hide CTRL/ALT/GUI.
+            // AND only do this for single characters. If it's a word (e.g. "PRTSC" vs "KC_PSCREEN"), keep the badge.
             if (label &&
                 label.toUpperCase() !== keyStr.toUpperCase() &&
                 label !== "KC_NO" &&
                 label !== "KC_TRNS" &&
                 displayLabel !== "" &&
+                displayLabel.length === 1 &&
                 (bottomStr === "LSFT" || bottomStr === "RSFT")
             ) {
                 displayLabel = label;
@@ -101,9 +103,11 @@ export const Key: React.FC<KeyProps> = (props) => {
             // Clean Shifted Characters: If just Shift modifier and single char label that is likely a symbol (not a letter), hide the badge
             // This hides badge for '!', '@', etc but KEEPS it for 'A', 'S' (as requested)
             // Also explicitly hide for our smart overrides which are usually symbols
+            // EXCLUDE Numpad keys (which contain KC_P or KC_KP) as requested
             if ((bottomStr === "LSFT" || bottomStr === "RSFT") &&
                 displayLabel.length === 1 &&
-                !/[a-zA-Z]/.test(displayLabel)) {
+                !/[a-zA-Z]/.test(displayLabel) &&
+                !keycode.includes("KC_P") && !keycode.includes("KC_KP")) {
                 bottomStr = "";
             }
         } else if (keyContents?.type === "modtap") {
