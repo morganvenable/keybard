@@ -285,7 +285,7 @@ const LeaderEditor: FC = () => {
                         return (
                             <div key={idx} className="flex flex-row items-end gap-4">
                                 {idx > 0 && (
-                                    <div className="h-[50px] flex items-center justify-center">
+                                    <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
                                         <ArrowRight className="w-5 h-5 text-black" />
                                     </div>
                                 )}
@@ -296,7 +296,7 @@ const LeaderEditor: FC = () => {
 
                     {/* Output Key on same line */}
                     <div className="flex flex-row gap-4 items-end">
-                        <div className="h-[50px] flex items-center justify-center">
+                        <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
                             <ArrowRightFromLine className="w-5 h-5 text-black" />
                         </div>
                         {renderOutputKey()}

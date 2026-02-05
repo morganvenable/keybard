@@ -5,7 +5,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { getKeyContents } from "@/utils/keys";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRightFromLine, Trash2 } from "lucide-react";
 import { Key } from "@/components/Key";
 
 import { useLayer } from "@/contexts/LayerContext";
@@ -144,7 +144,7 @@ const ComboEditor: FC<Props> = () => {
                         </div>
                     </div>
                 </div>
-                <ArrowRight className="h-5 w-5 flex-shrink-0 text-gray-600" />
+                <ArrowRightFromLine className="h-5 w-5 flex-shrink-0 text-gray-600" />
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-medium text-slate-500 mb-1">Output</span>
                     {renderKey(keys[4], 4)}
@@ -165,7 +165,7 @@ const ComboEditor: FC<Props> = () => {
                 <div className="text-center text-xl">+</div>
                 {renderKey(keys[3], 3)}
             </div>
-            <ArrowRight className="h-6 w-6 flex-shrink-0" />
+            <ArrowRightFromLine className="h-6 w-6 flex-shrink-0" />
             <div className="flex flex-col gap-6 py-8 flex-shrink-1">
                 {renderKey(keys[4], 4)}
             </div>
