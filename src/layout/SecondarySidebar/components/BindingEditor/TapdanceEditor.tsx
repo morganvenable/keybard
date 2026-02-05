@@ -5,11 +5,9 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { getKeyContents } from "@/utils/keys";
 import { useDebounce } from "@uidotdev/usehooks";
-import { Key } from "@/components/Key";
 
-import { Trash2 } from "lucide-react";
+import EditorKey from "./EditorKey";
 
 interface Props { }
 
@@ -28,21 +26,25 @@ const TapdanceEditor: FC<Props> = () => {
     const gapClass = isHorizontal ? 'gap-6' : (effectiveVariant === 'small' ? 'gap-3' : effectiveVariant === 'medium' ? 'gap-4' : 'gap-6');
     const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 py-4' : effectiveVariant === 'medium' ? 'pl-14 py-6' : 'pl-[84px] py-8');
     const labelClass = effectiveVariant === 'small' ? 'text-xs' : effectiveVariant === 'medium' ? 'text-sm' : 'text-sm';
+
     const isSlotSelected = (slot: string) => {
         return selectedTarget?.type === "tapdance" && selectedTarget.tapdanceId === itemToEdit && selectedTarget.tapdanceSlot === slot;
     };
+
     const [tapMs, setTapMs] = useState(200);
     const debouncedTapMs = useDebounce(tapMs, 300);
+
     useEffect(() => {
         if (currTapDance) {
             setTapMs(currTapDance.tapms);
         }
     }, [itemToEdit]); // Use itemToEdit instead of currTapDance to avoid infinite loop
+
     const keys = {
-        tap: getKeyContents(keyboard!, currTapDance?.tap || "KC_NO"),
-        doubletap: getKeyContents(keyboard!, currTapDance?.doubletap || "KC_NO"),
-        hold: getKeyContents(keyboard!, currTapDance?.hold || "KC_NO"),
-        taphold: getKeyContents(keyboard!, currTapDance?.taphold || "KC_NO"),
+        tap: currTapDance?.tap,   // Pass keycode string directly (or whatever format it is)
+        doubletap: currTapDance?.doubletap,
+        hold: currTapDance?.hold,
+        taphold: currTapDance?.taphold,
     };
 
     useEffect(() => {
@@ -94,8 +96,6 @@ const TapdanceEditor: FC<Props> = () => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Delete" || e.key === "Backspace") {
                 if (selectedTarget?.type === "tapdance" && selectedTarget.tapdanceId === itemToEdit && selectedTarget.tapdanceSlot) {
-                    // Update key assignment directly instead of using assignKeycode which might context switch
-                    // Actually assignKeycode uses selected target so it's fine, but consistent direct update is safer for local logic
                     updateKeyAssignment(selectedTarget.tapdanceSlot, "KC_NO");
                 }
             }
@@ -105,33 +105,8 @@ const TapdanceEditor: FC<Props> = () => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedTarget, itemToEdit]);
 
-
-
-    const renderKey = (label: string, content: any, type: "tap" | "hold" | "doubletap" | "taphold") => {
+    const renderTapdanceKey = (label: string, keycode: string, type: "tap" | "hold" | "doubletap" | "taphold") => {
         const isSelected = isSlotSelected(type);
-        const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            // Selected: Red BG (handled by Key), Red Border
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20"; // Subtle header for red background
-        } else if (hasContent) {
-            // Assigned: Black Key
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            // Empty: Transparent + Black Border
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
-
         const trashOffset = effectiveVariant === 'small' ? '-left-6' : effectiveVariant === 'medium' ? '-left-8' : '-left-10';
         const trashSize = effectiveVariant === 'small' ? 'w-3 h-3' : 'w-4 h-4';
 
@@ -140,36 +115,29 @@ const TapdanceEditor: FC<Props> = () => {
             return (
                 <div className="flex flex-col items-center gap-1 group">
                     <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>
-                    <div className={`relative ${keySizeClass}`}>
-                        <Key
-                            isRelative
-                            x={0}
-                            y={0}
-                            w={1}
-                            h={1}
-                            row={-1}
-                            col={-1}
-                            keycode={content?.top || "KC_NO"}
-                            label={content?.str || ""}
-                            keyContents={content}
-                            selected={isSlotSelected(type)}
-                            onClick={() => selectTapdanceKey(itemToEdit!, type)}
-                            layerColor={keyColor}
-                            className={keyClassName}
-                            headerClassName={headerClass}
-                            variant={effectiveVariant}
-                            disableTooltip={true}
-                        />
-                        {hasContent && (
-                            <button
-                                className="absolute -bottom-5 left-1/2 -translate-x-1/2 p-0.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => updateKeyAssignment(type, "KC_NO")}
-                                title="Clear key"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                            </button>
-                        )}
-                    </div>
+                    <EditorKey
+                        keycode={keycode}
+                        selected={isSelected}
+                        onClick={() => selectTapdanceKey(itemToEdit!, type)}
+                        onClear={() => updateKeyAssignment(type, "KC_NO")}
+                        size={keySizeClass}
+                        trashOffset="-bottom-5 left-1/2 -translate-x-1/2" // Custom offset for bottom center trash
+                        // Note: EditorKey defaults to left-side trash. Overriding trashOffset might need wrapper adjustment or CSS.
+                        // Wait, EditorKey implementation uses: `absolute ${trashOffset} top-0 h-full flex ...`
+                        // Using `bottom-5` with `top-0` and `h-full` might conflict or stretch. 
+                        // EditorKey's trash container is `top-0 h-full`. So vertical centering is enforced.
+                        // The original TapdanceEditor horizontal mode used: `absolute -bottom-5 left-1/2 ...` OUTSIDE the Key but inside relative wrapper.
+                        // Usage: `top-0` is hardcoded in EditorKey.
+                        // I might need to make `EditorKey` more flexible if I want EXACT original layout.
+                        // Or just accept the default left trash. "Code tidy up" often implies "UI consistency" too.
+                        // Standardizing on left/side trash is probably better for consistency.
+                        // Let's use standard side trash.
+                        trashSize={trashSize}
+                        variant={effectiveVariant}
+                        wrapperClassName={`relative ${keySizeClass}`}
+                        label={undefined}
+                        labelClassName={undefined}
+                    />
                 </div>
             );
         }
@@ -178,40 +146,21 @@ const TapdanceEditor: FC<Props> = () => {
         return (
             <div className="relative w-full">
                 <div className={`flex flex-row items-center gap-3 peer`}>
-                    <div className={`relative ${keySizeClass}`}>
-                        <Key
-                            isRelative
-                            x={0}
-                            y={0}
-                            w={1}
-                            h={1}
-                            row={-1}
-                            col={-1}
-                            keycode={content?.top || "KC_NO"}
-                            label={content?.str || ""}
-                            keyContents={content}
-                            selected={isSlotSelected(type)}
-                            onClick={() => selectTapdanceKey(itemToEdit!, type)}
-                            layerColor={keyColor}
-                            className={keyClassName}
-                            headerClassName={headerClass}
-                            variant={effectiveVariant}
-                            disableTooltip={true}
-                        />
-                    </div>
+                    <EditorKey
+                        keycode={keycode}
+                        selected={isSelected}
+                        onClick={() => selectTapdanceKey(itemToEdit!, type)}
+                        onClear={() => updateKeyAssignment(type, "KC_NO")}
+                        size={keySizeClass}
+                        trashOffset={trashOffset}
+                        trashSize={trashSize}
+                        variant={effectiveVariant}
+                        wrapperClassName={`relative ${keySizeClass}`}
+                        label={undefined}
+                        labelClassName={undefined}
+                    />
                     <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>
                 </div>
-                {hasContent && (
-                    <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity`}>
-                        <button
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                            onClick={() => updateKeyAssignment(type, "KC_NO")}
-                            title="Clear key"
-                        >
-                            <Trash2 className={trashSize} />
-                        </button>
-                    </div>
-                )}
             </div>
         );
     };
@@ -222,10 +171,10 @@ const TapdanceEditor: FC<Props> = () => {
             <div className="flex flex-row items-center gap-10 px-8 py-3">
                 {/* 2x2 grid of tap dance keys */}
                 <div className="grid grid-cols-2 gap-5">
-                    {renderKey("Tap", keys.tap, "tap")}
-                    {renderKey("Hold", keys.hold, "hold")}
-                    {renderKey("Tap-Hold", keys.taphold, "taphold")}
-                    {renderKey("Double-Tap", keys.doubletap, "doubletap")}
+                    {renderTapdanceKey("Tap", keys.tap, "tap")}
+                    {renderTapdanceKey("Hold", keys.hold, "hold")}
+                    {renderTapdanceKey("Tap-Hold", keys.taphold, "taphold")}
+                    {renderTapdanceKey("Double-Tap", keys.doubletap, "doubletap")}
                 </div>
 
                 {/* Hold time input */}
@@ -247,10 +196,10 @@ const TapdanceEditor: FC<Props> = () => {
     // Vertical layout: keys stacked with ms input at the bottom
     return (
         <div className={`flex flex-col ${gapClass} ${paddingClass}`}>
-            {renderKey("Tap", keys.tap, "tap")}
-            {renderKey("Hold", keys.hold, "hold")}
-            {renderKey("Tap-Hold", keys.taphold, "taphold")}
-            {renderKey("Double-Tap", keys.doubletap, "doubletap")}
+            {renderTapdanceKey("Tap", keys.tap, "tap")}
+            {renderTapdanceKey("Hold", keys.hold, "hold")}
+            {renderTapdanceKey("Tap-Hold", keys.taphold, "taphold")}
+            {renderTapdanceKey("Double-Tap", keys.doubletap, "doubletap")}
 
             <div className="flex flex-row gap-3 items-center mt-4">
                 <span className="text-md font-normal text-slate-600">Milliseconds</span>

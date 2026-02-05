@@ -60,105 +60,8 @@ export const Key: React.FC<KeyProps> = (props) => {
 
     // --- Data processing ---
     const keyData = useMemo(() => {
-        let displayLabel = label;
-        let bottomStr = "";
-        let topLabel: React.ReactNode = "";
-
-        if (keyContents?.type === "modmask") {
-            // Modifier+key combo (e.g., LGUI(TAB))
-            // Show key in center, modifier on BOTTOM
-            const keysArr = keyContents.str?.split("\n") || [];
-            const keyStr = keysArr[0] || "";
-
-            // Show the key in center (blank if no base key)
-            if (keyStr === "" || keyStr === "KC_NO") {
-                displayLabel = "";
-            } else {
-                displayLabel = keyStr;
-            }
-
-            // If forceLabel is true, use the provided label instead of the derived one
-            if (forceLabel) {
-                displayLabel = label;
-            }
-
-            // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
-            const modMatch = keycode.match(/^([A-Z]+)\(/);
-            bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
-
-            // Smart Override for International Keys (e.g. UK Shift+3 = £)
-            // Use case-insensitive check so 'q' doesn't override 'Q' (which would hide the badge)
-            // AND ensure we only hide the badge if it is a SHIFT modifier. We don't want to hide CTRL/ALT/GUI.
-            // AND only do this for single characters. If it's a word (e.g. "PRTSC" vs "KC_PSCREEN"), keep the badge.
-            if (label &&
-                label.toUpperCase() !== keyStr.toUpperCase() &&
-                label !== "KC_NO" &&
-                label !== "KC_TRNS" &&
-                displayLabel !== "" &&
-                displayLabel.length === 1 &&
-                (bottomStr === "LSFT" || bottomStr === "RSFT")
-            ) {
-                displayLabel = label;
-                bottomStr = "";
-            }
-
-            // Clean Shifted Characters: If just Shift modifier and single char label that is likely a symbol (not a letter), hide the badge
-            // This hides badge for '!', '@', etc but KEEPS it for 'A', 'S' (as requested)
-            // Also explicitly hide for our smart overrides which are usually symbols
-            // EXCLUDE Numpad keys (which contain KC_P or KC_KP) as requested
-            if ((bottomStr === "LSFT" || bottomStr === "RSFT") &&
-                displayLabel.length === 1 &&
-                !/[a-zA-Z]/.test(displayLabel) &&
-                !keycode.includes("KC_P") && !keycode.includes("KC_KP")) {
-                bottomStr = "";
-            }
-        } else if (keyContents?.type === "modtap") {
-            // Modifier-tap key (e.g., LGUI_T(KC_TAB))
-            // Show key in center, modifier_T in top header
-            const keysArr = keyContents.str?.split("\n") || [];
-            const keyStr = keysArr[0] || "";
-
-            if (keyStr === "" || keyStr === "KC_NO") {
-                displayLabel = "";
-            } else {
-                displayLabel = keyStr;
-            }
-            // Extract modifier prefix from keycode (e.g., "LGUI_T(KC_TAB)" -> "LGUI_T")
-            const modMatch = keycode.match(/^(\w+_T)\(/);
-            topLabel = keyContents.top || (modMatch ? modMatch[1] : "MOD_T");
-        } else if (keyContents?.type === "layerhold") {
-            // Layer-tap key (e.g., LT1(KC_ENTER))
-            // Show key in center, LT# in header
-            // Note: For LT keys, KC_NO means no tap action - show blank (not "(kc)")
-            const ltMatch = keycode.match(/^LT(\d+)/);
-            topLabel = ltMatch ? `LT${ltMatch[1]}` : "LT";
-            const keysArr = keyContents.str?.split("\n") || [];
-            displayLabel = keysArr[0] || "";
-            // Don't show "(kc)" for LT keys - just leave blank when no tap key
-            if (displayLabel === "KC_NO") {
-                displayLabel = "";
-            }
-        } else if (keyContents?.type === "tapdance") {
-            displayLabel = keyContents.tdid?.toString() || "";
-        } else if (keyContents?.type === "macro") {
-            displayLabel = keyContents.top?.replace("M", "") || "";
-        } else if (keyContents?.type === "user") {
-            displayLabel = keyContents.str || "";
-        } else if (keyContents?.type === "OSM") {
-            topLabel = "OSM";
-            displayLabel = keyContents.str || "";
-        }
-
-        if (displayLabel === "KC_NO") displayLabel = "";
-
-        const { icons, isMouse } = getHeaderIcons(keycode, displayLabel);
-        if (icons.length > 0) {
-            topLabel = <div className="flex items-center justify-center gap-1">{icons}</div>;
-        }
-
-        const centerContent = getCenterContent(displayLabel, keycode, isMouse);
-        return { displayLabel, bottomStr, topLabel, centerContent };
-    }, [label, keyContents, keycode]);
+        return processKeyData(keycode, label, keyContents, forceLabel);
+    }, [label, keyContents, keycode, forceLabel]);
 
     // --- Styling logic ---
     const styles = useMemo(() => {
@@ -355,3 +258,104 @@ export const Key: React.FC<KeyProps> = (props) => {
         </div>
     );
 };
+
+// --- Helper Functions ---
+
+function processKeyData(keycode: string, label: string, keyContents: KeyContent | undefined, forceLabel: boolean) {
+    let displayLabel = label;
+    let bottomStr = "";
+    let topLabel: React.ReactNode = "";
+
+    if (keyContents?.type === "modmask") {
+        // Modifier+key combo (e.g., LGUI(TAB))
+        const keysArr = keyContents.str?.split("\n") || [];
+        const keyStr = keysArr[0] || "";
+
+        // Show the key in center (blank if no base key)
+        displayLabel = (keyStr === "" || keyStr === "KC_NO") ? "" : keyStr;
+
+        // If forceLabel is true, use the provided label instead of the derived one
+        if (forceLabel) {
+            displayLabel = label;
+        }
+
+        // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
+        const modMatch = keycode.match(/^([A-Z]+)\(/);
+        bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
+
+        // Smart Override for International Keys
+        if (shouldOverrideForInternational(label, keyStr, displayLabel, bottomStr)) {
+            displayLabel = label;
+            bottomStr = "";
+        }
+
+        // Clean Shifted Characters
+        if (shouldHideShiftBadge(displayLabel, bottomStr, keycode)) {
+            bottomStr = "";
+        }
+
+    } else if (keyContents?.type === "modtap") {
+        // Modifier-tap key (e.g., LGUI_T(KC_TAB))
+        const keysArr = keyContents.str?.split("\n") || [];
+        const keyStr = keysArr[0] || "";
+        displayLabel = (keyStr === "" || keyStr === "KC_NO") ? "" : keyStr;
+
+        // Extract modifier prefix from keycode
+        const modMatch = keycode.match(/^(\w+_T)\(/);
+        topLabel = keyContents.top || (modMatch ? modMatch[1] : "MOD_T");
+
+    } else if (keyContents?.type === "layerhold") {
+        // Layer-tap key (e.g., LT1(KC_ENTER))
+        const ltMatch = keycode.match(/^LT(\d+)/);
+        topLabel = ltMatch ? `LT${ltMatch[1]}` : "LT";
+        const keysArr = keyContents.str?.split("\n") || [];
+        displayLabel = keysArr[0] || "";
+        if (displayLabel === "KC_NO") displayLabel = "";
+
+    } else if (keyContents?.type === "tapdance") {
+        displayLabel = keyContents.tdid?.toString() || "";
+    } else if (keyContents?.type === "macro") {
+        displayLabel = keyContents.top?.replace("M", "") || "";
+    } else if (keyContents?.type === "user") {
+        displayLabel = keyContents.str || "";
+    } else if (keyContents?.type === "OSM") {
+        topLabel = "OSM";
+        displayLabel = keyContents.str || "";
+    }
+
+    if (displayLabel === "KC_NO") displayLabel = "";
+
+    const { icons, isMouse } = getHeaderIcons(keycode, displayLabel);
+    if (icons.length > 0) {
+        topLabel = <div className="flex items-center justify-center gap-1">{icons}</div>;
+    }
+
+    const centerContent = getCenterContent(displayLabel, keycode, isMouse);
+    return { displayLabel, bottomStr, topLabel, centerContent };
+}
+
+
+function shouldOverrideForInternational(label: string, keyStr: string, displayLabel: string, bottomStr: string) {
+    // Smart Override for International Keys (e.g. UK Shift+3 = £)
+    // Use case-insensitive check so 'q' doesn't override 'Q'
+    return (
+        label &&
+        label.toUpperCase() !== keyStr.toUpperCase() &&
+        label !== "KC_NO" &&
+        label !== "KC_TRNS" &&
+        displayLabel !== "" &&
+        displayLabel.length === 1 &&
+        (bottomStr === "LSFT" || bottomStr === "RSFT")
+    );
+}
+
+function shouldHideShiftBadge(displayLabel: string, bottomStr: string, keycode: string) {
+    // Clean Shifted Characters: If just Shift modifier and single char label that is likely a symbol (not a letter), hide the badge
+    // EXCLUDE Numpad keys
+    return (
+        (bottomStr === "LSFT" || bottomStr === "RSFT") &&
+        displayLabel.length === 1 &&
+        !/[a-zA-Z]/.test(displayLabel) &&
+        !keycode.includes("KC_P") && !keycode.includes("KC_KP")
+    );
+}

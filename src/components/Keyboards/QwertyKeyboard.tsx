@@ -120,19 +120,20 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                         BUTTON_TO_KEYCODE_MAP[labelKey.toLowerCase()] ||
                         labelKey;
 
+
                     // Don't modify special structural keys
-                    const isStructureKey = keycode.startsWith("KC_") === false && !["{", "}"].some(c => keycode.includes(c));
+                    // const isStructureKey = keycode.startsWith("KC_") === false && !["{", "}"].some(c => keycode.includes(c));
+
                     // Actually check if it is a modifier key itself (e.g. KC_LSFT) or a structural key
                     // Simplified: if it's a regular keycode (starts with KC_ or is a character), apply modifiers
                     // But prevent modifying the modifiers themselves if mistakenly passed?
                     // Safe approach: apply activeModifiers if provided, but skip if keycode is weird.
-
                     // Actually, if we are DRAGGING, we want the modified keycode.
                     // If we are CLICKING, onKeyPress handles it (via BasicKeyboards callback which applies modifiers).
                     // So this change PRIMARILY affects the Key component's `keycode` prop, which determines drag payload.
 
                     // Exclude special UI keys from being modified
-                    const isSpecial = ["{shiftleft}", "{shiftright}", "{capslock}", "{space}"].includes(defaultKey);
+                    // const isSpecial = ["{shiftleft}", "{shiftright}", "{capslock}", "{space}"].includes(defaultKey);
                     // Note: {space} is KC_SPC, which CAN be modified.
 
                     // Apply modifiers to the keycode if valid

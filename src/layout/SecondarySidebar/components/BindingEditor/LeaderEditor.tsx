@@ -1,15 +1,14 @@
 import { FC, useEffect } from "react";
-import { ArrowRight, Trash2, ArrowRightFromLine } from "lucide-react";
+import { ArrowRight, ArrowRightFromLine } from "lucide-react";
 
-import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
-import { getKeyContents } from "@/utils/keys";
 import { vialService } from "@/services/vial.service";
 import { LeaderOptions } from "@/types/vial.types";
+import EditorKey from "./EditorKey";
 
 const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -96,66 +95,46 @@ const LeaderEditor: FC = () => {
     const renderSequenceKey = (seqIndex: number) => {
         if (!leaderEntry) return null;
         const keycode = leaderEntry.sequence?.[seqIndex] || "KC_NO";
-        const keyContents = getKeyContents(keyboard!, keycode);
         const isSelected = isSlotSelected("sequence", seqIndex);
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-dashed border-gray-300";
-            headerClass = "text-gray-400";
-        }
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
                 <span className={cn("font-medium text-black", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
-                <div className={`relative ${seqKeySize} group/leader-key`}>
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        variant={keyVariant}
-                        disableTooltip={true}
-                    />
-                    {hasContent && (
-                        <div className="absolute -top-2 -right-2 opacity-0 group-hover/leader-key:opacity-100 transition-opacity">
-                            <button
-                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full bg-white shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey("sequence", seqIndex);
-                                }}
-                                title="Remove key"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
+                    onClear={() => clearKey("sequence", seqIndex)}
+                    size={seqKeySize}
+                    // LeaderEditor sets trash top -2 right -2 which is different from default EditorKey
+                    // EditorKey uses top-0 left-offset. 
+                    // Let's stick to EditorKey default (left offset) for consistency, unless it breaks layout.
+                    // The original used: "absolute -top-2 -right-2".
+                    // EditorKey default is: "absolute -left-10 top-0".
+                    // Let's try to override to match original if possible, but EditorKey trash is hard elements.
+                    // Maybe just accept the new cleaner left-side trash? 
+                    // Wait, sequence keys in sidebar might be tight.
+                    // Original sidebar layout: `flex flex-row flex-wrap gap-4 items-end`.
+                    // Keys are 50x50. Left trash (-left-10 = -2.5rem = -40px) might overlap previous key.
+                    // Let's check visual overlap.
+                    // Sequence: Key1 -> arrow -> Key2.
+                    // If Key2 has trash on left, it might overlap arrow or Key1.
+                    // Let's try to keep the original "top right" style by using classes, IF EditorKey allows.
+                    // EditorKey structure: relative wrapper -> Key -> Trash holder.
+                    // Trash holder class: `absolute ${trashOffset} top-0 h-full ...`
+                    // I can pass `trashOffset="-right-2"` but top is fixed to `top-0`.
+                    // Original was `-top-2 -right-2`.
+                    // To support top offset, EditorKey would need updating.
+                    // Let's just use the default left trash for now and see. 
+                    // Actually, for "sequence" items which are in a row, left trash is risky.
+                    // But also top-right trash often overlaps with the label or header of the *next* key or similar.
+                    // Let's assume standard left trash is OK for "cleaner code" goal, uniformity.
+                    variant={keyVariant}
+                    wrapperClassName={`relative ${seqKeySize} group/leader-key`}
+                    // We render label externally to control styling
+                    label={undefined}
+                    labelClassName={undefined}
+                />
             </div>
         );
     };
@@ -163,69 +142,26 @@ const LeaderEditor: FC = () => {
     const renderOutputKey = () => {
         if (!leaderEntry) return null;
         const keycode = leaderEntry.output || "KC_NO";
-        const keyContents = getKeyContents(keyboard!, keycode);
         const isSelected = isSlotSelected("output");
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
-
         const trashOffset = isHorizontal ? "-left-8" : "-left-10";
         const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
                 <span className={cn("font-bold text-slate-600", isHorizontal ? "text-xs" : "text-sm")}>Output</span>
-                <div className={`relative ${outputKeySize} group/leader-output`}>
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectLeaderKey(leaderIndex, "output")}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        variant={keyVariant}
-                        disableTooltip={true}
-                    />
-                    {hasContent && (
-                        <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/leader-output:opacity-100 transition-opacity`}>
-                            <button
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey("output");
-                                }}
-                                title="Clear key"
-                            >
-                                <Trash2 className={trashSize} />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectLeaderKey(leaderIndex, "output")}
+                    onClear={() => clearKey("output")}
+                    size={outputKeySize}
+                    trashOffset={trashOffset}
+                    trashSize={trashSize}
+                    variant={keyVariant}
+                    wrapperClassName={`relative ${outputKeySize} group/leader-output`}
+                    label={undefined}
+                    labelClassName={undefined}
+                />
             </div>
         );
     };

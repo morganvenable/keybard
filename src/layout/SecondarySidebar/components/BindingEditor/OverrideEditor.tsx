@@ -1,13 +1,11 @@
 import { FC, useState, useEffect } from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
-import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
-import { getKeyContents } from "@/utils/keys";
 
 import OverrideModifierSelector from "./OverrideModifierSelector";
 
@@ -30,7 +28,7 @@ const OPTIONS = [
 const ENABLED_BIT = 1 << 7;
 
 import { vialService } from "@/services/vial.service";
-import { KeyContent } from "@/types/vial.types";
+import EditorKey from "./EditorKey";
 
 const OverrideEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -135,68 +133,27 @@ const OverrideEditor: FC<Props> = () => {
 
     const currentMask = getActiveMask();
 
-    const renderKey = (label: string, slot: "trigger" | "replacement") => {
+    const renderOverrideKey = (label: string, slot: "trigger" | "replacement") => {
         if (!override) return null;
         const keycode = slot === "trigger" ? override.trigger : override.replacement;
-        const keyContents = getKeyContents(keyboard!, keycode || "KC_NO");
         const isSelected = isSlotSelected(slot);
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
 
         return (
             <div className="flex flex-col items-center gap-2 relative">
                 <span className="text-sm font-bold text-slate-600">{label}</span>
-                <div className="relative w-[60px] h-[60px] group/override-key">
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode || "KC_NO"}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectOverrideKey(overrideIndex, slot)}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        disableTooltip={true}
-                    />
-                    {hasContent && (
-                        <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/override-key:opacity-100 group-hover/override-key:pointer-events-auto pointer-events-none transition-opacity">
-                            <button
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey(slot);
-                                }}
-                                title="Clear key"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectOverrideKey(overrideIndex, slot)}
+                    onClear={() => clearKey(slot)}
+                    size="w-[60px] h-[60px]"
+                    // OverrideEditor renders trash at "-left-10" which is default for EditorKey
+                    trashOffset="-left-10"
+                    wrapperClassName="relative w-[60px] h-[60px] group/override-key"
+                    variant="default"
+                    label={undefined}
+                    labelClassName={undefined}
+                />
             </div>
         );
     };
@@ -210,11 +167,11 @@ const OverrideEditor: FC<Props> = () => {
 
 
             <div className="flex flex-row gap-8 justify-start items-center">
-                {renderKey("Trigger", "trigger")}
+                {renderOverrideKey("Trigger", "trigger")}
                 <div className="pt-6 text-black -mr-1">
                     <ArrowRight className="w-6 h-6" />
                 </div>
-                {renderKey("Replacement", "replacement")}
+                {renderOverrideKey("Replacement", "replacement")}
             </div>
 
             {/* Tabs */}

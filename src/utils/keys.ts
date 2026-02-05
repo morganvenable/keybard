@@ -141,7 +141,7 @@ export function getModMasks(modids: any) {
     return allmods;
 }
 
-export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
+export function getKeyContents(KBINFO: KeyboardInfo, keystr: any): any {
     if (keystr === undefined || keystr === null) {
         return undefined;
     }
