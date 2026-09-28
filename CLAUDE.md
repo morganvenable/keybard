@@ -73,7 +73,7 @@ cd ../keybard-ng && git worktree remove ../keybard-ng-explore
 
 | Repository | Branch | Purpose |
 |------------|--------|---------|
-| `viable-qmk` | `svalboard` | QMK firmware with Viable protocol |
+| `sval-qmk` (GitHub repo, formerly `viable-qmk`; local dir may still be `viable-qmk`) | `svalboard` | QMK firmware with Viable protocol |
 | `viable-gui` | `viable` | Reference Python GUI implementation |
 | `keybard-ng` (upstream) | `main` | Original Vial-compatible GUI |
 

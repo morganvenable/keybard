@@ -1,7 +1,7 @@
 import type { CustomUIMenuItem } from '../../src/types/vial.types';
 
 /**
- * Mirrors the "Pointing Device" VIA3 menu from viable-qmk
+ * Mirrors the "Pointing Device" VIA3 menu from sval-qmk (formerly viable-qmk)
  * keyboards/svalboard/keymaps/viable/viable.json. The PointingPanel renders this
  * tree dynamically, so new firmware settings (like the per-pointer auto-mouse
  * activation toggles) show up without UI code changes.
