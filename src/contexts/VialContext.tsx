@@ -200,7 +200,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const kbinfo = await fileService.loadFile(file);
 
-            // .viable / .vil files only carry user-editable data (keymap,
+            // .svil / .vil files only carry user-editable data (keymap,
             // macros, combos, etc.). Device-derived structural fields come
             // from the keyboard payload at connect time and are not in the
             // file format. If a board is currently connected, merge those

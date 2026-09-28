@@ -112,7 +112,7 @@ export interface PublishLayerData {
     tags: string[];
 }
 
-// --- Layout Library Types (for importing .viable files) ---
+// --- Layout Library Types (for importing .svil files) ---
 
 /**
  * A group of layers from an imported layout file or the current keyboard

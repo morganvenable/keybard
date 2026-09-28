@@ -63,10 +63,10 @@ Click "Connect Keyboard" to connect to a Vial-compatible keyboard via WebHID.
 
 ### 2. Load Configuration File
 
-Click "Load File" to load a `.viable` or `.vil` configuration file.
+Click "Load File" to load a `.svil` or `.vil` configuration file.
 
 **Supported formats**:
-- `.viable` - Native Viable format (recommended)
+- `.svil` - Native Svalboard layout format (recommended). Legacy `.viable` files still load.
 - `.vil` - Vial-compatible format
 
 **File size limit**: 1MB maximum
@@ -111,7 +111,7 @@ function MyComponent() {
 ✅ KEY utilities (keycode parsing, CODEMAP, KEYMAP, KEYALIASES)
 ✅ React Context provider
 ✅ Basic connection UI
-✅ File loading (.viable and .vil configuration files)
+✅ File loading (.svil and .vil configuration files)
 
 ## What's Next
 

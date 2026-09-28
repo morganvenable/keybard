@@ -1,7 +1,7 @@
 /**
  * Layer Library Service
  * Manages local layer database - reading from bundled JSON and writing to localStorage
- * Also handles importing .viable layout files for the Layouts panel
+ * Also handles importing .svil layout files for the Layouts panel
  */
 
 import type {
@@ -244,7 +244,7 @@ export class LayerLibraryService {
         this.loadUserLayers();
     }
 
-    // --- Layout Import Methods (for .viable files) ---
+    // --- Layout Import Methods (for .svil files) ---
 
     /**
      * Check if a layer is empty (only contains KC_NO or KC_TRNS)
@@ -254,11 +254,11 @@ export class LayerLibraryService {
     }
 
     /**
-     * Import a .viable or .vil file and add it to localStorage
+     * Import a .svil or .vil file and add it to localStorage
      */
     async importLayoutFromFile(file: File): Promise<LayoutGroup> {
         const kbinfo = await fileService.loadFile(file);
-        const name = file.name.replace(/\.(viable|vil|json)$/i, '');
+        const name = file.name.replace(/\.(svil|viable|vil|json)$/i, '');
         return this.importLayoutFromKeyboardInfo(kbinfo, name);
     }
 

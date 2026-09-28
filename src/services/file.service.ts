@@ -39,7 +39,7 @@ export class FileService {
     async loadFile(file: File): Promise<KeyboardInfo> {
         await this.validateFile(file);
         const content = await this.readFile(file);
-        // Use parseContent to handle all file formats (.vil, .viable)
+        // Use parseContent to handle all file formats (.vil, .svil)
         return this.parseContent(content);
     }
 
@@ -101,14 +101,14 @@ export class FileService {
         });
     }
 
-    async downloadViable(kbinfo: KeyboardInfo, includeMacros: boolean = true): Promise<void> {
+    async downloadSvil(kbinfo: KeyboardInfo, includeMacros: boolean = true): Promise<void> {
         const viable = this.kbinfoToViable(structuredClone(kbinfo), includeMacros);
         await this.downloadTEXT(viable, {
-            suggestedName: includeMacros ? 'keyboard.viable' : 'keyboard-nomacro.viable',
+            suggestedName: includeMacros ? 'keyboard.svil' : 'keyboard-nomacro.svil',
             types: [{
-                description: 'Viable layout files',
+                description: 'Svalboard layout files',
                 accept: {
-                    'application/json': ['.viable'],
+                    'application/json': ['.svil'],
                 },
             }],
         });
@@ -176,13 +176,13 @@ export class FileService {
         let kbinfo: KeyboardInfo | null = null;
 
         if (js.uid && (js.viable_protocol !== undefined || js.version === 1)) {
-            // It's a .viable file (has uid + viable_protocol or version: 1)
+            // It's a .svil / legacy .viable file (has uid + viable_protocol or version: 1)
             kbinfo = this.viableToKBINFO(js);
         } else if (js.uid) {
             // It's a .vil (has uid but no viable_protocol)
             kbinfo = this.vilToKBINFO(js);
         } else {
-            throw new Error('Unknown file format. Expected .viable or .vil file.');
+            throw new Error('Unknown file format. Expected .svil (or legacy .viable) or .vil file.');
         }
 
         // Restore precise UID (JSON.parse loses precision on large integers)
@@ -268,7 +268,7 @@ export class FileService {
     }
 
     /**
-     * Convert KeyboardInfo to .viable format (native Viable format)
+     * Convert KeyboardInfo to .svil format (native Svalboard layout format; same JSON structure as viable-gui's .viable)
      * This format preserves all Viable-specific features
      */
     kbinfoToViable(kbinfo: KeyboardInfo, includeMacros: boolean = true): string {
@@ -380,7 +380,7 @@ export class FileService {
             tap_toggle: kbinfo.one_shot.tap_toggle || 0,
         } : null;
 
-        // Build the .viable structure
+        // Build the .svil structure
         // Use placeholder for UID since we need BigInt for 64-bit precision
         const uidPlaceholder = "UID_PLACEHOLDER_FOR_BIGINT";
         const viable: any = {
@@ -609,8 +609,8 @@ export class FileService {
     }
 
     /**
-     * Convert .viable format to KeyboardInfo
-     * .viable is the native format for viable-gui with dict-style entries
+     * Convert .svil format to KeyboardInfo
+     * .svil (formerly .viable) uses viable-gui's dict-style entries
      */
     viableToKBINFO(viable: any): KeyboardInfo {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
