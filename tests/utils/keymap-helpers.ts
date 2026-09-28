@@ -233,7 +233,7 @@ export function createKbinfoWithFragments(options?: {
 }
 
 /**
- * Convert keymap to layout format (as stored in .viable files)
+ * Convert keymap to layout format (as stored in .svil files)
  * layout[layer][row][col] = keycode
  */
 export function keymapToLayout(
@@ -280,7 +280,7 @@ export function layoutToKeymap(layout: number[][][], cols: number): number[][] {
 }
 
 /**
- * Create a mock .viable file content
+ * Create a mock .svil file content
  */
 export function createViableFileContent(kbinfo: KeyboardInfo): Record<string, unknown> {
     const viable: Record<string, unknown> = {
@@ -372,7 +372,7 @@ export function countKeycodeTypes(keymap: number[][]): Record<string, number> {
 /**
  * Create mock File object for testing file imports
  */
-export function createMockFile(content: string | object, filename = 'test.viable'): File {
+export function createMockFile(content: string | object, filename = 'test.svil'): File {
     const text = typeof content === 'string' ? content : JSON.stringify(content);
     const blob = new Blob([text], { type: 'application/json' });
     return new File([blob], filename, { type: 'application/json' });

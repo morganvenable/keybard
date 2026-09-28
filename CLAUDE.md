@@ -497,7 +497,7 @@ This test plan can be executed autonomously via Claude-in-Chrome browser automat
 | **2.2 Pointing Tab** | Open Settings → Click "Pointing" | Shows DPI sliders (left/right), scroll settings |
 | **2.3 Import/Export Tab** | Open Settings → Click "Import / Export" | Shows Import..., Export..., Print Layers... options |
 | **2.4 Toggle Live Updating** | In General tab, toggle "Live Updating" | Toggle switches state; bottom bar shows "Live Updating" or "Update Changes" button |
-| **2.5 Open Export Dialog** | Click "Export..." | Dialog opens with format dropdown (Viable/VIL/KBI) and Include Macros toggle |
+| **2.5 Open Export Dialog** | Click "Export..." | Dialog opens with format dropdown (SVIL/VIL/KBI) and Include Macros toggle |
 | **2.6 Cancel Export Dialog** | In Export dialog, click "Cancel" | Dialog closes without action |
 | **2.7 Open Print Dialog** | Click "Print Layers..." | Dialog opens showing keyboard name and non-empty layer count |
 | **2.8 Cancel Print Dialog** | In Print dialog, click "Cancel" | Dialog closes without action |

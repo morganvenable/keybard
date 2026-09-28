@@ -3,7 +3,7 @@
  *
  * Shows:
  * - Current keyboard (always at top)
- * - Imported .viable/.vil layouts
+ * - Imported .svil/.vil layouts (legacy .viable accepted)
  * - Import button and drag-drop zone
  */
 
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 
 // Dynamically discover all layout files placed in src/default-layouts
 // No code changes are required when adding new files here!
-const defaultLayoutModules = import.meta.glob('@/default-layouts/*.{viable,vil,json}', {
+const defaultLayoutModules = import.meta.glob('@/default-layouts/*.{svil,viable,vil,json}', {
     query: '?url',
     import: 'default',
     eager: true
@@ -32,7 +32,7 @@ const defaultLayoutModules = import.meta.glob('@/default-layouts/*.{viable,vil,j
 // Transform the glob object into an array of { name, fileUrl }
 const DEFAULT_LAYOUTS = Object.entries(defaultLayoutModules).map(([path, url]) => {
     // Extract just the filename without extension for the 'name'
-    const name = path.split('/').pop()?.replace(/\.(viable|vil|json)$/i, '') || 'unknown';
+    const name = path.split('/').pop()?.replace(/\.(svil|viable|vil|json)$/i, '') || 'unknown';
     return { name, fileUrl: url };
 });
 
@@ -68,7 +68,7 @@ const LayoutsPanel: FC = () => {
                         if (response.ok) {
                             const blob = await response.blob();
                             // Generate a proper filename from the URL or name
-                            const filename = layout.fileUrl.split('/').pop()?.split('?')[0] || `${layout.name}.viable`;
+                            const filename = layout.fileUrl.split('/').pop()?.split('?')[0] || `${layout.name}.svil`;
                             const file = new File([blob], filename, { type: "application/json" });
                             await layerLibraryService.importLayoutFromFile(file);
 
@@ -89,8 +89,8 @@ const LayoutsPanel: FC = () => {
 
     // Handle file import
     const handleFileImport = useCallback(async (file: File) => {
-        if (!file.name.match(/\.(viable|vil|json)$/i)) {
-            setImportError("Please select a .viable, .vil, or .json file");
+        if (!file.name.match(/\.(svil|viable|vil|json)$/i)) {
+            setImportError("Please select a .svil, .vil, or .json file");
             return;
         }
 
@@ -320,7 +320,7 @@ const LayoutsPanel: FC = () => {
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".viable,.vil,.json"
+                    accept=".svil,.viable,.vil,.json"
                     className="hidden"
                     onChange={handleFileInputChange}
                 />
@@ -363,7 +363,7 @@ const LayoutsPanel: FC = () => {
                         {/* Empty State */}
                         {importedLayouts.length === 0 && publishedLayers.length === 0 && (
                             <div className="flex items-center justify-center text-gray-400 text-xs h-full px-4">
-                                <span>Import a .viable file or publish layers to get started</span>
+                                <span>Import a .svil file or publish layers to get started</span>
                             </div>
                         )}
 
@@ -396,7 +396,7 @@ const LayoutsPanel: FC = () => {
             {/* Header Description */}
             <div className="pl-0 pr-3">
                 <span className="text-sm text-gray-500">
-                    Drag and drop to apply a layout to one of your layers or drag and drop individual keys. Default layouts are provided by Svalboard. You can save any of your own layers here, or import any .viable file.
+                    Drag and drop to apply a layout to one of your layers or drag and drop individual keys. Default layouts are provided by Svalboard. You can save any of your own layers here, or import any .svil file.
                 </span>
             </div>
 
@@ -434,7 +434,7 @@ const LayoutsPanel: FC = () => {
             <input
                 ref={fileInputRef}
                 type="file"
-                accept=".viable,.vil,.json"
+                accept=".svil,.viable,.vil,.json"
                 className="hidden"
                 onChange={handleFileInputChange}
             />
@@ -460,7 +460,7 @@ const LayoutsPanel: FC = () => {
                         <div className="text-center">
                             <Upload className="w-12 h-12 text-blue-500 mx-auto mb-2" />
                             <p className="text-blue-700 dark:text-blue-300 font-medium">
-                                Drop .viable file to import
+                                Drop .svil file to import
                             </p>
                         </div>
                     </div>
@@ -505,7 +505,7 @@ const LayoutsPanel: FC = () => {
                         <LayoutImport className="w-16 h-16 mx-auto mb-6 text-gray-200 dark:text-gray-800" />
                         <p className="text-base font-medium mb-2">No layouts loaded</p>
                         <p className="text-sm max-w-[300px] mx-auto opacity-70">
-                            Import a .viable file <br></br>or save one of your current layers from it's contextual menu.
+                            Import a .svil file <br></br>or save one of your current layers from it's contextual menu.
                         </p>
                     </div>
                 )}

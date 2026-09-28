@@ -3,7 +3,7 @@ import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
 
 import { useVial } from "@/contexts/VialContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
-import demoLayoutUrl from "@/default-layouts/sval-default.viable?url";
+import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
     const { isConnected, connect, disconnect, loadKeyboard, loadFromFile } = useVial();
@@ -101,7 +101,7 @@ const ConnectKeyboard = () => {
             if (!response.ok) throw new Error("Failed to fetch demo file");
             const blob = await response.blob();
             // Generate a proper filename from the URL or name
-            const filename = demoLayoutUrl.split('/').pop()?.split('?')[0] || "sval-default.viable";
+            const filename = demoLayoutUrl.split('/').pop()?.split('?')[0] || "sval-default.svil";
             const file = new File([blob], filename, { type: "application/octet-stream" });
             await loadFromFile(file);
         } catch (err) {
@@ -184,7 +184,7 @@ const ConnectKeyboard = () => {
                                     >
                                         {loading ? "Loading..." : "Load File"}
                                     </button>
-                                    <input ref={fileInputRef} type="file" accept=".viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
+                                    <input ref={fileInputRef} type="file" accept=".svil,.viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
                                     <button
                                         onClick={handleLoadDemo}
                                         disabled={loading}

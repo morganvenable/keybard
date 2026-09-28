@@ -39,7 +39,7 @@ const SettingsPanel = () => {
 
     // Export Dialog State
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
+    const [exportFormat, setExportFormat] = useState<"svil" | "vil">("svil");
     const [includeMacros, setIncludeMacros] = useState(true);
 
     // Print Dialog State
@@ -169,9 +169,9 @@ const SettingsPanel = () => {
         }
 
         try {
-            if (exportFormat === "viable") {
+            if (exportFormat === "svil") {
                 // Custom values are already in keyboard.custom_values (loaded at connect time)
-                await fileService.downloadViable(keyboard, includeMacros);
+                await fileService.downloadSvil(keyboard, includeMacros);
             } else {
                 await fileService.downloadVIL(keyboard, includeMacros);
             }
@@ -213,7 +213,7 @@ const SettingsPanel = () => {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept=".viable,.vil,.json"
+                    accept=".svil,.viable,.vil,.json"
                     onChange={handleFileImport}
                 />
 
@@ -229,12 +229,12 @@ const SettingsPanel = () => {
                         <div className="flex flex-col gap-4 py-4">
                             <div className="flex flex-col gap-2">
                                 <Label>Format</Label>
-                                <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
+                                <Select value={exportFormat} onValueChange={(v: "svil" | "vil") => setExportFormat(v)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select format" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
+                                        <SelectItem value="svil">Svalboard (.svil) - Native Format</SelectItem>
                                         <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -378,7 +378,7 @@ const SettingsPanel = () => {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".viable,.vil,.json"
+                accept=".svil,.viable,.vil,.json"
                 onChange={handleFileImport}
             />
 
@@ -394,12 +394,12 @@ const SettingsPanel = () => {
                     <div className="flex flex-col gap-4 py-4">
                         <div className="flex flex-col gap-2">
                             <Label>Format</Label>
-                            <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
+                            <Select value={exportFormat} onValueChange={(v: "svil" | "vil") => setExportFormat(v)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select format" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
+                                    <SelectItem value="svil">Svalboard (.svil) - Native Format</SelectItem>
                                     <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
                                 </SelectContent>
                             </Select>

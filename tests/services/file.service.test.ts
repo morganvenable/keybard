@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fileService } from '../../src/services/file.service';
 import { keyService } from '../../src/services/key.service';
 import type { KeyboardInfo } from '../../src/types/vial.types';
@@ -15,7 +15,7 @@ const createExportableKeyboardInfo = (overrides?: Partial<KeyboardInfo>): Keyboa
 };
 
 // Helper function to create mock files
-const createMockFile = (content: string, filename = 'test.viable'): File => {
+const createMockFile = (content: string, filename = 'test.svil'): File => {
   const blob = new Blob([content], { type: 'application/json' });
   return new File([blob], filename, { type: 'application/json' });
 };
@@ -24,12 +24,12 @@ const createMockFile = (content: string, filename = 'test.viable'): File => {
 const createLargeFile = (): File => {
   const largeContent = 'x'.repeat(1048577); // 1MB + 1 byte
   const blob = new Blob([largeContent], { type: 'application/json' });
-  return new File([blob], 'large.viable', { type: 'application/json' });
+  return new File([blob], 'large.svil', { type: 'application/json' });
 };
 
 describe('FileService', () => {
   describe('loadFile', () => {
-    it('successfully loads valid .viable file with layout', async () => {
+    it('successfully loads valid .svil file with layout', async () => {
       const validData = {
         version: 1,
         uid: 12345,
@@ -79,7 +79,7 @@ describe('FileService', () => {
       expect(result.keymap?.[0].length).toBe(4); // 2 rows * 2 cols = 4 keys
     });
 
-    it('successfully parses .viable file with optional fields', async () => {
+    it('successfully parses .svil file with optional fields', async () => {
       const dataWithOptionals = {
         version: 1,
         uid: 11111,
@@ -118,7 +118,7 @@ describe('FileService', () => {
     });
 
     it('throws error when file has no uid', async () => {
-      // parseContent requires uid (for .vil/.viable) to detect format
+      // parseContent requires uid (for .vil/.svil) to detect format
       const missingIdentifier = { rows: 6, cols: 14, layers: 4 };
       const file = createMockFile(JSON.stringify(missingIdentifier));
 
@@ -170,7 +170,7 @@ describe('FileService', () => {
     });
 
     it('keeps numeric keycodes as parsed values', async () => {
-      // .viable format stores keycodes as strings, they get parsed to numbers on import
+      // .svil format stores keycodes as strings, they get parsed to numbers on import
       const dataWithKeycodes = {
         version: 1,
         uid: 12345,
@@ -634,7 +634,7 @@ describe('FileService', () => {
   });
 
   describe('parseContent', () => {
-    it('detects .viable format by uid + version', () => {
+    it('detects .svil format by uid + version', () => {
       const viableContent = JSON.stringify({
         version: 1,
         uid: 12345,
@@ -678,5 +678,45 @@ describe('FileService', () => {
 
       expect(() => (fileService as any).parseContent(unknownContent)).toThrow('Unknown file format');
     });
+  });
+});
+
+describe('FileService .svil native format', () => {
+  const layoutData = {
+    version: 1,
+    uid: 12345,
+    layout: [[['KC_A', 'KC_B'], ['KC_C', 'KC_D']]],
+    macro: [],
+    tap_dance: [],
+    combo: [],
+    key_override: [],
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('loads a legacy .viable-named file (detection is content-based)', async () => {
+    const file = createMockFile(JSON.stringify(layoutData), 'old-layout.viable');
+    const result = await fileService.loadFile(file);
+    expect(result.kbid).toBe('3039');
+    expect(result.rows).toBe(2);
+  });
+
+  it('exports with a .svil suggested name and .svil accept type', async () => {
+    const writable = { write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) };
+    const showSaveFilePicker = vi.fn().mockResolvedValue({ createWritable: vi.fn().mockResolvedValue(writable) });
+    vi.stubGlobal('showSaveFilePicker', showSaveFilePicker);
+
+    await fileService.downloadSvil(createExportableKeyboardInfo(), true);
+    await fileService.downloadSvil(createExportableKeyboardInfo(), false);
+
+    expect(showSaveFilePicker).toHaveBeenCalledTimes(2);
+    const [withMacros, noMacros] = showSaveFilePicker.mock.calls.map((c) => c[0]);
+    expect(withMacros.suggestedName).toBe('keyboard.svil');
+    expect(noMacros.suggestedName).toBe('keyboard-nomacro.svil');
+    expect(withMacros.types[0].accept).toEqual({ 'application/json': ['.svil'] });
+    expect(JSON.stringify(withMacros)).not.toContain('.viable');
+    expect(writable.write).toHaveBeenCalledTimes(2);
   });
 });

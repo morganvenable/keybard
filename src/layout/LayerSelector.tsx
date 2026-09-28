@@ -95,7 +95,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     // Import/Export / Connect state
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
+    const [exportFormat, setExportFormat] = useState<"svil" | "vil">("svil");
     const [includeMacros, setIncludeMacros] = useState(true);
 
     const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,9 +176,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         }
 
         try {
-            if (exportFormat === "viable") {
+            if (exportFormat === "svil") {
                 // Custom values are already in keyboard.custom_values (loaded at connect time)
-                await fileService.downloadViable(keyboard, includeMacros);
+                await fileService.downloadSvil(keyboard, includeMacros);
             } else {
                 await fileService.downloadVIL(keyboard, includeMacros);
             }
@@ -403,7 +403,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".viable,.vil,.json"
+                                accept=".svil,.viable,.vil,.json"
                                 className="hidden"
                                 onChange={handleFileImport}
                             />
@@ -420,12 +420,12 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     <div className="grid gap-4 py-4">
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="format" className="text-right">Format</Label>
-                                            <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "viable" | "vil")}>
+                                            <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "svil" | "vil")}>
                                                 <SelectTrigger className="col-span-3">
                                                     <SelectValue placeholder="Select format" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="viable">.viable (Recommended)</SelectItem>
+                                                    <SelectItem value="svil">.svil (Recommended)</SelectItem>
                                                     <SelectItem value="vil">.vil (Vial compatible)</SelectItem>
                                                 </SelectContent>
                                             </Select>
