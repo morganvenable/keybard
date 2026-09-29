@@ -1,15 +1,15 @@
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
-import { ViableUSB, usbInstance } from "./usb.service";
+import { SvilUSB, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/vial.types";
 
-// Viable feature flags (from protocol info response)
+// Svil feature flags (from protocol info response)
 // CAPS_WORD = 0x01, LAYER_LOCK = 0x02 - not currently used
-const VIABLE_FLAG_ONESHOT = 0x04;
-const VIABLE_FLAG_LEADER = 0x08;
+const SVIL_FLAG_ONESHOT = 0x04;
+const SVIL_FLAG_LEADER = 0x08;
 import { ComboService } from "./combo.service";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -19,7 +19,7 @@ import { QMKService } from "./qmk.service";
 import { svalService } from "./sval.service";
 import { TapdanceService } from "./tapdance.service";
 
-// Stream wrapper for js-lzma (Viable uses raw LZMA, not XZ container)
+// Stream wrapper for js-lzma (Svil uses raw LZMA, not XZ container)
 class LZMAInStream {
     private data: Uint8Array;
     private offset: number = 0;
@@ -68,15 +68,15 @@ async function decompress(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
- * ViableService - Keyboard configuration service using the Viable protocol
+ * SvilService - Keyboard configuration service using the Svil protocol
  *
- * The Viable protocol extends VIA3 with additional features:
+ * The Svil protocol extends VIA3 with additional features:
  * - Alt Repeat Key, Leader sequences, One-shot settings
  * - Client ID wrapper for multi-client concurrent access
  * - Dynamic keyboard definitions with custom UI menus
  */
-export class ViableService {
-    private usb: ViableUSB;
+export class SvilService {
+    private usb: SvilUSB;
     private macro: MacroService;
     private tapdance: TapdanceService;
     private combo: ComboService;
@@ -86,7 +86,7 @@ export class ViableService {
     private fragment: FragmentService;
     private fragmentComposer: FragmentComposerService;
 
-    constructor(usb: ViableUSB) {
+    constructor(usb: SvilUSB) {
         this.usb = usb;
         this.macro = new MacroService(usb);
         this.tapdance = new TapdanceService(usb);
@@ -144,7 +144,7 @@ export class ViableService {
         await this.combo.get(kbinfo);
         await this.override.get(kbinfo);
 
-        // Load Viable-specific features based on feature flags
+        // Load Svil-specific features based on feature flags
         // Alt Repeat Keys don't have a flag - check entry count from definition
         if (kbinfo.alt_repeat_key_count && kbinfo.alt_repeat_key_count > 0) {
             try {
@@ -156,7 +156,7 @@ export class ViableService {
 
         // Leaders require LEADER flag (0x08)
         const flags = kbinfo.feature_flags ?? 0;
-        if ((flags & VIABLE_FLAG_LEADER) && kbinfo.leader_count && kbinfo.leader_count > 0) {
+        if ((flags & SVIL_FLAG_LEADER) && kbinfo.leader_count && kbinfo.leader_count > 0) {
             try {
                 await this.getLeaders(kbinfo);
             } catch (e) {
@@ -165,7 +165,7 @@ export class ViableService {
         }
 
         // One-shot requires ONESHOT flag (0x04)
-        if (flags & VIABLE_FLAG_ONESHOT) {
+        if (flags & SVIL_FLAG_ONESHOT) {
             try {
                 await this.getOneShot(kbinfo);
             } catch (e) {
@@ -193,30 +193,30 @@ export class ViableService {
 
     async getKeyboardInfo(kbinfo: KeyboardInfo): Promise<KeyboardInfo> {
         // VIA Protocol version (via wrapped VIA command)
-        kbinfo.via_proto = (await this.usb.send(ViableUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], {
+        kbinfo.via_proto = (await this.usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], {
             unpack: "B>H",
             index: 1,
         })) as number;
 
-        // Get Viable protocol info
-        const viableInfo = await this.usb.sendViable(ViableUSB.CMD_VIABLE_GET_INFO, [], {
+        // Get Svil protocol info
+        const svilInfo = await this.usb.sendSvil(SvilUSB.CMD_SVIL_GET_INFO, [], {
             uint8: true,
         });
 
-        // Parse Viable info response:
+        // Parse Svil info response:
         // Response format after wrapper stripped: [cmd_echo][protocol_version:4][uid:8][feature_flags:1]
-        const dv = new DataView((viableInfo as Uint8Array).buffer);
-        kbinfo.viable_proto = dv.getUint32(1, true); // Skip cmd_echo
-        kbinfo.feature_flags = viableInfo[13]; // Skip cmd_echo
+        const dv = new DataView((svilInfo as Uint8Array).buffer);
+        kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
+        kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
 
         // Extract UID as hex string for kbid
         // UID is stored as little-endian 64-bit integer, so reverse bytes for hex string
-        const uidBytes = (viableInfo as Uint8Array).slice(5, 13); // Skip cmd_echo + protocol_version
+        const uidBytes = (svilInfo as Uint8Array).slice(5, 13); // Skip cmd_echo + protocol_version
         kbinfo.kbid = Array.from(uidBytes).reverse().map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Get compressed JSON payload size via Viable protocol
+        // Get compressed JSON payload size via Svil protocol
         // Response format after wrapper stripped: [cmd_echo][size0][size1][size2][size3]
-        const sizeResp = await this.usb.sendViable(ViableUSB.CMD_VIABLE_DEFINITION_SIZE, [], {
+        const sizeResp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_DEFINITION_SIZE, [], {
             uint32: true,
             index: 1, // Skip command echo byte
         });
@@ -226,8 +226,8 @@ export class ViableService {
             throw new Error(`Invalid payload size: ${payload_size}`);
         }
 
-        // Fetch definition in chunks using Viable protocol
-        // VIABLE_DEFINITION_CHUNK_SIZE = 22 (32 total - 6 wrapper - 4 response header)
+        // Fetch definition in chunks using Svil protocol
+        // firmware definition chunk size = 22 (32 total - 6 wrapper - 4 response header)
         const chunkSize = 22;
         const payload = new ArrayBuffer(payload_size);
         const pdv = new DataView(payload);
@@ -235,8 +235,8 @@ export class ViableService {
 
         while (offset < payload_size) {
             const requestSize = Math.min(chunkSize, payload_size - offset);
-            const resp = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_DEFINITION_CHUNK,
+            const resp = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_DEFINITION_CHUNK,
                 [...LE16(offset), requestSize],
                 { uint8: true }
             );
@@ -266,7 +266,7 @@ export class ViableService {
             kbinfo.name = payloadData.name;
         }
 
-        // Extract Viable feature counts from the definition
+        // Extract Svil feature counts from the definition
         if (payloadData.viable) {
             kbinfo.tapdance_count = payloadData.viable.tap_dance || 0;
             kbinfo.combo_count = payloadData.viable.combo || 0;
@@ -294,9 +294,9 @@ export class ViableService {
 
     async getFeatures(kbinfo: KeyboardInfo): Promise<void> {
         // Get macro info via VIA commands (wrapped)
-        const macro_count = await this.usb.send(ViableUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true, index: 1 });
+        const macro_count = await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true, index: 1 });
 
-        const macros_size = (await this.usb.send(ViableUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
+        const macros_size = (await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
             unpack: "B>H",
             index: 1,
         })) as number;
@@ -308,7 +308,7 @@ export class ViableService {
     }
 
     async getKeyMap(kbinfo: KeyboardInfo): Promise<void> {
-        kbinfo.layers = await this.usb.send(ViableUSB.CMD_VIA_GET_LAYER_COUNT, [], {
+        kbinfo.layers = await this.usb.send(SvilUSB.CMD_VIA_GET_LAYER_COUNT, [], {
             uint8: true,
             index: 1,
         });
@@ -320,7 +320,7 @@ export class ViableService {
         const size = kbinfo.layers * kbinfo.rows * kbinfo.cols;
 
         // Get keymap data as uint16 array (big-endian converted to host endian)
-        const alldata = await this.usb.getViaBuffer(ViableUSB.CMD_VIA_KEYMAP_GET_BUFFER, size * 2, { uint16: true, slice: 2, bigendian: true, bytes: 2 });
+        const alldata = await this.usb.getViaBuffer(SvilUSB.CMD_VIA_KEYMAP_GET_BUFFER, size * 2, { uint16: true, slice: 2, bigendian: true, bytes: 2 });
 
         kbinfo.keymap = [];
 
@@ -349,8 +349,8 @@ export class ViableService {
 
         kbinfo.alt_repeat_keys = [];
         for (let i = 0; i < kbinfo.alt_repeat_key_count; i++) {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_ALT_REPEAT_KEY_GET,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET,
                 [i],
                 { uint8: true }
             ) as Uint8Array;
@@ -376,8 +376,8 @@ export class ViableService {
 
         kbinfo.leaders = [];
         for (let i = 0; i < kbinfo.leader_count; i++) {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_LEADER_GET,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_LEADER_GET,
                 [i],
                 { uint8: true }
             ) as Uint8Array;
@@ -406,8 +406,8 @@ export class ViableService {
      * Get One-shot settings from keyboard
      */
     async getOneShot(kbinfo: KeyboardInfo): Promise<void> {
-        const data = await this.usb.sendViable(
-            ViableUSB.CMD_VIABLE_ONE_SHOT_GET,
+        const data = await this.usb.sendSvil(
+            SvilUSB.CMD_SVIL_ONE_SHOT_GET,
             [],
             { uint8: true }
         ) as Uint8Array;
@@ -421,12 +421,12 @@ export class ViableService {
     }
 
     async pollMatrix(kbinfo: KeyboardInfo): Promise<boolean[][]> {
-        const data = await this.usb.send(ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE, [ViableUSB.VIA_SWITCH_MATRIX_STATE], {}) as Uint8Array;
+        const data = await this.usb.send(SvilUSB.CMD_VIA_GET_KEYBOARD_VALUE, [SvilUSB.VIA_SWITCH_MATRIX_STATE], {}) as Uint8Array;
         const rowbytes = Math.ceil(kbinfo.cols / 8);
 
         // Skip first 3 bytes: cmd echo, value ID, offset byte (matches viable-gui)
         let offset = 0;
-        if (data[0] === ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE && data[1] === ViableUSB.VIA_SWITCH_MATRIX_STATE) {
+        if (data[0] === SvilUSB.CMD_VIA_GET_KEYBOARD_VALUE && data[1] === SvilUSB.VIA_SWITCH_MATRIX_STATE) {
             offset = 3;
         }
 
@@ -455,7 +455,7 @@ export class ViableService {
     }
 
     async getLayerStateMask(): Promise<number> {
-        const mask = await this.usb.sendViable(ViableUSB.CMD_VIABLE_LAYER_STATE_GET, [], {
+        const mask = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_GET, [], {
             uint32: true,
             index: 1,
         }) as number;
@@ -482,7 +482,7 @@ export class ViableService {
     // API methods for updating keyboard settings
     async updateKey(layer: number, row: number, col: number, keymask: number): Promise<void> {
         const BE16 = (num: number) => [(num >> 8) & 0xff, num & 0xff];
-        await this.usb.send(ViableUSB.CMD_VIA_SET_KEYCODE, [layer, row, col, ...BE16(keymask)], {});
+        await this.usb.send(SvilUSB.CMD_VIA_SET_KEYCODE, [layer, row, col, ...BE16(keymask)], {});
     }
 
     async updateMacros(kbinfo: KeyboardInfo) {
@@ -515,7 +515,7 @@ export class ViableService {
         const keycode = keyService.parse(entry.keycode);
         const alt_keycode = keyService.parse(entry.alt_keycode);
 
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_ALT_REPEAT_KEY_SET, [
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, [
             arkid,
             keycode & 0xff,
             (keycode >> 8) & 0xff,
@@ -548,7 +548,7 @@ export class ViableService {
         // Add options
         args.push(entry.options & 0xff, (entry.options >> 8) & 0xff);
 
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_LEADER_SET, args, {});
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_LEADER_SET, args, {});
     }
 
     /**
@@ -558,7 +558,7 @@ export class ViableService {
         const os = kbinfo.one_shot;
         if (!os) return;
 
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_ONE_SHOT_SET, [
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_ONE_SHOT_SET, [
             os.timeout & 0xff,
             (os.timeout >> 8) & 0xff,
             os.tap_toggle,
@@ -591,17 +591,17 @@ export class ViableService {
     }
 
     /**
-     * Save all Viable settings to EEPROM
+     * Save all Svil settings to EEPROM
      */
-    async saveViable(): Promise<void> {
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_SAVE, [], {});
+    async saveSvil(): Promise<void> {
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_SAVE, [], {});
     }
 
     /**
-     * Reset all Viable settings to defaults
+     * Reset all Svil settings to defaults
      */
-    async resetViable(): Promise<void> {
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_RESET, [], {});
+    async resetSvil(): Promise<void> {
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_RESET, [], {});
     }
 
     isLayerEmpty(layer: number[]): boolean {
@@ -610,8 +610,8 @@ export class ViableService {
 }
 
 // Export with both names for backward compatibility
-export const viableService = new ViableService(usbInstance);
-export const vialService = viableService; // Alias for backward compatibility
+export const svilService = new SvilService(usbInstance);
+export const vialService = svilService; // Alias for backward compatibility
 
 // Also export the class with old name
-export { ViableService as VialService };
+export { SvilService as VialService };

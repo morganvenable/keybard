@@ -66,7 +66,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
         try {
             const defaultFilters = [
-                { usagePage: 0xff61, usage: 0x62 },  // Viable keyboards
+                { usagePage: 0xff61, usage: 0x62 },  // Svil keyboards
                 { usagePage: 0xff60, usage: 0x61 },  // Vial keyboards (legacy)
                 { usagePage: 0xff60, usage: 0x62 },  // Vial RawHID (legacy)
             ];

@@ -1,11 +1,11 @@
-// USB HID communication layer for Viable protocol
+// USB HID communication layer for Svil protocol
 // Supports client ID wrapper (0xDD) for multi-client concurrent access
 import type { USBSendOptions } from "../types/vial.types";
 import { BE16, LE16, MSG_LEN } from "./utils";
 
 // Protocol prefixes
 const WRAPPER_PREFIX = 0xdd;
-const VIABLE_PREFIX = 0xdf;
+const SVIL_PREFIX = 0xdf;
 const VIA_PREFIX = 0xfe;
 
 // Client ID constants
@@ -19,7 +19,7 @@ function generateNonce(): Uint8Array {
   return nonce;
 }
 
-export class ViableUSB {
+export class SvilUSB {
   // VIA command constants (unchanged, used via wrapper)
   static readonly CMD_VIA_GET_PROTOCOL_VERSION = 0x01;
   static readonly CMD_VIA_GET_KEYBOARD_VALUE = 0x02;
@@ -51,33 +51,33 @@ export class ViableUSB {
   static readonly VIALRGB_GET_SUPPORTED = 0x42;
   static readonly VIALRGB_SET_MODE = 0x41;
 
-  // Viable command IDs (0xDF protocol)
-  static readonly CMD_VIABLE_GET_INFO = 0x00;
-  static readonly CMD_VIABLE_TAP_DANCE_GET = 0x01;
-  static readonly CMD_VIABLE_TAP_DANCE_SET = 0x02;
-  static readonly CMD_VIABLE_COMBO_GET = 0x03;
-  static readonly CMD_VIABLE_COMBO_SET = 0x04;
-  static readonly CMD_VIABLE_KEY_OVERRIDE_GET = 0x05;
-  static readonly CMD_VIABLE_KEY_OVERRIDE_SET = 0x06;
-  static readonly CMD_VIABLE_ALT_REPEAT_KEY_GET = 0x07;
-  static readonly CMD_VIABLE_ALT_REPEAT_KEY_SET = 0x08;
-  static readonly CMD_VIABLE_ONE_SHOT_GET = 0x09;
-  static readonly CMD_VIABLE_ONE_SHOT_SET = 0x0a;
-  static readonly CMD_VIABLE_SAVE = 0x0b;
-  static readonly CMD_VIABLE_RESET = 0x0c;
-  static readonly CMD_VIABLE_DEFINITION_SIZE = 0x0d;
-  static readonly CMD_VIABLE_DEFINITION_CHUNK = 0x0e;
-  static readonly CMD_VIABLE_QMK_SETTINGS_QUERY = 0x10;
-  static readonly CMD_VIABLE_QMK_SETTINGS_GET = 0x11;
-  static readonly CMD_VIABLE_QMK_SETTINGS_SET = 0x12;
-  static readonly CMD_VIABLE_QMK_SETTINGS_RESET = 0x13;
-  static readonly CMD_VIABLE_LEADER_GET = 0x14;
-  static readonly CMD_VIABLE_LEADER_SET = 0x15;
-  static readonly CMD_VIABLE_LAYER_STATE_GET = 0x16;
-  static readonly CMD_VIABLE_LAYER_STATE_SET = 0x17;
-  static readonly CMD_VIABLE_FRAGMENT_GET_HARDWARE = 0x18;
-  static readonly CMD_VIABLE_FRAGMENT_GET_SELECTIONS = 0x19;
-  static readonly CMD_VIABLE_FRAGMENT_SET_SELECTIONS = 0x1a;
+  // Svil command IDs (0xDF protocol)
+  static readonly CMD_SVIL_GET_INFO = 0x00;
+  static readonly CMD_SVIL_TAP_DANCE_GET = 0x01;
+  static readonly CMD_SVIL_TAP_DANCE_SET = 0x02;
+  static readonly CMD_SVIL_COMBO_GET = 0x03;
+  static readonly CMD_SVIL_COMBO_SET = 0x04;
+  static readonly CMD_SVIL_KEY_OVERRIDE_GET = 0x05;
+  static readonly CMD_SVIL_KEY_OVERRIDE_SET = 0x06;
+  static readonly CMD_SVIL_ALT_REPEAT_KEY_GET = 0x07;
+  static readonly CMD_SVIL_ALT_REPEAT_KEY_SET = 0x08;
+  static readonly CMD_SVIL_ONE_SHOT_GET = 0x09;
+  static readonly CMD_SVIL_ONE_SHOT_SET = 0x0a;
+  static readonly CMD_SVIL_SAVE = 0x0b;
+  static readonly CMD_SVIL_RESET = 0x0c;
+  static readonly CMD_SVIL_DEFINITION_SIZE = 0x0d;
+  static readonly CMD_SVIL_DEFINITION_CHUNK = 0x0e;
+  static readonly CMD_SVIL_QMK_SETTINGS_QUERY = 0x10;
+  static readonly CMD_SVIL_QMK_SETTINGS_GET = 0x11;
+  static readonly CMD_SVIL_QMK_SETTINGS_SET = 0x12;
+  static readonly CMD_SVIL_QMK_SETTINGS_RESET = 0x13;
+  static readonly CMD_SVIL_LEADER_GET = 0x14;
+  static readonly CMD_SVIL_LEADER_SET = 0x15;
+  static readonly CMD_SVIL_LAYER_STATE_GET = 0x16;
+  static readonly CMD_SVIL_LAYER_STATE_SET = 0x17;
+  static readonly CMD_SVIL_FRAGMENT_GET_HARDWARE = 0x18;
+  static readonly CMD_SVIL_FRAGMENT_GET_SELECTIONS = 0x19;
+  static readonly CMD_SVIL_FRAGMENT_SET_SELECTIONS = 0x1a;
 
   // Svalboard-specific constants
   static readonly SVAL_GET_LEFT_DPI = 0x00;
@@ -135,11 +135,11 @@ export class ViableUSB {
   }
 
   /**
-   * Check if the device is a Viable keyboard by checking serial number
+   * Check if the device is a Svil keyboard by checking serial number
    * TODO: Implement proper detection by checking "viable:" prefix in USB serial
    */
-  isViableDevice(): boolean {
-    // For now, assume viable if connected
+  isSvilDevice(): boolean {
+    // For now, assume svil if connected
     // Real detection would check USB serial string for "viable:" prefix
     return true;
   }
@@ -254,7 +254,7 @@ export class ViableUSB {
         // Schedule renewal
         this.scheduleRenewal();
 
-        console.log(`Viable client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
+        console.log(`Svil client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
         return;
       }
     }
@@ -458,22 +458,22 @@ export class ViableUSB {
     return operation;
   }
 
-  // Overload signatures for sendViable()
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index: number }): Promise<number | bigint>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[]>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index: number }): Promise<number>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index: number }): Promise<number>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index: number }): Promise<number>;
-  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array>;
-  async sendViable(cmd: number, args: number[], options?: USBSendOptions): Promise<Uint8Array>;
+  // Overload signatures for sendSvil()
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index: number }): Promise<number | bigint>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[]>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index: number }): Promise<number>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index: number }): Promise<number>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index: number }): Promise<number>;
+  async sendSvil(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array>;
+  async sendSvil(cmd: number, args: number[], options?: USBSendOptions): Promise<Uint8Array>;
 
   /**
-   * Send Viable command via wrapper
-   * Wraps: [0xDD][client_id:4][0xDF][viable_cmd][args...]
+   * Send Svil command via wrapper
+   * Wraps: [0xDD][client_id:4][0xDF][svil_cmd][args...]
    */
-  async sendViable(
+  async sendSvil(
     cmd: number,
     args: number[],
     options: USBSendOptions = {}
@@ -483,15 +483,15 @@ export class ViableUSB {
     // Ensure we have a valid client ID
     await this.ensureClientId();
 
-    // Build Viable command payload
+    // Build Svil command payload
     const payload = [cmd, ...args];
-    const message = this.buildWrappedMessage(VIABLE_PREFIX, payload);
+    const message = this.buildWrappedMessage(SVIL_PREFIX, payload);
 
     // Queue the operations
     const operation = this.queue.then(async () => {
       return new Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]>((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-          console.warn("Viable Command Timed out:", cmd);
+          console.warn("Svil Command Timed out:", cmd);
           reject(new Error("USB Command Timeout"));
         }, 1000);
 
@@ -507,7 +507,7 @@ export class ViableUSB {
           if (u8[5] === 0xFF) {
             clearTimeout(timeoutId);
             const errorCode = u8[6];
-            reject(new Error(`Viable protocol error: code ${errorCode}`));
+            reject(new Error(`Svil protocol error: code ${errorCode}`));
             return;
           }
 
@@ -690,29 +690,29 @@ export class ViableUSB {
   }
 
   /**
-   * Get keyboard definition via Viable protocol
-   * Uses CMD_VIABLE_DEFINITION_SIZE and CMD_VIABLE_DEFINITION_CHUNK
+   * Get keyboard definition via Svil protocol
+   * Uses CMD_SVIL_DEFINITION_SIZE and CMD_SVIL_DEFINITION_CHUNK
    */
-  async getViableDefinition(): Promise<Uint8Array> {
+  async getSvilDefinition(): Promise<Uint8Array> {
     // Get definition size
     // Response format after wrapper stripped: [cmd_echo][size0][size1][size2][size3]
-    const sizeResp = await this.sendViable(
-      ViableUSB.CMD_VIABLE_DEFINITION_SIZE,
+    const sizeResp = await this.sendSvil(
+      SvilUSB.CMD_SVIL_DEFINITION_SIZE,
       [],
       { uint32: true, index: 1 } // Skip cmd_echo
     );
     const size = sizeResp as number;
 
     // Fetch definition in chunks
-    // VIABLE_DEFINITION_CHUNK_SIZE = 22 (32 total - 6 wrapper - 4 response header)
+    // firmware definition chunk size = 22 (32 total - 6 wrapper - 4 response header)
     const chunkSize = 22;
     const alldata: number[] = [];
     let offset = 0;
 
     while (offset < size) {
       const requestSize = Math.min(chunkSize, size - offset);
-      const resp = await this.sendViable(
-        ViableUSB.CMD_VIABLE_DEFINITION_CHUNK,
+      const resp = await this.sendSvil(
+        SvilUSB.CMD_SVIL_DEFINITION_CHUNK,
         [...LE16(offset), requestSize],
         { uint8: true }
       );
@@ -753,28 +753,28 @@ export class ViableUSB {
     }
   }
 
-  // Overload signatures for getViableEntries()
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index: number }): Promise<(number | bigint)[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[][]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index: number }): Promise<number[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index: number }): Promise<number[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index: number }): Promise<number[]>;
-  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array[]>;
-  async getViableEntries(getCmd: number, count: number, options?: USBSendOptions): Promise<Uint8Array[]>;
+  // Overload signatures for getSvilEntries()
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index: number }): Promise<(number | bigint)[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[][]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index: number }): Promise<number[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index: number }): Promise<number[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index: number }): Promise<number[]>;
+  async getSvilEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array[]>;
+  async getSvilEntries(getCmd: number, count: number, options?: USBSendOptions): Promise<Uint8Array[]>;
 
   /**
-   * Get multiple entries using Viable protocol
+   * Get multiple entries using Svil protocol
    */
-  async getViableEntries(
+  async getSvilEntries(
     getCmd: number,
     count: number,
     options: USBSendOptions = {}
   ): Promise<(Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[]> {
     const entries: (Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[] = [];
     for (let i = 0; i < count; i++) {
-      const data = await this.sendViable(getCmd, [i], options);
+      const data = await this.sendSvil(getCmd, [i], options);
       entries.push(data);
     }
     return entries;
@@ -790,7 +790,7 @@ export class ViableUSB {
    */
   async customValueGet(channel: number, valueId: number, size: number = 2): Promise<Uint8Array> {
     const resp = await this.send(
-      ViableUSB.CMD_VIA_LIGHTING_GET_VALUE,
+      SvilUSB.CMD_VIA_LIGHTING_GET_VALUE,
       [channel, valueId],
       {
         uint8: true,
@@ -803,7 +803,7 @@ export class ViableUSB {
         // read by one slot and showing a neighboring value's data (e.g. right-hand
         // DPI reading as 1200 when the device holds 400).
         validateInput: (u) =>
-          u[0] === ViableUSB.CMD_VIA_LIGHTING_GET_VALUE &&
+          u[0] === SvilUSB.CMD_VIA_LIGHTING_GET_VALUE &&
           u[1] === channel &&
           u[2] === valueId,
       }
@@ -818,7 +818,7 @@ export class ViableUSB {
   async customValueSet(channel: number, valueId: number, data: number[]): Promise<void> {
     console.log(`customValueSet: channel=${channel}, valueId=${valueId}, data=[${data.join(', ')}]`);
     await this.send(
-      ViableUSB.CMD_VIA_LIGHTING_SET_VALUE,
+      SvilUSB.CMD_VIA_LIGHTING_SET_VALUE,
       [channel, valueId, ...data],
       {}
     );
@@ -830,7 +830,7 @@ export class ViableUSB {
    */
   async customValueSave(channel: number): Promise<void> {
     await this.send(
-      ViableUSB.CMD_VIA_LIGHTING_SAVE,
+      SvilUSB.CMD_VIA_LIGHTING_SAVE,
       [channel],
       {}
     );
@@ -847,8 +847,8 @@ export class ViableUSB {
    * Returns HSV (hue, sat) - value/brightness controlled separately.
    */
   async getLayerColor(layer: number): Promise<{ hue: number; sat: number }> {
-    const valueId = ViableUSB.LAYER_COLOR_VALUE_ID_BASE + layer;
-    const data = await this.customValueGet(ViableUSB.LAYER_COLOR_CHANNEL, valueId, 2);
+    const valueId = SvilUSB.LAYER_COLOR_VALUE_ID_BASE + layer;
+    const data = await this.customValueGet(SvilUSB.LAYER_COLOR_CHANNEL, valueId, 2);
     return { hue: data[0], sat: data[1] };
   }
 
@@ -857,10 +857,10 @@ export class ViableUSB {
    * Takes HSV values (0-255 range).
    */
   async setLayerColor(layer: number, hue: number, sat: number): Promise<void> {
-    const valueId = ViableUSB.LAYER_COLOR_VALUE_ID_BASE + layer;
+    const valueId = SvilUSB.LAYER_COLOR_VALUE_ID_BASE + layer;
     console.log(`setLayerColor: layer=${layer}, valueId=${valueId}, hue=${hue}, sat=${sat}`);
-    await this.customValueSet(ViableUSB.LAYER_COLOR_CHANNEL, valueId, [hue, sat]);
-    await this.customValueSave(ViableUSB.LAYER_COLOR_CHANNEL);
+    await this.customValueSet(SvilUSB.LAYER_COLOR_CHANNEL, valueId, [hue, sat]);
+    await this.customValueSave(SvilUSB.LAYER_COLOR_CHANNEL);
   }
 
   /**
@@ -882,7 +882,7 @@ export class ViableUSB {
 }
 
 // Export singleton instance
-export const usbInstance = new ViableUSB();
+export const usbInstance = new SvilUSB();
 
 // Backward compatibility alias
-export { ViableUSB as VialUSB };
+export { SvilUSB as VialUSB };

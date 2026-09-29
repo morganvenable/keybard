@@ -60,7 +60,7 @@ const ComboEditor: FC = () => {
         (async () => {
             try {
                 await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to enable combo by default:", err);
             }
@@ -101,7 +101,7 @@ const ComboEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update combo swap:", err);
             }
@@ -123,7 +123,7 @@ const ComboEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update combo assignment:", err);
             }
@@ -148,7 +148,7 @@ const ComboEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateCombo(updatedKeyboard, itemToEdit);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update combo key:", err);
         }

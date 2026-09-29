@@ -102,7 +102,7 @@ const FragmentsPanel: React.FC = () => {
 
             if (deviceSuccess) {
                 try {
-                    await vialService.saveViable();
+                    await vialService.saveSvil();
                 } catch (e) {
                     console.error("Failed to save fragment selection:", e);
                 }
@@ -188,7 +188,7 @@ const FragmentsPanel: React.FC = () => {
 
         if (deviceUpdated) {
             try {
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (e) {
                 console.error("Failed to save default fragment selections:", e);
             }

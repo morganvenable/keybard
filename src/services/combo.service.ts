@@ -1,9 +1,9 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { ViableUSB } from "./usb.service";
+import { SvilUSB } from "./usb.service";
 
 export class ComboService {
-    constructor(private usb: ViableUSB) { }
+    constructor(private usb: SvilUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         const combo_count = kbinfo.combo_count || 0;
@@ -11,10 +11,10 @@ export class ComboService {
 
         kbinfo.combos = [];
 
-        // Use Viable protocol: direct combo get command
+        // Use Svil protocol: direct combo get command
         for (let i = 0; i < combo_count; i++) {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_COMBO_GET,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_COMBO_GET,
                 [i],
                 { uint8: true }
             ) as Uint8Array;
@@ -43,8 +43,8 @@ export class ComboService {
         const keys = [...combo.keys];
         while (keys.length < 4) keys.push("KC_NO");
 
-        // Use Viable protocol: direct combo set command
-        await this.usb.sendViable(ViableUSB.CMD_VIABLE_COMBO_SET, [
+        // Use Svil protocol: direct combo set command
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_COMBO_SET, [
             cmbid,
             ...this.LE16(keyService.parse(keys[0])),
             ...this.LE16(keyService.parse(keys[1])),

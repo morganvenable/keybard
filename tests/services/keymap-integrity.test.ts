@@ -38,7 +38,7 @@ const createExportableKeyboardInfo = (overrides?: Partial<KeyboardInfo>): Keyboa
 
 describe('Keymap Integrity', () => {
     describe('Round-trip Tests', () => {
-        it('preserves ALL keymap data through viable export/import cycle', () => {
+        it('preserves ALL keymap data through svil export/import cycle', () => {
             // Create a keyboard with complex keymap
             const rows = 5;
             const cols = 14;
@@ -52,18 +52,18 @@ describe('Keymap Integrity', () => {
                 keymap: originalKeymap,
             });
 
-            // Export to viable format
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            // Export to svil format
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
             // Verify layout format is [layer][row][col]
-            expect(viable.layout).toBeDefined();
-            expect(viable.layout.length).toBe(layers);
-            expect(viable.layout[0].length).toBe(rows);
-            expect(viable.layout[0][0].length).toBe(cols);
+            expect(svil.layout).toBeDefined();
+            expect(svil.layout.length).toBe(layers);
+            expect(svil.layout[0].length).toBe(rows);
+            expect(svil.layout[0][0].length).toBe(cols);
 
             // Import back
-            const importedKbinfo = (fileService as any).viableToKBINFO(viable);
+            const importedKbinfo = (fileService as any).svilToKBINFO(svil);
 
             // Verify keymap matches original
             expect(importedKbinfo.keymap).toBeDefined();
@@ -124,11 +124,11 @@ describe('Keymap Integrity', () => {
             });
 
             // Export 6-key layout
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo6key, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo6key, true);
+            const svil = JSON.parse(svilJson);
 
             // Import back
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // Should have ALL keys from 6-key layout
             expect(imported.keymap[0].length).toBe(rows6key * cols6key);
@@ -156,17 +156,17 @@ describe('Keymap Integrity', () => {
             const originalKeymap = kbinfo.keymap!;
 
             // Export with 6-key fragment selection
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
             // Simulate changing selection to 5-key (fewer visible keys)
-            if (viable.fragment_selections) {
-                viable.fragment_selections['left_finger'] = FRAGMENT_NAMES.FINGER_5KEY;
-                viable.fragment_selections['right_finger'] = FRAGMENT_NAMES.FINGER_5KEY;
+            if (svil.fragment_selections) {
+                svil.fragment_selections['left_finger'] = FRAGMENT_NAMES.FINGER_5KEY;
+                svil.fragment_selections['right_finger'] = FRAGMENT_NAMES.FINGER_5KEY;
             }
 
             // Import
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // ALL keymap data should still be preserved
             expect(imported.keymap).toBeDefined();
@@ -202,9 +202,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -234,9 +234,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -264,9 +264,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -299,9 +299,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -338,9 +338,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -368,9 +368,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -397,9 +397,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -436,9 +436,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -465,12 +465,12 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
-            expect(viable.layout.length).toBe(32);
+            expect(svil.layout.length).toBe(32);
 
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -495,9 +495,9 @@ describe('Keymap Integrity', () => {
                 keymap,
             });
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             const importedKeymap = imported.keymap.map((layer: any[]) =>
                 layer.map((keycode: any) =>
@@ -510,7 +510,7 @@ describe('Keymap Integrity', () => {
 
         it('handles -1 values in layout (unused positions)', () => {
             // Simulate loading a file with -1 values
-            const viable = {
+            const svil = {
                 version: 1,
                 uid: 12345,
                 layout: [
@@ -525,7 +525,7 @@ describe('Keymap Integrity', () => {
                 key_override: [],
             };
 
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // -1 should become KC_NO (0)
             expect(imported.keymap[0][1]).toBe(0); // Was -1
@@ -545,15 +545,15 @@ describe('Keymap Integrity', () => {
             // Verify fragment state is set
             expect(kbinfo.fragmentState?.userSelections.size).toBeGreaterThan(0);
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
             // Verify fragment_selections in export
-            expect(viable.fragment_selections).toBeDefined();
-            expect(Object.keys(viable.fragment_selections).length).toBeGreaterThan(0);
+            expect(svil.fragment_selections).toBeDefined();
+            expect(Object.keys(svil.fragment_selections).length).toBeGreaterThan(0);
 
             // Import
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // Verify fragment state restored
             expect(imported.fragmentState).toBeDefined();
@@ -571,16 +571,16 @@ describe('Keymap Integrity', () => {
             // Add fragments
             kbinfo.fragments = createTestFragments();
 
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
             // Verify fragments exported
-            expect(viable.fragments).toBeDefined();
-            expect(Object.keys(viable.fragments).length).toBeGreaterThan(0);
-            expect(viable.composition).toBeDefined();
+            expect(svil.fragments).toBeDefined();
+            expect(Object.keys(svil.fragments).length).toBeGreaterThan(0);
+            expect(svil.composition).toBeDefined();
 
             // Import
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // Verify fragments restored
             expect(imported.fragments).toBeDefined();
@@ -598,17 +598,17 @@ describe('Keymap Integrity', () => {
             const originalKeymap = kbinfo.keymap!.map(layer => [...layer]);
 
             // Export
-            const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-            const viable = JSON.parse(viableJson);
+            const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+            const svil = JSON.parse(svilJson);
 
             // Change fragment selection to 5-key
-            viable.fragment_selections = {
+            svil.fragment_selections = {
                 'left_finger': FRAGMENT_NAMES.FINGER_5KEY,
                 'right_finger': FRAGMENT_NAMES.FINGER_5KEY,
             };
 
             // Import with new selection
-            const imported = (fileService as any).viableToKBINFO(viable);
+            const imported = (fileService as any).svilToKBINFO(svil);
 
             // ALL keymap data should still be preserved
             const importedKeymap = imported.keymap.map((layer: any[]) =>

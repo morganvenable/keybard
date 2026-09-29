@@ -1,4 +1,4 @@
-import type { ViableUSB } from '../../src/services/usb.service';
+import type { SvilUSB } from '../../src/services/usb.service';
 
 export interface MockUSBControl {
   setConnected: (connected: boolean) => void;
@@ -18,7 +18,7 @@ export interface MockUSBStats {
   lastReportId: number | null;
 }
 
-class MockUSBInstance implements Partial<ViableUSB> {
+class MockUSBInstance implements Partial<SvilUSB> {
   private connected = false;
   private shouldFail = false;
   private responseData: Uint8Array | ((cmd: Uint8Array) => Uint8Array) = new Uint8Array(32);
@@ -93,8 +93,8 @@ class MockUSBInstance implements Partial<ViableUSB> {
     return this.send(0xFE, [cmd, ...args], options);
   }
 
-  async sendViable(cmd: number, args: number[], options?: any): Promise<any> {
-    // Viable commands are sent with 0xDF prefix (wrapped in 0xDD client wrapper)
+  async sendSvil(cmd: number, args: number[], options?: any): Promise<any> {
+    // Svil commands are sent with 0xDF prefix (wrapped in 0xDD client wrapper)
     // For testing, we simulate the response without the actual wrapper
     this.stats.sendCalls++;
     const data = new Uint8Array([0xDF, cmd, ...args]);
@@ -221,7 +221,7 @@ class MockUSBInstance implements Partial<ViableUSB> {
   }
 }
 
-export function createMockUSB(): { mock: ViableUSB; control: MockUSBControl } {
+export function createMockUSB(): { mock: SvilUSB; control: MockUSBControl } {
   const instance = new MockUSBInstance();
 
   const control: MockUSBControl = {
@@ -235,7 +235,7 @@ export function createMockUSB(): { mock: ViableUSB; control: MockUSBControl } {
   };
 
   return {
-    mock: instance as unknown as ViableUSB,
+    mock: instance as unknown as SvilUSB,
     control
   };
 }
@@ -325,7 +325,7 @@ export const USBResponses = {
 };
 
 // Helper to simulate disconnection scenarios
-export function simulateUSBDisconnect(_mock: ViableUSB, control: MockUSBControl): void {
+export function simulateUSBDisconnect(_mock: SvilUSB, control: MockUSBControl): void {
   control.triggerDisconnect();
   control.setShouldFail(true);
 }
@@ -337,7 +337,7 @@ export function simulatePermissionDenied(control: MockUSBControl): void {
 }
 
 // Helper to create a mock that responds like a real keyboard
-export function createRealisticKeyboardMock(): { mock: ViableUSB; control: MockUSBControl } {
+export function createRealisticKeyboardMock(): { mock: SvilUSB; control: MockUSBControl } {
   const { mock, control } = createMockUSB();
 
   // Set up realistic responses based on command

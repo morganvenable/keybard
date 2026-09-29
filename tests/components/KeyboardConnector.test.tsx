@@ -32,7 +32,7 @@ vi.mock('../../src/services/usb.service', () => ({
   usbInstance: {
     open: vi.fn(),
     close: vi.fn(),
-    sendViable: vi.fn(),
+    sendSvil: vi.fn(),
   },
 }));
 

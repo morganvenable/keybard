@@ -1,7 +1,7 @@
 // QMK Settings service - fetching, parsing, and pushing QMK settings
 import { QMK_SETTINGS } from '../constants/qmk-settings';
 import type { KeyboardInfo } from '../types/vial.types';
-import { ViableUSB, usbInstance } from './usb.service';
+import { SvilUSB, usbInstance } from './usb.service';
 import { LE16, LE32 } from './utils';
 
 /**
@@ -12,9 +12,9 @@ import { LE16, LE32 } from './utils';
  * - First byte returned is the QSID echo (ignored)
  */
 export class QMKService {
-  private usb: ViableUSB;
+  private usb: SvilUSB;
 
-  constructor(usb: ViableUSB) {
+  constructor(usb: SvilUSB) {
     this.usb = usb;
   }
 
@@ -30,8 +30,8 @@ export class QMKService {
 
     while (true) {
       // Query for QSIDs > cur (pass as 2-byte little-endian)
-      const data = await this.usb.sendViable(
-        ViableUSB.CMD_VIABLE_QMK_SETTINGS_QUERY,
+      const data = await this.usb.sendSvil(
+        SvilUSB.CMD_SVIL_QMK_SETTINGS_QUERY,
         [...LE16(cur)],
         { uint16: true, skipBytes: 1 }
       );
@@ -82,8 +82,8 @@ export class QMKService {
       }
 
       // First get raw bytes to debug
-      const rawResp = await this.usb.sendViable(
-        ViableUSB.CMD_VIABLE_QMK_SETTINGS_GET,
+      const rawResp = await this.usb.sendSvil(
+        SvilUSB.CMD_SVIL_QMK_SETTINGS_GET,
         [qsidNum],
         { uint8: true }
       );
@@ -121,15 +121,15 @@ export class QMKService {
     const val = kbinfo.settings[qsid];
     const vals = LE32(val);
     console.log('Pushing QMK setting:', qsid, vals);
-    // Use Viable protocol: QMK settings set command
-    await this.usb.sendViable(ViableUSB.CMD_VIABLE_QMK_SETTINGS_SET, [...LE16(qsid), ...vals], {});
+    // Use Svil protocol: QMK settings set command
+    await this.usb.sendSvil(SvilUSB.CMD_SVIL_QMK_SETTINGS_SET, [...LE16(qsid), ...vals], {});
   }
 
   /**
    * Reset all QMK settings to defaults
    */
   async reset(): Promise<void> {
-    await this.usb.sendViable(ViableUSB.CMD_VIABLE_QMK_SETTINGS_RESET, [], {});
+    await this.usb.sendSvil(SvilUSB.CMD_SVIL_QMK_SETTINGS_RESET, [], {});
   }
 }
 

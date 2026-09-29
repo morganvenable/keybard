@@ -34,7 +34,7 @@ This applies to all work, no matter how small. Feature branches allow for:
 | **Dev Server Port** | 5172 |
 | **URL** | http://localhost:5172/keybard-ng/ |
 | **Main Repo** | `../keybard-ng/` (branch: `main`) |
-| **Viable Repo** | `../keybard-ng-viable/` (branch: `viable-protocol-migration`) |
+| **Svil Repo** | `../keybard-ng-viable/` (branch: `viable-protocol-migration`) |
 
 ### Quick Start
 
@@ -73,15 +73,15 @@ cd ../keybard-ng && git worktree remove ../keybard-ng-explore
 
 | Repository | Branch | Purpose |
 |------------|--------|---------|
-| `sval-qmk` (GitHub repo, formerly `viable-qmk`; local dir may still be `viable-qmk`) | `svalboard` | QMK firmware with Viable protocol |
+| `sval-qmk` (GitHub repo, formerly `viable-qmk`; local dir may still be `viable-qmk`) | `svalboard` | QMK firmware with Svil protocol |
 | `viable-gui` | `viable` | Reference Python GUI implementation |
 | `keybard-ng` (upstream) | `main` | Original Vial-compatible GUI |
 
 ## Project Overview
 
-KeyBard-NG is a React 19 + TypeScript web application for configuring Viable-compatible keyboards (especially Svalboard) via WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.
+KeyBard-NG is a React 19 + TypeScript web application for configuring Svil-compatible keyboards (especially Svalboard) via WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.
 
-**Note:** This project is migrating from the Vial protocol to the Viable protocol. The Viable protocol uses a client ID wrapper (`0xDD`) for multi-client concurrent access and adds features like alt-repeat keys, leader sequences, and one-shot settings.
+**Note:** This project is migrating from the Vial protocol to the Svil protocol. The Svil protocol uses a client ID wrapper (`0xDD`) for multi-client concurrent access and adds features like alt-repeat keys, leader sequences, and one-shot settings.
 
 ## Development Commands
 
@@ -288,14 +288,14 @@ Comprehensive docs in `/docs/`:
 - `COMPONENTS.md` - Component hierarchy and patterns
 - `TYPES.md` - TypeScript type reference
 
-## Viable Protocol Migration
+## Svil Protocol Migration
 
 ### Protocol Differences from Vial
 
-| Aspect | Vial | Viable |
+| Aspect | Vial | Svil |
 |--------|------|--------|
 | **Wrapper** | None | `0xDD` client ID wrapper |
-| **Protocol Prefix** | `0xFE` | `0xDF` (Viable) / `0xFE` (VIA, wrapped) |
+| **Protocol Prefix** | `0xFE` | `0xDF` (Svil) / `0xFE` (VIA, wrapped) |
 | **Client Auth** | None | 20-byte nonce bootstrap, TTL-based renewal |
 | **Detection** | HID filter | `viable:` prefix in USB serial |
 
@@ -303,11 +303,11 @@ Comprehensive docs in `/docs/`:
 
 ```
 Bootstrap:  [0xDD][0x00000000][nonce:20] → [0xDD][0x00000000][nonce:20][client_id:4][ttl:2]
-Viable cmd: [0xDD][client_id:4][0xDF][cmd][args...] → [0xDD][client_id:4][0xDF][response...]
+Svil cmd: [0xDD][client_id:4][0xDF][cmd][args...] → [0xDD][client_id:4][0xDF][response...]
 VIA cmd:    [0xDD][client_id:4][0xFE][via_cmd...] → [0xDD][client_id:4][0xFE][response...]
 ```
 
-### Viable Command IDs (0xDF protocol)
+### Svil Command IDs (0xDF protocol)
 
 - `0x00` - get_info (protocol version, UID, feature flags)
 - `0x01/0x02` - tap_dance get/set
@@ -447,7 +447,7 @@ This section tracks progress toward full feature parity with viable-gui.
 
 **Service Layer (Backend):**
 - `src/services/vial.service.ts` - Alt-repeat, leader, one-shot methods
-- `src/services/usb.service.ts` - All Viable command IDs defined
+- `src/services/usb.service.ts` - All Svil command IDs defined
 
 **Type Definitions:**
 - `src/types/vial.types.ts` - AltRepeatKeyEntry, LeaderEntry, OneShotSettings

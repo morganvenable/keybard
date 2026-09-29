@@ -106,7 +106,7 @@ export class SvalService {
 
     /**
      * Get the display name for a layer
-     * Note: Custom layer names are disabled until Viable-QMK supports them.
+     * Note: Custom layer names are disabled until Sval-QMK supports them.
      * Layer 15 is always "Mouse".
      */
     getLayerName(_kbinfo: KeyboardInfo, layerIndex: number): string {
@@ -122,7 +122,7 @@ export class SvalService {
 
     /**
      * Get the short display name for a layer (used in tabs)
-     * Note: Custom layer names are disabled until Viable-QMK supports them.
+     * Note: Custom layer names are disabled until Sval-QMK supports them.
      * Layer 15 is always "mouse".
      */
     getLayerNameNoLabel(_kbinfo: KeyboardInfo, layerIndex: number): string {

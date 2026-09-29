@@ -226,7 +226,7 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any): any {
         return def ? { ...def, top: keystr } : def;
     }
 
-    // Handle QK_USER keys with custom keycodes (QMK/Viable range: QK_USER_0-QK_USER_31)
+    // Handle QK_USER keys with custom keycodes (QMK/Svil range: QK_USER_0-QK_USER_31)
     m = keystr.match(/^QK_USER(?:_(\d+))?$/);
     if (m) {
         const userIndex = m[1] ? parseInt(m[1], 10) : 0;

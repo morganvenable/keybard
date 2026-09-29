@@ -93,7 +93,7 @@ const QMKSettingsPanel: React.FC = () => {
             setKeyboard(updated);
 
             await qmkService.push(updated, qsid);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {
@@ -115,7 +115,7 @@ const QMKSettingsPanel: React.FC = () => {
             setKeyboard(updated);
 
             await qmkService.push(updated, qsid);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {

@@ -251,7 +251,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 break;
         }
 
-        await vialService.saveViable();
+        await vialService.saveSvil();
     };
 
     const getEditorTitle = () => {
@@ -379,7 +379,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                 setKeyboard(updatedKeyboard);
                                 try {
                                     await vialService.updateLeader(updatedKeyboard, itemToEdit);
-                                    await vialService.saveViable();
+                                    await vialService.saveSvil();
                                 } catch (err) {
                                     console.error("Failed to update leader:", err);
                                 }
@@ -401,7 +401,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                 setKeyboard(updatedKeyboard);
                                 try {
                                     await vialService.updateKeyoverride(updatedKeyboard, itemToEdit);
-                                    await vialService.saveViable();
+                                    await vialService.saveSvil();
                                 } catch (err) {
                                     console.error("Failed to update key override:", err);
                                 }
@@ -423,7 +423,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                 setKeyboard(updatedKeyboard);
                                 try {
                                     await vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit);
-                                    await vialService.saveViable();
+                                    await vialService.saveSvil();
                                 } catch (err) {
                                     console.error("Failed to update alt-repeat key:", err);
                                 }
@@ -445,7 +445,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                 setKeyboard(updatedKeyboard);
                                 try {
                                     await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                                    await vialService.saveViable();
+                                    await vialService.saveSvil();
                                 } catch (err) {
                                     console.error("Failed to update combo:", err);
                                 }

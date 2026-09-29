@@ -22,7 +22,7 @@ import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 
 // Mock USB service
 const mockUsb = {
-    sendViable: vi.fn(),
+    sendSvil: vi.fn(),
 };
 
 describe('FragmentService', () => {
@@ -133,14 +133,14 @@ describe('FragmentService', () => {
     describe('get()', () => {
         it('queries hardware detection via USB 0x18', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable
+            mockUsb.sendSvil
                 .mockResolvedValueOnce(USB_RESPONSES.hardwareDetection({ 0: FRAGMENT_IDS.FINGER_5KEY }))
                 .mockResolvedValueOnce(USB_RESPONSES.eepromSelections({}));
 
             await service.get(kbinfo);
 
-            expect(mockUsb.sendViable).toHaveBeenCalledWith(
-                0x18, // CMD_VIABLE_FRAGMENT_GET_HARDWARE
+            expect(mockUsb.sendSvil).toHaveBeenCalledWith(
+                0x18, // CMD_SVIL_FRAGMENT_GET_HARDWARE
                 [],
                 { uint8: true }
             );
@@ -148,14 +148,14 @@ describe('FragmentService', () => {
 
         it('queries EEPROM selections via USB 0x19', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable
+            mockUsb.sendSvil
                 .mockResolvedValueOnce(USB_RESPONSES.hardwareDetection({}))
                 .mockResolvedValueOnce(USB_RESPONSES.eepromSelections({ 0: 1 }));
 
             await service.get(kbinfo);
 
-            expect(mockUsb.sendViable).toHaveBeenCalledWith(
-                0x19, // CMD_VIABLE_FRAGMENT_GET_SELECTIONS
+            expect(mockUsb.sendSvil).toHaveBeenCalledWith(
+                0x19, // CMD_SVIL_FRAGMENT_GET_SELECTIONS
                 [],
                 { uint8: true }
             );
@@ -166,7 +166,7 @@ describe('FragmentService', () => {
             // Clear existing state
             kbinfo.fragmentState = undefined;
 
-            mockUsb.sendViable
+            mockUsb.sendSvil
                 .mockResolvedValueOnce(USB_RESPONSES.hardwareDetection({ 0: FRAGMENT_IDS.FINGER_5KEY, 1: FRAGMENT_IDS.FINGER_6KEY }))
                 .mockResolvedValueOnce(USB_RESPONSES.eepromSelections({ 0: 0, 1: 1 }));
 
@@ -190,14 +190,14 @@ describe('FragmentService', () => {
             await service.get(kbinfo);
 
             // Should not call USB
-            expect(mockUsb.sendViable).not.toHaveBeenCalled();
+            expect(mockUsb.sendSvil).not.toHaveBeenCalled();
             // But should initialize fragment state
             expect(kbinfo.fragmentState).toBeDefined();
         });
 
         it('handles USB errors gracefully', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable.mockRejectedValue(new Error('USB error'));
+            mockUsb.sendSvil.mockRejectedValue(new Error('USB error'));
 
             // Should not throw
             await expect(service.get(kbinfo)).resolves.not.toThrow();
@@ -215,7 +215,7 @@ describe('FragmentService', () => {
             response[3] = 0xFF; // No detection
             response[4] = FRAGMENT_IDS.FINGER_6KEY;
 
-            mockUsb.sendViable
+            mockUsb.sendSvil
                 .mockResolvedValueOnce(response)
                 .mockResolvedValueOnce(USB_RESPONSES.eepromSelections({}));
 
@@ -233,12 +233,12 @@ describe('FragmentService', () => {
                 eepromSelections: [[0, 0]],
             });
 
-            mockUsb.sendViable.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
+            mockUsb.sendSvil.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
 
             await service.setSelection(kbinfo, 0, 1);
 
-            expect(mockUsb.sendViable).toHaveBeenCalledWith(
-                0x1A, // CMD_VIABLE_FRAGMENT_SET_SELECTIONS
+            expect(mockUsb.sendSvil).toHaveBeenCalledWith(
+                0x1A, // CMD_SVIL_FRAGMENT_SET_SELECTIONS
                 expect.any(Array),
                 { uint8: true }
             );
@@ -246,7 +246,7 @@ describe('FragmentService', () => {
 
         it('returns true on success', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
+            mockUsb.sendSvil.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
 
             const result = await service.setSelection(kbinfo, 0, 1);
 
@@ -255,7 +255,7 @@ describe('FragmentService', () => {
 
         it('returns false on failure response', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable.mockResolvedValueOnce(USB_RESPONSES.setSelectionFailure());
+            mockUsb.sendSvil.mockResolvedValueOnce(USB_RESPONSES.setSelectionFailure());
 
             const result = await service.setSelection(kbinfo, 0, 1);
 
@@ -264,7 +264,7 @@ describe('FragmentService', () => {
 
         it('updates local cache on success', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
+            mockUsb.sendSvil.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
 
             await service.setSelection(kbinfo, 0, 1);
 
@@ -275,7 +275,7 @@ describe('FragmentService', () => {
             const kbinfo = createKbinfoWithFragments({
                 eepromSelections: [[0, 1]],
             });
-            mockUsb.sendViable.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
+            mockUsb.sendSvil.mockResolvedValueOnce(USB_RESPONSES.setSelectionSuccess());
 
             await service.setSelection(kbinfo, 0, 0xFF);
 
@@ -289,7 +289,7 @@ describe('FragmentService', () => {
             const result = await service.setSelection(kbinfo, 0, 1);
 
             expect(result).toBe(false);
-            expect(mockUsb.sendViable).not.toHaveBeenCalled();
+            expect(mockUsb.sendSvil).not.toHaveBeenCalled();
         });
 
         it('returns false when no instances', async () => {
@@ -304,7 +304,7 @@ describe('FragmentService', () => {
 
         it('handles USB error', async () => {
             const kbinfo = createKbinfoWithFragments();
-            mockUsb.sendViable.mockRejectedValueOnce(new Error('USB error'));
+            mockUsb.sendSvil.mockRejectedValueOnce(new Error('USB error'));
 
             const result = await service.setSelection(kbinfo, 0, 1);
 

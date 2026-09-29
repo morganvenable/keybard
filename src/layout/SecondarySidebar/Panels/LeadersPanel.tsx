@@ -66,7 +66,7 @@ const LeadersPanel: React.FC = () => {
             };
             setKeyboard(updated);
             await qmkService.push(updated, LEADER_TIMEOUT_QSID);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update leader timeout:", err);
         } finally {
@@ -84,7 +84,7 @@ const LeadersPanel: React.FC = () => {
             };
             setKeyboard(updated);
             await qmkService.push(updated, LEADER_PER_KEY_QSID);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update per-key timing:", err);
         } finally {
@@ -147,7 +147,7 @@ const LeadersPanel: React.FC = () => {
 
         try {
             await vialService.updateLeader(updatedKeyboard, index);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update leader:", err);
         }

@@ -44,7 +44,7 @@ vi.mock('../../src/services/vial.service', () => ({
         load: vi.fn(),
         updateKey: vi.fn(),
         updateLeader: vi.fn().mockResolvedValue(undefined),
-        saveViable: vi.fn().mockResolvedValue(undefined),
+        saveSvil: vi.fn().mockResolvedValue(undefined),
     },
     VialService: {
         isWebHIDSupported: vi.fn(() => true),

@@ -282,8 +282,8 @@ export function layoutToKeymap(layout: number[][][], cols: number): number[][] {
 /**
  * Create a mock .svil file content
  */
-export function createViableFileContent(kbinfo: KeyboardInfo): Record<string, unknown> {
-    const viable: Record<string, unknown> = {
+export function createSvilFileContent(kbinfo: KeyboardInfo): Record<string, unknown> {
+    const svil: Record<string, unknown> = {
         version: 1,
         uid: '0x' + (kbinfo.uid?.toString(16) ?? '0'),
         name: kbinfo.name ?? kbinfo.cosmetic?.name ?? 'Test Keyboard',
@@ -293,24 +293,24 @@ export function createViableFileContent(kbinfo: KeyboardInfo): Record<string, un
 
     // Convert keymap to layout format
     if (kbinfo.keymap && kbinfo.rows && kbinfo.cols) {
-        viable.layout = keymapToLayout(kbinfo.keymap as number[][], kbinfo.rows, kbinfo.cols);
+        svil.layout = keymapToLayout(kbinfo.keymap as number[][], kbinfo.rows, kbinfo.cols);
     }
 
     // Include fragments if present
     if (kbinfo.fragments) {
-        viable.fragments = kbinfo.fragments;
+        svil.fragments = kbinfo.fragments;
     }
 
     if (kbinfo.composition) {
-        viable.composition = kbinfo.composition;
+        svil.composition = kbinfo.composition;
     }
 
     // Save resolved fragment selections
     if (kbinfo.fragmentState?.userSelections && kbinfo.fragmentState.userSelections.size > 0) {
-        viable.fragment_selections = Object.fromEntries(kbinfo.fragmentState.userSelections);
+        svil.fragment_selections = Object.fromEntries(kbinfo.fragmentState.userSelections);
     }
 
-    return viable;
+    return svil;
 }
 
 /**

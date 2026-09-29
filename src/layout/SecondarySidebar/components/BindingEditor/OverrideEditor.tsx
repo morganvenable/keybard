@@ -63,7 +63,7 @@ const OverrideEditor: FC = () => {
             setKeyboard(updatedKeyboard);
 
             vialService.updateKeyoverride(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveViable())
+                .then(() => vialService.saveSvil())
                 .catch(err => console.error("Failed to auto-enable override:", err));
         }
     }, [itemToEdit]);
@@ -103,7 +103,7 @@ const OverrideEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update override:", err);
         }
@@ -119,7 +119,7 @@ const OverrideEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update override option:", err);
         }
@@ -135,7 +135,7 @@ const OverrideEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update override layer:", err);
         }
@@ -150,7 +150,7 @@ const OverrideEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to clear override key:", err);
         }
@@ -178,7 +178,7 @@ const OverrideEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update override swap:", err);
             }
@@ -196,7 +196,7 @@ const OverrideEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update override assignment:", err);
         }

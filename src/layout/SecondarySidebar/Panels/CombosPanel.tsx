@@ -80,7 +80,7 @@ const CombosPanel: React.FC = () => {
             };
             setKeyboard(updated);
             await qmkService.push(updated, COMBO_TIMEOUT_QSID);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update combo timeout:", err);
         } finally {
@@ -123,7 +123,7 @@ const CombosPanel: React.FC = () => {
 
         try {
             await vialService.updateCombo(updatedKeyboard, index);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to toggle combo enabled:", err);
         }

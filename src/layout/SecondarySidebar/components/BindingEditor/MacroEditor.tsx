@@ -115,7 +115,7 @@ const MacroEditor: FC = () => {
             async () => {
                 try {
                     await vialService.updateMacros(updatedKeyboard);
-                    await vialService.saveViable();
+                    await vialService.saveSvil();
                 } catch (err) {
                     console.error("Failed to update macro:", err);
                 }

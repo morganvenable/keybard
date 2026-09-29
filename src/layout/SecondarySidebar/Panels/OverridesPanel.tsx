@@ -77,7 +77,7 @@ const OverridesPanel: React.FC = () => {
 
         try {
             await vialService.updateKeyoverride(updatedKeyboard, index);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update override option:", err);
         }

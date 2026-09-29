@@ -102,8 +102,8 @@ export class FileService {
     }
 
     async downloadSvil(kbinfo: KeyboardInfo, includeMacros: boolean = true): Promise<void> {
-        const viable = this.kbinfoToViable(structuredClone(kbinfo), includeMacros);
-        await this.downloadTEXT(viable, {
+        const svil = this.kbinfoToSvil(structuredClone(kbinfo), includeMacros);
+        await this.downloadTEXT(svil, {
             suggestedName: includeMacros ? 'keyboard.svil' : 'keyboard-nomacro.svil',
             types: [{
                 description: 'Svalboard layout files',
@@ -175,11 +175,11 @@ export class FileService {
         const js = JSON.parse(content);
         let kbinfo: KeyboardInfo | null = null;
 
-        if (js.uid && (js.viable_protocol !== undefined || js.version === 1)) {
-            // It's a .svil / legacy .viable file (has uid + viable_protocol or version: 1)
-            kbinfo = this.viableToKBINFO(js);
+        if (js.uid && (js.svil_protocol !== undefined || js.viable_protocol !== undefined || js.version === 1)) {
+            // It's a .svil / legacy .viable file (has uid + svil_protocol or version: 1)
+            kbinfo = this.svilToKBINFO(js);
         } else if (js.uid) {
-            // It's a .vil (has uid but no viable_protocol)
+            // It's a .vil (has uid but no svil_protocol)
             kbinfo = this.vilToKBINFO(js);
         } else {
             throw new Error('Unknown file format. Expected .svil (or legacy .viable) or .vil file.');
@@ -260,7 +260,7 @@ export class FileService {
         }
 
         let jsvil = JSON.stringify(vil, undefined, 2);
-        // Replace placeholder with numeric UID (viable expects number)
+        // Replace placeholder with numeric UID (svil expects number)
         // Use BigInt to handle 64-bit UIDs without precision loss
         const numericUid = kbinfo.kbid ? BigInt('0x' + kbinfo.kbid).toString() : '0';
         jsvil = jsvil.replace('"' + kbidrepl + '"', numericUid);
@@ -268,10 +268,10 @@ export class FileService {
     }
 
     /**
-     * Convert KeyboardInfo to .svil format (native Svalboard layout format; same JSON structure as viable-gui's .viable)
-     * This format preserves all Viable-specific features
+     * Convert KeyboardInfo to .svil format (native Svalboard layout format; same JSON structure as viable-gui's layout files)
+     * This format preserves all Svil-specific features
      */
-    kbinfoToViable(kbinfo: KeyboardInfo, includeMacros: boolean = true): string {
+    kbinfoToSvil(kbinfo: KeyboardInfo, includeMacros: boolean = true): string {
         // Build layout array [layers][rows][cols]
         const layout: string[][][] = [];
         if (kbinfo.keymap && kbinfo.rows && kbinfo.cols) {
@@ -357,7 +357,7 @@ export class FileService {
             options: ko.options || 0,
         }));
 
-        // Build alt repeat keys (Viable-specific)
+        // Build alt repeat keys (Svil-specific)
         const altRepeatKeys = (kbinfo.alt_repeat_keys || []).map((ark: any) => ({
             on: ark.enabled !== false,
             keycode: typeof ark.keycode === 'string' ? ark.keycode : keyService.stringify(ark.keycode || 0),
@@ -366,7 +366,7 @@ export class FileService {
             options: ark.options || 0,
         }));
 
-        // Build leaders (Viable-specific)
+        // Build leaders (Svil-specific)
         const leaders = (kbinfo.leaders || []).map((ldr: any) => ({
             on: ldr.enabled !== false,
             sequence: (ldr.sequence || []).map((k: any) => typeof k === 'string' ? k : keyService.stringify(k)),
@@ -383,14 +383,14 @@ export class FileService {
         // Build the .svil structure
         // Use placeholder for UID since we need BigInt for 64-bit precision
         const uidPlaceholder = "UID_PLACEHOLDER_FOR_BIGINT";
-        const viable: any = {
+        const svil: any = {
             version: 1,
             uid: uidPlaceholder,
             layout,
             encoder_layout: [], // TODO: implement encoder support
             layout_options: -1,
             macro: macros,
-            viable_protocol: kbinfo.viable_proto || 1,
+            svil_protocol: kbinfo.svil_proto || 1,
             via_protocol: kbinfo.via_proto || 12,
             tap_dance: tapDances,
             combo: combos,
@@ -402,7 +402,7 @@ export class FileService {
 
         // Only include oneshot if present
         if (oneshot) {
-            viable.oneshot = oneshot;
+            svil.oneshot = oneshot;
         }
 
         // Save resolved fragment selections for each instance (not just user selections)
@@ -435,31 +435,31 @@ export class FileService {
             });
 
             if (Object.keys(resolvedSelections).length > 0) {
-                viable.fragment_selections = resolvedSelections;
+                svil.fragment_selections = resolvedSelections;
             }
         }
 
         // Save fragment definitions and composition for offline loading
         if (kbinfo.fragments) {
-            viable.fragments = kbinfo.fragments;
+            svil.fragments = kbinfo.fragments;
         }
         if (kbinfo.composition) {
-            viable.composition = kbinfo.composition;
+            svil.composition = kbinfo.composition;
         }
 
         // Save keylayout for physical key positions (needed for proper rendering)
         if (kbinfo.keylayout) {
-            viable.keylayout = kbinfo.keylayout;
+            svil.keylayout = kbinfo.keylayout;
         }
 
         // Save VIA3 dynamic menus (pointing device settings, etc.)
         if (kbinfo.menus) {
-            viable.menus = kbinfo.menus;
+            svil.menus = kbinfo.menus;
         }
 
         // Save cosmetic data (layer names, etc.)
         if (kbinfo.cosmetic) {
-            viable.cosmetic = kbinfo.cosmetic;
+            svil.cosmetic = kbinfo.cosmetic;
         }
 
         // Save custom values (VIA3 dynamic menu values + layer colors)
@@ -495,11 +495,11 @@ export class FileService {
         }
 
         if (customValues.length > 0) {
-            viable.custom_values = customValues;
+            svil.custom_values = customValues;
         }
 
         // Stringify and replace UID placeholder with BigInt value (no quotes)
-        let result = JSON.stringify(viable, undefined, 2);
+        let result = JSON.stringify(svil, undefined, 2);
         const numericUid = kbinfo.kbid ? BigInt('0x' + kbinfo.kbid).toString() : '0';
         result = result.replace('"' + uidPlaceholder + '"', numericUid);
         return result;
@@ -612,24 +612,24 @@ export class FileService {
      * Convert .svil format to KeyboardInfo
      * .svil (formerly .viable) uses viable-gui's dict-style entries
      */
-    viableToKBINFO(viable: any): KeyboardInfo {
+    svilToKBINFO(svil: any): KeyboardInfo {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
         // Store protocol versions
-        kbinfo.viable_proto = viable.viable_protocol || 1;
-        kbinfo.via_proto = viable.via_protocol || 12;
+        kbinfo.svil_proto = svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
+        kbinfo.via_proto = svil.via_protocol || 12;
 
         // Update counts from data
-        kbinfo.key_override_count = viable.key_override?.length || 0;
-        kbinfo.combo_count = viable.combo?.length || 0;
-        kbinfo.macro_count = viable.macro?.length || 0;
-        kbinfo.tapdance_count = viable.tap_dance?.length || 0;
-        kbinfo.alt_repeat_key_count = viable.alt_repeat_key?.length || 0;
-        kbinfo.leader_count = viable.leader?.length || 0;
+        kbinfo.key_override_count = svil.key_override?.length || 0;
+        kbinfo.combo_count = svil.combo?.length || 0;
+        kbinfo.macro_count = svil.macro?.length || 0;
+        kbinfo.tapdance_count = svil.tap_dance?.length || 0;
+        kbinfo.alt_repeat_key_count = svil.alt_repeat_key?.length || 0;
+        kbinfo.leader_count = svil.leader?.length || 0;
 
         // Convert combos (dict format with "on" flag) into the in-memory shape
         // (single uint16 `options`, bit 15 = enabled, bits 0-14 = combo term).
-        kbinfo.combos = (viable.combo || []).map((c: any, cmbid: number) => {
+        kbinfo.combos = (svil.combo || []).map((c: any, cmbid: number) => {
             const term = (c.combo_term || 0) & 0x7FFF;
             const enabled = c.on !== false;
             return {
@@ -641,7 +641,7 @@ export class FileService {
         });
 
         // Convert key overrides (dict format)
-        kbinfo.key_overrides = (viable.key_override || []).map((ko: any, koid: number) => ({
+        kbinfo.key_overrides = (svil.key_override || []).map((ko: any, koid: number) => ({
             koid,
             enabled: ko.on !== false,
             trigger: ko.trigger,
@@ -654,7 +654,7 @@ export class FileService {
         }));
 
         // Convert macros
-        kbinfo.macros = (viable.macro || []).map((macro: any[], mid: number) => {
+        kbinfo.macros = (svil.macro || []).map((macro: any[], mid: number) => {
             const actions: any[] = [];
             for (const act of macro) {
                 if (Array.isArray(act)) {
@@ -668,7 +668,7 @@ export class FileService {
 
         // Convert tap dances (dict format with "on" flag)
         // Keep tap/hold/doubletap/taphold as strings (that's what the UI expects)
-        kbinfo.tapdances = (viable.tap_dance || []).map((td: any, tdid: number) => ({
+        kbinfo.tapdances = (svil.tap_dance || []).map((td: any, tdid: number) => ({
             idx: tdid,
             enabled: td.on !== false,
             tap: td.on_tap || 'KC_NO',
@@ -678,8 +678,8 @@ export class FileService {
             tapping_term: td.tapping_term || 200,
         }));
 
-        // Convert alt repeat keys (Viable-specific)
-        kbinfo.alt_repeat_keys = (viable.alt_repeat_key || []).map((ark: any, arkid: number) => ({
+        // Convert alt repeat keys (Svil-specific)
+        kbinfo.alt_repeat_keys = (svil.alt_repeat_key || []).map((ark: any, arkid: number) => ({
             arkid,
             enabled: ark.on !== false,
             keycode: typeof ark.keycode === 'string' ? ark.keycode : keyService.stringify(ark.keycode || 0),
@@ -688,8 +688,8 @@ export class FileService {
             options: ark.options || 0,
         }));
 
-        // Convert leaders (Viable-specific)
-        kbinfo.leaders = (viable.leader || []).map((ldr: any, ldrid: number) => ({
+        // Convert leaders (Svil-specific)
+        kbinfo.leaders = (svil.leader || []).map((ldr: any, ldrid: number) => ({
             ldrid,
             enabled: ldr.on !== false,
             sequence: (ldr.sequence || []).map((k: any) => typeof k === 'string' ? k : keyService.stringify(k || 0)),
@@ -697,23 +697,23 @@ export class FileService {
             options: ldr.options || 0,
         }));
 
-        // Convert one-shot settings (Viable-specific)
-        if (viable.oneshot) {
+        // Convert one-shot settings (Svil-specific)
+        if (svil.oneshot) {
             kbinfo.one_shot = {
-                timeout: viable.oneshot.timeout || 0,
-                tap_toggle: viable.oneshot.tap_toggle || 0,
+                timeout: svil.oneshot.timeout || 0,
+                tap_toggle: svil.oneshot.tap_toggle || 0,
             };
         }
 
-        kbinfo.settings = viable.settings || {};
+        kbinfo.settings = svil.settings || {};
 
         // Convert layout to keymap
         const km: number[][] = [];
         const keylayout: any[] = [];
-        if (viable.layout) {
-            const layers = viable.layout.length;
-            const rows = viable.layout[0]?.length || 0;
-            const cols = viable.layout[0]?.[0]?.length || 0;
+        if (svil.layout) {
+            const layers = svil.layout.length;
+            const rows = svil.layout[0]?.length || 0;
+            const cols = svil.layout[0]?.[0]?.length || 0;
 
             kbinfo.layers = layers;
             kbinfo.rows = rows;
@@ -723,7 +723,7 @@ export class FileService {
                 km.push([]);
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
-                        const keyStr = viable.layout[l][r][c];
+                        const keyStr = svil.layout[l][r][c];
                         // Handle -1 as KC_NO (unused key position)
                         let keycode: number;
                         if (keyStr === -1) {
@@ -750,49 +750,49 @@ export class FileService {
             }
         }
         kbinfo.keymap = km;
-        kbinfo.kbid = '' + viable.uid;
+        kbinfo.kbid = '' + svil.uid;
 
         // Restore keylayout from file if available, otherwise use generated fallback
-        if (viable.keylayout) {
-            kbinfo.keylayout = viable.keylayout;
-            console.log("Loaded keylayout from file:", Object.keys(viable.keylayout).length, "keys");
+        if (svil.keylayout) {
+            kbinfo.keylayout = svil.keylayout;
+            console.log("Loaded keylayout from file:", Object.keys(svil.keylayout).length, "keys");
         } else {
             kbinfo.keylayout = keylayout;
         }
 
         // Restore VIA3 dynamic menus (pointing device settings, etc.)
-        if (viable.menus) {
-            kbinfo.menus = viable.menus;
+        if (svil.menus) {
+            kbinfo.menus = svil.menus;
         }
 
         // Restore cosmetic data (layer names, etc.)
-        if (viable.cosmetic) {
-            kbinfo.cosmetic = viable.cosmetic;
+        if (svil.cosmetic) {
+            kbinfo.cosmetic = svil.cosmetic;
         }
 
         // Restore fragment definitions and composition
-        if (viable.fragments) {
-            kbinfo.fragments = viable.fragments;
+        if (svil.fragments) {
+            kbinfo.fragments = svil.fragments;
         }
-        if (viable.composition) {
-            kbinfo.composition = viable.composition;
+        if (svil.composition) {
+            kbinfo.composition = svil.composition;
         }
 
         // Restore fragment selections if present
-        if (viable.fragment_selections) {
+        if (svil.fragment_selections) {
             kbinfo.fragmentState = {
                 hwDetection: new Map(),
                 eepromSelections: new Map(),
-                userSelections: new Map(Object.entries(viable.fragment_selections)),
+                userSelections: new Map(Object.entries(svil.fragment_selections)),
             };
         }
 
         // Restore custom_values (layer colors + VIA3 menu values)
-        if (viable.custom_values && Array.isArray(viable.custom_values)) {
+        if (svil.custom_values && Array.isArray(svil.custom_values)) {
             const layerColors: Array<{ hue: number; sat: number; val: number }> = [];
             const customValues: CustomValueEntry[] = [];
 
-            for (const cv of viable.custom_values) {
+            for (const cv of svil.custom_values) {
                 // Check if it's a layer color value (id_layerX_color)
                 const match = cv.key?.match(/^id_layer(\d+)_color$/);
                 if (match && Array.isArray(cv.data) && cv.data.length >= 2) {

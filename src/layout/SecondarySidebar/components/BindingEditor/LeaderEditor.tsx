@@ -50,7 +50,7 @@ const LeaderEditor: FC = () => {
             setKeyboard(updatedKeyboard);
 
             vialService.updateLeader(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveViable())
+                .then(() => vialService.saveSvil())
                 .catch(err => console.error("Failed to auto-enable leader:", err));
         }
 
@@ -106,7 +106,7 @@ const LeaderEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateLeader(updatedKeyboard, leaderIndex);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update leader:", err);
             }
@@ -129,7 +129,7 @@ const LeaderEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateLeader(updatedKeyboard, leaderIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update leader:", err);
         }
@@ -155,7 +155,7 @@ const LeaderEditor: FC = () => {
 
         try {
             await vialService.updateLeader(updatedKeyboard, leaderIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update leader:", err);
         }
