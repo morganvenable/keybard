@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CustomValueService } from '../../src/services/custom-value.service';
-import type { ViableUSB } from '../../src/services/usb.service';
+import type { SvilUSB } from '../../src/services/usb.service';
 import { SVALBOARD_POINTING_MENU } from '../fixtures/pointing-menu.fixture';
 
 const LEFT_KEY = 'id_left_automouse';
@@ -14,7 +14,7 @@ function makeService(deviceValues: Record<string, number[]> = {}) {
         customValueSet: vi.fn(async () => undefined),
         customValueSave: vi.fn(async () => undefined),
     };
-    return { usb, service: new CustomValueService(usb as unknown as ViableUSB) };
+    return { usb, service: new CustomValueService(usb as unknown as SvilUSB) };
 }
 
 describe('CustomValueService: svalboard per-pointer auto mouse values', () => {

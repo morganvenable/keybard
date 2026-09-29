@@ -43,7 +43,7 @@ export class KeyService {
     }
 
     // Also populate QK_USER...QK_USER_31 keys (QMK range: 0x7e40+)
-    // These are the keycodes that Viable/QMK firmware actually uses
+    // These are the keycodes that Svil/QMK firmware actually uses
     for (let i = 0; i < 32; i++) {
       const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
       const code = 0x7e40 + i; // QK_USER base is 0x7e40

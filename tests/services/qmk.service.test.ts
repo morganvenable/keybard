@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { QMKService } from '../../src/services/qmk.service';
 import { createMockUSB, type MockUSBControl } from '../mocks/usb.mock';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
-import type { ViableUSB } from '../../src/services/usb.service';
+import type { SvilUSB } from '../../src/services/usb.service';
 
 // Mock the QMK settings constants
 vi.mock('../../src/constants/qmk-settings', () => ({
@@ -27,8 +27,8 @@ vi.mock('../../src/constants/qmk-settings', () => ({
   }
 }));
 
-interface MockViableUSB extends ViableUSB {
-  sendViable: Mock;
+interface MockSvilUSB extends SvilUSB {
+  sendSvil: Mock;
 }
 
 const queryPage = (values: number[]) => new Uint16Array([...values, 0xffff]);
@@ -38,15 +38,15 @@ const qsid32 = (value: number) => new Uint8Array([0x11, 0x00, value & 0xff, (val
 
 describe('QMKService', () => {
   let qmkService: QMKService;
-  let mockUSB: MockViableUSB;
+  let mockUSB: MockSvilUSB;
   let usbControl: MockUSBControl;
 
   beforeEach(() => {
     const { mock, control } = createMockUSB();
-    mockUSB = mock as MockViableUSB;
+    mockUSB = mock as MockSvilUSB;
     usbControl = control;
     qmkService = new QMKService(mockUSB);
-    mockUSB.sendViable = vi.fn();
+    mockUSB.sendSvil = vi.fn();
   });
 
   describe('get', () => {
@@ -54,7 +54,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage([1, 2, 3]))
         .mockResolvedValueOnce(queryPage([]))
         .mockResolvedValueOnce(qsid8(1))
@@ -74,7 +74,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable.mockResolvedValueOnce(queryPage([]));
+      mockUSB.sendSvil.mockResolvedValueOnce(queryPage([]));
 
       await qmkService.get(kbinfo);
 
@@ -85,7 +85,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage([1, 4]))
         .mockResolvedValueOnce(queryPage([]))
         .mockResolvedValueOnce(qsid8(1))
@@ -105,7 +105,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage([1, 2, 3, 4, 5]))
         .mockResolvedValueOnce(queryPage([]))
         .mockResolvedValueOnce(qsid8(1))
@@ -132,7 +132,7 @@ describe('QMKService', () => {
       const firstPage = Array.from({ length: 16 }, (_, i) => i + 1);
       const secondPage = [17, 18, 19, 20];
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage(firstPage))
         .mockResolvedValueOnce(queryPage(secondPage))
         .mockResolvedValueOnce(queryPage([]))
@@ -144,17 +144,17 @@ describe('QMKService', () => {
 
       await qmkService.get(kbinfo);
 
-      expect(mockUSB.sendViable).toHaveBeenCalledWith(
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         expect.anything(),
         [0, 0],
         expect.objectContaining({ uint16: true })
       );
-      expect(mockUSB.sendViable).toHaveBeenCalledWith(
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         expect.anything(),
         [16, 0],
         expect.objectContaining({ uint16: true })
       );
-      expect(mockUSB.sendViable).toHaveBeenCalledWith(
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         expect.anything(),
         [20, 0],
         expect.objectContaining({ uint16: true })
@@ -165,7 +165,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(false);
 
-      mockUSB.sendViable.mockRejectedValue(new Error('USB device not connected'));
+      mockUSB.sendSvil.mockRejectedValue(new Error('USB device not connected'));
 
       await expect(qmkService.get(kbinfo)).rejects.toThrow('USB device not connected');
     });
@@ -174,7 +174,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce([1, 2, 0xffff])
         .mockResolvedValueOnce([0xffff])
         .mockResolvedValueOnce(qsid8(1))
@@ -194,11 +194,11 @@ describe('QMKService', () => {
         settings: { 1: 1, 2: 300, 3: 0 }
       });
       usbControl.setConnected(true);
-      mockUSB.sendViable.mockResolvedValue(undefined);
+      mockUSB.sendSvil.mockResolvedValue(undefined);
 
       await qmkService.push(kbinfo, 1);
 
-      expect(mockUSB.sendViable).toHaveBeenCalledWith(
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         0x12,
         [1, 0, 1, 0, 0, 0],
         {}
@@ -216,7 +216,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo({ settings: { 1: 1 } });
       usbControl.setConnected(false);
 
-      mockUSB.sendViable.mockRejectedValue(new Error('USB device not connected'));
+      mockUSB.sendSvil.mockRejectedValue(new Error('USB device not connected'));
 
       await expect(qmkService.push(kbinfo, 1)).rejects.toThrow('USB device not connected');
     });
@@ -232,7 +232,7 @@ describe('QMKService', () => {
       usbControl.setConnected(true);
 
       let capturedArgs: number[] | null = null;
-      mockUSB.sendViable.mockImplementation((_cmd: number, args: number[]) => {
+      mockUSB.sendSvil.mockImplementation((_cmd: number, args: number[]) => {
         capturedArgs = args;
         return Promise.resolve(undefined);
       });
@@ -248,7 +248,7 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable.mockResolvedValueOnce(null);
+      mockUSB.sendSvil.mockResolvedValueOnce(null);
 
       await expect(qmkService.get(kbinfo)).resolves.toBeUndefined();
       expect(kbinfo.settings).toEqual({});
@@ -258,21 +258,21 @@ describe('QMKService', () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage([999]))
         .mockResolvedValueOnce(queryPage([]));
 
       await qmkService.get(kbinfo);
 
       expect(kbinfo.settings).toEqual({});
-      expect(mockUSB.sendViable).toHaveBeenCalledTimes(2);
+      expect(mockUSB.sendSvil).toHaveBeenCalledTimes(2);
     });
 
     it('should handle settings with value 0', async () => {
       const kbinfo = createTestKeyboardInfo();
       usbControl.setConnected(true);
 
-      mockUSB.sendViable
+      mockUSB.sendSvil
         .mockResolvedValueOnce(queryPage([1, 2]))
         .mockResolvedValueOnce(queryPage([]))
         .mockResolvedValueOnce(qsid8(0))

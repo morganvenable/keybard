@@ -49,7 +49,7 @@ const AltRepeatEditor: FC = () => {
             setKeyboard(updatedKeyboard);
 
             vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveViable())
+                .then(() => vialService.saveSvil())
                 .catch(err => console.error("Failed to auto-enable alt repeat:", err));
         }
 
@@ -77,7 +77,7 @@ const AltRepeatEditor: FC = () => {
 
         try {
             await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveViable(); // Persist to EEPROM
+            await vialService.saveSvil(); // Persist to EEPROM
         } catch (err) {
             console.error("Failed to update alt-repeat key:", err);
         }
@@ -91,7 +91,7 @@ const AltRepeatEditor: FC = () => {
 
         try {
             await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveViable(); // Persist to EEPROM
+            await vialService.saveSvil(); // Persist to EEPROM
         } catch (err) {
             console.error("Failed to update alt-repeat key:", err);
         }
@@ -121,7 +121,7 @@ const AltRepeatEditor: FC = () => {
 
         try {
             await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update alt-repeat key:", err);
         }

@@ -1,5 +1,5 @@
 // Custom Value Service - VIA3 Custom UI value get/set operations
-import { ViableUSB, usbInstance } from "./usb.service";
+import { SvilUSB, usbInstance } from "./usb.service";
 import type { CustomUIMenuItem, CustomUIValueRef, CustomValueEntry } from "../types/vial.types";
 
 /**
@@ -7,10 +7,10 @@ import type { CustomUIMenuItem, CustomUIValueRef, CustomValueEntry } from "../ty
  * Handles GET/SET/SAVE operations via VIA protocol commands
  */
 export class CustomValueService {
-    private usb: ViableUSB;
+    private usb: SvilUSB;
     private cache: Map<string, number> = new Map();
 
-    constructor(usb: ViableUSB) {
+    constructor(usb: SvilUSB) {
         this.usb = usb;
     }
 

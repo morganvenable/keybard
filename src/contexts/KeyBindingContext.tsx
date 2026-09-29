@@ -330,7 +330,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing combo change: Combo ${cmbId}, Slot ${comboSlot} → ${keycodeName}`);
                             try {
                                 await vialService.updateCombo(updatedKeyboard, cmbId);
-                                await vialService.saveViable();
+                                await vialService.saveSvil();
                             } catch (err) {
                                 console.error("Failed to update combo:", err);
                             }
@@ -392,7 +392,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing tapdance change: Tapdance ${tdId}, ${tapdanceSlot} → ${keycodeName}`);
                             try {
                                 await vialService.updateTapdance(updatedKeyboard, tdId);
-                                await vialService.saveViable();
+                                await vialService.saveSvil();
                             } catch (err) {
                                 console.error("Failed to update tapdance:", err);
                             }
@@ -430,7 +430,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing macro change: Macro ${macroId}, Index ${macroIndex} → ${keycodeName}`);
                             try {
                                 await vialService.updateMacros(updatedKeyboard);
-                                await vialService.saveViable();
+                                await vialService.saveSvil();
                             } catch (err) {
                                 console.error("Failed to update macro:", err);
                             }
@@ -468,7 +468,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing override change: Override ${koId}, ${overrideSlot} → ${keycodeName}`);
                             try {
                                 await vialService.updateKeyoverride(updatedKeyboard, koId);
-                                await vialService.saveViable();
+                                await vialService.saveSvil();
                             } catch (err) {
                                 console.error("Failed to update key override:", err);
                             }
@@ -507,7 +507,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing alt-repeat change: AltRepeat ${arkId}, ${altRepeatSlot} → ${keycodeName}`);
                             try {
                                 await vialService.updateAltRepeatKey(updatedKeyboard, arkId);
-                                await vialService.saveViable(); // Persist to EEPROM
+                                await vialService.saveSvil(); // Persist to EEPROM
                             } catch (err) {
                                 console.error("Failed to update alt-repeat key:", err);
                             }
@@ -557,7 +557,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             console.log(`Committing leader change: Leader ${ldrId}, ${leaderSlot} → ${keycodeName}`);
                             try {
                                 await vialService.updateLeader(updatedKeyboard, ldrId);
-                                await vialService.saveViable();
+                                await vialService.saveSvil();
                             } catch (err) {
                                 console.error("Failed to update leader:", err);
                             }

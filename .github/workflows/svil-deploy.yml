@@ -1,5 +1,5 @@
-# Deploy Viable branch to GitHub Pages
-name: Deploy Viable-Keybard
+# Deploy Svil branch to GitHub Pages
+name: Deploy Svil-Keybard
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - 'package-lock.json'
       - 'vite.config.ts'
       - 'tsconfig.json'
-      - '.github/workflows/viable-deploy.yml'
+      - '.github/workflows/svil-deploy.yml'
 
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "viable-pages"
+  group: "svil-pages"
   cancel-in-progress: false
 
 jobs:

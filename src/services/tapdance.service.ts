@@ -1,9 +1,9 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { ViableUSB } from "./usb.service";
+import { SvilUSB } from "./usb.service";
 
 export class TapdanceService {
-    constructor(private usb: ViableUSB) { }
+    constructor(private usb: SvilUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         const tapdance_count = kbinfo.tapdance_count || 0;
@@ -11,10 +11,10 @@ export class TapdanceService {
 
         kbinfo.tapdances = [];
 
-        // Use Viable protocol: direct tap dance get command
+        // Use Svil protocol: direct tap dance get command
         for (let i = 0; i < tapdance_count; i++) {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_TAP_DANCE_GET,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_TAP_DANCE_GET,
                 [i],
                 { uint8: true }
             ) as Uint8Array;
@@ -43,11 +43,11 @@ export class TapdanceService {
             : kbinfo.tapdances;
 
         for (const td of toPush) {
-            // Use Viable protocol: direct tap dance set command
+            // Use Svil protocol: direct tap dance set command
             // tapping_term is 2 bytes: bit 15 = enabled flag, bits 0-14 = timing in ms
             // Keybard always enables tap dances (the disabled feature is pointless)
             const termWithEnabled = ((td.tapping_term || 200) & 0x7FFF) | 0x8000;
-            await this.usb.sendViable(ViableUSB.CMD_VIABLE_TAP_DANCE_SET, [
+            await this.usb.sendSvil(SvilUSB.CMD_SVIL_TAP_DANCE_SET, [
                 td.idx,
                 ...this.LE16(keyService.parse(td.tap)),
                 ...this.LE16(keyService.parse(td.hold)),

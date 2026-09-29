@@ -8,7 +8,7 @@
  */
 
 import type { KeyboardInfo } from "../types/vial.types";
-import { ViableUSB } from "./usb.service";
+import { SvilUSB } from "./usb.service";
 
 // Max number of fragment instances (protocol uses fixed 21-byte arrays)
 const MAX_INSTANCES = 21;
@@ -32,7 +32,7 @@ function safeMapGet<K extends string | number, V>(
 }
 
 export class FragmentService {
-    constructor(private usb: ViableUSB) { }
+    constructor(private usb: SvilUSB) { }
 
     /**
      * Load fragment data from device (hardware detection and EEPROM selections)
@@ -62,8 +62,8 @@ export class FragmentService {
      */
     private async getHardwareDetection(kbinfo: KeyboardInfo): Promise<void> {
         try {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_FRAGMENT_GET_HARDWARE,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_FRAGMENT_GET_HARDWARE,
                 [],
                 { uint8: true }
             ) as Uint8Array;
@@ -97,8 +97,8 @@ export class FragmentService {
      */
     private async getEepromSelections(kbinfo: KeyboardInfo): Promise<void> {
         try {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_FRAGMENT_GET_SELECTIONS,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_FRAGMENT_GET_SELECTIONS,
                 [],
                 { uint8: true }
             ) as Uint8Array;
@@ -158,8 +158,8 @@ export class FragmentService {
         }
 
         try {
-            const data = await this.usb.sendViable(
-                ViableUSB.CMD_VIABLE_FRAGMENT_SET_SELECTIONS,
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_FRAGMENT_SET_SELECTIONS,
                 [instanceCount, ...selections],
                 { uint8: true }
             ) as Uint8Array;

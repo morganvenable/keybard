@@ -74,7 +74,7 @@ const TapdanceEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update tapdance tapping term:", err);
             }
@@ -105,7 +105,7 @@ const TapdanceEditor: FC = () => {
         setKeyboard(updatedKeyboard);
         try {
             await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-            await vialService.saveViable();
+            await vialService.saveSvil();
         } catch (err) {
             console.error("Failed to update tapdance key:", err);
         }
@@ -148,7 +148,7 @@ const TapdanceEditor: FC = () => {
             setKeyboard(updatedKeyboard);
             try {
                 await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-                await vialService.saveViable();
+                await vialService.saveSvil();
             } catch (err) {
                 console.error("Failed to update tapdance swap:", err);
             }

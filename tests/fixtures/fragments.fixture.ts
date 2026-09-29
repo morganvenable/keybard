@@ -479,7 +479,7 @@ export const RESOLUTION_SCENARIOS = {
 /**
  * Export test data for .svil file format testing
  */
-export const VIABLE_FILE_FRAGMENTS = {
+export const SVIL_FILE_FRAGMENTS = {
     // Fragment selections as stored in .svil file
     fragment_selections: {
         'left_finger': FRAGMENT_NAMES.FINGER_5KEY,

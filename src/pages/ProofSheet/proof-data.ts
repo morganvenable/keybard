@@ -556,7 +556,7 @@ export const proofCategories: ProofCategory[] = [
     },
     {
         name: "Svalboard Custom Keycodes (QK_USER)",
-        description: "QMK/Viable custom keycodes - Svalboard pointing, scroll, sniper, and config keys",
+        description: "QMK/Svalboard custom keycodes - Svalboard pointing, scroll, sniper, and config keys",
         keys: [
             { keycode: "QK_USER_0", description: "SV Left DPI Increase" },
             { keycode: "QK_USER_1", description: "SV Left DPI Decrease" },

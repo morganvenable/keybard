@@ -88,7 +88,7 @@ const AltRepeatPanel: React.FC = () => {
 
         try {
             await vialService.updateAltRepeatKey(updatedKeyboard, index);
-            await vialService.saveViable(); // Persist to EEPROM
+            await vialService.saveSvil(); // Persist to EEPROM
         } catch (err) {
             console.error("Failed to update alt repeat key:", err);
         }

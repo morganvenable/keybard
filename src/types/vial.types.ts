@@ -1,9 +1,9 @@
-// Type definitions for Viable keyboard configuration system
-// (Migrated from Vial protocol to Viable protocol)
+// Type definitions for Svil keyboard configuration system
+// (Migrated from Vial protocol to Svil protocol)
 
 export interface KeyboardInfo {
     via_proto?: number;
-    viable_proto?: number;  // Viable protocol version
+    svil_proto?: number;  // Svil protocol version
     vial_proto?: number;    // Legacy, kept for compatibility
     kbid?: string;
     name?: string;          // Keyboard name from definition
@@ -19,16 +19,16 @@ export interface KeyboardInfo {
     combos?: ComboEntry[];
     tapdances?: TapdanceEntry[];
     key_overrides?: KeyOverrideEntry[];
-    alt_repeat_keys?: AltRepeatKeyEntry[];  // NEW: Viable feature
-    leaders?: LeaderEntry[];                 // NEW: Viable feature
-    one_shot?: OneShotSettings;              // NEW: Viable feature
+    alt_repeat_keys?: AltRepeatKeyEntry[];  // NEW: Svil feature
+    leaders?: LeaderEntry[];                 // NEW: Svil feature
+    one_shot?: OneShotSettings;              // NEW: Svil feature
     settings?: Record<number, number>;
     tapdance_count?: number;
     combo_count?: number;
     key_override_count?: number;
     alt_repeat_key_count?: number;           // NEW
     leader_count?: number;                   // NEW
-    feature_flags?: number;                  // NEW: Viable feature flags
+    feature_flags?: number;                  // NEW: Svil feature flags
 
     // Fragment composition (modular layouts)
     fragments?: Record<string, FragmentDefinition>;  // Fragment definitions
@@ -194,7 +194,7 @@ export interface KeyContent {
 }
 
 // ============================================================================
-// Viable Protocol Types (new features not in Vial)
+// Svil Protocol Types (new features not in Vial)
 // ============================================================================
 
 /**
@@ -241,16 +241,16 @@ export interface OneShotSettings {
 }
 
 /**
- * Viable protocol info response
+ * Svil protocol info response
  */
-export interface ViableProtocolInfo {
+export interface SvilProtocolInfo {
     protocol_version: number;   // 32-bit protocol version
     keyboard_uid: Uint8Array;   // 8-byte UID
     feature_flags: number;      // 8-bit feature flags
 }
 
-// Viable feature flags
-export const ViableFeatureFlags = {
+// Svil feature flags
+export const SvilFeatureFlags = {
     CAPS_WORD: 1 << 0,
     LAYER_LOCK: 1 << 1,
     ONESHOT: 1 << 2,
@@ -258,14 +258,14 @@ export const ViableFeatureFlags = {
 } as const;
 
 /**
- * Viable API interface (extends VialAPI for new features)
+ * Svil API interface (extends VialAPI for new features)
  */
-export interface ViableAPI extends VialAPI {
+export interface SvilAPI extends VialAPI {
     updateAltRepeatKey(kbinfo: KeyboardInfo, arkid: number): Promise<void>;
     updateLeader(kbinfo: KeyboardInfo, ldrid: number): Promise<void>;
     updateOneShot(kbinfo: KeyboardInfo): Promise<void>;
-    saveViable(): Promise<void>;
-    resetViable(): Promise<void>;
+    saveSvil(): Promise<void>;
+    resetSvil(): Promise<void>;
 }
 
 // ============================================================================

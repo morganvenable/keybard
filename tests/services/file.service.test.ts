@@ -91,7 +91,7 @@ describe('FileService', () => {
         tap_dance: [{ on: true, on_tap: 'KC_E', on_hold: 'KC_F', on_double_tap: 'KC_G', on_tap_hold: 'KC_H', tapping_term: 200 }],
         combo: [],
         key_override: [],
-        viable_protocol: 1,
+        svil_protocol: 1,
         via_protocol: 12,
       };
 
@@ -192,7 +192,7 @@ describe('FileService', () => {
     });
   });
 
-  describe('kbinfoToViable', () => {
+  describe('kbinfoToSvil', () => {
     it('exports keymap as layout[layer][row][col] format', () => {
       const rows = 3;
       const cols = 4;
@@ -208,13 +208,13 @@ describe('FileService', () => {
         ],
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
-      expect(viable.layout).toBeDefined();
-      expect(viable.layout.length).toBe(layers);
-      expect(viable.layout[0].length).toBe(rows);
-      expect(viable.layout[0][0].length).toBe(cols);
+      expect(svil.layout).toBeDefined();
+      expect(svil.layout.length).toBe(layers);
+      expect(svil.layout[0].length).toBe(rows);
+      expect(svil.layout[0][0].length).toBe(cols);
     });
 
     it('converts numeric keycodes to strings', () => {
@@ -225,12 +225,12 @@ describe('FileService', () => {
         keymap: [[0x04, 0x05, 0x06, 0x07]], // KC_A, KC_B, KC_C, KC_D
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
       // All values should be strings
-      expect(typeof viable.layout[0][0][0]).toBe('string');
-      expect(viable.layout[0][0][0]).toBe('KC_A');
+      expect(typeof svil.layout[0][0][0]).toBe('string');
+      expect(svil.layout[0][0][0]).toBe('KC_A');
     });
 
     it('preserves fragment selections in export', () => {
@@ -258,11 +258,11 @@ describe('FileService', () => {
         userSelections: [['test_instance', FRAGMENT_NAMES.FINGER_6KEY]],
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
-      expect(viable.fragment_selections).toBeDefined();
-      expect(viable.fragment_selections['test_instance']).toBe(FRAGMENT_NAMES.FINGER_6KEY);
+      expect(svil.fragment_selections).toBeDefined();
+      expect(svil.fragment_selections['test_instance']).toBe(FRAGMENT_NAMES.FINGER_6KEY);
     });
 
     it('exports UID as unquoted large integer in JSON', () => {
@@ -274,15 +274,15 @@ describe('FileService', () => {
         kbid: 'FFFFFFFFFFFFFFFF', // Max 64-bit hex value
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
 
       // UID should be an unquoted number (BigInt serialized as numeric literal)
-      expect(viableJson).toContain('"uid":');
+      expect(svilJson).toContain('"uid":');
       // The BigInt value 0xFFFFFFFFFFFFFFFF = 18446744073709551615
       // Should be present as a numeric literal (not quoted string)
-      expect(viableJson).toContain('18446744073709551615');
+      expect(svilJson).toContain('18446744073709551615');
       // Verify it's not a quoted string
-      expect(viableJson).not.toContain('"18446744073709551615"');
+      expect(svilJson).not.toContain('"18446744073709551615"');
     });
 
     it('excludes macros when includeMacros=false', () => {
@@ -298,11 +298,11 @@ describe('FileService', () => {
         ] as any,
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, false);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, false);
+      const svil = JSON.parse(svilJson);
 
       // Macros should be empty arrays
-      expect(viable.macro.every((m: any[]) => m.length === 0)).toBe(true);
+      expect(svil.macro.every((m: any[]) => m.length === 0)).toBe(true);
     });
 
     it('sanitizes non-ASCII in macro text', () => {
@@ -316,11 +316,11 @@ describe('FileService', () => {
         ] as any,
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
       // Non-ASCII should be removed
-      const macroText = viable.macro[0]?.[0]?.[1];
+      const macroText = svil.macro[0]?.[0]?.[1];
       expect(macroText).toBe('helloworlds'); // Non-ASCII removed
     });
 
@@ -339,19 +339,19 @@ describe('FileService', () => {
         ],
       };
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
-      expect(viable.fragments).toBeDefined();
-      expect(Object.keys(viable.fragments).length).toBe(Object.keys(kbinfo.fragments).length);
-      expect(viable.composition).toBeDefined();
-      expect(viable.composition.instances.length).toBe(1);
+      expect(svil.fragments).toBeDefined();
+      expect(Object.keys(svil.fragments).length).toBe(Object.keys(kbinfo.fragments).length);
+      expect(svil.composition).toBeDefined();
+      expect(svil.composition.instances.length).toBe(1);
     });
   });
 
-  describe('viableToKBINFO', () => {
+  describe('svilToKBINFO', () => {
     it('imports layout[l][r][c] to flat keymap[l][r*cols+c]', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [
@@ -366,7 +366,7 @@ describe('FileService', () => {
         key_override: [],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.keymap.length).toBe(1); // 1 layer
       expect(kbinfo.keymap[0].length).toBe(8); // 2 rows * 4 cols
@@ -375,7 +375,7 @@ describe('FileService', () => {
     });
 
     it('parses string keycodes to numeric', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A', 'KC_B']]],
@@ -385,14 +385,14 @@ describe('FileService', () => {
         key_override: [],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.keymap[0][0]).toBe(0x04); // KC_A
       expect(kbinfo.keymap[0][1]).toBe(0x05); // KC_B
     });
 
     it('handles -1 as KC_NO', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[[-1, 'KC_A', -1]]],
@@ -402,7 +402,7 @@ describe('FileService', () => {
         key_override: [],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.keymap[0][0]).toBe(0); // KC_NO
       expect(kbinfo.keymap[0][1]).toBe(0x04); // KC_A
@@ -410,7 +410,7 @@ describe('FileService', () => {
     });
 
     it('restores fragment selections from file', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A']]],
@@ -424,7 +424,7 @@ describe('FileService', () => {
         },
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.fragmentState).toBeDefined();
       expect(kbinfo.fragmentState.userSelections.get('left_finger')).toBe(FRAGMENT_NAMES.FINGER_5KEY);
@@ -439,7 +439,7 @@ describe('FileService', () => {
         ],
       };
 
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A']]],
@@ -451,7 +451,7 @@ describe('FileService', () => {
         composition,
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.fragments).toBeDefined();
       expect(Object.keys(kbinfo.fragments).length).toBe(Object.keys(fragments).length);
@@ -460,7 +460,7 @@ describe('FileService', () => {
     });
 
     it('converts tap dance dict format correctly', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A']]],
@@ -479,7 +479,7 @@ describe('FileService', () => {
         key_override: [],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.tapdances).toBeDefined();
       expect(kbinfo.tapdances[0].tap).toBe('KC_A');
@@ -490,7 +490,7 @@ describe('FileService', () => {
     });
 
     it('converts combo dict format correctly', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A']]],
@@ -507,7 +507,7 @@ describe('FileService', () => {
         key_override: [],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.combos).toBeDefined();
       expect(kbinfo.combos[0].keys).toEqual(['KC_A', 'KC_B']);
@@ -518,7 +518,7 @@ describe('FileService', () => {
     });
 
     it('converts key override dict format correctly', () => {
-      const viable = {
+      const svil = {
         version: 1,
         uid: 12345,
         layout: [[['KC_A']]],
@@ -537,7 +537,7 @@ describe('FileService', () => {
         ],
       };
 
-      const kbinfo = (fileService as any).viableToKBINFO(viable);
+      const kbinfo = (fileService as any).svilToKBINFO(svil);
 
       expect(kbinfo.key_overrides).toBeDefined();
       expect(kbinfo.key_overrides[0].trigger).toBe('KC_A');
@@ -547,7 +547,7 @@ describe('FileService', () => {
   });
 
   describe('Round-trip Tests', () => {
-    it('preserves all keymap data through viable export/import', () => {
+    it('preserves all keymap data through svil export/import', () => {
       const rows = 5;
       const cols = 14;
       const layers = 4;
@@ -560,9 +560,9 @@ describe('FileService', () => {
         keymap: originalKeymap,
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
-      const imported = (fileService as any).viableToKBINFO(viable);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
+      const imported = (fileService as any).svilToKBINFO(svil);
 
       const importedKeymap = imported.keymap.map((layer: any[]) =>
         layer.map((k: any) => typeof k === 'string' ? keyService.parse(k) : k)
@@ -590,9 +590,9 @@ describe('FileService', () => {
         ] as any,
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
-      const imported = (fileService as any).viableToKBINFO(viable);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
+      const imported = (fileService as any).svilToKBINFO(svil);
 
       expect(imported.tapdances.length).toBe(2);
       expect(imported.tapdances[0].tap).toBe('KC_A');
@@ -613,16 +613,16 @@ describe('FileService', () => {
         ] as any,
       });
 
-      const viableJson = (fileService as any).kbinfoToViable(kbinfo, true);
-      const viable = JSON.parse(viableJson);
+      const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
+      const svil = JSON.parse(svilJson);
 
       // The intermediate file representation splits options into on + combo_term.
-      expect(viable.combo[0].on).toBe(true);
-      expect(viable.combo[0].combo_term).toBe(50);
-      expect(viable.combo[1].on).toBe(false);
-      expect(viable.combo[1].combo_term).toBe(75);
+      expect(svil.combo[0].on).toBe(true);
+      expect(svil.combo[0].combo_term).toBe(50);
+      expect(svil.combo[1].on).toBe(false);
+      expect(svil.combo[1].combo_term).toBe(75);
 
-      const imported = (fileService as any).viableToKBINFO(viable);
+      const imported = (fileService as any).svilToKBINFO(svil);
 
       expect(imported.combos.length).toBe(2);
       expect(imported.combos[0].output).toBe('KC_C');
@@ -635,7 +635,7 @@ describe('FileService', () => {
 
   describe('parseContent', () => {
     it('detects .svil format by uid + version', () => {
-      const viableContent = JSON.stringify({
+      const svilContent = JSON.stringify({
         version: 1,
         uid: 12345,
         layout: [[['KC_A', 'KC_B'], ['KC_C', 'KC_D']]],
@@ -645,7 +645,7 @@ describe('FileService', () => {
         key_override: [],
       });
 
-      const kbinfo = (fileService as any).parseContent(viableContent);
+      const kbinfo = (fileService as any).parseContent(svilContent);
 
       // parseContent converts decimal UID to hex string via BigInt
       expect(kbinfo.kbid).toBe('3039'); // 12345 decimal = 0x3039
@@ -718,5 +718,25 @@ describe('FileService .svil native format', () => {
     expect(withMacros.types[0].accept).toEqual({ 'application/json': ['.svil'] });
     expect(JSON.stringify(withMacros)).not.toContain('.viable');
     expect(writable.write).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('FileService legacy viable_protocol key', () => {
+  const layout = [[['KC_A', 'KC_B'], ['KC_C', 'KC_D']]];
+
+  it('loads a file that still carries the viable_protocol key', async () => {
+    const file = createMockFile(
+      JSON.stringify({ uid: 12345, viable_protocol: 1, layout, macro: [], tap_dance: [], combo: [], key_override: [] }),
+      'old-layout.viable',
+    );
+    const result = await fileService.loadFile(file);
+    expect(result.kbid).toBe('3039');
+    expect(result.svil_proto).toBe(1);
+  });
+
+  it('exports svil_protocol and never viable_protocol', () => {
+    const json = fileService.kbinfoToSvil(createExportableKeyboardInfo(), true);
+    expect(json).toContain('"svil_protocol"');
+    expect(json).not.toContain('viable_protocol');
   });
 });
