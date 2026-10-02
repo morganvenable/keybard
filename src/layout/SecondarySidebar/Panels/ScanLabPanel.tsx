@@ -53,6 +53,9 @@ const mono = "font-mono tabular-nums";
  *   the sweep are part of the reference, so pressed states can be covered.
  * - Apply: write explicit pre/post-wait to the keyboard (both halves).
  */
+/** How long the armed reboot button waits for its confirming click. Generous so scripted clicks fit too. */
+const REBOOT_CONFIRM_WINDOW_MS = 20000;
+
 const ScanLabPanel = () => {
     const { isConnected, connect } = useVial();
     const { layoutMode } = useLayoutSettings();
@@ -229,7 +232,7 @@ const ScanLabPanel = () => {
         if (rebootArmedFor !== h) {
             setRebootArmedFor(h);
             setRebootNote(null);
-            setTimeout(() => setRebootArmedFor((cur) => (cur === h ? null : cur)), 5000);
+            setTimeout(() => setRebootArmedFor((cur) => (cur === h ? null : cur)), REBOOT_CONFIRM_WINDOW_MS);
             return;
         }
         setRebootArmedFor(null);
@@ -561,7 +564,7 @@ const ScanLabPanel = () => {
     const firmwareSection = (
         <div className="flex flex-col gap-2" data-testid="firmware-section">
             <span className={sectionTitle}>Firmware</span>
-            <p className="text-xs text-muted-foreground">Reboot a half into the RP2040 bootloader without touching it. Two clicks: arm, then confirm within 5 s. The firmware applies the same two-stage rule.</p>
+            <p className="text-xs text-muted-foreground">Reboot a half into the RP2040 bootloader without touching it. Two clicks: arm, then confirm within 20 s. The firmware applies its own arm-then-go rule on top.</p>
             <div className="flex flex-wrap gap-2">
                 {HANDS.map((h) => {
                     const supported = !!power[h]?.hostBootloader;
