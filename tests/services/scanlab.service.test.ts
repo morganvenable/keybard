@@ -177,6 +177,26 @@ describe('ScanLabService power readout and pacing', () => {
         expect(q.effectivePeriodTrueUs).toBe(60000);
     });
 
+    it('parses the idle diagnostics: sensor mode bits, RGB level, quiet timers', () => {
+        const { service } = makeService();
+        const b = new Uint8Array(23);
+        b[0] = 0b111; b[1] = 1; b[2] = 0x80 | 0x02; b[3] = 0x20; b[4] = 32; b[5] = 128; b[6] = 1; b[7] = 1; b[8] = 1;
+        const put32 = (i: number, v: number) => { b[i] = v & 0xff; b[i + 1] = (v >> 8) & 0xff; b[i + 2] = (v >> 16) & 0xff; b[i + 3] = (v >>> 24) & 0xff; };
+        put32(9, 70000); put32(13, 70000); put32(17, 1500);
+        const d = service.parseIdle(b);
+        expect(d.reachable).toBe(true);
+        expect(d.flags).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: true });
+        expect(d.sensorMode).toBe(2);
+        expect(d.sensorLifted).toBe(false);
+        expect(d.sensorRestEnabled).toBe(true);
+        expect(d.rgbValNow).toBe(32);
+        expect(d.rgbStage).toBe(1);
+        expect(d.quietMatrixMs).toBe(70000);
+        expect(d.quietPointerMs).toBe(1500);
+        b[2] = 0x00;
+        expect(service.parseIdle(b).sensorMode).toBeNull();
+    });
+
     it('switches an idle power feature through its VIA id and saves', async () => {
         const { usb, service } = makeService();
         await service.setIdleFeature('cpuSleep', true);
