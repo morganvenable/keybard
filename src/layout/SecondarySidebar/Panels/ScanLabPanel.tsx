@@ -11,7 +11,7 @@ import {
     colNames,
     lowestCleanValue,
     suggestWithMargin,
-    expectedDutyPct,
+    predictDutyPct,
     HAND_NAMES,
     ROW_NAMES,
     SweepState,
@@ -450,8 +450,8 @@ const ScanLabPanel = () => {
     );
 
     const anyPower = power[0]?.reachable ? power[0] : power[1]?.reachable ? power[1] : null;
-    const expectedActive = anyPower ? expectedDutyPct(anyPower.rows || 5, anyPower.effPrewaitUs, periodUs) : null;
-    const expectedIdle = anyPower ? expectedDutyPct(anyPower.rows || 5, anyPower.effPrewaitUs, Math.max(periodUs, idlePeriodUs)) : null;
+    const expectedActive = anyPower ? predictDutyPct(anyPower, periodUs) : null;
+    const expectedIdle = anyPower ? predictDutyPct(anyPower, Math.max(periodUs, idlePeriodUs)) : null;
 
     const powerSection = (
         <div className="flex flex-col gap-2" data-testid="power-section">
@@ -492,7 +492,7 @@ const ScanLabPanel = () => {
             </div>
             {anyPower && (
                 <p className="text-xs text-muted-foreground" data-testid="power-expected">
-                    Expected at pre-wait {anyPower.effPrewaitUs} µs: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} %`}
+                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} %`}
                     {idleAfterMs > 0 && expectedIdle !== null && `, idle ${expectedIdle.toFixed(1)} %`}.
                 </p>
             )}
