@@ -53,6 +53,8 @@ const mono = "font-mono tabular-nums";
  *   the sweep are part of the reference, so pressed states can be covered.
  * - Apply: write explicit pre/post-wait to the keyboard (both halves).
  */
+const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`);
+
 /** How long the armed reboot button waits for its confirming click. Generous so scripted clicks fit too. */
 const REBOOT_CONFIRM_WINDOW_MS = 20000;
 
@@ -517,9 +519,9 @@ const ScanLabPanel = () => {
                             ) : (
                                 <>
                                     <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.dutyPct !== null && <span className={cn("text-muted-foreground", mono)} data-testid={`power-ma-${h}`}> ≈ {predictCurrentMa(baselineMa, litRowMa, p.dutyPct)!.toFixed(0)} mA</span>}{p.stage > 0 && <span className="text-muted-foreground"> · {IDLE_STAGE_NAMES[p.stage]}</span>}</span>
-                                    <span className={mono}>frame {p.measuredFrameUs} µs · LED on {p.measuredLedUs} µs</span>
+                                    <span className={mono}>frame {p.frameCapped ? `≈ ${fmtPeriod(p.effectivePeriodTrueUs)} (set)` : `${p.measuredFrameUs} µs`} · LED on {p.measuredLedUs} µs</span>
                                     <span className={cn("text-muted-foreground", mono)}>
-                                        {p.scanHz === null ? "" : `${p.scanHz.toFixed(0)} Hz`} · period {p.effectivePeriodUs === 0 ? "unpaced" : `${p.effectivePeriodUs} µs`}
+                                        {p.scanHz === null ? "" : p.scanHz >= 10 ? `${p.scanHz.toFixed(0)} Hz` : `${p.scanHz.toFixed(2)} Hz`} · period {p.effectivePeriodTrueUs === 0 ? "unpaced" : fmtPeriod(p.effectivePeriodTrueUs)}
                                     </span>
                                 </>
                             )}
