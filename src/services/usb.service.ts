@@ -119,8 +119,16 @@ export class SvilUSB {
   async open(filters: HIDDeviceFilter[]): Promise<boolean> {
     const devices = await navigator.hid.requestDevice({ filters });
     if (devices.length !== 1) return false;
+    return this.openDevice(devices[0]);
+  }
 
-    this.device = devices[0];
+  /**
+   * Open a device this origin already has permission for (one returned by
+   * navigator.hid.getDevices()). No chooser is shown; the permission was granted
+   * by the user in an earlier session.
+   */
+  async openDevice(device: HIDDevice): Promise<boolean> {
+    this.device = device;
     if (!this.device.opened) {
       await this.device.open();
     }

@@ -23,6 +23,8 @@ interface VialContextType {
     setIsImporting: React.Dispatch<React.SetStateAction<boolean>>;
     loadedFrom: string | null;
     connect: (filters?: HIDDeviceFilter[]) => Promise<boolean>;
+    /** Open an already-permitted device (from listPermittedDevices) without the chooser. */
+    connectDevice: (device: HIDDevice) => Promise<boolean>;
     disconnect: () => Promise<void>;
     loadKeyboard: () => Promise<void>;
     loadFromFile: (file: File) => Promise<void>;
@@ -33,6 +35,35 @@ interface VialContextType {
 }
 
 const VialContext = createContext<VialContextType | undefined>(undefined);
+
+export const DEFAULT_HID_FILTERS: HIDDeviceFilter[] = [
+    { usagePage: 0xff61, usage: 0x62 },  // Svil keyboards
+    { usagePage: 0xff60, usage: 0x61 },  // Vial keyboards (legacy)
+    { usagePage: 0xff60, usage: 0x62 },  // Vial RawHID (legacy)
+];
+
+/**
+ * Keyboards this origin may open without the chooser: devices the user has
+ * already granted, restricted to interfaces matching the given filters, one
+ * entry per physical device.
+ */
+export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_HID_FILTERS): Promise<HIDDevice[]> {
+    if (typeof navigator === "undefined" || !navigator.hid?.getDevices) return [];
+    const devices = await navigator.hid.getDevices();
+    const matches = (d: HIDDevice) => d.collections.some((c) => filters.some((f) =>
+        (f.vendorId === undefined || d.vendorId === f.vendorId) &&
+        (f.productId === undefined || d.productId === f.productId) &&
+        (f.usagePage === undefined || c.usagePage === f.usagePage) &&
+        (f.usage === undefined || c.usage === f.usage)));
+    const seen = new Set<string>();
+    return devices.filter((d) => {
+        if (!matches(d)) return false;
+        const key = `${d.vendorId}:${d.productId}:${d.productName}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
 
 export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [keyboard, setKeyboard] = useState<KeyboardInfo | null>(null);
@@ -63,28 +94,35 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("keyboard changed", keyboard);
     }, [keyboard]);
 
+    const afterOpen = useCallback((success: boolean) => {
+        if (success) {
+            usbInstance.onDisconnect = () => {
+                console.log("Disconnect detected via listener");
+                setIsConnected(false);
+            };
+        }
+        setIsConnected(success);
+        console.log("connected success:", success);
+        return success;
+    }, []);
+
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
         try {
-            const defaultFilters = [
-                { usagePage: 0xff61, usage: 0x62 },  // Svil keyboards
-                { usagePage: 0xff60, usage: 0x61 },  // Vial keyboards (legacy)
-                { usagePage: 0xff60, usage: 0x62 },  // Vial RawHID (legacy)
-            ];
-            const success = await usbInstance.open(filters || defaultFilters);
-            if (success) {
-                usbInstance.onDisconnect = () => {
-                    console.log("Disconnect detected via listener");
-                    setIsConnected(false);
-                };
-            }
-            setIsConnected(success);
-            console.log("connected success:", success);
-            return success;
+            return afterOpen(await usbInstance.open(filters || DEFAULT_HID_FILTERS));
         } catch (error) {
             console.error("Failed to connect to keyboard:", error);
             return false;
         }
-    }, []);
+    }, [afterOpen]);
+
+    const connectDevice = useCallback(async (device: HIDDevice) => {
+        try {
+            return afterOpen(await usbInstance.openDevice(device));
+        } catch (error) {
+            console.error("Failed to open permitted keyboard:", error);
+            return false;
+        }
+    }, [afterOpen]);
 
     const disconnect = useCallback(async () => {
         try {
@@ -326,6 +364,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsImporting,
         loadedFrom,
         connect,
+        connectDevice,
         disconnect,
         loadKeyboard,
         loadFromFile,
