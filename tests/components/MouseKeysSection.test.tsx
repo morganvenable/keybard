@@ -1,0 +1,74 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import MouseKeysSection from '../../src/layout/SecondarySidebar/Panels/MouseKeysSection';
+
+// The section must size every key row from one effectiveVariant, so the keys
+// are stubbed to expose exactly the props that control sizing.
+const layoutSettings = { keyVariant: 'default' as 'small' | 'medium' | 'default', layoutMode: 'sidebar' };
+
+vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
+vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: null }) }));
+vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
+vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: vi.fn() }) }));
+vi.mock('@/components/Key', () => ({
+    Key: ({ keycode, variant, className }: { keycode: string; variant?: string; className?: string }) => (
+        <div data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} />
+    ),
+}));
+
+const EXPECTED_KEYS = [
+    'KC_BTN1', 'KC_BTN2', 'KC_BTN3', 'KC_BTN4', 'KC_BTN5',
+    'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
+    'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
+];
+
+function renderedKeys() {
+    return screen.getAllByTestId('key').map((el) => ({
+        keycode: el.getAttribute('data-keycode'),
+        variant: el.getAttribute('data-variant'),
+        size: el.getAttribute('data-size'),
+    }));
+}
+
+/** Every row (mouse buttons, sniper, boost) must share one variant and one size class. */
+function expectUniformSizing(expectedVariant: string, expectedSize: string) {
+    const keys = renderedKeys();
+    expect(keys.map((k) => k.keycode)).toEqual(EXPECTED_KEYS);
+    for (const k of keys) {
+        expect(k.variant, `${k.keycode} variant`).toBe(expectedVariant);
+        expect(k.size, `${k.keycode} size class`).toBe(expectedSize);
+    }
+}
+
+describe('MouseKeysSection: mouse buttons, sniper and boost rows size identically', () => {
+    beforeEach(() => {
+        layoutSettings.keyVariant = 'default';
+    });
+
+    it('renders the Boost row alongside Mouse Buttons and Sniper Keys', () => {
+        render(<MouseKeysSection />);
+        expect(screen.getByText('Mouse Buttons')).toBeInTheDocument();
+        expect(screen.getByText('Sniper Keys')).toBeInTheDocument();
+        expect(screen.getByText('Boost')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['small', 'h-[30px] w-[30px]'],
+        ['medium', 'h-[45px] w-[45px]'],
+        ['default', 'h-[60px] w-[60px]'],
+    ] as const)('follows the user key-size setting "%s" for every row', (variant, size) => {
+        layoutSettings.keyVariant = variant;
+        render(<MouseKeysSection />);
+        expectUniformSizing(variant, size);
+    });
+
+    it('uses the compact/medium override for every row in bottom-bar mode', () => {
+        render(<MouseKeysSection compact variant="medium" />);
+        expectUniformSizing('medium', 'h-[45px] w-[45px]');
+    });
+
+    it('compact without an override drops every row to small', () => {
+        render(<MouseKeysSection compact />);
+        expectUniformSizing('small', 'h-[30px] w-[30px]');
+    });
+});
