@@ -64,7 +64,8 @@ describe('ScanLabPanel', () => {
         await waitFor(() => expect(screen.getByTestId('power-0')).toHaveTextContent('LED duty 24.0 %'));
         expect(screen.getByTestId('power-0')).toHaveTextContent('frame 1000 µs · LED on 240 µs');
         expect(screen.getByTestId('power-1')).toHaveTextContent('no reading');
-        expect(screen.getByTestId('power-expected')).toHaveTextContent('active 24.0 %');
+        expect(screen.getByTestId('power-expected')).toHaveTextContent('active 24.0 % ≈ 86 mA');
+        expect(screen.getByTestId('power-ma-0')).toHaveTextContent('≈ 86 mA');
     });
 
     it('applies pacing from the three fields', async () => {
