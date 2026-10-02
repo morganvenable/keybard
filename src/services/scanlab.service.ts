@@ -10,8 +10,10 @@ export const ID_SCAN_PREWAIT_US = 13;
 export const ID_SCAN_POSTWAIT_US = 14;
 export const ID_HW_REVISION = 15;
 export const ID_SCAN_PERIOD_US = 20;
-export const ID_SCAN_IDLE_PERIOD_US = 21;
+export const ID_SCAN_IDLE_PERIOD_MS = 21;
 export const ID_SCAN_IDLE_AFTER_MS = 22;
+export const ID_SCAN_DEEP_AFTER_S = 23;
+export const ID_SCAN_DEEP_PERIOD_MS = 24;
 /**
  * Firmware overhead per row beyond pre-wait: row switching, the six pin reads
  * and the double-down logic. Measured on a revision B board: 58 µs LED-on per
@@ -38,6 +40,8 @@ const OP = {
     SET_MODE: 0x01,
     PROBE: 0x02,
     ABORT: 0x03,
+    REBOOT_ARM: 0x04,
+    REBOOT_GO: 0x05,
     STATUS: 0x10,
     POWER: 0x11,
     SWEEP_ROW: 0x20,
@@ -69,18 +73,36 @@ export interface ScanLabStatus {
     otherHalfConnected: boolean;
 }
 
-export interface ScanLabPower {
+export type IdleStage = 0 | 1 | 2; // active, light idle, deep idle
+export const IDLE_STAGE_NAMES = ["active", "light idle", "deep idle"] as const;
+
+export interface IdleSettings {
+    idleAfterMs: number;   // light idle timeout, ms (0 = never)
+    idlePeriodMs: number;  // light idle frame period, ms
+    deepAfterS: number;    // deep idle timeout, s (0 = never)
+    deepPeriodMs: number;  // deep idle frame period, ms
+}
+
+/** Starting points for the idle fields; every value stays editable. */
+export const IDLE_PRESETS: ReadonlyArray<{ name: string; hint: string } & IdleSettings> = [
+    { name: "No idle", hint: "full rate always", idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 0, deepPeriodMs: 0 },
+    { name: "Light", hint: "100 ms wake-up after 2 s", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
+    { name: "Deep", hint: "100 ms after 2 s, 1 s after 10 min", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
+];
+
+export interface ScanLabPower extends IdleSettings {
     reachable: boolean;
     periodUs: number;          // saved active frame period (0 = unpaced)
-    idlePeriodUs: number;      // saved idle frame period
-    idleAfterMs: number;       // saved idle timeout (0 = never)
-    measuredFrameUs: number;   // smoothed frame-to-frame interval
+    measuredFrameUs: number;   // smoothed frame-to-frame interval (capped at 65535)
     measuredLedUs: number;     // smoothed LED-on time per frame
-    idleActive: boolean;
-    effectivePeriodUs: number; // period in force right now (0 = unpaced)
+    stage: IdleStage;
+    idleActive: boolean;       // stage > 0
+    effectivePeriodUs: number; // period in force right now (0 = unpaced, capped at 65535)
     effPrewaitUs: number;
     effPostwaitUs: number;
     rows: number;
+    hostBootloader: boolean;   // firmware accepts REBOOT_ARM / REBOOT_GO
+    rebootArmed: boolean;
     /** measuredLedUs / measuredFrameUs, in percent; null until a frame has been measured */
     dutyPct: number | null;
     /** 1e6 / measuredFrameUs; null until measured */
@@ -196,24 +218,31 @@ export class ScanLabService {
     parsePower(b: Uint8Array): ScanLabPower {
         if (b[0] === UNREACHABLE && b[1] === 0 && b[17] === 0) {
             return {
-                reachable: false, periodUs: 0, idlePeriodUs: 0, idleAfterMs: 0, measuredFrameUs: 0, measuredLedUs: 0,
-                idleActive: false, effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, dutyPct: null, scanHz: null,
+                reachable: false, periodUs: 0, idlePeriodMs: 0, idleAfterMs: 0, deepAfterS: 0, deepPeriodMs: 0,
+                measuredFrameUs: 0, measuredLedUs: 0, stage: 0, idleActive: false, effectivePeriodUs: 0,
+                effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false, dutyPct: null, scanHz: null,
             };
         }
         const measuredFrameUs = u16(b, 6);
         const measuredLedUs = u16(b, 8);
+        const stage = Math.min(2, b[10]) as IdleStage;
         return {
             reachable: true,
             periodUs: u16(b, 0),
-            idlePeriodUs: u16(b, 2),
+            idlePeriodMs: u16(b, 2),
             idleAfterMs: u16(b, 4),
             measuredFrameUs,
             measuredLedUs,
-            idleActive: b[10] === 1,
+            stage,
+            idleActive: stage > 0,
             effectivePeriodUs: u16(b, 11),
             effPrewaitUs: u16(b, 13),
             effPostwaitUs: u16(b, 15),
             rows: b[17],
+            deepAfterS: u16(b, 18),
+            deepPeriodMs: u16(b, 20),
+            hostBootloader: (b[22] & 1) !== 0,
+            rebootArmed: (b[22] & 2) !== 0,
             dutyPct: measuredFrameUs > 0 ? (100 * measuredLedUs) / measuredFrameUs : null,
             scanHz: measuredFrameUs > 0 ? 1e6 / measuredFrameUs : null,
         };
@@ -224,12 +253,43 @@ export class ScanLabService {
         return this.parsePower(await this.get(hand, OP.POWER));
     }
 
-    /** Persist frame pacing on the keyboard; the master relays it to the other half. */
-    async applyPacing(periodUs: number, idlePeriodUs: number, idleAfterMs: number): Promise<void> {
-        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_PERIOD_US, [lo(periodUs), hi(periodUs)]);
-        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_IDLE_PERIOD_US, [lo(idlePeriodUs), hi(idlePeriodUs)]);
-        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_IDLE_AFTER_MS, [lo(idleAfterMs), hi(idleAfterMs)]);
+    /** Persist frame pacing and both idle stages; the master relays them to the other half. */
+    async applyPacing(periodUs: number, idle: IdleSettings): Promise<void> {
+        const pairs: [number, number][] = [
+            [ID_SCAN_PERIOD_US, periodUs],
+            [ID_SCAN_IDLE_PERIOD_MS, idle.idlePeriodMs],
+            [ID_SCAN_IDLE_AFTER_MS, idle.idleAfterMs],
+            [ID_SCAN_DEEP_AFTER_S, idle.deepAfterS],
+            [ID_SCAN_DEEP_PERIOD_MS, idle.deepPeriodMs],
+        ];
+        for (const [id, v] of pairs) await this.usb.customValueSet(KEYBOARD_CHANNEL, id, [lo(v), hi(v)]);
         await this.usb.customValueSave(KEYBOARD_CHANNEL);
+    }
+
+    /** SET op whose response bytes we need (REBOOT_ARM hands back a token). */
+    private async setWithResponse(hand: Hand, op: number, args: number[]): Promise<Uint8Array> {
+        const resp = await this.usb.send(SvilUSB.CMD_VIA_LIGHTING_SET_VALUE, [SCANLAB_CHANNEL, op, hand, ...args], {
+            uint8: true,
+            skipBytes: 3,
+            validateInput: (u) => u[0] === SvilUSB.CMD_VIA_LIGHTING_SET_VALUE && u[1] === SCANLAB_CHANNEL && u[2] === op,
+        });
+        const out = new Uint8Array(RESPONSE_BYTES);
+        out.set((resp as Uint8Array).slice(0, RESPONSE_BYTES));
+        return out;
+    }
+
+    /**
+     * Two-stage reboot into the RP2040 bootloader: arm for a one-time token,
+     * then go with it. The connected half acknowledges and reboots ~100 ms
+     * later, so expect a disconnect; the other half drops into the bootloader
+     * and waits until its USB is plugged in. Resolves true when accepted.
+     */
+    async rebootToBootloader(hand: Hand): Promise<boolean> {
+        const arm = await this.setWithResponse(hand, OP.REBOOT_ARM, []);
+        if (arm[2] !== 1) throw new Error(`${HAND_NAMES[hand]} half's firmware does not allow host-initiated reboot (build with SVAL_HOST_BOOTLOADER)`);
+        const token = u16(arm, 0);
+        const go = await this.setWithResponse(hand, OP.REBOOT_GO, [lo(token), hi(token)]);
+        return go[0] === 1;
     }
 
     parseProbeRow(hand: Hand, row: number, on: Uint8Array, off: Uint8Array, pushedMask: number): ProbeRow {
