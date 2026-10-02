@@ -159,6 +159,23 @@ describe('ScanLabService power readout and pacing', () => {
         expect(usb.customValueSave).toHaveBeenCalledWith(0);
     });
 
+    it('undoes the 16-bit wire cap on long idle periods using the stage and settings', () => {
+        const { service } = makeService();
+        const b = powerBytes();
+        const put = (i: number, v: number) => { b[i] = v & 0xff; b[i + 1] = v >> 8; };
+        put(6, 65535); put(11, 65535); b[10] = 2; put(20, 1000); // frame and eff period saturated, deep idle, deep period 1000 ms
+        const p = service.parsePower(b);
+        expect(p.frameCapped).toBe(true);
+        expect(p.effectivePeriodTrueUs).toBe(1_000_000);
+        expect(p.scanHz).toBeCloseTo(1, 3);
+        expect(p.dutyPct).toBeCloseTo(0.024, 3);
+        // light idle, 100 ms: the frame reading does not saturate, so it stays the measurement
+        put(6, 60000); put(11, 60000); b[10] = 1; put(2, 100);
+        const q = service.parsePower(b);
+        expect(q.frameCapped).toBe(false);
+        expect(q.effectivePeriodTrueUs).toBe(60000);
+    });
+
     it('reboots a half into the bootloader with the two-stage arm/go handshake', async () => {
         const { usb, service } = makeService();
         const sent: number[][] = [];

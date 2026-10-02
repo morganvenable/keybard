@@ -73,6 +73,8 @@ export interface ScanLabStatus {
     otherHalfConnected: boolean;
 }
 
+const WIRE_CAP = 0xffff;
+
 export type IdleStage = 0 | 1 | 2; // active, light idle, deep idle
 export const IDLE_STAGE_NAMES = ["active", "light idle", "deep idle"] as const;
 
@@ -93,7 +95,9 @@ export const IDLE_PRESETS: ReadonlyArray<{ name: string; hint: string } & IdleSe
 export interface ScanLabPower extends IdleSettings {
     reachable: boolean;
     periodUs: number;          // saved active frame period (0 = unpaced)
-    measuredFrameUs: number;   // smoothed frame-to-frame interval (capped at 65535)
+    measuredFrameUs: number;   // smoothed frame-to-frame interval (capped at 65535 on the wire)
+    frameCapped: boolean;      // measuredFrameUs hit the wire cap; the stage's set period is the better estimate
+    effectivePeriodTrueUs: number; // period in force now with the wire cap undone from the idle settings
     measuredLedUs: number;     // smoothed LED-on time per frame
     stage: IdleStage;
     idleActive: boolean;       // stage > 0
@@ -103,9 +107,9 @@ export interface ScanLabPower extends IdleSettings {
     rows: number;
     hostBootloader: boolean;   // firmware accepts REBOOT_ARM / REBOOT_GO
     rebootArmed: boolean;
-    /** measuredLedUs / measuredFrameUs, in percent; null until a frame has been measured */
+    /** measuredLedUs over the frame interval (the set period when capped), in percent; null until measured */
     dutyPct: number | null;
-    /** 1e6 / measuredFrameUs; null until measured */
+    /** 1e6 over the same interval; null until measured */
     scanHz: number | null;
 }
 
@@ -219,32 +223,44 @@ export class ScanLabService {
         if (b[0] === UNREACHABLE && b[1] === 0 && b[17] === 0) {
             return {
                 reachable: false, periodUs: 0, idlePeriodMs: 0, idleAfterMs: 0, deepAfterS: 0, deepPeriodMs: 0,
-                measuredFrameUs: 0, measuredLedUs: 0, stage: 0, idleActive: false, effectivePeriodUs: 0,
-                effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false, dutyPct: null, scanHz: null,
+                measuredFrameUs: 0, frameCapped: false, effectivePeriodTrueUs: 0, measuredLedUs: 0, stage: 0, idleActive: false,
+                effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false, dutyPct: null, scanHz: null,
             };
         }
         const measuredFrameUs = u16(b, 6);
         const measuredLedUs = u16(b, 8);
         const stage = Math.min(2, b[10]) as IdleStage;
+        const periodUs = u16(b, 0);
+        const idlePeriodMs = u16(b, 2);
+        const deepPeriodMs = u16(b, 20);
+        const effectivePeriodUs = u16(b, 11);
+        // The wire carries 16-bit microseconds; idle periods run to 65 s. When a field saturates,
+        // the stage tells us which setting is in force and that is the better number.
+        const stagePeriodUs = stage === 2 ? deepPeriodMs * 1000 : stage === 1 ? idlePeriodMs * 1000 : periodUs;
+        const effectivePeriodTrueUs = effectivePeriodUs >= WIRE_CAP ? Math.max(effectivePeriodUs, stagePeriodUs) : effectivePeriodUs;
+        const frameCapped = measuredFrameUs >= WIRE_CAP;
+        const frameUs = frameCapped ? Math.max(measuredFrameUs, effectivePeriodTrueUs) : measuredFrameUs;
         return {
             reachable: true,
-            periodUs: u16(b, 0),
-            idlePeriodMs: u16(b, 2),
+            periodUs,
+            idlePeriodMs,
             idleAfterMs: u16(b, 4),
             measuredFrameUs,
+            frameCapped,
+            effectivePeriodTrueUs,
             measuredLedUs,
             stage,
             idleActive: stage > 0,
-            effectivePeriodUs: u16(b, 11),
+            effectivePeriodUs,
             effPrewaitUs: u16(b, 13),
             effPostwaitUs: u16(b, 15),
             rows: b[17],
             deepAfterS: u16(b, 18),
-            deepPeriodMs: u16(b, 20),
+            deepPeriodMs,
             hostBootloader: (b[22] & 1) !== 0,
             rebootArmed: (b[22] & 2) !== 0,
-            dutyPct: measuredFrameUs > 0 ? (100 * measuredLedUs) / measuredFrameUs : null,
-            scanHz: measuredFrameUs > 0 ? 1e6 / measuredFrameUs : null,
+            dutyPct: frameUs > 0 ? (100 * measuredLedUs) / frameUs : null,
+            scanHz: frameUs > 0 ? 1e6 / frameUs : null,
         };
     }
 

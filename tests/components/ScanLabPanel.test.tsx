@@ -41,7 +41,8 @@ const svc = vi.hoisted(() => ({
 
 const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
     reachable: true, periodUs: 1000, idlePeriodMs: 1, idleAfterMs: 1000, deepAfterS: 0, deepPeriodMs: 0,
-    measuredFrameUs: 1000, measuredLedUs: 240, stage: 0, idleActive: false, effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5,
+    measuredFrameUs: 1000, frameCapped: false, effectivePeriodTrueUs: 1000, measuredLedUs: 240, stage: 0, idleActive: false,
+    effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5,
     rows: 5, hostBootloader: true, rebootArmed: false, dutyPct: 24, scanHz: 1000,
     ...over,
 });
@@ -68,6 +69,17 @@ describe('ScanLabPanel', () => {
         expect(screen.getByTestId('power-1')).toHaveTextContent('no reading');
         expect(screen.getByTestId('power-expected')).toHaveTextContent('active 24.0 % ≈ 86 mA');
         expect(screen.getByTestId('power-ma-0')).toHaveTextContent('≈ 86 mA');
+    });
+
+    it('shows the set period instead of the saturated frame reading in deep idle', async () => {
+        svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0
+            ? powerReading({ measuredFrameUs: 65535, frameCapped: true, effectivePeriodUs: 65535, effectivePeriodTrueUs: 1000000, stage: 2, idleActive: true, measuredLedUs: 270, dutyPct: 0.027, scanHz: 1 })
+            : powerReading({ reachable: false })));
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(screen.getByTestId('power-0')).toHaveTextContent('deep idle'));
+        expect(screen.getByTestId('power-0')).toHaveTextContent('frame ≈ 1000 ms (set)');
+        expect(screen.getByTestId('power-0')).toHaveTextContent('1.00 Hz · period 1000 ms');
+        expect(screen.getByTestId('power-0')).toHaveTextContent('LED duty 0.0 %');
     });
 
     it('applies pacing with both idle stages from the fields', async () => {
