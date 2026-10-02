@@ -7,6 +7,7 @@ import {
     lowestCleanValue,
     suggestWithMargin,
     expectedDutyPct,
+    predictDutyPct,
 } from '../../src/services/scanlab.service';
 
 /** USB stand-in: answers GETs from a table keyed by "channel:valueId", records SETs and SAVEs. */
@@ -145,12 +146,20 @@ describe('ScanLabService power readout and pacing', () => {
         expect(usb.customValueSave).toHaveBeenCalledWith(0);
     });
 
-    it('predicts duty from rows, pre-wait and period', () => {
-        expect(expectedDutyPct(5, 45, 1000)).toBeCloseTo(24, 0);
-        expect(expectedDutyPct(5, 100, 1000)).toBeCloseTo(51.5, 1);
-        expect(expectedDutyPct(5, 45, 8000)).toBeCloseTo(3, 0);
+    it('predicts duty from rows, pre-wait and period when nothing is measured', () => {
+        expect(expectedDutyPct(5, 45, 1000)).toBeCloseTo(29, 0);
+        expect(expectedDutyPct(5, 100, 1000)).toBeCloseTo(56.5, 1);
+        expect(expectedDutyPct(5, 45, 8000)).toBeCloseTo(3.6, 1);
         expect(expectedDutyPct(5, 45, 0)).toBeNull();
         expect(expectedDutyPct(5, 500, 1000)).toBe(100);
+    });
+
+    it('prefers the measured LED-on time per frame for predictions', () => {
+        const p = { rows: 5, effPrewaitUs: 45, measuredLedUs: 290 };
+        expect(predictDutyPct(p, 1000)).toBeCloseTo(29, 0);
+        expect(predictDutyPct(p, 2000)).toBeCloseTo(14.5, 1);
+        expect(predictDutyPct(p, 0)).toBeNull();
+        expect(predictDutyPct({ ...p, measuredLedUs: 0 }, 1000)).toBeCloseTo(29, 0); // falls back to the model
     });
 });
 

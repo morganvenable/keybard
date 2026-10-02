@@ -12,8 +12,12 @@ export const ID_HW_REVISION = 15;
 export const ID_SCAN_PERIOD_US = 20;
 export const ID_SCAN_IDLE_PERIOD_US = 21;
 export const ID_SCAN_IDLE_AFTER_MS = 22;
-/** Firmware overhead per row beyond pre-wait: the six pin reads and row switching. */
-export const ROW_READ_OVERHEAD_US = 3;
+/**
+ * Firmware overhead per row beyond pre-wait: row switching, the six pin reads
+ * and the double-down logic. Measured on a revision B board: 58 µs LED-on per
+ * row at 45 µs pre-wait. Used only until a measured LED-on time is available.
+ */
+export const ROW_READ_OVERHEAD_US = 13;
 
 export type Hand = 0 | 1; // 0 = left, 1 = right
 
@@ -330,6 +334,16 @@ export class ScanLabService {
 export function expectedDutyPct(rows: number, prewaitUs: number, periodUs: number): number | null {
     if (periodUs <= 0) return null;
     return Math.min(100, (100 * rows * (prewaitUs + ROW_READ_OVERHEAD_US)) / periodUs);
+}
+
+/**
+ * Predicted duty for a candidate period: from the firmware's measured LED-on
+ * time per frame when it has one, otherwise from the pre-wait model.
+ */
+export function predictDutyPct(power: Pick<ScanLabPower, "rows" | "effPrewaitUs" | "measuredLedUs">, periodUs: number): number | null {
+    if (periodUs <= 0) return null;
+    if (power.measuredLedUs > 0) return Math.min(100, (100 * power.measuredLedUs) / periodUs);
+    return expectedDutyPct(power.rows || 5, power.effPrewaitUs, periodUs);
 }
 
 /**
