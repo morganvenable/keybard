@@ -11,6 +11,23 @@ const VIA_PREFIX = 0xfe;
 // Client ID constants
 const NONCE_SIZE = 20;
 const DEFAULT_TTL_SECS = 120;
+// The firmware ages client IDs by the top 16 bits of its millisecond timer,
+// i.e. in 65.536 s steps, so an ID advertised with a 120 s TTL can be rejected
+// anywhere from ~65 s to ~131 s after issue. Renew well inside the floor.
+const CLIENT_ID_RENEW_SECS = 50;
+// Wrapper error frame: [0xDD][client_id:4][0xFF][error_code]
+const CLIENT_ERROR_PROTOCOL = 0xff;
+export const CLIENT_ERR_INVALID_ID = 0x01;
+export const CLIENT_ERR_NO_IDS = 0x02;
+export const CLIENT_ERR_UNKNOWN_PROTO = 0x03;
+
+/** The keyboard answered a wrapped command with an error frame instead of a response. */
+export class ClientIdRejectedError extends Error {
+  constructor(public readonly code: number) {
+    super(code === CLIENT_ERR_INVALID_ID ? "Keyboard rejected our client ID (expired or unknown)" : `Keyboard wrapper error ${code}`);
+    this.name = "ClientIdRejectedError";
+  }
+}
 
 // Generate cryptographically random nonce
 function generateNonce(): Uint8Array {
@@ -156,21 +173,22 @@ export class SvilUSB {
    * Ensure we have a valid client ID, bootstrapping if needed
    */
   private async ensureClientId(): Promise<void> {
-    // If bootstrap already in progress, wait for it
+    // Single flight: every caller that finds the lease stale shares one bootstrap.
+    const stale = this.clientId === 0 || Date.now() >= this.clientIdExpiry;
+    if (stale && !this.bootstrapPromise) {
+      console.log("Bootstrapping client ID...");
+      this.bootstrapPromise = this.bootstrapClientId().finally(() => {
+        this.bootstrapPromise = undefined;
+      });
+    }
     if (this.bootstrapPromise) {
       await this.bootstrapPromise;
-      return;
     }
+  }
 
-    if (this.clientId === 0 || Date.now() >= this.clientIdExpiry) {
-      console.log("Bootstrapping client ID...");
-      this.bootstrapPromise = this.bootstrapClientId();
-      try {
-        await this.bootstrapPromise;
-      } finally {
-        this.bootstrapPromise = undefined;
-      }
-    }
+  /** Current lease, for diagnostics and tests. */
+  getClientLease(): { clientId: number; expiresAt: number } {
+    return { clientId: this.clientId, expiresAt: this.clientIdExpiry };
   }
 
   /**
@@ -256,8 +274,9 @@ export class SvilUSB {
         // Extract TTL (bytes 29-30, little-endian)
         this.clientTtl = response[29] | (response[30] << 8);
 
-        // Set expiry time (with 10% buffer for renewal)
-        this.clientIdExpiry = Date.now() + (this.clientTtl * 900); // 90% of TTL
+        // Renew at 90% of the advertised TTL, but never later than the firmware's
+        // coarse expiry floor (see CLIENT_ID_RENEW_SECS).
+        this.clientIdExpiry = Date.now() + Math.min(this.clientTtl * 900, CLIENT_ID_RENEW_SECS * 1000);
 
         // Schedule renewal
         this.scheduleRenewal();
@@ -300,13 +319,18 @@ export class SvilUSB {
 
     const renewIn = this.clientIdExpiry - Date.now();
     if (renewIn > 0) {
+      // Goes through ensureClientId so a renewal never races a command's own
+      // bootstrap. Timers can fire late in a background tab; the lazy check in
+      // ensureClientId covers that, and the error-frame retry in send() covers
+      // the keyboard having already dropped the ID.
       this.renewalTimer = setTimeout(async () => {
         try {
-          await this.bootstrapClientId();
+          this.clientIdExpiry = 0;
+          await this.ensureClientId();
         } catch (e) {
           console.error("Failed to renew client ID:", e);
         }
-      }, renewIn);
+      }, renewIn + 5);
     }
   }
 
@@ -412,6 +436,26 @@ export class SvilUSB {
     args: number[],
     options: USBSendOptions = {}
   ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
+    try {
+      return await this.sendOnce(cmd, args, options);
+    } catch (e) {
+      if (e instanceof ClientIdRejectedError && e.code === CLIENT_ERR_INVALID_ID) {
+        // The keyboard no longer knows our client ID. Take a fresh one and
+        // retry the command once, transparently to the caller.
+        console.warn("Keyboard rejected our client ID; re-bootstrapping and retrying");
+        this.clientId = 0;
+        this.clientIdExpiry = 0;
+        return await this.sendOnce(cmd, args, options);
+      }
+      throw e;
+    }
+  }
+
+  private async sendOnce(
+    cmd: number,
+    args: number[],
+    options: USBSendOptions = {}
+  ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
     if (!this.device) throw new Error("USB device not connected");
 
     // Ensure we have a valid client ID
@@ -436,6 +480,12 @@ export class SvilUSB {
           if (u8[0] !== WRAPPER_PREFIX) return;
           const respClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
           if (respClientId !== this.clientId) return;
+          // Error frame addressed to us: the keyboard refused the command.
+          if (u8[5] === CLIENT_ERROR_PROTOCOL) {
+            clearTimeout(timeoutId);
+            reject(new ClientIdRejectedError(u8[6]));
+            return;
+          }
 
           // Additional validation if provided
           if (options.validateInput) {
