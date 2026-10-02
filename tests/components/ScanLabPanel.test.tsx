@@ -31,6 +31,7 @@ const probeRow = (hand: 0 | 1, row: number, settle: number): ProbeRow => ({
 const svc = vi.hoisted(() => ({
     getStatus: vi.fn(),
     getPower: vi.fn(),
+    getIdle: vi.fn(),
     applyPacing: vi.fn(),
     rebootToBootloader: vi.fn(),
     setIdleFeature: vi.fn(),
@@ -60,6 +61,10 @@ describe('ScanLabPanel', () => {
         svc.applyTiming.mockResolvedValue(undefined);
         svc.applyPacing.mockResolvedValue(undefined);
         svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
+        svc.getIdle.mockImplementation(async (hand: 0 | 1) => ({
+            reachable: hand === 0, flags: { pointerRest: true, rgbDim: true, cpuSleep: false }, sensorPresent: hand === 0, sensorMode: 1, sensorLifted: false,
+            sensorRestEnabled: true, rgbValNow: 32, rgbValAwake: 128, rgbStage: 1, rgbEnabled: true, stage: 1, quietInputMs: 12345, quietMatrixMs: 12345, quietPointerMs: 700,
+        }));
     });
 
     it('shows the measured LED duty, frame time and expected duty for the pacing inputs', async () => {
@@ -93,6 +98,13 @@ describe('ScanLabPanel', () => {
         fireEvent.change(screen.getByLabelText('deep idle period ms'), { target: { value: '1000' } });
         fireEvent.click(screen.getByRole('button', { name: 'Apply pacing' }));
         await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, { idleAfterMs: 1500, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 }));
+    });
+
+    it('shows the idle diagnostics line: sensor mode, RGB level and quiet times', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('sensor rest 1'));
+        expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('RGB 32/128 dimmed');
+        expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('quiet keys 12 s, ball 700 ms');
     });
 
     it('shows the idle power toggles from the readout and switches one', async () => {

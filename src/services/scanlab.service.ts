@@ -54,6 +54,7 @@ const OP = {
     REBOOT_ARM: 0x04,
     REBOOT_GO: 0x05,
     STATUS: 0x10,
+    IDLE: 0x12,
     POWER: 0x11,
     SWEEP_ROW: 0x20,
     PROBE_ON: 0x40,
@@ -102,6 +103,26 @@ export const IDLE_PRESETS: ReadonlyArray<{ name: string; hint: string } & IdleSe
     { name: "Light", hint: "100 ms wake-up after 2 s", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
     { name: "Deep", hint: "100 ms after 2 s, 1 s after 10 min", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
 ];
+
+export const SENSOR_MODE_NAMES = ["run", "rest 1", "rest 2", "rest 3"] as const;
+
+/** Idle power diagnostics (op 0x12): what the sensor, the RGB and the quiet timers are actually doing. */
+export interface ScanLabIdle {
+    reachable: boolean;
+    flags: Record<IdleFeature, boolean>;
+    sensorPresent: boolean;
+    sensorMode: 0 | 1 | 2 | 3 | null;  // null until the firmware has read a Motion byte
+    sensorLifted: boolean;
+    sensorRestEnabled: boolean;         // Config2 rest bit as last written
+    rgbValNow: number;
+    rgbValAwake: number;
+    rgbStage: 0 | 1 | 2;                // awake, dimmed, off
+    rgbEnabled: boolean;
+    stage: IdleStage;
+    quietInputMs: number;
+    quietMatrixMs: number;
+    quietPointerMs: number;
+}
 
 export interface ScanLabPower extends IdleSettings {
     reachable: boolean;
@@ -166,6 +187,7 @@ export interface SweepStep {
 }
 
 const u16 = (b: Uint8Array, i: number) => b[i] | (b[i + 1] << 8);
+const u32 = (b: Uint8Array, i: number) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
 const lo = (v: number) => v & 0xff;
 const hi = (v: number) => (v >> 8) & 0xff;
 
@@ -281,6 +303,37 @@ export class ScanLabService {
     /** Pacing settings plus the firmware's measured frame interval and LED-on time. */
     async getPower(hand: Hand): Promise<ScanLabPower> {
         return this.parsePower(await this.get(hand, OP.POWER));
+    }
+
+    async getIdle(hand: Hand): Promise<ScanLabIdle> {
+        return this.parseIdle(await this.get(hand, OP.IDLE));
+    }
+
+    parseIdle(b: Uint8Array): ScanLabIdle {
+        if (b[0] === UNREACHABLE && b[1] === 0 && b[8] === 0 && u32(b, 9) === 0) {
+            return {
+                reachable: false, flags: { pointerRest: false, rgbDim: false, cpuSleep: false }, sensorPresent: false, sensorMode: null,
+                sensorLifted: false, sensorRestEnabled: false, rgbValNow: 0, rgbValAwake: 0, rgbStage: 0, rgbEnabled: false, stage: 0,
+                quietInputMs: 0, quietMatrixMs: 0, quietPointerMs: 0,
+            };
+        }
+        const mode = b[2];
+        return {
+            reachable: true,
+            flags: { pointerRest: (b[0] & 1) !== 0, rgbDim: (b[0] & 2) !== 0, cpuSleep: (b[0] & 4) !== 0 },
+            sensorPresent: b[1] === 1,
+            sensorMode: (mode & 0x80) !== 0 ? ((mode & 0x03) as 0 | 1 | 2 | 3) : null,
+            sensorLifted: (mode & 0x40) !== 0,
+            sensorRestEnabled: (b[3] & 0x20) !== 0,
+            rgbValNow: b[4],
+            rgbValAwake: b[5],
+            rgbStage: Math.min(2, b[6]) as 0 | 1 | 2,
+            rgbEnabled: b[7] === 1,
+            stage: Math.min(2, b[8]) as IdleStage,
+            quietInputMs: u32(b, 9),
+            quietMatrixMs: u32(b, 13),
+            quietPointerMs: u32(b, 17),
+        };
     }
 
     /** Persist frame pacing and both idle stages; the master relays them to the other half. */

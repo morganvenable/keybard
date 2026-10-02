@@ -18,7 +18,9 @@ import {
     IDLE_FEATURES,
     IDLE_PRESETS,
     IDLE_STAGE_NAMES,
+    SENSOR_MODE_NAMES,
     type IdleFeature,
+    type ScanLabIdle,
     type IdleSettings,
     HAND_NAMES,
     ROW_NAMES,
@@ -83,6 +85,7 @@ const ScanLabPanel = () => {
     const [periodUs, setPeriodUs] = useState(1000);
     const [idle, setIdle] = useState<IdleSettings>({ idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 0, deepPeriodMs: 0 });
     const setIdleField = (k: keyof IdleSettings) => (v: number) => setIdle((i) => ({ ...i, [k]: v }));
+    const [idleDiag, setIdleDiag] = useState<ByHand<ScanLabIdle | null>>({ 0: null, 1: null });
     const [rebootArmedFor, setRebootArmedFor] = useState<Hand | null>(null);
     const [rebootNote, setRebootNote] = useState<string | null>(null);
     const pacingSeededRef = useRef(false);
@@ -128,15 +131,18 @@ const ScanLabPanel = () => {
     // next to the ammeter reading within a second.
     const refreshPower = useCallback(async () => {
         const next: ByHand<ScanLabPower | null> = { 0: null, 1: null };
+        const nextIdle: ByHand<ScanLabIdle | null> = { 0: null, 1: null };
         for (const h of HANDS) {
             if (!status[h]?.reachable) continue;
             try {
                 next[h] = await scanlabService.getPower(h);
+                nextIdle[h] = await scanlabService.getIdle(h);
             } catch {
                 next[h] = null;
             }
         }
         setPower(next);
+        setIdleDiag(nextIdle);
         const any = next[0]?.reachable ? next[0] : next[1];
         if (any && !pacingSeededRef.current) {
             pacingSeededRef.current = true;
@@ -531,6 +537,17 @@ const ScanLabPanel = () => {
                                 <>
                                     <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.dutyPct !== null && <span className={cn("text-muted-foreground", mono)} data-testid={`power-ma-${h}`}> ≈ {predictCurrentMa(baselineMa, litRowMa, p.dutyPct)!.toFixed(0)} mA</span>}{p.stage > 0 && <span className="text-muted-foreground"> · {IDLE_STAGE_NAMES[p.stage]}</span>}</span>
                                     <span className={mono}>frame {p.frameCapped ? `≈ ${fmtPeriod(p.effectivePeriodTrueUs)} (set)` : `${p.measuredFrameUs} µs`} · LED on {p.measuredLedUs} µs</span>
+                                    {idleDiag[h]?.reachable && (() => {
+                                        const d = idleDiag[h]!;
+                                        const fmtQuiet = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)} s` : `${ms} ms`);
+                                        return (
+                                            <span className={cn("text-muted-foreground", mono)} data-testid={`idle-diag-${h}`}>
+                                                {d.sensorPresent ? `sensor ${d.sensorMode === null ? "no read yet" : SENSOR_MODE_NAMES[d.sensorMode]}${d.sensorLifted ? " (lifted)" : ""}${d.sensorRestEnabled ? "" : " (rest off)"}` : "no sensor"}
+                                                {` · RGB ${d.rgbEnabled ? d.rgbValNow : "off"}/${d.rgbValAwake}${d.rgbStage === 1 ? " dimmed" : d.rgbStage === 2 ? " off" : ""}`}
+                                                {` · quiet keys ${fmtQuiet(d.quietMatrixMs)}, ball ${fmtQuiet(d.quietPointerMs)}`}
+                                            </span>
+                                        );
+                                    })()}
                                     <span className={cn("text-muted-foreground", mono)}>
                                         {p.scanHz === null ? "" : p.scanHz >= 10 ? `${p.scanHz.toFixed(0)} Hz` : `${p.scanHz.toFixed(2)} Hz`} · period {p.effectivePeriodTrueUs === 0 ? "unpaced" : fmtPeriod(p.effectivePeriodTrueUs)}
                                     </span>
