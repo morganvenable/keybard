@@ -15,6 +15,9 @@ import {
     predictCurrentMa,
     DEFAULT_BASELINE_MA,
     DEFAULT_LIT_ROW_MA,
+    IDLE_PRESETS,
+    IDLE_STAGE_NAMES,
+    type IdleSettings,
     HAND_NAMES,
     ROW_NAMES,
     SweepState,
@@ -71,8 +74,10 @@ const ScanLabPanel = () => {
     const cancelRef = useRef(false);
     const [power, setPower] = useState<ByHand<ScanLabPower | null>>({ 0: null, 1: null });
     const [periodUs, setPeriodUs] = useState(1000);
-    const [idlePeriodUs, setIdlePeriodUs] = useState(1000);
-    const [idleAfterMs, setIdleAfterMs] = useState(1000);
+    const [idle, setIdle] = useState<IdleSettings>({ idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 0, deepPeriodMs: 0 });
+    const setIdleField = (k: keyof IdleSettings) => (v: number) => setIdle((i) => ({ ...i, [k]: v }));
+    const [rebootArmedFor, setRebootArmedFor] = useState<Hand | null>(null);
+    const [rebootNote, setRebootNote] = useState<string | null>(null);
     const pacingSeededRef = useRef(false);
     // Per-browser current model (baseline mA, mA per lit row) so the panel can
     // turn measured duty into an expected total current without the ammeter.
@@ -129,8 +134,7 @@ const ScanLabPanel = () => {
         if (any && !pacingSeededRef.current) {
             pacingSeededRef.current = true;
             setPeriodUs(any.periodUs);
-            setIdlePeriodUs(any.idlePeriodUs);
-            setIdleAfterMs(any.idleAfterMs);
+            setIdle({ idleAfterMs: any.idleAfterMs, idlePeriodMs: any.idlePeriodMs, deepAfterS: any.deepAfterS, deepPeriodMs: any.deepPeriodMs });
         }
     }, [status]);
 
@@ -212,12 +216,31 @@ const ScanLabPanel = () => {
 
     const handleApplyPacing = () =>
         run("Applying pacing…", async () => {
-            await scanlabService.applyPacing(periodUs, idlePeriodUs, idleAfterMs);
+            await scanlabService.applyPacing(periodUs, idle);
             customValueService.setCached("id_scan_period_us", periodUs);
-            customValueService.setCached("id_scan_idle_period_us", idlePeriodUs);
-            customValueService.setCached("id_scan_idle_after_ms", idleAfterMs);
+            customValueService.setCached("id_scan_idle_period_ms", idle.idlePeriodMs);
+            customValueService.setCached("id_scan_idle_after_ms", idle.idleAfterMs);
+            customValueService.setCached("id_scan_deep_after_s", idle.deepAfterS);
+            customValueService.setCached("id_scan_deep_period_ms", idle.deepPeriodMs);
             await refreshPower();
         });
+
+    const handleReboot = (h: Hand) => {
+        if (rebootArmedFor !== h) {
+            setRebootArmedFor(h);
+            setRebootNote(null);
+            setTimeout(() => setRebootArmedFor((cur) => (cur === h ? null : cur)), 5000);
+            return;
+        }
+        setRebootArmedFor(null);
+        run(`Rebooting ${HAND_NAMES[h]}…`, async () => {
+            const ok = await scanlabService.rebootToBootloader(h);
+            if (!ok) throw new Error(`${HAND_NAMES[h]} half declined the reboot (token window expired?)`);
+            setRebootNote(h === (status[0]?.isLeft ? 0 : 1)
+                ? `${HAND_NAMES[h]} half is rebooting into the bootloader and will show up as the RPI-RP2 drive. Run keyboards/svalboard/tools/flash.sh <image.uf2>, then reconnect from the keyboard list.`
+                : `${HAND_NAMES[h]} half is in bootloader mode on the link. Move the USB cable to it; it appears as the RPI-RP2 drive. Run flash.sh, then reconnect.`);
+        });
+    };
 
     // --- derived summaries -------------------------------------------------
 
@@ -465,7 +488,9 @@ const ScanLabPanel = () => {
 
     const anyPower = power[0]?.reachable ? power[0] : power[1]?.reachable ? power[1] : null;
     const expectedActive = anyPower ? predictDutyPct(anyPower, periodUs) : null;
-    const expectedIdle = anyPower ? predictDutyPct(anyPower, Math.max(periodUs, idlePeriodUs)) : null;
+    const expectedLight = anyPower && idle.idleAfterMs > 0 ? predictDutyPct(anyPower, Math.max(periodUs, idle.idlePeriodMs * 1000)) : null;
+    const expectedDeep = anyPower && idle.deepAfterS > 0 ? predictDutyPct(anyPower, Math.max(periodUs, idle.deepPeriodMs * 1000)) : null;
+    const fmtDuty = (d: number | null) => (d === null ? "depends on loop load" : `${d.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, d)!.toFixed(0)} mA`);
 
     const powerSection = (
         <div className="flex flex-col gap-2" data-testid="power-section">
@@ -488,7 +513,7 @@ const ScanLabPanel = () => {
                                 <span className="text-muted-foreground">no reading</span>
                             ) : (
                                 <>
-                                    <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.dutyPct !== null && <span className={cn("text-muted-foreground", mono)} data-testid={`power-ma-${h}`}> ≈ {predictCurrentMa(baselineMa, litRowMa, p.dutyPct)!.toFixed(0)} mA</span>}{p.idleActive && <span className="text-muted-foreground"> · idle</span>}</span>
+                                    <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.dutyPct !== null && <span className={cn("text-muted-foreground", mono)} data-testid={`power-ma-${h}`}> ≈ {predictCurrentMa(baselineMa, litRowMa, p.dutyPct)!.toFixed(0)} mA</span>}{p.stage > 0 && <span className="text-muted-foreground"> · {IDLE_STAGE_NAMES[p.stage]}</span>}</span>
                                     <span className={mono}>frame {p.measuredFrameUs} µs · LED on {p.measuredLedUs} µs</span>
                                     <span className={cn("text-muted-foreground", mono)}>
                                         {p.scanHz === null ? "" : `${p.scanHz.toFixed(0)} Hz`} · period {p.effectivePeriodUs === 0 ? "unpaced" : `${p.effectivePeriodUs} µs`}
@@ -501,13 +526,28 @@ const ScanLabPanel = () => {
             </div>
             <div className="flex flex-wrap items-end gap-2">
                 {numberField("frame period µs (0 = unpaced)", periodUs, setPeriodUs, "scanlab-period")}
-                {numberField("idle period µs", idlePeriodUs, setIdlePeriodUs, "scanlab-idle-period")}
-                {numberField("idle after ms (0 = never)", idleAfterMs, setIdleAfterMs, "scanlab-idle-after")}
             </div>
+            <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[10px] text-muted-foreground mr-1">Idle presets:</span>
+                {IDLE_PRESETS.map((pr) => (
+                    <Button key={pr.name} size="sm" variant="secondary" title={pr.hint} disabled={!!busy}
+                        onClick={() => setIdle({ idleAfterMs: pr.idleAfterMs, idlePeriodMs: pr.idlePeriodMs, deepAfterS: pr.deepAfterS, deepPeriodMs: pr.deepPeriodMs })}>
+                        {pr.name}
+                    </Button>
+                ))}
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+                {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after")}
+                {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period")}
+                {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after")}
+                {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period")}
+            </div>
+            <p className="text-xs text-muted-foreground">A quiet spell of the timeout stretches the frame period to that stage; the first key press restores full rate on the next frame, so the wake-up latency is one idle frame.</p>
             {anyPower && (
                 <p className="text-xs text-muted-foreground" data-testid="power-expected">
-                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, expectedActive)!.toFixed(0)} mA`}
-                    {idleAfterMs > 0 && expectedIdle !== null && `, idle ${expectedIdle.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, expectedIdle)!.toFixed(0)} mA`}.
+                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {fmtDuty(expectedActive)}
+                    {expectedLight !== null && `; light idle ${fmtDuty(expectedLight)}`}
+                    {expectedDeep !== null && `; deep idle ${fmtDuty(expectedDeep)}`}.
                 </p>
             )}
             <div className="flex flex-wrap items-end gap-2">
@@ -515,6 +555,26 @@ const ScanLabPanel = () => {
                 {numberField("mA per lit row", litRowMa, setLitRowMa, "scanlab-lit-row-ma")}
                 <span className="text-[10px] text-muted-foreground max-w-[220px]">Current model for the ≈ figures. Measure baseline at a 65 ms period; the per-row figure is (total − baseline) ÷ duty.</span>
             </div>
+        </div>
+    );
+
+    const firmwareSection = (
+        <div className="flex flex-col gap-2" data-testid="firmware-section">
+            <span className={sectionTitle}>Firmware</span>
+            <p className="text-xs text-muted-foreground">Reboot a half into the RP2040 bootloader without touching it. Two clicks: arm, then confirm within 5 s. The firmware applies the same two-stage rule.</p>
+            <div className="flex flex-wrap gap-2">
+                {HANDS.map((h) => {
+                    const supported = !!power[h]?.hostBootloader;
+                    const armed = rebootArmedFor === h;
+                    return (
+                        <Button key={h} size="sm" variant={armed ? "destructive" : "secondary"} disabled={!!busy || !supported} onClick={() => handleReboot(h)}
+                            title={supported ? undefined : "This half's firmware was built without SVAL_HOST_BOOTLOADER"} data-testid={`reboot-${h}`}>
+                            {armed ? `Confirm: reboot ${HAND_NAMES[h]}` : `Reboot ${HAND_NAMES[h]} into bootloader`}
+                        </Button>
+                    );
+                })}
+            </div>
+            {rebootNote && <p className="text-xs" data-testid="reboot-note">{rebootNote}</p>}
         </div>
     );
 
@@ -528,7 +588,7 @@ const ScanLabPanel = () => {
     if (isHorizontal) {
         return (
             <div className="flex flex-row gap-4 h-full items-start flex-wrap content-start overflow-auto">
-                <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{powerSection}{applySection}</div>
+                <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{powerSection}{applySection}{firmwareSection}</div>
                 <div className="min-w-[420px]">{probeSection}</div>
                 <div className="min-w-[420px]">{sweepSection}</div>
             </div>
@@ -547,6 +607,7 @@ const ScanLabPanel = () => {
                 {probeSection}
                 {sweepSection}
                 {applySection}
+                {firmwareSection}
             </div>
         </section>
     );

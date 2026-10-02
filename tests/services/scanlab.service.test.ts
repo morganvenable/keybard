@@ -120,9 +120,10 @@ describe('ScanLabService power readout and pacing', () => {
     const powerBytes = () => {
         const b = new Array(23).fill(0);
         const put = (i: number, v: number) => { b[i] = v & 0xff; b[i + 1] = v >> 8; };
-        put(0, 1000); put(2, 8000); put(4, 1000);   // saved period, idle period, idle after
+        put(0, 1000); put(2, 100); put(4, 2000);    // saved period, light idle period ms, light idle after ms
         put(6, 1002); put(8, 240);                  // measured frame, LED-on
-        b[10] = 0; put(11, 1000); put(13, 45); put(15, 5); b[17] = 5;
+        b[10] = 1; put(11, 1000); put(13, 45); put(15, 5); b[17] = 5;
+        put(18, 600); put(20, 1000); b[22] = 0b01;  // deep after s, deep period ms, host bootloader
         return b;
     };
 
@@ -132,7 +133,14 @@ describe('ScanLabService power readout and pacing', () => {
         expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x11, 23);
         expect(p.reachable).toBe(true);
         expect(p.periodUs).toBe(1000);
-        expect(p.idlePeriodUs).toBe(8000);
+        expect(p.idlePeriodMs).toBe(100);
+        expect(p.idleAfterMs).toBe(2000);
+        expect(p.deepAfterS).toBe(600);
+        expect(p.deepPeriodMs).toBe(1000);
+        expect(p.stage).toBe(1);
+        expect(p.idleActive).toBe(true);
+        expect(p.hostBootloader).toBe(true);
+        expect(p.rebootArmed).toBe(false);
         expect(p.measuredLedUs).toBe(240);
         expect(p.dutyPct).toBeCloseTo(23.95, 1);
         expect(p.scanHz).toBeCloseTo(998, 0);
@@ -140,13 +148,37 @@ describe('ScanLabService power readout and pacing', () => {
         expect(p.rows).toBe(5);
     });
 
-    it('applies pacing as three u16 keyboard-channel values and saves', async () => {
+    it('applies pacing and both idle stages as five u16 keyboard-channel values and saves', async () => {
         const { usb, service } = makeService();
-        await service.applyPacing(1000, 8000, 1500);
+        await service.applyPacing(1000, { idlePeriodMs: 100, idleAfterMs: 2000, deepAfterS: 600, deepPeriodMs: 1000 });
         expect(usb.customValueSet).toHaveBeenNthCalledWith(1, 0, 20, [232, 3]);
-        expect(usb.customValueSet).toHaveBeenNthCalledWith(2, 0, 21, [64, 31]);
-        expect(usb.customValueSet).toHaveBeenNthCalledWith(3, 0, 22, [220, 5]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(2, 0, 21, [100, 0]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(3, 0, 22, [208, 7]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(4, 0, 23, [88, 2]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(5, 0, 24, [232, 3]);
         expect(usb.customValueSave).toHaveBeenCalledWith(0);
+    });
+
+    it('reboots a half into the bootloader with the two-stage arm/go handshake', async () => {
+        const { usb, service } = makeService();
+        const sent: number[][] = [];
+        (usb as unknown as { send: unknown }).send = vi.fn(async (_cmd: number, args: number[]) => {
+            sent.push(args);
+            const op = args[1];
+            const r = new Uint8Array(23);
+            if (op === 0x04) { r[0] = 0x34; r[1] = 0x12; r[2] = 1; }       // token 0x1234, supported
+            if (op === 0x05) { r[0] = args[3] === 0x34 && args[4] === 0x12 ? 1 : 0; r[2] = 1; }
+            return r;
+        });
+        await expect(service.rebootToBootloader(1)).resolves.toBe(true);
+        expect(sent[0]).toEqual([SCANLAB_CHANNEL, 0x04, 1]);
+        expect(sent[1]).toEqual([SCANLAB_CHANNEL, 0x05, 1, 0x34, 0x12]);
+    });
+
+    it('refuses to reboot when the firmware was built without host bootloader support', async () => {
+        const { usb, service } = makeService();
+        (usb as unknown as { send: unknown }).send = vi.fn(async () => new Uint8Array(23)); // [2] = 0: unsupported
+        await expect(service.rebootToBootloader(0)).rejects.toThrow(/SVAL_HOST_BOOTLOADER/);
     });
 
     it('predicts duty from rows, pre-wait and period when nothing is measured', () => {

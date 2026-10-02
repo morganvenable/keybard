@@ -32,6 +32,7 @@ const svc = vi.hoisted(() => ({
     getStatus: vi.fn(),
     getPower: vi.fn(),
     applyPacing: vi.fn(),
+    rebootToBootloader: vi.fn(),
     probeAll: vi.fn(),
     runSweepStep: vi.fn(),
     abort: vi.fn(),
@@ -39,8 +40,9 @@ const svc = vi.hoisted(() => ({
 }));
 
 const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
-    reachable: true, periodUs: 1000, idlePeriodUs: 1000, idleAfterMs: 1000, measuredFrameUs: 1000, measuredLedUs: 240,
-    idleActive: false, effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5, rows: 5, dutyPct: 24, scanHz: 1000,
+    reachable: true, periodUs: 1000, idlePeriodMs: 1, idleAfterMs: 1000, deepAfterS: 0, deepPeriodMs: 0,
+    measuredFrameUs: 1000, measuredLedUs: 240, stage: 0, idleActive: false, effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5,
+    rows: 5, hostBootloader: true, rebootArmed: false, dutyPct: 24, scanHz: 1000,
     ...over,
 });
 vi.mock('@/services/scanlab.service', async (importOriginal) => {
@@ -68,14 +70,46 @@ describe('ScanLabPanel', () => {
         expect(screen.getByTestId('power-ma-0')).toHaveTextContent('≈ 86 mA');
     });
 
-    it('applies pacing from the three fields', async () => {
+    it('applies pacing with both idle stages from the fields', async () => {
         render(<ScanLabPanel />);
         await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
         fireEvent.change(screen.getByLabelText('frame period µs (0 = unpaced)'), { target: { value: '2000' } });
-        fireEvent.change(screen.getByLabelText('idle period µs'), { target: { value: '8000' } });
-        fireEvent.change(screen.getByLabelText('idle after ms (0 = never)'), { target: { value: '1500' } });
+        fireEvent.change(screen.getByLabelText('light idle after ms (0 = never)'), { target: { value: '1500' } });
+        fireEvent.change(screen.getByLabelText('light idle period ms'), { target: { value: '100' } });
+        fireEvent.change(screen.getByLabelText('deep idle after s (0 = never)'), { target: { value: '600' } });
+        fireEvent.change(screen.getByLabelText('deep idle period ms'), { target: { value: '1000' } });
         fireEvent.click(screen.getByRole('button', { name: 'Apply pacing' }));
-        await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, 8000, 1500));
+        await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, { idleAfterMs: 1500, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 }));
+    });
+
+    it('idle presets fill the fields', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole('button', { name: 'Deep' }));
+        expect(screen.getByLabelText('light idle period ms')).toHaveValue(100);
+        expect(screen.getByLabelText('deep idle after s (0 = never)')).toHaveValue(600);
+        expect(screen.getByLabelText('deep idle period ms')).toHaveValue(1000);
+    });
+
+    it('reboots a half only after arm then confirm', async () => {
+        svc.rebootToBootloader.mockResolvedValue(true);
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        const btn = screen.getByTestId('reboot-0');
+        expect(btn).toHaveTextContent('Reboot Left into bootloader');
+        fireEvent.click(btn);
+        expect(screen.getByTestId('reboot-0')).toHaveTextContent('Confirm: reboot Left');
+        expect(svc.rebootToBootloader).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByTestId('reboot-0'));
+        await waitFor(() => expect(svc.rebootToBootloader).toHaveBeenCalledWith(0));
+        await waitFor(() => expect(screen.getByTestId('reboot-note')).toHaveTextContent('RPI-RP2'));
+    });
+
+    it('disables reboot for a half whose firmware lacks host bootloader support', async () => {
+        svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading({ hostBootloader: false }) : powerReading({ reachable: false })));
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByTestId('reboot-0')).toBeDisabled());
     });
 
     it('asks to connect when no keyboard is attached', () => {
