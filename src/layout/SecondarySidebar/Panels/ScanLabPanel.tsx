@@ -15,8 +15,10 @@ import {
     predictCurrentMa,
     DEFAULT_BASELINE_MA,
     DEFAULT_LIT_ROW_MA,
+    IDLE_FEATURES,
     IDLE_PRESETS,
     IDLE_STAGE_NAMES,
+    type IdleFeature,
     type IdleSettings,
     HAND_NAMES,
     ROW_NAMES,
@@ -229,6 +231,15 @@ const ScanLabPanel = () => {
             customValueService.setCached("id_scan_deep_period_ms", idle.deepPeriodMs);
             await refreshPower();
         });
+
+    const handleIdleFeature = (feature: IdleFeature, on: boolean) => {
+        const f = IDLE_FEATURES.find((x) => x.key === feature)!;
+        return run(`${on ? "Enabling" : "Disabling"} ${f.label.toLowerCase()}…`, async () => {
+            await scanlabService.setIdleFeature(feature, on);
+            customValueService.setCached(f.cacheKey, on ? 1 : 0);
+            await refreshPower();
+        });
+    };
 
     const handleReboot = (h: Hand) => {
         if (rebootArmedFor !== h) {
@@ -548,6 +559,16 @@ const ScanLabPanel = () => {
                 {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period")}
             </div>
             <p className="text-xs text-muted-foreground">A quiet spell of the timeout stretches the frame period to that stage; the first key press restores full rate on the next frame, so the wake-up latency is one idle frame.</p>
+            {anyPower && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1" data-testid="idle-features">
+                    {IDLE_FEATURES.map((f) => (
+                        <label key={f.key} className="flex items-center gap-1.5 text-xs" title={f.hint}>
+                            <input type="checkbox" checked={anyPower.idle[f.key]} disabled={!!busy} onChange={(e) => handleIdleFeature(f.key, e.target.checked)} data-testid={`idle-${f.key}`} />
+                            {f.label}
+                        </label>
+                    ))}
+                </div>
+            )}
             {anyPower && (
                 <p className="text-xs text-muted-foreground" data-testid="power-expected">
                     Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {fmtDuty(expectedActive)}
