@@ -12,6 +12,9 @@ import {
     lowestCleanValue,
     suggestWithMargin,
     predictDutyPct,
+    predictCurrentMa,
+    DEFAULT_BASELINE_MA,
+    DEFAULT_LIT_ROW_MA,
     HAND_NAMES,
     ROW_NAMES,
     SweepState,
@@ -71,6 +74,17 @@ const ScanLabPanel = () => {
     const [idlePeriodUs, setIdlePeriodUs] = useState(1000);
     const [idleAfterMs, setIdleAfterMs] = useState(1000);
     const pacingSeededRef = useRef(false);
+    // Per-browser current model (baseline mA, mA per lit row) so the panel can
+    // turn measured duty into an expected total current without the ammeter.
+    const [baselineMa, setBaselineMa] = useState(() => {
+        try { return Number(localStorage.getItem("scanlab-baseline-ma")) || DEFAULT_BASELINE_MA; } catch { return DEFAULT_BASELINE_MA; }
+    });
+    const [litRowMa, setLitRowMa] = useState(() => {
+        try { return Number(localStorage.getItem("scanlab-lit-row-ma")) || DEFAULT_LIT_ROW_MA; } catch { return DEFAULT_LIT_ROW_MA; }
+    });
+    useEffect(() => {
+        try { localStorage.setItem("scanlab-baseline-ma", String(baselineMa)); localStorage.setItem("scanlab-lit-row-ma", String(litRowMa)); } catch { /* per-browser convenience only */ }
+    }, [baselineMa, litRowMa]);
 
     const reachableHands = useMemo(() => HANDS.filter((h) => status[h]?.reachable), [status]);
 
@@ -474,7 +488,7 @@ const ScanLabPanel = () => {
                                 <span className="text-muted-foreground">no reading</span>
                             ) : (
                                 <>
-                                    <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.idleActive && <span className="text-muted-foreground"> · idle</span>}</span>
+                                    <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.dutyPct !== null && <span className={cn("text-muted-foreground", mono)} data-testid={`power-ma-${h}`}> ≈ {predictCurrentMa(baselineMa, litRowMa, p.dutyPct)!.toFixed(0)} mA</span>}{p.idleActive && <span className="text-muted-foreground"> · idle</span>}</span>
                                     <span className={mono}>frame {p.measuredFrameUs} µs · LED on {p.measuredLedUs} µs</span>
                                     <span className={cn("text-muted-foreground", mono)}>
                                         {p.scanHz === null ? "" : `${p.scanHz.toFixed(0)} Hz`} · period {p.effectivePeriodUs === 0 ? "unpaced" : `${p.effectivePeriodUs} µs`}
@@ -492,10 +506,15 @@ const ScanLabPanel = () => {
             </div>
             {anyPower && (
                 <p className="text-xs text-muted-foreground" data-testid="power-expected">
-                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} %`}
-                    {idleAfterMs > 0 && expectedIdle !== null && `, idle ${expectedIdle.toFixed(1)} %`}.
+                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, expectedActive)!.toFixed(0)} mA`}
+                    {idleAfterMs > 0 && expectedIdle !== null && `, idle ${expectedIdle.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, expectedIdle)!.toFixed(0)} mA`}.
                 </p>
             )}
+            <div className="flex flex-wrap items-end gap-2">
+                {numberField("baseline mA (LEDs off)", baselineMa, setBaselineMa, "scanlab-baseline-ma")}
+                {numberField("mA per lit row", litRowMa, setLitRowMa, "scanlab-lit-row-ma")}
+                <span className="text-[10px] text-muted-foreground max-w-[220px]">Current model for the ≈ figures. Measure baseline at a 65 ms period; the per-row figure is (total − baseline) ÷ duty.</span>
+            </div>
         </div>
     );
 

@@ -8,6 +8,9 @@ import {
     suggestWithMargin,
     expectedDutyPct,
     predictDutyPct,
+    predictCurrentMa,
+    DEFAULT_BASELINE_MA,
+    DEFAULT_LIT_ROW_MA,
 } from '../../src/services/scanlab.service';
 
 /** USB stand-in: answers GETs from a table keyed by "channel:valueId", records SETs and SAVEs. */
@@ -160,6 +163,17 @@ describe('ScanLabService power readout and pacing', () => {
         expect(predictDutyPct(p, 2000)).toBeCloseTo(14.5, 1);
         expect(predictDutyPct(p, 0)).toBeNull();
         expect(predictDutyPct({ ...p, measuredLedUs: 0 }, 1000)).toBeCloseTo(29, 0); // falls back to the model
+    });
+});
+
+describe('current model', () => {
+    it('reproduces the measured points on the reference board', () => {
+        const ma = (duty: number) => predictCurrentMa(DEFAULT_BASELINE_MA, DEFAULT_LIT_ROW_MA, duty)!;
+        expect(ma(0.5)).toBeCloseTo(60.6, 0);   // measured 60
+        expect(ma(15)).toBeCloseTo(76.5, 0);    // measured 80
+        expect(ma(29)).toBeCloseTo(91.9, 0);    // measured 90
+        expect(ma(58.5)).toBeCloseTo(124.4, 0); // measured 125
+        expect(predictCurrentMa(60, 110, null)).toBeNull();
     });
 });
 

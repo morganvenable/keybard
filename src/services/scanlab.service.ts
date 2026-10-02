@@ -347,6 +347,21 @@ export function predictDutyPct(power: Pick<ScanLabPower, "rows" | "effPrewaitUs"
 }
 
 /**
+ * Current model measured on a revision B left half with a pmw3389 trackball:
+ * 60 mA with the sensor LEDs effectively off (65 ms frame, 0.5% duty), and
+ * about 1.1 mA per percent of LED duty, i.e. ~110 mA while a row is lit.
+ * Checked at 15% (80 mA), 29% (90 mA) and 58% (125 mA).
+ */
+export const DEFAULT_BASELINE_MA = 60;
+export const DEFAULT_LIT_ROW_MA = 110;
+
+/** Predicted total current for an LED duty (percent). */
+export function predictCurrentMa(baselineMa: number, litRowMa: number, dutyPct: number | null): number | null {
+    if (dutyPct === null) return null;
+    return baselineMa + (litRowMa * dutyPct) / 100;
+}
+
+/**
  * Given sweep steps ordered from the most generous timing to the tightest,
  * returns the tightest value that was clean and stayed clean at every more
  * generous step, or null if nothing was clean.
