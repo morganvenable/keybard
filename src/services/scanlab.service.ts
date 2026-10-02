@@ -14,6 +14,17 @@ export const ID_SCAN_IDLE_PERIOD_MS = 21;
 export const ID_SCAN_IDLE_AFTER_MS = 22;
 export const ID_SCAN_DEEP_AFTER_S = 23;
 export const ID_SCAN_DEEP_PERIOD_MS = 24;
+export const ID_IDLE_POINTER_REST = 25;
+export const ID_IDLE_RGB_DIM = 26;
+export const ID_IDLE_CPU_SLEEP = 27;
+
+/** Idle power features, each a firmware toggle so its effect can be measured alone. */
+export type IdleFeature = "pointerRest" | "rgbDim" | "cpuSleep";
+export const IDLE_FEATURES: ReadonlyArray<{ key: IdleFeature; id: number; cacheKey: string; label: string; hint: string }> = [
+    { key: "pointerRest", id: ID_IDLE_POINTER_REST, cacheKey: "id_idle_pointer_rest", label: "Trackball rest mode", hint: "The sensor drops to its own rest modes when the ball is still (≈21 → 3 → 0.06 mA) and wakes itself on motion." },
+    { key: "rgbDim", id: ID_IDLE_RGB_DIM, cacheKey: "id_idle_rgb_dim", label: "Dim RGB when idle", hint: "Quarter brightness in light idle, off in deep idle, restored on the first input." },
+    { key: "cpuSleep", id: ID_IDLE_CPU_SLEEP, cacheKey: "id_idle_cpu_sleep", label: "Sleep between scans", hint: "The core parks in WFI until the next frame is due instead of spinning. Needs a frame period." },
+];
 /**
  * Firmware overhead per row beyond pre-wait: row switching, the six pin reads
  * and the double-down logic. Measured on a revision B board: 58 µs LED-on per
@@ -107,6 +118,7 @@ export interface ScanLabPower extends IdleSettings {
     rows: number;
     hostBootloader: boolean;   // firmware accepts REBOOT_ARM / REBOOT_GO
     rebootArmed: boolean;
+    idle: Record<IdleFeature, boolean>;
     /** measuredLedUs over the frame interval (the set period when capped), in percent; null until measured */
     dutyPct: number | null;
     /** 1e6 over the same interval; null until measured */
@@ -224,7 +236,8 @@ export class ScanLabService {
             return {
                 reachable: false, periodUs: 0, idlePeriodMs: 0, idleAfterMs: 0, deepAfterS: 0, deepPeriodMs: 0,
                 measuredFrameUs: 0, frameCapped: false, effectivePeriodTrueUs: 0, measuredLedUs: 0, stage: 0, idleActive: false,
-                effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false, dutyPct: null, scanHz: null,
+                effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false,
+                idle: { pointerRest: false, rgbDim: false, cpuSleep: false }, dutyPct: null, scanHz: null,
             };
         }
         const measuredFrameUs = u16(b, 6);
@@ -259,6 +272,7 @@ export class ScanLabService {
             deepPeriodMs,
             hostBootloader: (b[22] & 1) !== 0,
             rebootArmed: (b[22] & 2) !== 0,
+            idle: { pointerRest: (b[22] & 4) !== 0, rgbDim: (b[22] & 8) !== 0, cpuSleep: (b[22] & 16) !== 0 },
             dutyPct: frameUs > 0 ? (100 * measuredLedUs) / frameUs : null,
             scanHz: frameUs > 0 ? 1e6 / frameUs : null,
         };
@@ -279,6 +293,13 @@ export class ScanLabService {
             [ID_SCAN_DEEP_PERIOD_MS, idle.deepPeriodMs],
         ];
         for (const [id, v] of pairs) await this.usb.customValueSet(KEYBOARD_CHANNEL, id, [lo(v), hi(v)]);
+        await this.usb.customValueSave(KEYBOARD_CHANNEL);
+    }
+
+    /** Switch one idle power feature on or off and save; the master relays it to the other half. */
+    async setIdleFeature(feature: IdleFeature, on: boolean): Promise<void> {
+        const f = IDLE_FEATURES.find((x) => x.key === feature)!;
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, f.id, [on ? 1 : 0]);
         await this.usb.customValueSave(KEYBOARD_CHANNEL);
     }
 

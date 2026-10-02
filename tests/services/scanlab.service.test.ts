@@ -123,7 +123,7 @@ describe('ScanLabService power readout and pacing', () => {
         put(0, 1000); put(2, 100); put(4, 2000);    // saved period, light idle period ms, light idle after ms
         put(6, 1002); put(8, 240);                  // measured frame, LED-on
         b[10] = 1; put(11, 1000); put(13, 45); put(15, 5); b[17] = 5;
-        put(18, 600); put(20, 1000); b[22] = 0b01;  // deep after s, deep period ms, host bootloader
+        put(18, 600); put(20, 1000); b[22] = 0b01101;  // deep after s, deep period ms, host bootloader + pointer rest + RGB dim
         return b;
     };
 
@@ -141,6 +141,7 @@ describe('ScanLabService power readout and pacing', () => {
         expect(p.idleActive).toBe(true);
         expect(p.hostBootloader).toBe(true);
         expect(p.rebootArmed).toBe(false);
+        expect(p.idle).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: false });
         expect(p.measuredLedUs).toBe(240);
         expect(p.dutyPct).toBeCloseTo(23.95, 1);
         expect(p.scanHz).toBeCloseTo(998, 0);
@@ -174,6 +175,15 @@ describe('ScanLabService power readout and pacing', () => {
         const q = service.parsePower(b);
         expect(q.frameCapped).toBe(false);
         expect(q.effectivePeriodTrueUs).toBe(60000);
+    });
+
+    it('switches an idle power feature through its VIA id and saves', async () => {
+        const { usb, service } = makeService();
+        await service.setIdleFeature('cpuSleep', true);
+        expect(usb.customValueSet).toHaveBeenCalledWith(0, 27, [1]);
+        expect(usb.customValueSave).toHaveBeenCalledWith(0);
+        await service.setIdleFeature('pointerRest', false);
+        expect(usb.customValueSet).toHaveBeenCalledWith(0, 25, [0]);
     });
 
     it('reboots a half into the bootloader with the two-stage arm/go handshake', async () => {

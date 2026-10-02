@@ -33,6 +33,7 @@ const svc = vi.hoisted(() => ({
     getPower: vi.fn(),
     applyPacing: vi.fn(),
     rebootToBootloader: vi.fn(),
+    setIdleFeature: vi.fn(),
     probeAll: vi.fn(),
     runSweepStep: vi.fn(),
     abort: vi.fn(),
@@ -43,7 +44,7 @@ const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
     reachable: true, periodUs: 1000, idlePeriodMs: 1, idleAfterMs: 1000, deepAfterS: 0, deepPeriodMs: 0,
     measuredFrameUs: 1000, frameCapped: false, effectivePeriodTrueUs: 1000, measuredLedUs: 240, stage: 0, idleActive: false,
     effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5,
-    rows: 5, hostBootloader: true, rebootArmed: false, dutyPct: 24, scanHz: 1000,
+    rows: 5, hostBootloader: true, rebootArmed: false, idle: { pointerRest: true, rgbDim: true, cpuSleep: false }, dutyPct: 24, scanHz: 1000,
     ...over,
 });
 vi.mock('@/services/scanlab.service', async (importOriginal) => {
@@ -92,6 +93,15 @@ describe('ScanLabPanel', () => {
         fireEvent.change(screen.getByLabelText('deep idle period ms'), { target: { value: '1000' } });
         fireEvent.click(screen.getByRole('button', { name: 'Apply pacing' }));
         await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, { idleAfterMs: 1500, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 }));
+    });
+
+    it('shows the idle power toggles from the readout and switches one', async () => {
+        svc.setIdleFeature.mockResolvedValue(undefined);
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(screen.getByTestId('idle-pointerRest')).toBeChecked());
+        expect(screen.getByTestId('idle-cpuSleep')).not.toBeChecked();
+        fireEvent.click(screen.getByTestId('idle-rgbDim'));
+        await waitFor(() => expect(svc.setIdleFeature).toHaveBeenCalledWith('rgbDim', false));
     });
 
     it('idle presets fill the fields', async () => {
