@@ -6,6 +6,7 @@ import {
     SweepState,
     lowestCleanValue,
     suggestWithMargin,
+    expectedDutyPct,
 } from '../../src/services/scanlab.service';
 
 /** USB stand-in: answers GETs from a table keyed by "channel:valueId", records SETs and SAVEs. */
@@ -108,6 +109,48 @@ describe('ScanLabService', () => {
         expect(usb.customValueSet).toHaveBeenNthCalledWith(1, 0, 13, [44, 1]);
         expect(usb.customValueSet).toHaveBeenNthCalledWith(2, 0, 14, [75, 0]);
         expect(usb.customValueSave).toHaveBeenCalledWith(0);
+    });
+});
+
+describe('ScanLabService power readout and pacing', () => {
+    const powerBytes = () => {
+        const b = new Array(23).fill(0);
+        const put = (i: number, v: number) => { b[i] = v & 0xff; b[i + 1] = v >> 8; };
+        put(0, 1000); put(2, 8000); put(4, 1000);   // saved period, idle period, idle after
+        put(6, 1002); put(8, 240);                  // measured frame, LED-on
+        b[10] = 0; put(11, 1000); put(13, 45); put(15, 5); b[17] = 5;
+        return b;
+    };
+
+    it('parses measured frame and LED-on times into duty and scan rate', async () => {
+        const { usb, service } = makeService({ [`${SCANLAB_CHANNEL}:${0x11}`]: powerBytes() });
+        const p = await service.getPower(0);
+        expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x11, 23);
+        expect(p.reachable).toBe(true);
+        expect(p.periodUs).toBe(1000);
+        expect(p.idlePeriodUs).toBe(8000);
+        expect(p.measuredLedUs).toBe(240);
+        expect(p.dutyPct).toBeCloseTo(23.95, 1);
+        expect(p.scanHz).toBeCloseTo(998, 0);
+        expect(p.effPrewaitUs).toBe(45);
+        expect(p.rows).toBe(5);
+    });
+
+    it('applies pacing as three u16 keyboard-channel values and saves', async () => {
+        const { usb, service } = makeService();
+        await service.applyPacing(1000, 8000, 1500);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(1, 0, 20, [232, 3]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(2, 0, 21, [64, 31]);
+        expect(usb.customValueSet).toHaveBeenNthCalledWith(3, 0, 22, [220, 5]);
+        expect(usb.customValueSave).toHaveBeenCalledWith(0);
+    });
+
+    it('predicts duty from rows, pre-wait and period', () => {
+        expect(expectedDutyPct(5, 45, 1000)).toBeCloseTo(24, 0);
+        expect(expectedDutyPct(5, 100, 1000)).toBeCloseTo(51.5, 1);
+        expect(expectedDutyPct(5, 45, 8000)).toBeCloseTo(3, 0);
+        expect(expectedDutyPct(5, 45, 0)).toBeNull();
+        expect(expectedDutyPct(5, 500, 1000)).toBe(100);
     });
 });
 

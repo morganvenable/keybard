@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanLabPanel from '../../src/layout/SecondarySidebar/Panels/ScanLabPanel';
-import type { ProbeRow, ScanLabStatus } from '../../src/services/scanlab.service';
+import type { ProbeRow, ScanLabPower, ScanLabStatus } from '../../src/services/scanlab.service';
 
 const vial = { isConnected: true, connect: vi.fn() };
 const layoutSettings = { layoutMode: 'sidebar' as 'sidebar' | 'bottombar', keyVariant: 'default' };
@@ -30,11 +30,19 @@ const probeRow = (hand: 0 | 1, row: number, settle: number): ProbeRow => ({
 
 const svc = vi.hoisted(() => ({
     getStatus: vi.fn(),
+    getPower: vi.fn(),
+    applyPacing: vi.fn(),
     probeAll: vi.fn(),
     runSweepStep: vi.fn(),
     abort: vi.fn(),
     applyTiming: vi.fn(),
 }));
+
+const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
+    reachable: true, periodUs: 1000, idlePeriodUs: 1000, idleAfterMs: 1000, measuredFrameUs: 1000, measuredLedUs: 240,
+    idleActive: false, effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5, rows: 5, dutyPct: 24, scanHz: 1000,
+    ...over,
+});
 vi.mock('@/services/scanlab.service', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@/services/scanlab.service')>();
     return { ...actual, scanlabService: svc };
@@ -46,6 +54,27 @@ describe('ScanLabPanel', () => {
         vial.isConnected = true;
         svc.getStatus.mockImplementation(async (hand: 0 | 1) => status(hand === 0 ? { isLeft: true } : { isLeft: false, hwRevision: 0 }));
         svc.applyTiming.mockResolvedValue(undefined);
+        svc.applyPacing.mockResolvedValue(undefined);
+        svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
+    });
+
+    it('shows the measured LED duty, frame time and expected duty for the pacing inputs', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByTestId('power-0')).toHaveTextContent('LED duty 24.0 %'));
+        expect(screen.getByTestId('power-0')).toHaveTextContent('frame 1000 µs · LED on 240 µs');
+        expect(screen.getByTestId('power-1')).toHaveTextContent('no reading');
+        expect(screen.getByTestId('power-expected')).toHaveTextContent('active 24.0 %');
+    });
+
+    it('applies pacing from the three fields', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        fireEvent.change(screen.getByLabelText('frame period µs (0 = unpaced)'), { target: { value: '2000' } });
+        fireEvent.change(screen.getByLabelText('idle period µs'), { target: { value: '8000' } });
+        fireEvent.change(screen.getByLabelText('idle after ms (0 = never)'), { target: { value: '1500' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Apply pacing' }));
+        await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, 8000, 1500));
     });
 
     it('asks to connect when no keyboard is attached', () => {

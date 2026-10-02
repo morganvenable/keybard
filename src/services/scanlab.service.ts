@@ -9,6 +9,11 @@ export const KEYBOARD_CHANNEL = 0;
 export const ID_SCAN_PREWAIT_US = 13;
 export const ID_SCAN_POSTWAIT_US = 14;
 export const ID_HW_REVISION = 15;
+export const ID_SCAN_PERIOD_US = 20;
+export const ID_SCAN_IDLE_PERIOD_US = 21;
+export const ID_SCAN_IDLE_AFTER_MS = 22;
+/** Firmware overhead per row beyond pre-wait: the six pin reads and row switching. */
+export const ROW_READ_OVERHEAD_US = 3;
 
 export type Hand = 0 | 1; // 0 = left, 1 = right
 
@@ -30,6 +35,7 @@ const OP = {
     PROBE: 0x02,
     ABORT: 0x03,
     STATUS: 0x10,
+    POWER: 0x11,
     SWEEP_ROW: 0x20,
     PROBE_ON: 0x40,
     PROBE_OFF: 0x60,
@@ -57,6 +63,24 @@ export interface ScanLabStatus {
     savedPostwaitUs: number;
     turboIndex: number;
     otherHalfConnected: boolean;
+}
+
+export interface ScanLabPower {
+    reachable: boolean;
+    periodUs: number;          // saved active frame period (0 = unpaced)
+    idlePeriodUs: number;      // saved idle frame period
+    idleAfterMs: number;       // saved idle timeout (0 = never)
+    measuredFrameUs: number;   // smoothed frame-to-frame interval
+    measuredLedUs: number;     // smoothed LED-on time per frame
+    idleActive: boolean;
+    effectivePeriodUs: number; // period in force right now (0 = unpaced)
+    effPrewaitUs: number;
+    effPostwaitUs: number;
+    rows: number;
+    /** measuredLedUs / measuredFrameUs, in percent; null until a frame has been measured */
+    dutyPct: number | null;
+    /** 1e6 / measuredFrameUs; null until measured */
+    scanHz: number | null;
 }
 
 export interface ProbeColumn {
@@ -165,6 +189,45 @@ export class ScanLabService {
         return this.parseStatus(await this.get(hand, OP.STATUS));
     }
 
+    parsePower(b: Uint8Array): ScanLabPower {
+        if (b[0] === UNREACHABLE && b[1] === 0 && b[17] === 0) {
+            return {
+                reachable: false, periodUs: 0, idlePeriodUs: 0, idleAfterMs: 0, measuredFrameUs: 0, measuredLedUs: 0,
+                idleActive: false, effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, dutyPct: null, scanHz: null,
+            };
+        }
+        const measuredFrameUs = u16(b, 6);
+        const measuredLedUs = u16(b, 8);
+        return {
+            reachable: true,
+            periodUs: u16(b, 0),
+            idlePeriodUs: u16(b, 2),
+            idleAfterMs: u16(b, 4),
+            measuredFrameUs,
+            measuredLedUs,
+            idleActive: b[10] === 1,
+            effectivePeriodUs: u16(b, 11),
+            effPrewaitUs: u16(b, 13),
+            effPostwaitUs: u16(b, 15),
+            rows: b[17],
+            dutyPct: measuredFrameUs > 0 ? (100 * measuredLedUs) / measuredFrameUs : null,
+            scanHz: measuredFrameUs > 0 ? 1e6 / measuredFrameUs : null,
+        };
+    }
+
+    /** Pacing settings plus the firmware's measured frame interval and LED-on time. */
+    async getPower(hand: Hand): Promise<ScanLabPower> {
+        return this.parsePower(await this.get(hand, OP.POWER));
+    }
+
+    /** Persist frame pacing on the keyboard; the master relays it to the other half. */
+    async applyPacing(periodUs: number, idlePeriodUs: number, idleAfterMs: number): Promise<void> {
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_PERIOD_US, [lo(periodUs), hi(periodUs)]);
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_IDLE_PERIOD_US, [lo(idlePeriodUs), hi(idlePeriodUs)]);
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_IDLE_AFTER_MS, [lo(idleAfterMs), hi(idleAfterMs)]);
+        await this.usb.customValueSave(KEYBOARD_CHANNEL);
+    }
+
     parseProbeRow(hand: Hand, row: number, on: Uint8Array, off: Uint8Array, pushedMask: number): ProbeRow {
         const valid = on[20] === 1 && off[20] === 1;
         const idle = on[18], lit = on[19], released = off[18];
@@ -258,6 +321,15 @@ export class ScanLabService {
         await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_POSTWAIT_US, [lo(postwaitUs), hi(postwaitUs)]);
         await this.usb.customValueSave(KEYBOARD_CHANNEL);
     }
+}
+
+/**
+ * Expected sensor LED duty cycle, in percent, for a pre-wait and frame period.
+ * Returns null for an unpaced (0) period, where duty depends on loop load.
+ */
+export function expectedDutyPct(rows: number, prewaitUs: number, periodUs: number): number | null {
+    if (periodUs <= 0) return null;
+    return Math.min(100, (100 * rows * (prewaitUs + ROW_READ_OVERHEAD_US)) / periodUs);
 }
 
 /**
