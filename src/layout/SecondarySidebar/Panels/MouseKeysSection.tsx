@@ -63,6 +63,19 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
     ];
 
+    // Row 3: 6 boost keys (multiplier mirror of sniper)
+    const boostKeys = [
+        { keycode: "SV_BOOST_2", label: "Boost 2x" },
+        { keycode: "SV_BOOST_3", label: "Boost 3x" },
+        { keycode: "SV_BOOST_5", label: "Boost 5x" },
+        { keycode: "SV_BOOST_2_TG", label: "Boost 2x Toggle" },
+        { keycode: "SV_BOOST_3_TG", label: "Boost 3x Toggle" },
+        { keycode: "SV_BOOST_5_TG", label: "Boost 5x Toggle" },
+    ];
+
+    // Every key row in this section MUST go through renderKey so it picks up the
+    // same effectiveVariant / keySizeClass. Do not render <Key> directly in the
+    // panels that embed this section (see CLAUDE.md: key sizing consistency).
     const renderKey = (k: { keycode: string; label: string }, withModifiers: boolean = false) => {
         const finalKeycode = withModifiers ? applyModifiers(k.keycode, activeModifiers, false) : k.keycode;
         const keyContents = keyboard ? getKeyContents(keyboard, finalKeycode) : undefined;
@@ -195,6 +208,16 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 {/* Row 2: Sniper keys */}
                 <div className="flex flex-wrap gap-1">
                     {sniperKeys.map((k) => renderKey(k, false))}
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+                <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                    Boost
+                </span>
+                {/* Row 3: Boost keys */}
+                <div className="flex flex-wrap gap-1">
+                    {boostKeys.map((k) => renderKey(k, false))}
                 </div>
             </div>
 

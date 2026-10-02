@@ -225,6 +225,26 @@ Files to update for new panels:
 - `src/layout/SecondarySidebar/SecondarySidebar.tsx` - Sidebar panel registration
 - `src/layout/BottomPanel/BottomPanel.tsx` - Bottom bar panel registration
 
+### MANDATORY: Key Sizing Consistency Within a Panel
+
+Every row of assignable keys inside one panel must get its size from the **same** source:
+one shared renderer (e.g. `MouseKeysSection.renderKey`) or one computed `effectiveVariant`
+(`variantOverride || (compact ? "small" : keyVariant)`) plus the matching `keySizeClass`.
+Never hard-code `variant="default"` on an ad-hoc `<Key>` next to rows that honour the
+user's key-size setting. (Regression that motivated this rule: the Pointing panel's Boost
+row rendered at full size while Mouse Buttons and Sniper followed the key-size setting.)
+
+Whenever you touch key sizing, variants, or layout classes in a panel, do a **consistency
+pass** before finishing:
+
+1. List every key row/section the panel renders (including rows pulled in from shared
+   sections and any rows added by other panels that embed the same section).
+2. Check all of them in **sidebar**, **bottom-bar** (`compact` / `variant="medium"`) and
+   **picker** (`isPicker`) modes.
+3. Prefer moving an inconsistent row into the shared section over duplicating `<Key>` props.
+4. Add or extend a test that asserts the rows share one `variant` / size class
+   (see `tests/components/MouseKeysSection.test.tsx` and `PointingPanel.test.tsx`).
+
 ## Dynamic Finger Cluster Squeeze
 
 The keyboard layout dynamically squeezes finger clusters toward the center when the keyboard doesn't fit in the available container width. This enables medium-sized keys (45px) to fit in half-screen view (~960px).
