@@ -90,6 +90,13 @@ export const SETTINGS: SettingDefinition[] = [
         action: "open-qmk-settings",
     },
     {
+        name: "scan-lab",
+        label: "Scan Lab...",
+        description: "Measure matrix scan timing and apply pre/post-wait (diagnostics)",
+        type: "action",
+        action: "open-scan-lab",
+    },
+    {
         name: "key-proof-sheet",
         label: "Key Proof Sheet...",
         description: "Visual inspection of key renderings at all sizes",
@@ -163,7 +170,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "print"],
+        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "scan-lab", "print"],
     },
     {
         name: "fragments",

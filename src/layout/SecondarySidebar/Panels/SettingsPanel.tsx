@@ -549,6 +549,8 @@ const SettingsPanel = () => {
                                                     setIsPrintOpen(true);
                                                 } else if (setting.action === "open-qmk-settings") {
                                                     setActivePanel("qmksettings");
+                                                } else if (setting.action === "open-scan-lab") {
+                                                    setActivePanel("scanlab");
                                                 } else if (setting.action === "open-proof-sheet") {
                                                     navigateTo("proof-sheet");
                                                 }

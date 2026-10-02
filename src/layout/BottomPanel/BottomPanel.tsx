@@ -18,6 +18,7 @@ import OneShotComposerPanel from "../SecondarySidebar/Panels/OneShotComposerPane
 import QmkKeyPanel from "../SecondarySidebar/Panels/QmkKeysPanel";
 import MousePanel from "../SecondarySidebar/Panels/MousePanel";
 import QMKSettingsPanel from "../SecondarySidebar/Panels/QMKSettingsPanel";
+import ScanLabPanel from "../SecondarySidebar/Panels/ScanLabPanel";
 import SettingsPanel from "../SecondarySidebar/Panels/SettingsPanel";
 import TapdancePanel from "../SecondarySidebar/Panels/TapdancePanel";
 import { PickerMode } from "../SecondarySidebar/components/EditorSidePanel";
@@ -103,6 +104,7 @@ const BottomPanel: React.FC<BottomPanelProps> = ({ leftOffset, pickerMode, heigh
             case "special": return <SpecialKeysPanel />;
             case "mouse": return <MousePanel />;
             case "qmksettings": return <QMKSettingsPanel />;
+            case "scanlab": return <ScanLabPanel />;
             case "settings": return <SettingsPanel />;
             default:
                 return (
