@@ -20,6 +20,7 @@ import OneShotComposerPanel from "./Panels/OneShotComposerPanel";
 import QmkKeyPanel from "./Panels/QmkKeysPanel";
 import MousePanel from "./Panels/MousePanel";
 import QMKSettingsPanel from "./Panels/QMKSettingsPanel";
+import ScanLabPanel from "./Panels/ScanLabPanel";
 import SettingsPanel from "./Panels/SettingsPanel";
 import TapdancePanel from "./Panels/TapdancePanel";
 import AboutPanel from "./Panels/AboutPanel";
@@ -179,6 +180,7 @@ const SecondarySidebar = () => {
             case "special": return <SpecialKeysPanel />;
             case "mouse": return <MousePanel />;
             case "qmksettings": return <QMKSettingsPanel />;
+            case "scanlab": return <ScanLabPanel />;
             case "settings": return <SettingsPanel />;
             case "quickstart": return <QuickStartPanel />;
             case "about": return <AboutPanel />;
