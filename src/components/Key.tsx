@@ -94,12 +94,22 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         const shouldShrinkText = ["user", "OSM"].includes(keyContents?.type || "") ||
             (typeof keyData.centerContent === "string" && (keyData.centerContent.length > 5 || (keyData.centerContent.length === 5 && keyData.centerContent.toUpperCase().includes("W"))));
 
+        // Small keys have 24px of usable width (30 - 2px border - 2x2px padding). A plain
+        // single-line label of 4+ characters overruns that at the native 10px: "2XTG" in
+        // Inter 600 measures 26.8px at 10px and 8.5px is the largest size at which it fits
+        // (see the sniper/boost toggle labels in MouseKeysSection). Medium and default
+        // keys have room to spare, so only the small variant is capped.
+        const isCompactSmallLabel = isSmall && !shouldShrinkText &&
+            typeof keyData.centerContent === "string" && keyData.centerContent.length >= 4;
+
         // Dynamic center text sizing based on crowding and variant
         let fontSize: string | undefined;
         if (isCrowded) {
             fontSize = isSmall ? "0.5rem" : isMedium ? "0.6rem" : "13px";
         } else if (shouldShrinkText) {
             fontSize = "0.6rem";
+        } else if (isCompactSmallLabel) {
+            fontSize = "8.5px";
         }
 
         const textStyle: React.CSSProperties = {

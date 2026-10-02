@@ -53,14 +53,17 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "KC_BTN5", label: "Mouse 5" },
     ];
 
-    // Row 2: 6 sniper keys
+    // Row 2: 6 sniper keys. Toggle labels are "NxTG" (4 chars after the family
+    // word is stripped) so they stay at the variant's native text size instead of
+    // falling into Key.tsx's long-label shrink/wrap rule, which cropped "TOGGLE"
+    // at the small and medium key sizes. Matches the firmware shortName "Sniper\n2xTG".
     const sniperKeys = [
         { keycode: "SV_SNIPER_2", label: "Sniper 2x" },
         { keycode: "SV_SNIPER_3", label: "Sniper 3x" },
         { keycode: "SV_SNIPER_5", label: "Sniper 5x" },
-        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Toggle" },
-        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Toggle" },
-        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
+        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2xTG" },
+        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3xTG" },
+        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5xTG" },
     ];
 
     // Row 3: 6 boost keys (multiplier mirror of sniper)
@@ -68,9 +71,9 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_BOOST_2", label: "Boost 2x" },
         { keycode: "SV_BOOST_3", label: "Boost 3x" },
         { keycode: "SV_BOOST_5", label: "Boost 5x" },
-        { keycode: "SV_BOOST_2_TG", label: "Boost 2x Toggle" },
-        { keycode: "SV_BOOST_3_TG", label: "Boost 3x Toggle" },
-        { keycode: "SV_BOOST_5_TG", label: "Boost 5x Toggle" },
+        { keycode: "SV_BOOST_2_TG", label: "Boost 2xTG" },
+        { keycode: "SV_BOOST_3_TG", label: "Boost 3xTG" },
+        { keycode: "SV_BOOST_5_TG", label: "Boost 5xTG" },
     ];
 
     // Every key row in this section MUST go through renderKey so it picks up the
