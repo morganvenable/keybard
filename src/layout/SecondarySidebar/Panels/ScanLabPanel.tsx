@@ -11,12 +11,14 @@ import {
     colNames,
     lowestCleanValue,
     suggestWithMargin,
+    expectedDutyPct,
     HAND_NAMES,
     ROW_NAMES,
     SweepState,
     type Hand,
     type ProbeRow,
     type ScanLabStatus,
+    type ScanLabPower,
     type SweepStep,
 } from "@/services/scanlab.service";
 import { cn } from "@/lib/utils";
@@ -64,6 +66,11 @@ const ScanLabPanel = () => {
     const [busy, setBusy] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const cancelRef = useRef(false);
+    const [power, setPower] = useState<ByHand<ScanLabPower | null>>({ 0: null, 1: null });
+    const [periodUs, setPeriodUs] = useState(1000);
+    const [idlePeriodUs, setIdlePeriodUs] = useState(1000);
+    const [idleAfterMs, setIdleAfterMs] = useState(1000);
+    const pacingSeededRef = useRef(false);
 
     const reachableHands = useMemo(() => HANDS.filter((h) => status[h]?.reachable), [status]);
 
@@ -89,6 +96,36 @@ const ScanLabPanel = () => {
     useEffect(() => {
         if (isConnected) refreshStatus();
     }, [isConnected, refreshStatus]);
+
+    // Live power readout: poll the firmware's measured frame interval and LED-on
+    // time once a second while the panel is idle, so a changed setting shows up
+    // next to the ammeter reading within a second.
+    const refreshPower = useCallback(async () => {
+        const next: ByHand<ScanLabPower | null> = { 0: null, 1: null };
+        for (const h of HANDS) {
+            if (!status[h]?.reachable) continue;
+            try {
+                next[h] = await scanlabService.getPower(h);
+            } catch {
+                next[h] = null;
+            }
+        }
+        setPower(next);
+        const any = next[0]?.reachable ? next[0] : next[1];
+        if (any && !pacingSeededRef.current) {
+            pacingSeededRef.current = true;
+            setPeriodUs(any.periodUs);
+            setIdlePeriodUs(any.idlePeriodUs);
+            setIdleAfterMs(any.idleAfterMs);
+        }
+    }, [status]);
+
+    useEffect(() => {
+        if (!isConnected || busy) return;
+        refreshPower();
+        const id = setInterval(refreshPower, 1000);
+        return () => clearInterval(id);
+    }, [isConnected, busy, refreshPower]);
 
     const run = async (label: string, fn: () => Promise<void>) => {
         setBusy(label);
@@ -157,6 +194,15 @@ const ScanLabPanel = () => {
             customValueService.setCached("id_scan_prewait_us", pre);
             customValueService.setCached("id_scan_postwait_us", post);
             await refreshStatus();
+        });
+
+    const handleApplyPacing = () =>
+        run("Applying pacing…", async () => {
+            await scanlabService.applyPacing(periodUs, idlePeriodUs, idleAfterMs);
+            customValueService.setCached("id_scan_period_us", periodUs);
+            customValueService.setCached("id_scan_idle_period_us", idlePeriodUs);
+            customValueService.setCached("id_scan_idle_after_ms", idleAfterMs);
+            await refreshPower();
         });
 
     // --- derived summaries -------------------------------------------------
@@ -403,6 +449,56 @@ const ScanLabPanel = () => {
         </div>
     );
 
+    const anyPower = power[0]?.reachable ? power[0] : power[1]?.reachable ? power[1] : null;
+    const expectedActive = anyPower ? expectedDutyPct(anyPower.rows || 5, anyPower.effPrewaitUs, periodUs) : null;
+    const expectedIdle = anyPower ? expectedDutyPct(anyPower.rows || 5, anyPower.effPrewaitUs, Math.max(periodUs, idlePeriodUs)) : null;
+
+    const powerSection = (
+        <div className="flex flex-col gap-2" data-testid="power-section">
+            <div className="flex items-center justify-between gap-2">
+                <span className={sectionTitle}>Power</span>
+                <Button size="sm" variant="kb-primary" onClick={handleApplyPacing} disabled={!!busy || reachableHands.length === 0}>
+                    Apply pacing
+                </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Sensor LED duty = rows × (pre-wait + read) ÷ frame period. The firmware measures both; change a value, apply, and watch the ammeter.
+            </p>
+            <div className={cn("grid gap-2", "grid-cols-2")}>
+                {HANDS.map((h) => {
+                    const p = power[h];
+                    return (
+                        <div key={h} className="panel-layer-item p-2 rounded-md text-xs flex flex-col gap-0.5" data-testid={`power-${h}`}>
+                            <div className="font-semibold text-sm">{HAND_NAMES[h]}</div>
+                            {!p || !p.reachable ? (
+                                <span className="text-muted-foreground">no reading</span>
+                            ) : (
+                                <>
+                                    <span>LED duty <b className={mono}>{p.dutyPct === null ? "–" : `${p.dutyPct.toFixed(1)} %`}</b>{p.idleActive && <span className="text-muted-foreground"> · idle</span>}</span>
+                                    <span className={mono}>frame {p.measuredFrameUs} µs · LED on {p.measuredLedUs} µs</span>
+                                    <span className={cn("text-muted-foreground", mono)}>
+                                        {p.scanHz === null ? "" : `${p.scanHz.toFixed(0)} Hz`} · period {p.effectivePeriodUs === 0 ? "unpaced" : `${p.effectivePeriodUs} µs`}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+                {numberField("frame period µs (0 = unpaced)", periodUs, setPeriodUs, "scanlab-period")}
+                {numberField("idle period µs", idlePeriodUs, setIdlePeriodUs, "scanlab-idle-period")}
+                {numberField("idle after ms (0 = never)", idleAfterMs, setIdleAfterMs, "scanlab-idle-after")}
+            </div>
+            {anyPower && (
+                <p className="text-xs text-muted-foreground" data-testid="power-expected">
+                    Expected at pre-wait {anyPower.effPrewaitUs} µs: active {expectedActive === null ? "depends on loop load" : `${expectedActive.toFixed(1)} %`}
+                    {idleAfterMs > 0 && expectedIdle !== null && `, idle ${expectedIdle.toFixed(1)} %`}.
+                </p>
+            )}
+        </div>
+    );
+
     const feedback = (
         <div className="text-xs min-h-[1rem]" aria-live="polite">
             {busy && <span className="text-muted-foreground">{busy}</span>}
@@ -413,7 +509,7 @@ const ScanLabPanel = () => {
     if (isHorizontal) {
         return (
             <div className="flex flex-row gap-4 h-full items-start flex-wrap content-start overflow-auto">
-                <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{applySection}</div>
+                <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{powerSection}{applySection}</div>
                 <div className="min-w-[420px]">{probeSection}</div>
                 <div className="min-w-[420px]">{sweepSection}</div>
             </div>
@@ -428,6 +524,7 @@ const ScanLabPanel = () => {
                 </DescriptionBlock>
                 {statusCards}
                 {feedback}
+                {powerSection}
                 {probeSection}
                 {sweepSection}
                 {applySection}
