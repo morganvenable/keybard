@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
 
-import { useVial } from "@/contexts/VialContext";
+import { useVial, listPermittedDevices } from "@/contexts/VialContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
-    const { isConnected, connect, disconnect, loadKeyboard, loadFromFile } = useVial();
+    const { isConnected, connect, connectDevice, disconnect, loadKeyboard, loadFromFile } = useVial();
+    const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,32 @@ const ConnectKeyboard = () => {
             const success = await connect();
             if (!success) {
                 setError("Failed to connect to keyboard");
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unknown error occurred");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Keyboards this origin already has permission for can be opened without the
+    // chooser. Refresh the list whenever we are disconnected.
+    useEffect(() => {
+        if (isConnected) return;
+        let cancelled = false;
+        listPermittedDevices()
+            .then((devices) => { if (!cancelled) setKnownDevices(devices); })
+            .catch(() => { if (!cancelled) setKnownDevices([]); });
+        return () => { cancelled = true; };
+    }, [isConnected]);
+
+    const handleConnectDevice = async (device: HIDDevice) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const success = await connectDevice(device);
+            if (!success) {
+                setError(`Failed to open ${device.productName || "keyboard"}`);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -173,6 +200,22 @@ const ConnectKeyboard = () => {
                                 >
                                     {loading ? "Disconnecting..." : "Disconnect"}
                                 </button>
+                            )}
+                            {!isConnected && !loading && knownDevices.length > 0 && (
+                                <div className="flex flex-col gap-1" data-testid="known-devices">
+                                    <span className="text-[11px] text-muted-foreground text-center">or reconnect without the chooser</span>
+                                    {knownDevices.map((device) => (
+                                        <button
+                                            key={`${device.vendorId}:${device.productId}:${device.productName}`}
+                                            onClick={() => handleConnectDevice(device)}
+                                            className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 hover:bg-white px-5 py-1.5 rounded-full w-full"
+                                            data-testid="known-device"
+                                        >
+                                            <PlugZap className="h-4 w-4" />
+                                            <span>{device.productName || `Keyboard ${device.productId.toString(16)}`}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
                             {!(loading && !isDisconnecting) && (
                                 <>
