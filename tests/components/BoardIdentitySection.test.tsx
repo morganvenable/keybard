@@ -49,6 +49,31 @@ describe('BoardIdentitySection', () => {
         await waitFor(() => expect(svc.restart).toHaveBeenCalled());
     });
 
+    it('recovers from a failed save and allows retrying', async () => {
+        svc.getInfo.mockResolvedValue(info());
+        svc.setName.mockRejectedValueOnce(new Error('USB Command Timeout')).mockResolvedValueOnce(0);
+        render(<BoardIdentitySection />);
+        fireEvent.change(await screen.findByLabelText('Board name'), { target: { value: 'New name' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        expect(await screen.findByText(/Couldn't save the name/)).toBeTruthy();
+        const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+        expect(save.disabled).toBe(false);
+        fireEvent.click(save);
+        expect(await screen.findByRole('button', { name: 'Restart keyboard' })).toBeTruthy();
+    });
+
+    it('recovers from a failed restart', async () => {
+        svc.getInfo.mockResolvedValue(info());
+        svc.setName.mockResolvedValue(0);
+        svc.restart.mockRejectedValue(new Error('USB Command Timeout'));
+        render(<BoardIdentitySection />);
+        fireEvent.change(await screen.findByLabelText('Board name'), { target: { value: 'New name' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Restart keyboard' }));
+        expect(await screen.findByText(/Couldn't confirm the restart/)).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Restart keyboard' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
     it('blocks names over 32 characters', async () => {
         svc.getInfo.mockResolvedValue(info({ name: '' }));
         render(<BoardIdentitySection />);

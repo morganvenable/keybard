@@ -9,7 +9,8 @@ const OP_INFO = 0;
 const OP_NAME = 1;
 const OP_COMMIT = 2;
 const OP_REBOOT = 3;
-const NAME_CHUNK = 24;
+// 32-byte report minus 6 wrapper bytes and 5 identity header bytes.
+const NAME_CHUNK = 21;
 
 export enum IdentityStatus {
     Ok = 0,

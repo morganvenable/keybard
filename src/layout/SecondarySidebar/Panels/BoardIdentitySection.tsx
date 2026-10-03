@@ -25,11 +25,16 @@ export default function BoardIdentitySection() {
     useEffect(() => {
         let cancelled = false;
         setInfo(null);
+        setBusy(false);
+        setMessage(null);
+        setNeedsRestart(false);
         if (!isConnected) return;
         identityService.getInfo().then((i) => {
             if (cancelled) return;
             setInfo(i);
             setDraft(i?.name ?? "");
+        }).catch(() => {
+            if (!cancelled) setInfo(null);
         });
         return () => {
             cancelled = true;
@@ -44,21 +49,32 @@ export default function BoardIdentitySection() {
     const save = async () => {
         setBusy(true);
         setMessage(null);
-        const status = await identityService.setName(draft);
-        setBusy(false);
-        if (status === IdentityStatus.Ok) {
-            setInfo({ ...info, name: draft });
-            setNeedsRestart(true);
-        } else {
-            setMessage(STATUS_TEXT[status] ?? "The keyboard didn't accept that name.");
+        try {
+            const status = await identityService.setName(draft);
+            if (status === IdentityStatus.Ok) {
+                setInfo({ ...info, name: draft });
+                setNeedsRestart(true);
+            } else {
+                setMessage(STATUS_TEXT[status] ?? "The keyboard didn't accept that name.");
+            }
+        } catch {
+            setMessage("Couldn't save the name. Check the keyboard connection and try again.");
+        } finally {
+            setBusy(false);
         }
     };
 
     const restart = async () => {
         setBusy(true);
-        await identityService.restart();
-        setNeedsRestart(false);
-        setBusy(false);
+        setMessage(null);
+        try {
+            await identityService.restart();
+            setNeedsRestart(false);
+        } catch {
+            setMessage("Couldn't confirm the restart. Reconnect the keyboard if needed.");
+        } finally {
+            setBusy(false);
+        }
     };
 
     return (
@@ -74,6 +90,7 @@ export default function BoardIdentitySection() {
                     <div className="flex flex-row items-center gap-2">
                         <Input
                             aria-label="Board name"
+                            disabled={busy}
                             value={draft}
                             placeholder="Svalboard"
                             onChange={(e) => {

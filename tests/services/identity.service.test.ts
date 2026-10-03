@@ -11,6 +11,8 @@ function fakeKeyboard(initialName = '', opts: { available?: boolean; proto?: num
     const sent: number[][] = [];
     const send = vi.fn(async (cmd: number, args: number[]) => {
         sent.push([cmd, ...args]);
+        // Enforce the real wrapper capacity, including bytes lost on the return trip.
+        expect(1 + args.length).toBeLessThanOrEqual(26);
         const [, op, ...d] = args;
         const v = new Uint8Array(29);
         if (cmd === GET && op === 0) {
@@ -27,7 +29,7 @@ function fakeKeyboard(initialName = '', opts: { available?: boolean; proto?: num
             name = staged.slice(0, d[0]);
             v[0] = 0;
         }
-        return v;
+        return v.slice(0, 23);
     });
     return { usb: { send } as any, sent, current: () => new TextDecoder().decode(name) };
 }
@@ -52,14 +54,14 @@ describe('IdentityService', () => {
         expect(await new IdentityService(failing).getInfo()).toBeNull();
     });
 
-    it('writes a name in 24-byte chunks and commits its byte length', async () => {
+    it('writes a name in wrapper-safe 21-byte chunks and commits its byte length', async () => {
         const kb = fakeKeyboard();
         const name = 'Ünïcødé board name ✓✓✓';
         const bytes = new TextEncoder().encode(name).length; // 35: multi-byte characters
         expect(await new IdentityService(kb.usb).setName(name)).toBe(IdentityStatus.Ok);
         expect(kb.current()).toBe(name);
         const stages = kb.sent.filter((p) => p[0] === SET && p[2] === 1);
-        expect(stages.map((p) => [p[3], p[4]])).toEqual([[0, 24], [24, bytes - 24]]);
+        expect(stages.map((p) => [p[3], p[4]])).toEqual([[0, 21], [21, bytes - 21]]);
         expect(kb.sent.at(-1)).toEqual([SET, 0x49, 2, bytes]);
     });
 
