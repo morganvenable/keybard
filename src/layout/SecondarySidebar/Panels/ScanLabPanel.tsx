@@ -57,6 +57,7 @@ const mono = "font-mono tabular-nums";
  *   the sweep are part of the reference, so pressed states can be covered.
  * - Apply: write explicit pre/post-wait to the keyboard (both halves).
  */
+const fmtMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)} s` : `${ms} ms`);
 const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`);
 
 /** How long the armed reboot button waits for its confirming click. Generous so scripted clicks fit too. */
@@ -422,10 +423,11 @@ const ScanLabPanel = () => {
         );
     })() : null;
 
-    const numberField = (label: string, value: number, set: (v: number) => void, id: string) => (
+    const numberField = (label: string, value: number, set: (v: number) => void, id: string, onEnter?: () => void) => (
         <label className="flex flex-col text-[10px] text-muted-foreground gap-0.5">
             {label}
-            <Input id={id} type="number" value={value} onChange={(e) => set(Number(e.target.value))} className="h-7 w-20 text-xs" disabled={!!busy} />
+            <Input id={id} type="number" value={value} onChange={(e) => set(Number(e.target.value))} className="h-7 w-20 text-xs" disabled={!!busy}
+                onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined} />
         </label>
     );
 
@@ -514,17 +516,26 @@ const ScanLabPanel = () => {
     const expectedDeep = anyPower && idle.deepAfterS > 0 ? predictDutyPct(anyPower, Math.max(periodUs, idle.deepPeriodMs * 1000)) : null;
     const fmtDuty = (d: number | null) => (d === null ? "depends on loop load" : `${d.toFixed(1)} % ≈ ${predictCurrentMa(baselineMa, litRowMa, d)!.toFixed(0)} mA`);
 
+    // Typed values do nothing until applied; say so loudly when they differ from the board.
+    const pacingDirty = !!anyPower && (
+        periodUs !== anyPower.periodUs || idle.idleAfterMs !== anyPower.idleAfterMs || idle.idlePeriodMs !== anyPower.idlePeriodMs ||
+        idle.deepAfterS !== anyPower.deepAfterS || idle.deepPeriodMs !== anyPower.deepPeriodMs);
+    const onBoard = anyPower
+        ? `On board: period ${anyPower.periodUs === 0 ? "unpaced" : `${anyPower.periodUs} µs`} · light idle ${anyPower.idleAfterMs === 0 ? "off" : `${anyPower.idlePeriodMs} ms after ${fmtMs(anyPower.idleAfterMs)}`} · deep idle ${anyPower.deepAfterS === 0 ? "off" : `${anyPower.deepPeriodMs} ms after ${anyPower.deepAfterS} s`}`
+        : null;
+
     const powerSection = (
         <div className="flex flex-col gap-2" data-testid="power-section">
             <div className="flex items-center justify-between gap-2">
                 <span className={sectionTitle}>Power</span>
-                <Button size="sm" variant="kb-primary" onClick={handleApplyPacing} disabled={!!busy || reachableHands.length === 0}>
-                    Apply pacing
+                <Button size="sm" variant={pacingDirty ? "kb-primary" : "secondary"} onClick={handleApplyPacing} disabled={!!busy || reachableHands.length === 0} data-testid="apply-pacing">
+                    {pacingDirty ? "Apply pacing (not on board yet)" : "Apply pacing"}
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-                Sensor LED duty = rows × (pre-wait + read) ÷ frame period. The firmware measures both; change a value, apply, and watch the ammeter.
+                Sensor LED duty = rows × (pre-wait + read) ÷ frame period. The firmware measures both; change a value, apply (or press Enter), and watch the ammeter.
             </p>
+            {onBoard && <p className={cn("text-xs", pacingDirty ? "text-amber-700" : "text-muted-foreground")} data-testid="pacing-on-board">{onBoard}{pacingDirty ? " — the fields below differ; apply to change it." : ""}</p>}
             <div className={cn("grid gap-2", "grid-cols-2")}>
                 {HANDS.map((h) => {
                     const p = power[h];
@@ -558,7 +569,7 @@ const ScanLabPanel = () => {
                 })}
             </div>
             <div className="flex flex-wrap items-end gap-2">
-                {numberField("frame period µs (0 = unpaced)", periodUs, setPeriodUs, "scanlab-period")}
+                {numberField("frame period µs (0 = unpaced)", periodUs, setPeriodUs, "scanlab-period", handleApplyPacing)}
             </div>
             <div className="flex flex-wrap items-center gap-1">
                 <span className="text-[10px] text-muted-foreground mr-1">Idle presets:</span>
@@ -570,10 +581,10 @@ const ScanLabPanel = () => {
                 ))}
             </div>
             <div className="flex flex-wrap items-end gap-2">
-                {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after")}
-                {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period")}
-                {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after")}
-                {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period")}
+                {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
+                {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
+                {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
+                {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
             </div>
             <p className="text-xs text-muted-foreground">A quiet spell of the timeout stretches the frame period to that stage; the first key press restores full rate on the next frame, so the wake-up latency is one idle frame.</p>
             {anyPower && (
