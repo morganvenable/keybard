@@ -28,6 +28,15 @@ const createLargeFile = (): File => {
 };
 
 describe('FileService', () => {
+  it('preserves the renamed Python GUI protocol version', () => {
+    const result = fileService.parseContent(JSON.stringify({
+      uid: 12345, sval_protocol: 3, layout: [[['KC_A']]],
+      macro: [], combo: [], tap_dance: [], key_override: [],
+    }));
+    expect(result.svil_proto).toBe(3);
+    expect(result.keymap?.[0][0]).toBe(keyService.parse('KC_A'));
+  });
+
   describe('loadFile', () => {
     it('successfully loads valid .svil file with layout', async () => {
       const validData = {

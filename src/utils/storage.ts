@@ -1,3 +1,4 @@
+import { appStorage } from "@/utils/app-storage";
 import { KeyboardInfo } from "@/types/vial.types";
 
 const STORAGE_KEY = "keybard_last_file_path";
@@ -5,7 +6,7 @@ const STORAGE_KEY = "keybard_last_file_path";
 export const storage = {
     getLastFilePath(): string | null {
         try {
-            return localStorage.getItem(STORAGE_KEY);
+            return appStorage.getItem(STORAGE_KEY);
         } catch {
             return null;
         }
@@ -13,7 +14,7 @@ export const storage = {
 
     setLastFilePath(path: string): void {
         try {
-            localStorage.setItem(STORAGE_KEY, path);
+            appStorage.setItem(STORAGE_KEY, path);
         } catch (error) {
             console.warn("Failed to save file path:", error);
         }
@@ -21,7 +22,7 @@ export const storage = {
 
     clearLastFilePath(): void {
         try {
-            localStorage.removeItem(STORAGE_KEY);
+            appStorage.removeItem(STORAGE_KEY);
         } catch (error) {
             console.warn("Failed to clear file path:", error);
         }
@@ -30,7 +31,7 @@ export const storage = {
     async saveFile(keyboardInfo: KeyboardInfo): Promise<void> {
         try {
             const content = JSON.stringify(keyboardInfo, null, 2);
-            localStorage.setItem("keybard_saved_file", content);
+            appStorage.setItem("keybard_saved_file", content);
         } catch (error) {
             console.warn("Failed to save file:", error);
         }

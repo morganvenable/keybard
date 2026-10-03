@@ -1,0 +1,53 @@
+name: Sval preview
+
+on:
+  push:
+    branches: [cleanup/sval-naming]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sval-preview-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test -- tests/services/vial.service.test.ts tests/services/file.service.test.ts tests/utils/app-storage.test.ts tests/services/import.service.test.ts tests/services/layer-import.service.test.ts
+      - run: npm run build:sval-preview
+        env:
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sval-preview-site
+          path: dist
+      - uses: actions/upload-pages-artifact@v3
+        if: github.repository == 'morganvenable/keybard-sval-preview'
+        with:
+          path: dist
+
+  deploy:
+    # Pages replaces the entire site's content. Never deploy this job in the
+    # production repository, including when the workflow is manually dispatched.
+    if: github.repository == 'morganvenable/keybard-sval-preview' && github.ref == 'refs/heads/cleanup/sval-naming'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

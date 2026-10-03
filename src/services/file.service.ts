@@ -175,7 +175,7 @@ export class FileService {
         const js = JSON.parse(content);
         let kbinfo: KeyboardInfo | null = null;
 
-        if (js.uid && (js.svil_protocol !== undefined || js.viable_protocol !== undefined || js.version === 1)) {
+        if (js.uid && (js.sval_protocol !== undefined || js.svil_protocol !== undefined || js.viable_protocol !== undefined || js.version === 1)) {
             // It's a .svil / legacy .viable file (has uid + svil_protocol or version: 1)
             kbinfo = this.svilToKBINFO(js);
         } else if (js.uid) {
@@ -616,7 +616,7 @@ export class FileService {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
         // Store protocol versions
-        kbinfo.svil_proto = svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
+        kbinfo.svil_proto = svil.sval_protocol || svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
         kbinfo.via_proto = svil.via_protocol || 12;
 
         // Update counts from data

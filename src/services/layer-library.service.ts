@@ -1,3 +1,4 @@
+import { appStorage } from "@/utils/app-storage";
 /**
  * Layer Library Service
  * Manages local layer database - reading from bundled JSON and writing to localStorage
@@ -27,7 +28,7 @@ const KC_NO = 0;
 const KC_TRNS = 1;
 
 // Path to bundled layers
-const BUNDLED_LAYERS_PATH = '/keybard-ng/layer-library/layers.json';
+const BUNDLED_LAYERS_PATH = `${import.meta.env.BASE_URL}layer-library/layers.json`;
 
 export class LayerLibraryService {
     private bundledLayers: LayerEntry[] = [];
@@ -67,7 +68,7 @@ export class LayerLibraryService {
      */
     private loadUserLayers(): void {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
+            const stored = appStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const data = JSON.parse(stored) as LayerEntry[];
                 this.userLayers = Array.isArray(data) ? data : [];
@@ -83,7 +84,7 @@ export class LayerLibraryService {
      */
     private saveUserLayers(): void {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.userLayers));
+            appStorage.setItem(STORAGE_KEY, JSON.stringify(this.userLayers));
         } catch (e) {
             console.error('Failed to save user layers:', e);
         }
@@ -304,7 +305,7 @@ export class LayerLibraryService {
      */
     getImportedLayouts(): LayoutGroup[] {
         try {
-            const stored = localStorage.getItem(IMPORTED_LAYOUTS_KEY);
+            const stored = appStorage.getItem(IMPORTED_LAYOUTS_KEY);
             if (stored) {
                 const data = JSON.parse(stored) as ImportedLayoutsStorage;
                 return data.layouts || [];
@@ -330,7 +331,7 @@ export class LayerLibraryService {
     private saveImportedLayouts(layouts: LayoutGroup[]): void {
         try {
             const storage: ImportedLayoutsStorage = { layouts };
-            localStorage.setItem(IMPORTED_LAYOUTS_KEY, JSON.stringify(storage));
+            appStorage.setItem(IMPORTED_LAYOUTS_KEY, JSON.stringify(storage));
         } catch (e) {
             console.error('Failed to save imported layouts:', e);
         }
