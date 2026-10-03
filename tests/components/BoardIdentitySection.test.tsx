@@ -1,0 +1,67 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import BoardIdentitySection from '../../src/layout/SecondarySidebar/Panels/BoardIdentitySection';
+
+const vial = { isConnected: true };
+vi.mock('@/contexts/VialContext', () => ({ useVial: () => vial }));
+
+const svc = vi.hoisted(() => ({ getInfo: vi.fn(), setName: vi.fn(), restart: vi.fn() }));
+vi.mock('@/services/identity.service', async (orig) => {
+    const actual = await orig<typeof import('../../src/services/identity.service')>();
+    return { ...actual, identityService: svc };
+});
+
+const info = (over = {}) => ({ available: true, name: 'Lab board', nameMaxBytes: 64, serialSource: 1, serial: 'sval:E46498769F365934', ...over });
+
+describe('BoardIdentitySection', () => {
+    beforeEach(() => {
+        svc.getInfo.mockReset();
+        svc.setName.mockReset();
+        svc.restart.mockReset();
+    });
+
+    it('renders nothing for firmware without an identity', async () => {
+        svc.getInfo.mockResolvedValue(null);
+        const { container } = render(<BoardIdentitySection />);
+        await waitFor(() => expect(svc.getInfo).toHaveBeenCalled());
+        expect(container.querySelector('[data-testid="board-identity"]')).toBeNull();
+    });
+
+    it('shows the name and serial, saves an edit, then offers a restart', async () => {
+        svc.getInfo.mockResolvedValue(info());
+        svc.setName.mockResolvedValue(0);
+        svc.restart.mockResolvedValue(undefined);
+        render(<BoardIdentitySection />);
+
+        const input = (await screen.findByLabelText('Board name')) as HTMLInputElement;
+        expect(input.value).toBe('Lab board');
+        expect(screen.getByText('sval:E46498769F365934')).toBeTruthy();
+        const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+
+        fireEvent.change(input, { target: { value: 'Morgan’s Sval ✓' } });
+        expect(screen.getByText('Not saved yet')).toBeTruthy();
+        expect(save.disabled).toBe(false);
+        fireEvent.click(save);
+
+        await waitFor(() => expect(svc.setName).toHaveBeenCalledWith('Morgan’s Sval ✓'));
+        fireEvent.click(await screen.findByRole('button', { name: 'Restart keyboard' }));
+        await waitFor(() => expect(svc.restart).toHaveBeenCalled());
+    });
+
+    it('blocks names over 32 characters', async () => {
+        svc.getInfo.mockResolvedValue(info({ name: '' }));
+        render(<BoardIdentitySection />);
+        const input = await screen.findByLabelText('Board name');
+        fireEvent.change(input, { target: { value: 'x'.repeat(33) } });
+        expect(screen.getByText(/at most 32 characters/)).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('says when the keyboard has nowhere to keep a name', async () => {
+        svc.getInfo.mockResolvedValue(info({ available: false, name: '' }));
+        render(<BoardIdentitySection />);
+        expect(await screen.findByText(/no room for a name/)).toBeTruthy();
+        expect(screen.queryByLabelText('Board name')).toBeNull();
+    });
+});
