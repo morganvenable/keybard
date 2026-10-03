@@ -587,12 +587,12 @@ describe('SvilService', () => {
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET,
         [0, 4, 0, 5, 0, 3, 128],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_LEADER_SET,
         [0, 4, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0x34, 0x12],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ONE_SHOT_SET,

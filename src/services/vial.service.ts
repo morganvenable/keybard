@@ -1,6 +1,6 @@
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
-import { SvilUSB, svilEntryOffset, svilIndexArgs, usbInstance } from "./usb.service";
+import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
@@ -302,10 +302,14 @@ export class SvilService {
         const countResp = await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true }) as Uint8Array;
         const macro_count = countResp[1] | (countResp[2] << 8);
 
-        const macros_size = (await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
-            unpack: "B>H",
-            index: 1,
-        })) as number;
+        // v3+: the macro buffer can outgrow VIA's 16-bit size, so ask Sval for the 32-bit one.
+        // Response format after wrapper stripped: [cmd_echo][size:4]
+        const macros_size = svilHasMacroBuffer(this.usb.svilProtocolVersion)
+            ? (await this.usb.sendSvil(SvilUSB.CMD_SVIL_MACRO_BUFFER_SIZE, [], { uint32: true, index: 1 })) as number
+            : (await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
+                unpack: "B>H",
+                index: 1,
+            })) as number;
 
         kbinfo.macro_count = macro_count;
         kbinfo.macros_size = macros_size;
@@ -354,23 +358,19 @@ export class SvilService {
         if (!kbinfo.alt_repeat_key_count) return;
 
         kbinfo.alt_repeat_keys = [];
-        const proto = this.usb.svilProtocolVersion;
-        const o = svilEntryOffset(proto);
+        // Scan (v3+) or per-index get
+        const entries = await readSvilTable(this.usb, SVIL_TABLE_ALT_REPEAT_KEY, kbinfo.alt_repeat_key_count);
         for (let i = 0; i < kbinfo.alt_repeat_key_count; i++) {
-            const data = await this.usb.sendSvil(
-                SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET,
-                svilIndexArgs(proto, i),
-                { uint8: true }
-            ) as Uint8Array;
+            const data = entries[i];
 
-            // Response format after wrapper stripped: [cmd_echo][index (v1: 1 byte, v2: 2 bytes)][keycode:2][alt_keycode:2][allowed_mods][options]
+            // Entry: [keycode:2][alt_keycode:2][allowed_mods][options]
             const dv = new DataView(data.buffer);
             const entry: AltRepeatKeyEntry = {
                 arkid: i,
-                keycode: keyService.stringify(dv.getUint16(o, true)), // Skip cmd_echo + index
-                alt_keycode: keyService.stringify(dv.getUint16(o + 2, true)),
-                allowed_mods: data[o + 4],
-                options: data[o + 5],
+                keycode: keyService.stringify(dv.getUint16(0, true)),
+                alt_keycode: keyService.stringify(dv.getUint16(2, true)),
+                allowed_mods: data[4],
+                options: data[5],
             };
             kbinfo.alt_repeat_keys.push(entry);
         }
@@ -383,20 +383,16 @@ export class SvilService {
         if (!kbinfo.leader_count) return;
 
         kbinfo.leaders = [];
-        const proto = this.usb.svilProtocolVersion;
-        const o = svilEntryOffset(proto);
+        // Scan (v3+) or per-index get
+        const entries = await readSvilTable(this.usb, SVIL_TABLE_LEADER, kbinfo.leader_count);
         for (let i = 0; i < kbinfo.leader_count; i++) {
-            const data = await this.usb.sendSvil(
-                SvilUSB.CMD_SVIL_LEADER_GET,
-                svilIndexArgs(proto, i),
-                { uint8: true }
-            ) as Uint8Array;
+            const data = entries[i];
 
-            // Response format after wrapper stripped: [cmd_echo][index (v1: 1 byte, v2: 2 bytes)][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
+            // Entry: [seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
             const dv = new DataView(data.buffer);
             const sequence: string[] = [];
             for (let j = 0; j < 5; j++) {
-                const kc = dv.getUint16(o + j * 2, true); // Skip cmd_echo + index
+                const kc = dv.getUint16(j * 2, true);
                 if (kc !== 0) {
                     sequence.push(keyService.stringify(kc));
                 }
@@ -405,8 +401,8 @@ export class SvilService {
             const entry: LeaderEntry = {
                 ldrid: i,
                 sequence,
-                output: keyService.stringify(dv.getUint16(o + 10, true)), // Skip cmd_echo + index
-                options: dv.getUint16(o + 12, true),
+                output: keyService.stringify(dv.getUint16(10, true)),
+                options: dv.getUint16(12, true),
             };
             kbinfo.leaders.push(entry);
         }
@@ -525,7 +521,7 @@ export class SvilService {
         const keycode = keyService.parse(entry.keycode);
         const alt_keycode = keyService.parse(entry.alt_keycode);
 
-        await this.usb.sendSvil(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, [
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, [
             ...svilIndexArgs(this.usb.svilProtocolVersion, arkid),
             keycode & 0xff,
             (keycode >> 8) & 0xff,
@@ -533,7 +529,9 @@ export class SvilService {
             (alt_keycode >> 8) & 0xff,
             entry.allowed_mods,
             entry.options,
-        ], {});
+        ], { uint8: true }) as Uint8Array;
+        // Response: [cmd_echo][status], nonzero = refused (e.g. index out of range)
+        checkSvilStatus(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, resp);
     }
 
     /**
@@ -558,7 +556,9 @@ export class SvilService {
         // Add options
         args.push(entry.options & 0xff, (entry.options >> 8) & 0xff);
 
-        await this.usb.sendSvil(SvilUSB.CMD_SVIL_LEADER_SET, args, {});
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LEADER_SET, args, { uint8: true }) as Uint8Array;
+        // Response: [cmd_echo][status], nonzero = refused (e.g. index out of range)
+        checkSvilStatus(SvilUSB.CMD_SVIL_LEADER_SET, resp);
     }
 
     /**

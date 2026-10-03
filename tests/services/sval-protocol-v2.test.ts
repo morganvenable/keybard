@@ -82,7 +82,7 @@ describe('Sval protocol v1/v2 table requests', () => {
       expect(usb.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_TAP_DANCE_SET, [
         ...svilIndexArgs(version, count - 1),
         0x04, 0, 0x05, 0, 0x06, 0, 0x07, 0, (count - 1 + 100) & 0xff, ((count - 1 + 100) >> 8) | 0x80,
-      ], {});
+      ], { uint8: true });
     });
 
     it('combo get/set use the right index width and entry offset', async () => {
@@ -97,12 +97,13 @@ describe('Sval protocol v1/v2 table requests', () => {
       expect(kbinfo.combos![0]).toMatchObject({ cmbid: 0, keys: ['KC_A', 'KC_B', 'KC_NO', 'KC_NO'], output: 'KC_C', options: 0x1234 });
 
       usb.sendSvil.mockReset();
+      usb.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_COMBO_SET, 0]));
       kbinfo.combos![0].cmbid = 255;
       await service.push(kbinfo, 255);
       expect(usb.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_COMBO_SET, [
         ...svilIndexArgs(version, 255),
         0x04, 0, 0x05, 0, 0, 0, 0, 0, 0x06, 0, 0x34, 0x12,
-      ], {});
+      ], { uint8: true });
     });
 
     it('key override get/set use the right index width and entry offset', async () => {
@@ -120,11 +121,12 @@ describe('Sval protocol v1/v2 table requests', () => {
       });
 
       usb.sendSvil.mockReset();
+      usb.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_KEY_OVERRIDE_SET, 0]));
       await service.push(kbinfo, 0);
       expect(usb.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_KEY_OVERRIDE_SET, [
         ...svilIndexArgs(version, 0),
         0x04, 0, 0x05, 0, 0x0f, 0, 0, 0x80, 1, 2, 3, 4,
-      ], {});
+      ], { uint8: true });
     });
 
     it('alt-repeat key and leader get/set use the right index width and entry offset', async () => {
@@ -152,10 +154,10 @@ describe('Sval protocol v1/v2 table requests', () => {
       await service.updateLeader(kbinfo, 0);
       expect(usb.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, [
         ...svilIndexArgs(version, 0), 0x04, 0, 0x05, 0, 3, 0x80,
-      ], {});
+      ], { uint8: true });
       expect(usb.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_LEADER_SET, [
         ...svilIndexArgs(version, 0), 0x04, 0, 0x05, 0, 0, 0, 0, 0, 0, 0, 0x06, 0, 0x34, 0x12,
-      ], {});
+      ], { uint8: true });
     });
 
     it('label set/clear use the right index width', async () => {
