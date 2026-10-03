@@ -55,3 +55,13 @@ existing `/keybard-ng/` base URL and unprefixed storage keys.
 
 Rollback of the web preview requires no production change. Firmware rollback may
 require restoring a backup, depending on which firmware/storage layout is used.
+
+## Production compatibility notice test
+
+The preview deployment also publishes a separately built production guard at
+https://morganvenable.github.io/keybard-sval-preview/production-check/ .
+Connect renamed Sval firmware there to test the compatibility notice. Its inline
+“here” link opens the working preview at the site's root. The test app uses
+`keybard-production-check:` browser storage, separate from both other apps.
+The workflow pins the guard source commit; update that pin to publish changes.
+Production GitHub Pages is not changed by this deployment.
