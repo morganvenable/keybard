@@ -556,6 +556,7 @@ const ScanLabPanel = () => {
                                                 {d.sensorPresent ? `sensor ${d.sensorMode === null ? "no read yet" : SENSOR_MODE_NAMES[d.sensorMode]}${d.sensorLifted ? " (lifted)" : ""}${d.sensorRestEnabled ? "" : " (rest off)"}` : "no sensor"}
                                                 {` · RGB ${d.rgbEnabled ? d.rgbValNow : "off"}/${d.rgbValAwake}${d.rgbStage === 1 ? " dimmed" : d.rgbStage === 2 ? " off" : ""}`}
                                                 {` · quiet keys ${fmtQuiet(d.quietMatrixMs)}, ball ${fmtQuiet(d.quietPointerMs)}`}
+                                                {d.sysClockMhz !== null && ` · clock ${d.sysClockMhz} MHz`}
                                             </span>
                                         );
                                     })()}

@@ -141,7 +141,7 @@ describe('ScanLabService power readout and pacing', () => {
         expect(p.idleActive).toBe(true);
         expect(p.hostBootloader).toBe(true);
         expect(p.rebootArmed).toBe(false);
-        expect(p.idle).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: false });
+        expect(p.idle).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: false, lowClock: false, longNap: false });
         expect(p.measuredLedUs).toBe(240);
         expect(p.dutyPct).toBeCloseTo(23.95, 1);
         expect(p.scanHz).toBeCloseTo(998, 0);
@@ -182,10 +182,11 @@ describe('ScanLabService power readout and pacing', () => {
         const b = new Uint8Array(23);
         b[0] = 0b111; b[1] = 1; b[2] = 0x80 | 0x02; b[3] = 0x20; b[4] = 32; b[5] = 128; b[6] = 1; b[7] = 1; b[8] = 1;
         const put32 = (i: number, v: number) => { b[i] = v & 0xff; b[i + 1] = (v >> 8) & 0xff; b[i + 2] = (v >> 16) & 0xff; b[i + 3] = (v >>> 24) & 0xff; };
-        put32(9, 70000); put32(13, 70000); put32(17, 1500);
+        put32(9, 70000); put32(13, 70000); put32(17, 1500); b[21] = 48;
         const d = service.parseIdle(b);
         expect(d.reachable).toBe(true);
-        expect(d.flags).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: true });
+        expect(d.flags).toEqual({ pointerRest: true, rgbDim: true, cpuSleep: true, lowClock: false, longNap: false });
+        expect(d.sysClockMhz).toBe(48);
         expect(d.sensorMode).toBe(2);
         expect(d.sensorLifted).toBe(false);
         expect(d.sensorRestEnabled).toBe(true);
