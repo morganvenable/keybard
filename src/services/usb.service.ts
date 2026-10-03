@@ -29,6 +29,34 @@ export class ClientIdRejectedError extends Error {
   }
 }
 
+// Sval protocol version 2 widened table indices (tap dance, combo, key override,
+// alt-repeat key, leader, label) from one byte to two, for 256-entry tables.
+export const SVIL_PROTO_WIDE_INDEX = 2;
+
+/** Whether a keyboard speaking this Sval protocol version takes 2-byte table indices. */
+export function svilHasWideIndex(version: number | undefined): boolean {
+  return (version ?? 1) >= SVIL_PROTO_WIDE_INDEX;
+}
+
+/**
+ * Index bytes for a Sval table GET/SET request.
+ * v1: [index]; v2+: [index lo][index hi]
+ */
+export function svilIndexArgs(version: number | undefined, index: number): number[] {
+  if (svilHasWideIndex(version)) return LE16(index);
+  // A v1 index is one byte; a larger one would wrap and address the wrong entry
+  if (index > 0xff) throw new RangeError(`Sval v1 index out of range: ${index}`);
+  return [index];
+}
+
+/**
+ * Offset of the entry within a Sval table GET response (wrapper and 0xDF stripped).
+ * v1: [cmd_echo][index][entry...] -> 2; v2+: [cmd_echo][index lo][index hi][entry...] -> 3
+ */
+export function svilEntryOffset(version: number | undefined): number {
+  return svilHasWideIndex(version) ? 3 : 2;
+}
+
 // Generate cryptographically random nonce
 function generateNonce(): Uint8Array {
   const nonce = new Uint8Array(NONCE_SIZE);
@@ -95,6 +123,15 @@ export class SvilUSB {
   static readonly CMD_SVIL_FRAGMENT_GET_HARDWARE = 0x18;
   static readonly CMD_SVIL_FRAGMENT_GET_SELECTIONS = 0x19;
   static readonly CMD_SVIL_FRAGMENT_SET_SELECTIONS = 0x1a;
+  static readonly CMD_SVIL_LABEL_GET = 0x1b;
+  static readonly CMD_SVIL_LABEL_SET = 0x1c;
+  static readonly CMD_SVIL_LABEL_CLEAR = 0x1d;
+
+  // Label types for CMD_SVIL_LABEL_*; every label is a fixed 16-byte, null-padded UTF-8 field
+  static readonly SVIL_LABEL_TYPE_LAYER = 0;
+  static readonly SVIL_LABEL_TYPE_TAP_DANCE = 1;
+  static readonly SVIL_LABEL_TYPE_MACRO = 2;
+  static readonly SVIL_LABEL_SIZE = 16;
 
   // Svalboard-specific constants
   static readonly SVAL_GET_LEFT_DPI = 0x00;
@@ -122,6 +159,10 @@ export class SvilUSB {
   private clientIdExpiry: number = 0;
   private renewalTimer?: ReturnType<typeof setTimeout>;
   private bootstrapPromise?: Promise<void>; // Prevent concurrent bootstraps
+
+  // Sval protocol version of the connected keyboard, from CMD_SVIL_GET_INFO
+  // (set while connecting). Assume version 1 until the keyboard says otherwise.
+  public svilProtocolVersion: number = 1;
 
   public onDisconnect?: () => void;
 
@@ -345,6 +386,7 @@ export class SvilUSB {
     }
     this.clientId = 0;
     this.clientIdExpiry = 0;
+    this.svilProtocolVersion = 1;
 
     if (this.device) {
       if (this.handleEvent) {
@@ -832,7 +874,7 @@ export class SvilUSB {
   ): Promise<(Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[]> {
     const entries: (Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[] = [];
     for (let i = 0; i < count; i++) {
-      const data = await this.sendSvil(getCmd, [i], options);
+      const data = await this.sendSvil(getCmd, svilIndexArgs(this.svilProtocolVersion, i), options);
       entries.push(data);
     }
     return entries;

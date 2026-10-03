@@ -1,6 +1,6 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { SvilUSB } from "./usb.service";
+import { SvilUSB, svilEntryOffset, svilIndexArgs } from "./usb.service";
 
 export class ComboService {
     constructor(private usb: SvilUSB) { }
@@ -10,27 +10,29 @@ export class ComboService {
         if (combo_count === 0) return;
 
         kbinfo.combos = [];
+        const proto = this.usb.svilProtocolVersion;
+        const o = svilEntryOffset(proto);
 
         // Use Svil protocol: direct combo get command
         for (let i = 0; i < combo_count; i++) {
             const data = await this.usb.sendSvil(
                 SvilUSB.CMD_SVIL_COMBO_GET,
-                [i],
+                svilIndexArgs(proto, i),
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response: [cmd_echo][index][key0:2][key1:2][key2:2][key3:2][output:2][custom_combo_term:2]
+            // Response: [cmd_echo][index (v1: 1 byte, v2: 2 bytes)][key0:2][key1:2][key2:2][key3:2][output:2][custom_combo_term:2]
             const dv = new DataView(data.buffer);
             kbinfo.combos.push({
                 cmbid: i,
                 keys: [
-                    keyService.stringify(dv.getUint16(2, true)),
-                    keyService.stringify(dv.getUint16(4, true)),
-                    keyService.stringify(dv.getUint16(6, true)),
-                    keyService.stringify(dv.getUint16(8, true)),
+                    keyService.stringify(dv.getUint16(o, true)),
+                    keyService.stringify(dv.getUint16(o + 2, true)),
+                    keyService.stringify(dv.getUint16(o + 4, true)),
+                    keyService.stringify(dv.getUint16(o + 6, true)),
                 ].map(k => k === "KC_NO" ? "KC_NO" : k),
-                output: keyService.stringify(dv.getUint16(10, true)),
-                options: dv.getUint16(12, true),
+                output: keyService.stringify(dv.getUint16(o + 8, true)),
+                options: dv.getUint16(o + 10, true),
             });
         }
     }
@@ -45,7 +47,7 @@ export class ComboService {
 
         // Use Svil protocol: direct combo set command
         await this.usb.sendSvil(SvilUSB.CMD_SVIL_COMBO_SET, [
-            cmbid,
+            ...svilIndexArgs(this.usb.svilProtocolVersion, cmbid),
             ...this.LE16(keyService.parse(keys[0])),
             ...this.LE16(keyService.parse(keys[1])),
             ...this.LE16(keyService.parse(keys[2])),

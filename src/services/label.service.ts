@@ -1,0 +1,133 @@
+import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
+
+/**
+ * Labels stored on the keyboard (CMD_SVIL_LABEL_*): a fixed 16-byte, null-padded
+ * UTF-8 name per layer, tap dance or macro (SvilUSB.SVIL_LABEL_TYPE_*).
+ */
+export class LabelService {
+    constructor(private usb: SvilUSB) { }
+
+    /**
+     * Read every non-empty label of a type, keyed by index.
+     * count is the size of that table; v1 needs it to size the presence bitmap.
+     */
+    async getAll(type: number, count: number): Promise<Map<number, string>> {
+        if (svilHasWideIndex(this.usb.svilProtocolVersion)) {
+            return this.scan(type);
+        }
+        return this.getBulkV1(type, count);
+    }
+
+    /**
+     * v2: LABEL_GET returns the next non-empty label at or after a start index.
+     * Request:  [type][start lo][start hi]
+     * Response: [cmd_echo][type][found][index lo][index hi][label:16]
+     * Ask again from index + 1 until found = 0.
+     */
+    private async scan(type: number): Promise<Map<number, string>> {
+        const labels = new Map<number, string>();
+        let start = 0;
+        while (start <= 0xffff) {
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_LABEL_GET,
+                [type, start & 0xff, (start >> 8) & 0xff],
+                { uint8: true }
+            ) as Uint8Array;
+
+            if (!data[2]) break; // found = 0: no labels left
+            const index = data[3] | (data[4] << 8);
+            if (index < start) break; // Never loop on a keyboard that answers backwards
+            labels.set(index, this.decode(data.slice(5, 5 + SvilUSB.SVIL_LABEL_SIZE)));
+            start = index + 1;
+        }
+        return labels;
+    }
+
+    /**
+     * v1: LABEL_GET returns a presence bitmap (first request only) and as many
+     * labels as fit, with a continuation flag.
+     * Request:  [type][offset]
+     * Response: [cmd_echo][type][flags][bitmap:ceil(count/8), offset 0 only][label:16]...
+     * flags bit 0 = more labels; bitmap is MSB first. Continue after the last label read.
+     */
+    private async getBulkV1(type: number, count: number): Promise<Map<number, string>> {
+        const labels = new Map<number, string>();
+        const bitmapSize = Math.ceil(count / 8);
+        let present: number[] = [];
+        let offset = 0;
+
+        while (offset < count) {
+            const data = await this.usb.sendSvil(
+                SvilUSB.CMD_SVIL_LABEL_GET,
+                [type, offset],
+                { uint8: true }
+            ) as Uint8Array;
+
+            let pos = 3;
+            if (offset === 0) {
+                present = [];
+                for (let i = 0; i < count; i++) {
+                    if (data[pos + (i >> 3)] & (0x80 >> (i & 7))) present.push(i);
+                }
+                pos += bitmapSize;
+            }
+
+            let last = -1;
+            for (const index of present) {
+                if (index < offset) continue;
+                if (pos + SvilUSB.SVIL_LABEL_SIZE > data.length) break;
+                labels.set(index, this.decode(data.slice(pos, pos + SvilUSB.SVIL_LABEL_SIZE)));
+                pos += SvilUSB.SVIL_LABEL_SIZE;
+                last = index;
+            }
+
+            if (!(data[2] & 0x01) || last < 0) break;
+            offset = last + 1;
+        }
+        return labels;
+    }
+
+    /**
+     * Store a label. Returns false if the keyboard refused it (bad type, index
+     * out of range or invalid UTF-8).
+     * Request: [type][index (v1: 1 byte, v2: 2 bytes)][label:16]; Response: [cmd_echo][status]
+     */
+    async set(type: number, index: number, label: string): Promise<boolean> {
+        const data = await this.usb.sendSvil(
+            SvilUSB.CMD_SVIL_LABEL_SET,
+            [type, ...svilIndexArgs(this.usb.svilProtocolVersion, index), ...this.encode(label)],
+            { uint8: true }
+        ) as Uint8Array;
+        return data[1] === 0;
+    }
+
+    /**
+     * Clear a label. Request: [type][index (v1: 1 byte, v2: 2 bytes)]; Response: [cmd_echo][status]
+     */
+    async clear(type: number, index: number): Promise<boolean> {
+        const data = await this.usb.sendSvil(
+            SvilUSB.CMD_SVIL_LABEL_CLEAR,
+            [type, ...svilIndexArgs(this.usb.svilProtocolVersion, index)],
+            { uint8: true }
+        ) as Uint8Array;
+        return data[1] === 0;
+    }
+
+    /** UTF-8 encode into the fixed label field, never splitting a character. */
+    encode(label: string): number[] {
+        const out: number[] = [];
+        const encoder = new TextEncoder();
+        for (const ch of label) {
+            const bytes = encoder.encode(ch);
+            if (out.length + bytes.length > SvilUSB.SVIL_LABEL_SIZE) break;
+            out.push(...bytes);
+        }
+        while (out.length < SvilUSB.SVIL_LABEL_SIZE) out.push(0);
+        return out;
+    }
+
+    decode(bytes: Uint8Array): string {
+        const end = bytes.indexOf(0);
+        return new TextDecoder().decode(end < 0 ? bytes : bytes.slice(0, end));
+    }
+}

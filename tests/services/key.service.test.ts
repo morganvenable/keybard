@@ -75,10 +75,12 @@ vi.mock('../../src/constants/keygen', () => {
     }
   }
 
-  for (let i = 0; i < 127; i++) {
+  // M0-M127 at QK_MACRO (0x7700), M128-M255 at 0x7680
+  for (let i = 0; i < 256; i++) {
     const key = 'M' + i;
     if (!mockKeymap[key]) {
-      mockKeymap[key] = { code: 0x7700 + i, qmkid: key, str: key, title: `Macro ${i}` };
+      const code = i < 128 ? 0x7700 + i : 0x7680 + (i - 128);
+      mockKeymap[key] = { code, qmkid: key, str: key, title: `Macro ${i}` };
     }
   }
 
@@ -92,7 +94,7 @@ vi.mock('../../src/constants/keygen', () => {
     }
   }
 
-  for (let i = 0; i < 255; i++) {
+  for (let i = 0; i < 256; i++) {
     const key = `TD(${i})`;
     if (!mockKeymap[key]) {
       mockKeymap[key] = { code: 0x7b00 + i, qmkid: key, str: key, title: `Tap Dance ${i}` };
@@ -472,6 +474,10 @@ describe('KeyService', () => {
       // Assert
       expect(KEYMAP['M126'].type).toBe('macro');
       expect(KEYMAP['M126'].idx).toBe(126);
+      expect(KEYMAP['M255'].type).toBe('macro');
+      expect(KEYMAP['M255'].idx).toBe(255);
+      expect(KEYMAP['TD(255)'].type).toBe('tapdance');
+      expect(KEYMAP['TD(255)'].idx).toBe(255);
     });
 
     it('should handle all 64 user keys', () => {

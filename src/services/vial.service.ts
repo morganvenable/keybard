@@ -1,6 +1,6 @@
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
-import { SvilUSB, usbInstance } from "./usb.service";
+import { SvilUSB, svilEntryOffset, svilIndexArgs, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
@@ -207,6 +207,8 @@ export class SvilService {
         // Response format after wrapper stripped: [cmd_echo][protocol_version:4][uid:8][feature_flags:1]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
+        // Table and label requests switch to 2-byte indices from v2 on
+        this.usb.svilProtocolVersion = kbinfo.svil_proto;
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
 
         // Extract UID as hex string for kbid
@@ -295,7 +297,10 @@ export class SvilService {
 
     async getFeatures(kbinfo: KeyboardInfo): Promise<void> {
         // Get macro info via VIA commands (wrapped)
-        const macro_count = await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true, index: 1 });
+        // Response: [cmd_echo][count lo][count hi]. 256-macro firmware sends the high
+        // byte; older firmware leaves it zero, so the same read works for both.
+        const countResp = await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true }) as Uint8Array;
+        const macro_count = countResp[1] | (countResp[2] << 8);
 
         const macros_size = (await this.usb.send(SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
             unpack: "B>H",
@@ -349,21 +354,23 @@ export class SvilService {
         if (!kbinfo.alt_repeat_key_count) return;
 
         kbinfo.alt_repeat_keys = [];
+        const proto = this.usb.svilProtocolVersion;
+        const o = svilEntryOffset(proto);
         for (let i = 0; i < kbinfo.alt_repeat_key_count; i++) {
             const data = await this.usb.sendSvil(
                 SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET,
-                [i],
+                svilIndexArgs(proto, i),
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response format after wrapper stripped: [cmd_echo][index][keycode:2][alt_keycode:2][allowed_mods][options]
+            // Response format after wrapper stripped: [cmd_echo][index (v1: 1 byte, v2: 2 bytes)][keycode:2][alt_keycode:2][allowed_mods][options]
             const dv = new DataView(data.buffer);
             const entry: AltRepeatKeyEntry = {
                 arkid: i,
-                keycode: keyService.stringify(dv.getUint16(2, true)), // Skip cmd_echo + index
-                alt_keycode: keyService.stringify(dv.getUint16(4, true)),
-                allowed_mods: data[6],
-                options: data[7],
+                keycode: keyService.stringify(dv.getUint16(o, true)), // Skip cmd_echo + index
+                alt_keycode: keyService.stringify(dv.getUint16(o + 2, true)),
+                allowed_mods: data[o + 4],
+                options: data[o + 5],
             };
             kbinfo.alt_repeat_keys.push(entry);
         }
@@ -376,18 +383,20 @@ export class SvilService {
         if (!kbinfo.leader_count) return;
 
         kbinfo.leaders = [];
+        const proto = this.usb.svilProtocolVersion;
+        const o = svilEntryOffset(proto);
         for (let i = 0; i < kbinfo.leader_count; i++) {
             const data = await this.usb.sendSvil(
                 SvilUSB.CMD_SVIL_LEADER_GET,
-                [i],
+                svilIndexArgs(proto, i),
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response format after wrapper stripped: [cmd_echo][index][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
+            // Response format after wrapper stripped: [cmd_echo][index (v1: 1 byte, v2: 2 bytes)][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
             const dv = new DataView(data.buffer);
             const sequence: string[] = [];
             for (let j = 0; j < 5; j++) {
-                const kc = dv.getUint16(2 + j * 2, true); // Skip cmd_echo + index
+                const kc = dv.getUint16(o + j * 2, true); // Skip cmd_echo + index
                 if (kc !== 0) {
                     sequence.push(keyService.stringify(kc));
                 }
@@ -396,8 +405,8 @@ export class SvilService {
             const entry: LeaderEntry = {
                 ldrid: i,
                 sequence,
-                output: keyService.stringify(dv.getUint16(12, true)), // Skip cmd_echo
-                options: dv.getUint16(14, true),
+                output: keyService.stringify(dv.getUint16(o + 10, true)), // Skip cmd_echo + index
+                options: dv.getUint16(o + 12, true),
             };
             kbinfo.leaders.push(entry);
         }
@@ -517,7 +526,7 @@ export class SvilService {
         const alt_keycode = keyService.parse(entry.alt_keycode);
 
         await this.usb.sendSvil(SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET, [
-            arkid,
+            ...svilIndexArgs(this.usb.svilProtocolVersion, arkid),
             keycode & 0xff,
             (keycode >> 8) & 0xff,
             alt_keycode & 0xff,
@@ -534,7 +543,7 @@ export class SvilService {
         const entry = kbinfo.leaders?.[ldrid];
         if (!entry) return;
 
-        const args: number[] = [ldrid];
+        const args: number[] = svilIndexArgs(this.usb.svilProtocolVersion, ldrid);
 
         // Add up to 5 sequence keys
         for (let i = 0; i < 5; i++) {
