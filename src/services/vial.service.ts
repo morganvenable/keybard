@@ -1,3 +1,4 @@
+import { requireProductionFirmware } from "./firmware-compatibility";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
 import { SvilUSB, usbInstance } from "./usb.service";
@@ -255,6 +256,7 @@ export class SvilService {
         // Decompress and parse JSON
         const decompressed = await decompress(payload);
         const payloadData = JSON.parse(decompressed);
+        requireProductionFirmware(payloadData);
         kbinfo.payload = payloadData;
 
         kbinfo.rows = payloadData.matrix.rows;

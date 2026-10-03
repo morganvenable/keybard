@@ -1,3 +1,5 @@
+import { SvalPreviewRequiredError } from "../services/firmware-compatibility";
+import { SvalCompatibilityNotice } from "../components/SvalCompatibilityNotice";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { VialService, vialService } from "../services/vial.service";
 import { svalService } from "../services/sval.service";
@@ -66,6 +68,8 @@ export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_
 }
 
 export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [compatibilityNotice, setCompatibilityNotice] = useState(false);
+    const [releaseFailed, setReleaseFailed] = useState(false);
     const [keyboard, setKeyboard] = useState<KeyboardInfo | null>(null);
     const [originalKeyboard, setOriginalKeyboard] = useState<KeyboardInfo | null>(null);
     const [isConnected, setIsConnected] = useState(false);
@@ -96,6 +100,10 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const afterOpen = useCallback((success: boolean) => {
         if (success) {
+            setCompatibilityNotice(false);
+            setKeyboard(null);
+            setOriginalKeyboard(null);
+            keyboardRef.current = null;
             usbInstance.onDisconnect = () => {
                 console.log("Disconnect detected via listener");
                 setIsConnected(false);
@@ -129,6 +137,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await usbInstance.close();
             setIsConnected(false);
             setLoadedFrom(null);
+            setCompatibilityNotice(false);
         } catch (error) {
             console.error("Failed to disconnect:", error);
         }
@@ -214,14 +223,32 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const deviceName = usbInstance.getDeviceName();
                 setLoadedFrom(deviceName || loadedInfo.kbid || "Connected Device");
             } catch (error) {
+                if (error instanceof SvalPreviewRequiredError) {
+                    setIsConnected(false);
+                    setKeyboard(null);
+                    setOriginalKeyboard(null);
+                    keyboardRef.current = null;
+                    setLoadedFrom(null);
+                    setActiveLayerIndex(null);
+                    let failedToRelease = false;
+                    try {
+                        await usbInstance.close();
+                    } catch (closeError) {
+                        failedToRelease = true;
+                        console.warn("Could not release keyboard connection:", closeError);
+                    }
+                    setReleaseFailed(failedToRelease);
+                    setCompatibilityNotice(true);
+                    return;
+                }
                 console.error("Failed to load keyboard:", error);
                 throw error;
             }
         })();
         inFlightLoadRef.current = loadPromise;
-        loadPromise.finally(() => {
-            inFlightLoadRef.current = null;
-        });
+        // Handle both outcomes without creating an unhandled rejected promise.
+        const clearLoad = () => { inFlightLoadRef.current = null; };
+        loadPromise.then(clearLoad, clearLoad);
         return loadPromise;
     }, [isConnected]);
 
@@ -374,7 +401,11 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeLayerIndex,
     };
 
-    return <VialContext.Provider value={value}>{children}</VialContext.Provider>;
+    return <VialContext.Provider value={value}>
+        {compatibilityNotice ? (
+            <SvalCompatibilityNotice releaseFailed={releaseFailed} onDisconnect={() => { void disconnect(); }} />
+        ) : children}
+    </VialContext.Provider>;
 };
 
 export const useVial = (): VialContextType => {

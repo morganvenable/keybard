@@ -136,6 +136,21 @@ describe('SvilService', () => {
   });
 
   describe('getKeyboardInfo', () => {
+    it('stops initialization before feature reads or writes for renamed firmware', async () => {
+      vi.mocked(LZMA.decompressFile).mockImplementationOnce((_input: any, output: any) => {
+        const payload = { ...defaultPayload, sval: defaultPayload.viable };
+        for (const byte of new TextEncoder().encode(JSON.stringify(payload))) output.writeByte(byte);
+      });
+      const kbinfo = createTestKeyboardInfo();
+      const features = vi.spyOn(svilService, 'getFeatures');
+      const keymap = vi.spyOn(svilService, 'getKeyMap');
+      await expect(svilService.load(kbinfo)).rejects.toMatchObject({ name: 'SvalPreviewRequiredError' });
+      expect(features).not.toHaveBeenCalled();
+      expect(keymap).not.toHaveBeenCalled();
+      expect(keyService.generateAllKeycodes).not.toHaveBeenCalled();
+      expect(mockUSB.pushViaBuffer).not.toHaveBeenCalled();
+    });
+
     it('should retrieve protocol, id, and matrix from svil definition', async () => {
       const kbinfo = createTestKeyboardInfo();
 
