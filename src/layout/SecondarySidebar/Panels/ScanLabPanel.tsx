@@ -580,11 +580,15 @@ const ScanLabPanel = () => {
                     </Button>
                 ))}
             </div>
-            <div className="flex flex-wrap items-end gap-2">
-                {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
-                {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
-                {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
-                {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
+            <div className="flex flex-col gap-1.5" data-testid="idle-stage-fields">
+                <div className="flex items-end gap-2">
+                    {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
+                    {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
+                </div>
+                <div className="flex items-end gap-2">
+                    {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
+                    {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
+                </div>
             </div>
             <p className="text-xs text-muted-foreground">A quiet spell of the timeout stretches the frame period to that stage; the first key press restores full rate on the next frame, so the wake-up latency is one idle frame.</p>
             {anyPower && (
