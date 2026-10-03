@@ -1,6 +1,6 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { SvilUSB } from "./usb.service";
+import { SVIL_TABLE_KEY_OVERRIDE, SvilUSB, checkSvilStatus, readSvilTable, svilIndexArgs } from "./usb.service";
 
 export class OverrideService {
     constructor(private usb: SvilUSB) { }
@@ -11,25 +11,22 @@ export class OverrideService {
 
         kbinfo.key_overrides = [];
 
-        // Use Svil protocol: direct key override get command
+        // Use Svil protocol: scan (v3+) or per-index get
+        const entries = await readSvilTable(this.usb, SVIL_TABLE_KEY_OVERRIDE, override_count);
         for (let i = 0; i < override_count; i++) {
-            const data = await this.usb.sendSvil(
-                SvilUSB.CMD_SVIL_KEY_OVERRIDE_GET,
-                [i],
-                { uint8: true }
-            ) as Uint8Array;
+            const data = entries[i];
 
-            // Response: [cmd_echo][index][trigger:2][replacement:2][layers:4][trigger_mods][negative_mod_mask][suppressed_mods][options]
+            // Entry: [trigger:2][replacement:2][layers:4][trigger_mods][negative_mod_mask][suppressed_mods][options]
             const dv = new DataView(data.buffer);
             kbinfo.key_overrides.push({
                 koid: i,
-                trigger: keyService.stringify(dv.getUint16(2, true)),
-                replacement: keyService.stringify(dv.getUint16(4, true)),
-                layers: dv.getUint32(6, true),
-                trigger_mods: data[10],
-                negative_mod_mask: data[11],
-                suppressed_mods: data[12],
-                options: data[13],
+                trigger: keyService.stringify(dv.getUint16(0, true)),
+                replacement: keyService.stringify(dv.getUint16(2, true)),
+                layers: dv.getUint32(4, true),
+                trigger_mods: data[8],
+                negative_mod_mask: data[9],
+                suppressed_mods: data[10],
+                options: data[11],
             });
         }
     }
@@ -40,8 +37,8 @@ export class OverrideService {
         if (!ko) return;
 
         // Use Svil protocol: direct key override set command
-        await this.usb.sendSvil(SvilUSB.CMD_SVIL_KEY_OVERRIDE_SET, [
-            koid,
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_KEY_OVERRIDE_SET, [
+            ...svilIndexArgs(this.usb.svilProtocolVersion, koid),
             ...this.LE16(keyService.parse(ko.trigger)),
             ...this.LE16(keyService.parse(ko.replacement)),
             ...this.LE32(ko.layers),
@@ -49,7 +46,9 @@ export class OverrideService {
             ko.negative_mod_mask,
             ko.suppressed_mods,
             ko.options,
-        ], {});
+        ], { uint8: true }) as Uint8Array;
+        // Response: [cmd_echo][status], nonzero = refused (e.g. index out of range)
+        checkSvilStatus(SvilUSB.CMD_SVIL_KEY_OVERRIDE_SET, resp);
     }
 
     private LE16(val: number): [number, number] {

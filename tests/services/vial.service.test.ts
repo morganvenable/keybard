@@ -67,8 +67,8 @@ describe('SvilService', () => {
       if (cmd === SvilUSB.CMD_VIA_GET_LAYER_COUNT && options?.uint8 && options?.index === 1) {
         return Promise.resolve(2);
       }
-      if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8 && options?.index === 1) {
-        return Promise.resolve(0);
+      if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8) {
+        return Promise.resolve(new Uint8Array([SvilUSB.CMD_VIA_MACRO_GET_COUNT, 0, 0]));
       }
       if (cmd === SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE && options?.unpack === 'B>H' && options?.index === 1) {
         return Promise.resolve(0);
@@ -143,6 +143,8 @@ describe('SvilService', () => {
 
       expect(kbinfo.via_proto).toBe(0x0c);
       expect(kbinfo.svil_proto).toBe(6);
+      // Kept on the connection so table requests pick the v1 or v2 format
+      expect(mockUSB.svilProtocolVersion).toBe(6);
       expect(kbinfo.kbid).toBe('1234567890abcdef');
       expect(kbinfo.rows).toBe(2);
       expect(kbinfo.cols).toBe(3);
@@ -220,8 +222,9 @@ describe('SvilService', () => {
       const kbinfo = createTestKeyboardInfo();
 
       mockUSB.send.mockImplementation((cmd: number, _args: number[], options?: any) => {
-        if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8 && options?.index === 1) {
-          return Promise.resolve(2);
+        if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8) {
+          // Older firmware: count in one byte, high byte left zero
+          return Promise.resolve(new Uint8Array([SvilUSB.CMD_VIA_MACRO_GET_COUNT, 2, 0]));
         }
         if (cmd === SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE && options?.unpack === 'B>H' && options?.index === 1) {
           return Promise.resolve(256);
@@ -584,12 +587,12 @@ describe('SvilService', () => {
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET,
         [0, 4, 0, 5, 0, 3, 128],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_LEADER_SET,
         [0, 4, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0x34, 0x12],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ONE_SHOT_SET,

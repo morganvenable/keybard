@@ -1,6 +1,6 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { VialUSB } from "./usb.service";
+import { VialUSB, checkSvilStatus, svilHasMacroBuffer } from "./usb.service";
 
 export class MacroService {
     private readonly MACRO_IDS = {
@@ -25,15 +25,22 @@ export class MacroService {
 
     private readonly QMK_EXT_ID = 1;
 
+    // MACRO_BUFFER_GET/SET carry at most 20 data bytes: 26-byte wrapped payload
+    // minus [cmd][offset:4][count]
+    private readonly SVIL_MACRO_CHUNK = 20;
+
     constructor(private usb: VialUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         function checkComplete(data: any) {
             return data.filter((x: any) => x === 0).length >= kbinfo.macro_count!;
         }
-        // Macros are stored as one big chunk of memory, at 28 bytes per fetch.
-        // null-separated. In svalboard, it's 795 bytes.
-        const macro_memory = await this.usb.getViaBuffer(VialUSB.CMD_VIA_MACRO_GET_BUFFER, kbinfo.macros_size || 0, { slice: 4, uint8: true, bytes: 1 }, checkComplete);
+        // Macros are stored as one big chunk of memory, null-separated.
+        // v3+ firmware: read through Sval with 32-bit offsets (the buffer is past 64 KB);
+        // older firmware: VIA, 28 bytes per fetch.
+        const macro_memory = svilHasMacroBuffer(this.usb.svilProtocolVersion)
+            ? await this.getSvilBuffer(kbinfo.macros_size || 0, kbinfo.macro_count || 0)
+            : await this.usb.getViaBuffer(VialUSB.CMD_VIA_MACRO_GET_BUFFER, kbinfo.macros_size || 0, { slice: 4, uint8: true, bytes: 1 }, checkComplete);
 
         const raw_macros = this.split(kbinfo, macro_memory);
         kbinfo.macros = raw_macros.map((macro, mid) => this.parse(mid, macro));
@@ -51,7 +58,67 @@ export class MacroService {
             }
         }
         const size = i;
-        await this.usb.pushViaBuffer(VialUSB.CMD_VIA_MACRO_SET_BUFFER, size, raw);
+        if (svilHasMacroBuffer(this.usb.svilProtocolVersion)) {
+            await this.pushSvilBuffer(size, rawview);
+        } else {
+            await this.usb.pushViaBuffer(VialUSB.CMD_VIA_MACRO_SET_BUFFER, size, raw);
+        }
+    }
+
+    /**
+     * Read the macro buffer through Sval MACRO_BUFFER_GET (v3+), stopping once all
+     * macroCount terminators are in, so a mostly empty 100 KB buffer is not read whole.
+     * Request:  [offset:4][count]
+     * Response: [cmd_echo][offset:4][count][data...]
+     */
+    private async getSvilBuffer(size: number, macroCount: number): Promise<number[]> {
+        const alldata: number[] = [];
+        let offset = 0;
+        let terminators = 0;
+
+        while (offset < size) {
+            const count = Math.min(this.SVIL_MACRO_CHUNK, size - offset);
+            const data = await this.usb.sendSvil(
+                VialUSB.CMD_SVIL_MACRO_BUFFER_GET,
+                [...this.LE32(offset), count],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // An out-of-range request is answered with status 1 in place of the offset echo
+            const echoed = (data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24)) >>> 0;
+            if (echoed !== offset || data[5] !== count) {
+                throw new Error(`Macro buffer read at ${offset} refused (status ${data[1]})`);
+            }
+            for (const b of data.slice(6, 6 + count)) {
+                alldata.push(b);
+                if (b === 0) terminators++;
+            }
+            offset += count;
+
+            if (terminators >= macroCount) break;
+        }
+        return alldata;
+    }
+
+    /**
+     * Write the first size bytes of the macro buffer through Sval MACRO_BUFFER_SET (v3+).
+     * Request:  [offset:4][count][data...]
+     * Response: [cmd_echo][status], 0 = ok, 1 = out of range
+     */
+    private async pushSvilBuffer(size: number, buffer: Uint8Array): Promise<void> {
+        for (let offset = 0; offset < size; offset += this.SVIL_MACRO_CHUNK) {
+            const count = Math.min(this.SVIL_MACRO_CHUNK, size - offset);
+            const resp = await this.usb.sendSvil(
+                VialUSB.CMD_SVIL_MACRO_BUFFER_SET,
+                [...this.LE32(offset), count, ...buffer.slice(offset, offset + count)],
+                { uint8: true }
+            ) as Uint8Array;
+            checkSvilStatus(VialUSB.CMD_SVIL_MACRO_BUFFER_SET, resp);
+        }
+    }
+
+    private LE32(val: number): [number, number, number, number] {
+        return [val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF, (val >>> 24) & 0xFF];
     }
 
     split(kbinfo: KeyboardInfo, rawbuffer: number[] | Uint8Array): (number[] | Uint8Array)[] {
@@ -60,7 +127,8 @@ export class MacroService {
         let macronum = 0;
         while (macronum < kbinfo.macro_count! && offset < rawbuffer.length) {
             const start = offset;
-            while (rawbuffer[offset] != 0) offset++;
+            // Bounded: a buffer read to its end may lack the last terminators
+            while (offset < rawbuffer.length && rawbuffer[offset] != 0) offset++;
             macros.push(rawbuffer.slice(start, offset));
             macronum++;
             offset++;

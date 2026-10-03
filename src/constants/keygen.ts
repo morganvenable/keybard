@@ -1144,6 +1144,135 @@ export const CODEMAP: CodeMap = {
   0x74fb: "STN_AO",
   0x74fc: "QK_STENO_COMB_MAX",
   0x74ff: "QK_STENO_MAX",
+  // Macros 128-255 sit below QK_MACRO: 0x7680 + (n - 128)
+  0x7680: "M128",
+  0x7681: "M129",
+  0x7682: "M130",
+  0x7683: "M131",
+  0x7684: "M132",
+  0x7685: "M133",
+  0x7686: "M134",
+  0x7687: "M135",
+  0x7688: "M136",
+  0x7689: "M137",
+  0x768a: "M138",
+  0x768b: "M139",
+  0x768c: "M140",
+  0x768d: "M141",
+  0x768e: "M142",
+  0x768f: "M143",
+  0x7690: "M144",
+  0x7691: "M145",
+  0x7692: "M146",
+  0x7693: "M147",
+  0x7694: "M148",
+  0x7695: "M149",
+  0x7696: "M150",
+  0x7697: "M151",
+  0x7698: "M152",
+  0x7699: "M153",
+  0x769a: "M154",
+  0x769b: "M155",
+  0x769c: "M156",
+  0x769d: "M157",
+  0x769e: "M158",
+  0x769f: "M159",
+  0x76a0: "M160",
+  0x76a1: "M161",
+  0x76a2: "M162",
+  0x76a3: "M163",
+  0x76a4: "M164",
+  0x76a5: "M165",
+  0x76a6: "M166",
+  0x76a7: "M167",
+  0x76a8: "M168",
+  0x76a9: "M169",
+  0x76aa: "M170",
+  0x76ab: "M171",
+  0x76ac: "M172",
+  0x76ad: "M173",
+  0x76ae: "M174",
+  0x76af: "M175",
+  0x76b0: "M176",
+  0x76b1: "M177",
+  0x76b2: "M178",
+  0x76b3: "M179",
+  0x76b4: "M180",
+  0x76b5: "M181",
+  0x76b6: "M182",
+  0x76b7: "M183",
+  0x76b8: "M184",
+  0x76b9: "M185",
+  0x76ba: "M186",
+  0x76bb: "M187",
+  0x76bc: "M188",
+  0x76bd: "M189",
+  0x76be: "M190",
+  0x76bf: "M191",
+  0x76c0: "M192",
+  0x76c1: "M193",
+  0x76c2: "M194",
+  0x76c3: "M195",
+  0x76c4: "M196",
+  0x76c5: "M197",
+  0x76c6: "M198",
+  0x76c7: "M199",
+  0x76c8: "M200",
+  0x76c9: "M201",
+  0x76ca: "M202",
+  0x76cb: "M203",
+  0x76cc: "M204",
+  0x76cd: "M205",
+  0x76ce: "M206",
+  0x76cf: "M207",
+  0x76d0: "M208",
+  0x76d1: "M209",
+  0x76d2: "M210",
+  0x76d3: "M211",
+  0x76d4: "M212",
+  0x76d5: "M213",
+  0x76d6: "M214",
+  0x76d7: "M215",
+  0x76d8: "M216",
+  0x76d9: "M217",
+  0x76da: "M218",
+  0x76db: "M219",
+  0x76dc: "M220",
+  0x76dd: "M221",
+  0x76de: "M222",
+  0x76df: "M223",
+  0x76e0: "M224",
+  0x76e1: "M225",
+  0x76e2: "M226",
+  0x76e3: "M227",
+  0x76e4: "M228",
+  0x76e5: "M229",
+  0x76e6: "M230",
+  0x76e7: "M231",
+  0x76e8: "M232",
+  0x76e9: "M233",
+  0x76ea: "M234",
+  0x76eb: "M235",
+  0x76ec: "M236",
+  0x76ed: "M237",
+  0x76ee: "M238",
+  0x76ef: "M239",
+  0x76f0: "M240",
+  0x76f1: "M241",
+  0x76f2: "M242",
+  0x76f3: "M243",
+  0x76f4: "M244",
+  0x76f5: "M245",
+  0x76f6: "M246",
+  0x76f7: "M247",
+  0x76f8: "M248",
+  0x76f9: "M249",
+  0x76fa: "M250",
+  0x76fb: "M251",
+  0x76fc: "M252",
+  0x76fd: "M253",
+  0x76fe: "M254",
+  0x76ff: "M255",
   0x7700: "M0",
   0x7701: "M1",
   0x7702: "M2",
@@ -1272,134 +1401,6 @@ export const CODEMAP: CodeMap = {
   0x777d: "M125",
   0x777e: "M126",
   0x777f: "M127",
-  0x7780: "M128",
-  0x7781: "M129",
-  0x7782: "M130",
-  0x7783: "M131",
-  0x7784: "M132",
-  0x7785: "M133",
-  0x7786: "M134",
-  0x7787: "M135",
-  0x7788: "M136",
-  0x7789: "M137",
-  0x778a: "M138",
-  0x778b: "M139",
-  0x778c: "M140",
-  0x778d: "M141",
-  0x778e: "M142",
-  0x778f: "M143",
-  0x7790: "M144",
-  0x7791: "M145",
-  0x7792: "M146",
-  0x7793: "M147",
-  0x7794: "M148",
-  0x7795: "M149",
-  0x7796: "M150",
-  0x7797: "M151",
-  0x7798: "M152",
-  0x7799: "M153",
-  0x779a: "M154",
-  0x779b: "M155",
-  0x779c: "M156",
-  0x779d: "M157",
-  0x779e: "M158",
-  0x779f: "M159",
-  0x77a0: "M160",
-  0x77a1: "M161",
-  0x77a2: "M162",
-  0x77a3: "M163",
-  0x77a4: "M164",
-  0x77a5: "M165",
-  0x77a6: "M166",
-  0x77a7: "M167",
-  0x77a8: "M168",
-  0x77a9: "M169",
-  0x77aa: "M170",
-  0x77ab: "M171",
-  0x77ac: "M172",
-  0x77ad: "M173",
-  0x77ae: "M174",
-  0x77af: "M175",
-  0x77b0: "M176",
-  0x77b1: "M177",
-  0x77b2: "M178",
-  0x77b3: "M179",
-  0x77b4: "M180",
-  0x77b5: "M181",
-  0x77b6: "M182",
-  0x77b7: "M183",
-  0x77b8: "M184",
-  0x77b9: "M185",
-  0x77ba: "M186",
-  0x77bb: "M187",
-  0x77bc: "M188",
-  0x77bd: "M189",
-  0x77be: "M190",
-  0x77bf: "M191",
-  0x77c0: "M192",
-  0x77c1: "M193",
-  0x77c2: "M194",
-  0x77c3: "M195",
-  0x77c4: "M196",
-  0x77c5: "M197",
-  0x77c6: "M198",
-  0x77c7: "M199",
-  0x77c8: "M200",
-  0x77c9: "M201",
-  0x77ca: "M202",
-  0x77cb: "M203",
-  0x77cc: "M204",
-  0x77cd: "M205",
-  0x77ce: "M206",
-  0x77cf: "M207",
-  0x77d0: "M208",
-  0x77d1: "M209",
-  0x77d2: "M210",
-  0x77d3: "M211",
-  0x77d4: "M212",
-  0x77d5: "M213",
-  0x77d6: "M214",
-  0x77d7: "M215",
-  0x77d8: "M216",
-  0x77d9: "M217",
-  0x77da: "M218",
-  0x77db: "M219",
-  0x77dc: "M220",
-  0x77dd: "M221",
-  0x77de: "M222",
-  0x77df: "M223",
-  0x77e0: "M224",
-  0x77e1: "M225",
-  0x77e2: "M226",
-  0x77e3: "M227",
-  0x77e4: "M228",
-  0x77e5: "M229",
-  0x77e6: "M230",
-  0x77e7: "M231",
-  0x77e8: "M232",
-  0x77e9: "M233",
-  0x77ea: "M234",
-  0x77eb: "M235",
-  0x77ec: "M236",
-  0x77ed: "M237",
-  0x77ee: "M238",
-  0x77ef: "M239",
-  0x77f0: "M240",
-  0x77f1: "M241",
-  0x77f2: "M242",
-  0x77f3: "M243",
-  0x77f4: "M244",
-  0x77f5: "M245",
-  0x77f6: "M246",
-  0x77f7: "M247",
-  0x77f8: "M248",
-  0x77f9: "M249",
-  0x77fa: "M250",
-  0x77fb: "M251",
-  0x77fc: "M252",
-  0x77fd: "M253",
-  0x77fe: "M254",
-  0x77ff: "M255",
   0x7800: "BL_ON",
   0x7801: "BL_OFF",
   0x7802: "BL_TOGG",
@@ -9259,769 +9260,769 @@ export const KEYMAP: KeyMap = {
     "title": "M127"
   },
   "M128": {
-    "code": 0x7780,
+    "code": 0x7680,
     "qmkid": "M128",
     "str": "M128",
     "title": "M128"
   },
   "M129": {
-    "code": 0x7781,
+    "code": 0x7681,
     "qmkid": "M129",
     "str": "M129",
     "title": "M129"
   },
   "M130": {
-    "code": 0x7782,
+    "code": 0x7682,
     "qmkid": "M130",
     "str": "M130",
     "title": "M130"
   },
   "M131": {
-    "code": 0x7783,
+    "code": 0x7683,
     "qmkid": "M131",
     "str": "M131",
     "title": "M131"
   },
   "M132": {
-    "code": 0x7784,
+    "code": 0x7684,
     "qmkid": "M132",
     "str": "M132",
     "title": "M132"
   },
   "M133": {
-    "code": 0x7785,
+    "code": 0x7685,
     "qmkid": "M133",
     "str": "M133",
     "title": "M133"
   },
   "M134": {
-    "code": 0x7786,
+    "code": 0x7686,
     "qmkid": "M134",
     "str": "M134",
     "title": "M134"
   },
   "M135": {
-    "code": 0x7787,
+    "code": 0x7687,
     "qmkid": "M135",
     "str": "M135",
     "title": "M135"
   },
   "M136": {
-    "code": 0x7788,
+    "code": 0x7688,
     "qmkid": "M136",
     "str": "M136",
     "title": "M136"
   },
   "M137": {
-    "code": 0x7789,
+    "code": 0x7689,
     "qmkid": "M137",
     "str": "M137",
     "title": "M137"
   },
   "M138": {
-    "code": 0x778a,
+    "code": 0x768a,
     "qmkid": "M138",
     "str": "M138",
     "title": "M138"
   },
   "M139": {
-    "code": 0x778b,
+    "code": 0x768b,
     "qmkid": "M139",
     "str": "M139",
     "title": "M139"
   },
   "M140": {
-    "code": 0x778c,
+    "code": 0x768c,
     "qmkid": "M140",
     "str": "M140",
     "title": "M140"
   },
   "M141": {
-    "code": 0x778d,
+    "code": 0x768d,
     "qmkid": "M141",
     "str": "M141",
     "title": "M141"
   },
   "M142": {
-    "code": 0x778e,
+    "code": 0x768e,
     "qmkid": "M142",
     "str": "M142",
     "title": "M142"
   },
   "M143": {
-    "code": 0x778f,
+    "code": 0x768f,
     "qmkid": "M143",
     "str": "M143",
     "title": "M143"
   },
   "M144": {
-    "code": 0x7790,
+    "code": 0x7690,
     "qmkid": "M144",
     "str": "M144",
     "title": "M144"
   },
   "M145": {
-    "code": 0x7791,
+    "code": 0x7691,
     "qmkid": "M145",
     "str": "M145",
     "title": "M145"
   },
   "M146": {
-    "code": 0x7792,
+    "code": 0x7692,
     "qmkid": "M146",
     "str": "M146",
     "title": "M146"
   },
   "M147": {
-    "code": 0x7793,
+    "code": 0x7693,
     "qmkid": "M147",
     "str": "M147",
     "title": "M147"
   },
   "M148": {
-    "code": 0x7794,
+    "code": 0x7694,
     "qmkid": "M148",
     "str": "M148",
     "title": "M148"
   },
   "M149": {
-    "code": 0x7795,
+    "code": 0x7695,
     "qmkid": "M149",
     "str": "M149",
     "title": "M149"
   },
   "M150": {
-    "code": 0x7796,
+    "code": 0x7696,
     "qmkid": "M150",
     "str": "M150",
     "title": "M150"
   },
   "M151": {
-    "code": 0x7797,
+    "code": 0x7697,
     "qmkid": "M151",
     "str": "M151",
     "title": "M151"
   },
   "M152": {
-    "code": 0x7798,
+    "code": 0x7698,
     "qmkid": "M152",
     "str": "M152",
     "title": "M152"
   },
   "M153": {
-    "code": 0x7799,
+    "code": 0x7699,
     "qmkid": "M153",
     "str": "M153",
     "title": "M153"
   },
   "M154": {
-    "code": 0x779a,
+    "code": 0x769a,
     "qmkid": "M154",
     "str": "M154",
     "title": "M154"
   },
   "M155": {
-    "code": 0x779b,
+    "code": 0x769b,
     "qmkid": "M155",
     "str": "M155",
     "title": "M155"
   },
   "M156": {
-    "code": 0x779c,
+    "code": 0x769c,
     "qmkid": "M156",
     "str": "M156",
     "title": "M156"
   },
   "M157": {
-    "code": 0x779d,
+    "code": 0x769d,
     "qmkid": "M157",
     "str": "M157",
     "title": "M157"
   },
   "M158": {
-    "code": 0x779e,
+    "code": 0x769e,
     "qmkid": "M158",
     "str": "M158",
     "title": "M158"
   },
   "M159": {
-    "code": 0x779f,
+    "code": 0x769f,
     "qmkid": "M159",
     "str": "M159",
     "title": "M159"
   },
   "M160": {
-    "code": 0x77a0,
+    "code": 0x76a0,
     "qmkid": "M160",
     "str": "M160",
     "title": "M160"
   },
   "M161": {
-    "code": 0x77a1,
+    "code": 0x76a1,
     "qmkid": "M161",
     "str": "M161",
     "title": "M161"
   },
   "M162": {
-    "code": 0x77a2,
+    "code": 0x76a2,
     "qmkid": "M162",
     "str": "M162",
     "title": "M162"
   },
   "M163": {
-    "code": 0x77a3,
+    "code": 0x76a3,
     "qmkid": "M163",
     "str": "M163",
     "title": "M163"
   },
   "M164": {
-    "code": 0x77a4,
+    "code": 0x76a4,
     "qmkid": "M164",
     "str": "M164",
     "title": "M164"
   },
   "M165": {
-    "code": 0x77a5,
+    "code": 0x76a5,
     "qmkid": "M165",
     "str": "M165",
     "title": "M165"
   },
   "M166": {
-    "code": 0x77a6,
+    "code": 0x76a6,
     "qmkid": "M166",
     "str": "M166",
     "title": "M166"
   },
   "M167": {
-    "code": 0x77a7,
+    "code": 0x76a7,
     "qmkid": "M167",
     "str": "M167",
     "title": "M167"
   },
   "M168": {
-    "code": 0x77a8,
+    "code": 0x76a8,
     "qmkid": "M168",
     "str": "M168",
     "title": "M168"
   },
   "M169": {
-    "code": 0x77a9,
+    "code": 0x76a9,
     "qmkid": "M169",
     "str": "M169",
     "title": "M169"
   },
   "M170": {
-    "code": 0x77aa,
+    "code": 0x76aa,
     "qmkid": "M170",
     "str": "M170",
     "title": "M170"
   },
   "M171": {
-    "code": 0x77ab,
+    "code": 0x76ab,
     "qmkid": "M171",
     "str": "M171",
     "title": "M171"
   },
   "M172": {
-    "code": 0x77ac,
+    "code": 0x76ac,
     "qmkid": "M172",
     "str": "M172",
     "title": "M172"
   },
   "M173": {
-    "code": 0x77ad,
+    "code": 0x76ad,
     "qmkid": "M173",
     "str": "M173",
     "title": "M173"
   },
   "M174": {
-    "code": 0x77ae,
+    "code": 0x76ae,
     "qmkid": "M174",
     "str": "M174",
     "title": "M174"
   },
   "M175": {
-    "code": 0x77af,
+    "code": 0x76af,
     "qmkid": "M175",
     "str": "M175",
     "title": "M175"
   },
   "M176": {
-    "code": 0x77b0,
+    "code": 0x76b0,
     "qmkid": "M176",
     "str": "M176",
     "title": "M176"
   },
   "M177": {
-    "code": 0x77b1,
+    "code": 0x76b1,
     "qmkid": "M177",
     "str": "M177",
     "title": "M177"
   },
   "M178": {
-    "code": 0x77b2,
+    "code": 0x76b2,
     "qmkid": "M178",
     "str": "M178",
     "title": "M178"
   },
   "M179": {
-    "code": 0x77b3,
+    "code": 0x76b3,
     "qmkid": "M179",
     "str": "M179",
     "title": "M179"
   },
   "M180": {
-    "code": 0x77b4,
+    "code": 0x76b4,
     "qmkid": "M180",
     "str": "M180",
     "title": "M180"
   },
   "M181": {
-    "code": 0x77b5,
+    "code": 0x76b5,
     "qmkid": "M181",
     "str": "M181",
     "title": "M181"
   },
   "M182": {
-    "code": 0x77b6,
+    "code": 0x76b6,
     "qmkid": "M182",
     "str": "M182",
     "title": "M182"
   },
   "M183": {
-    "code": 0x77b7,
+    "code": 0x76b7,
     "qmkid": "M183",
     "str": "M183",
     "title": "M183"
   },
   "M184": {
-    "code": 0x77b8,
+    "code": 0x76b8,
     "qmkid": "M184",
     "str": "M184",
     "title": "M184"
   },
   "M185": {
-    "code": 0x77b9,
+    "code": 0x76b9,
     "qmkid": "M185",
     "str": "M185",
     "title": "M185"
   },
   "M186": {
-    "code": 0x77ba,
+    "code": 0x76ba,
     "qmkid": "M186",
     "str": "M186",
     "title": "M186"
   },
   "M187": {
-    "code": 0x77bb,
+    "code": 0x76bb,
     "qmkid": "M187",
     "str": "M187",
     "title": "M187"
   },
   "M188": {
-    "code": 0x77bc,
+    "code": 0x76bc,
     "qmkid": "M188",
     "str": "M188",
     "title": "M188"
   },
   "M189": {
-    "code": 0x77bd,
+    "code": 0x76bd,
     "qmkid": "M189",
     "str": "M189",
     "title": "M189"
   },
   "M190": {
-    "code": 0x77be,
+    "code": 0x76be,
     "qmkid": "M190",
     "str": "M190",
     "title": "M190"
   },
   "M191": {
-    "code": 0x77bf,
+    "code": 0x76bf,
     "qmkid": "M191",
     "str": "M191",
     "title": "M191"
   },
   "M192": {
-    "code": 0x77c0,
+    "code": 0x76c0,
     "qmkid": "M192",
     "str": "M192",
     "title": "M192"
   },
   "M193": {
-    "code": 0x77c1,
+    "code": 0x76c1,
     "qmkid": "M193",
     "str": "M193",
     "title": "M193"
   },
   "M194": {
-    "code": 0x77c2,
+    "code": 0x76c2,
     "qmkid": "M194",
     "str": "M194",
     "title": "M194"
   },
   "M195": {
-    "code": 0x77c3,
+    "code": 0x76c3,
     "qmkid": "M195",
     "str": "M195",
     "title": "M195"
   },
   "M196": {
-    "code": 0x77c4,
+    "code": 0x76c4,
     "qmkid": "M196",
     "str": "M196",
     "title": "M196"
   },
   "M197": {
-    "code": 0x77c5,
+    "code": 0x76c5,
     "qmkid": "M197",
     "str": "M197",
     "title": "M197"
   },
   "M198": {
-    "code": 0x77c6,
+    "code": 0x76c6,
     "qmkid": "M198",
     "str": "M198",
     "title": "M198"
   },
   "M199": {
-    "code": 0x77c7,
+    "code": 0x76c7,
     "qmkid": "M199",
     "str": "M199",
     "title": "M199"
   },
   "M200": {
-    "code": 0x77c8,
+    "code": 0x76c8,
     "qmkid": "M200",
     "str": "M200",
     "title": "M200"
   },
   "M201": {
-    "code": 0x77c9,
+    "code": 0x76c9,
     "qmkid": "M201",
     "str": "M201",
     "title": "M201"
   },
   "M202": {
-    "code": 0x77ca,
+    "code": 0x76ca,
     "qmkid": "M202",
     "str": "M202",
     "title": "M202"
   },
   "M203": {
-    "code": 0x77cb,
+    "code": 0x76cb,
     "qmkid": "M203",
     "str": "M203",
     "title": "M203"
   },
   "M204": {
-    "code": 0x77cc,
+    "code": 0x76cc,
     "qmkid": "M204",
     "str": "M204",
     "title": "M204"
   },
   "M205": {
-    "code": 0x77cd,
+    "code": 0x76cd,
     "qmkid": "M205",
     "str": "M205",
     "title": "M205"
   },
   "M206": {
-    "code": 0x77ce,
+    "code": 0x76ce,
     "qmkid": "M206",
     "str": "M206",
     "title": "M206"
   },
   "M207": {
-    "code": 0x77cf,
+    "code": 0x76cf,
     "qmkid": "M207",
     "str": "M207",
     "title": "M207"
   },
   "M208": {
-    "code": 0x77d0,
+    "code": 0x76d0,
     "qmkid": "M208",
     "str": "M208",
     "title": "M208"
   },
   "M209": {
-    "code": 0x77d1,
+    "code": 0x76d1,
     "qmkid": "M209",
     "str": "M209",
     "title": "M209"
   },
   "M210": {
-    "code": 0x77d2,
+    "code": 0x76d2,
     "qmkid": "M210",
     "str": "M210",
     "title": "M210"
   },
   "M211": {
-    "code": 0x77d3,
+    "code": 0x76d3,
     "qmkid": "M211",
     "str": "M211",
     "title": "M211"
   },
   "M212": {
-    "code": 0x77d4,
+    "code": 0x76d4,
     "qmkid": "M212",
     "str": "M212",
     "title": "M212"
   },
   "M213": {
-    "code": 0x77d5,
+    "code": 0x76d5,
     "qmkid": "M213",
     "str": "M213",
     "title": "M213"
   },
   "M214": {
-    "code": 0x77d6,
+    "code": 0x76d6,
     "qmkid": "M214",
     "str": "M214",
     "title": "M214"
   },
   "M215": {
-    "code": 0x77d7,
+    "code": 0x76d7,
     "qmkid": "M215",
     "str": "M215",
     "title": "M215"
   },
   "M216": {
-    "code": 0x77d8,
+    "code": 0x76d8,
     "qmkid": "M216",
     "str": "M216",
     "title": "M216"
   },
   "M217": {
-    "code": 0x77d9,
+    "code": 0x76d9,
     "qmkid": "M217",
     "str": "M217",
     "title": "M217"
   },
   "M218": {
-    "code": 0x77da,
+    "code": 0x76da,
     "qmkid": "M218",
     "str": "M218",
     "title": "M218"
   },
   "M219": {
-    "code": 0x77db,
+    "code": 0x76db,
     "qmkid": "M219",
     "str": "M219",
     "title": "M219"
   },
   "M220": {
-    "code": 0x77dc,
+    "code": 0x76dc,
     "qmkid": "M220",
     "str": "M220",
     "title": "M220"
   },
   "M221": {
-    "code": 0x77dd,
+    "code": 0x76dd,
     "qmkid": "M221",
     "str": "M221",
     "title": "M221"
   },
   "M222": {
-    "code": 0x77de,
+    "code": 0x76de,
     "qmkid": "M222",
     "str": "M222",
     "title": "M222"
   },
   "M223": {
-    "code": 0x77df,
+    "code": 0x76df,
     "qmkid": "M223",
     "str": "M223",
     "title": "M223"
   },
   "M224": {
-    "code": 0x77e0,
+    "code": 0x76e0,
     "qmkid": "M224",
     "str": "M224",
     "title": "M224"
   },
   "M225": {
-    "code": 0x77e1,
+    "code": 0x76e1,
     "qmkid": "M225",
     "str": "M225",
     "title": "M225"
   },
   "M226": {
-    "code": 0x77e2,
+    "code": 0x76e2,
     "qmkid": "M226",
     "str": "M226",
     "title": "M226"
   },
   "M227": {
-    "code": 0x77e3,
+    "code": 0x76e3,
     "qmkid": "M227",
     "str": "M227",
     "title": "M227"
   },
   "M228": {
-    "code": 0x77e4,
+    "code": 0x76e4,
     "qmkid": "M228",
     "str": "M228",
     "title": "M228"
   },
   "M229": {
-    "code": 0x77e5,
+    "code": 0x76e5,
     "qmkid": "M229",
     "str": "M229",
     "title": "M229"
   },
   "M230": {
-    "code": 0x77e6,
+    "code": 0x76e6,
     "qmkid": "M230",
     "str": "M230",
     "title": "M230"
   },
   "M231": {
-    "code": 0x77e7,
+    "code": 0x76e7,
     "qmkid": "M231",
     "str": "M231",
     "title": "M231"
   },
   "M232": {
-    "code": 0x77e8,
+    "code": 0x76e8,
     "qmkid": "M232",
     "str": "M232",
     "title": "M232"
   },
   "M233": {
-    "code": 0x77e9,
+    "code": 0x76e9,
     "qmkid": "M233",
     "str": "M233",
     "title": "M233"
   },
   "M234": {
-    "code": 0x77ea,
+    "code": 0x76ea,
     "qmkid": "M234",
     "str": "M234",
     "title": "M234"
   },
   "M235": {
-    "code": 0x77eb,
+    "code": 0x76eb,
     "qmkid": "M235",
     "str": "M235",
     "title": "M235"
   },
   "M236": {
-    "code": 0x77ec,
+    "code": 0x76ec,
     "qmkid": "M236",
     "str": "M236",
     "title": "M236"
   },
   "M237": {
-    "code": 0x77ed,
+    "code": 0x76ed,
     "qmkid": "M237",
     "str": "M237",
     "title": "M237"
   },
   "M238": {
-    "code": 0x77ee,
+    "code": 0x76ee,
     "qmkid": "M238",
     "str": "M238",
     "title": "M238"
   },
   "M239": {
-    "code": 0x77ef,
+    "code": 0x76ef,
     "qmkid": "M239",
     "str": "M239",
     "title": "M239"
   },
   "M240": {
-    "code": 0x77f0,
+    "code": 0x76f0,
     "qmkid": "M240",
     "str": "M240",
     "title": "M240"
   },
   "M241": {
-    "code": 0x77f1,
+    "code": 0x76f1,
     "qmkid": "M241",
     "str": "M241",
     "title": "M241"
   },
   "M242": {
-    "code": 0x77f2,
+    "code": 0x76f2,
     "qmkid": "M242",
     "str": "M242",
     "title": "M242"
   },
   "M243": {
-    "code": 0x77f3,
+    "code": 0x76f3,
     "qmkid": "M243",
     "str": "M243",
     "title": "M243"
   },
   "M244": {
-    "code": 0x77f4,
+    "code": 0x76f4,
     "qmkid": "M244",
     "str": "M244",
     "title": "M244"
   },
   "M245": {
-    "code": 0x77f5,
+    "code": 0x76f5,
     "qmkid": "M245",
     "str": "M245",
     "title": "M245"
   },
   "M246": {
-    "code": 0x77f6,
+    "code": 0x76f6,
     "qmkid": "M246",
     "str": "M246",
     "title": "M246"
   },
   "M247": {
-    "code": 0x77f7,
+    "code": 0x76f7,
     "qmkid": "M247",
     "str": "M247",
     "title": "M247"
   },
   "M248": {
-    "code": 0x77f8,
+    "code": 0x76f8,
     "qmkid": "M248",
     "str": "M248",
     "title": "M248"
   },
   "M249": {
-    "code": 0x77f9,
+    "code": 0x76f9,
     "qmkid": "M249",
     "str": "M249",
     "title": "M249"
   },
   "M250": {
-    "code": 0x77fa,
+    "code": 0x76fa,
     "qmkid": "M250",
     "str": "M250",
     "title": "M250"
   },
   "M251": {
-    "code": 0x77fb,
+    "code": 0x76fb,
     "qmkid": "M251",
     "str": "M251",
     "title": "M251"
   },
   "M252": {
-    "code": 0x77fc,
+    "code": 0x76fc,
     "qmkid": "M252",
     "str": "M252",
     "title": "M252"
   },
   "M253": {
-    "code": 0x77fd,
+    "code": 0x76fd,
     "qmkid": "M253",
     "str": "M253",
     "title": "M253"
   },
   "M254": {
-    "code": 0x77fe,
+    "code": 0x76fe,
     "qmkid": "M254",
     "str": "M254",
     "title": "M254"
   },
   "M255": {
-    "code": 0x77ff,
+    "code": 0x76ff,
     "qmkid": "M255",
     "str": "M255",
     "title": "M255"
