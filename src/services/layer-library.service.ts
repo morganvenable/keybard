@@ -28,7 +28,7 @@ const KC_NO = 0;
 const KC_TRNS = 1;
 
 // Path to bundled layers
-const BUNDLED_LAYERS_PATH = '/keybard-ng/layer-library/layers.json';
+const BUNDLED_LAYERS_PATH = `${import.meta.env.BASE_URL}layer-library/layers.json`;
 
 export class LayerLibraryService {
     private bundledLayers: LayerEntry[] = [];
