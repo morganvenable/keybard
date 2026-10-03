@@ -149,11 +149,11 @@ describe('SvilService', () => {
       expect(kbinfo.name).toBe('Test Keyboard');
     });
 
-    it('should populate optional payload fields when present', async () => {
+    it.each(['sval', 'viable'])('should populate optional payload fields from %s definitions', async (namespace) => {
       const kbinfo = createTestKeyboardInfo();
       const payload = {
         ...defaultPayload,
-        viable: {
+        [namespace]: {
           tap_dance: 2,
           combo: 3,
           key_override: 4,

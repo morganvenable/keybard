@@ -267,12 +267,13 @@ export class SvilService {
         }
 
         // Extract Svil feature counts from the definition
-        if (payloadData.viable) {
-            kbinfo.tapdance_count = payloadData.viable.tap_dance || 0;
-            kbinfo.combo_count = payloadData.viable.combo || 0;
-            kbinfo.key_override_count = payloadData.viable.key_override || 0;
-            kbinfo.alt_repeat_key_count = payloadData.viable.alt_repeat_key || 0;
-            kbinfo.leader_count = payloadData.viable.leader || 0;
+        const featureCounts = payloadData.sval ?? payloadData.viable;
+        if (featureCounts) {
+            kbinfo.tapdance_count = featureCounts.tap_dance || 0;
+            kbinfo.combo_count = featureCounts.combo || 0;
+            kbinfo.key_override_count = featureCounts.key_override || 0;
+            kbinfo.alt_repeat_key_count = featureCounts.alt_repeat_key || 0;
+            kbinfo.leader_count = featureCounts.leader || 0;
         }
 
         // Extract fragments and composition for modular layouts
