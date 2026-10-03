@@ -2,7 +2,7 @@ export const SVAL_PREVIEW_URL = 'https://morganvenable.github.io/keybard-sval-pr
 
 export class SvalPreviewRequiredError extends Error {
     constructor() {
-        super('This keyboard uses the new Sval firmware. Open Keybard Preview to configure it.');
+        super('This board is only compatible with the latest version of Keybard. Please go here to open it.');
         this.name = 'SvalPreviewRequiredError';
     }
 }

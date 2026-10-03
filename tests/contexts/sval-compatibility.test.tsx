@@ -40,12 +40,12 @@ describe('Sval firmware handoff', () => {
   it.each(['Choose keyboard', 'Known keyboard'])('releases the device and blocks edits via %s', async (button) => {
     render(<VialProvider><Controls /></VialProvider>);
     fireEvent.click(screen.getByText(button));
-    expect(await screen.findByRole('alert')).toHaveTextContent('new Sval firmware');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This board is only compatible with the latest version of Keybard. Please go here to open it.');
     expect(screen.queryByText('Keyboard editor')).not.toBeInTheDocument();
     expect(usbInstance.close).toHaveBeenCalledTimes(1);
     expect(qmkService.get).not.toHaveBeenCalled();
     expect(vialService.updateKey).not.toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: 'Open Keybard Preview' })).toHaveAttribute('href', SVAL_PREVIEW_URL);
+    expect(screen.getByRole('link', { name: 'here' })).toHaveAttribute('href', SVAL_PREVIEW_URL);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     vi.mocked(vialService.load).mockResolvedValue({ rows: 10, cols: 6 });
