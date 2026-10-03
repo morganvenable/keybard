@@ -45,7 +45,7 @@ const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
     reachable: true, periodUs: 1000, idlePeriodMs: 1, idleAfterMs: 1000, deepAfterS: 0, deepPeriodMs: 0,
     measuredFrameUs: 1000, frameCapped: false, effectivePeriodTrueUs: 1000, measuredLedUs: 240, stage: 0, idleActive: false,
     effectivePeriodUs: 1000, effPrewaitUs: 45, effPostwaitUs: 5,
-    rows: 5, hostBootloader: true, rebootArmed: false, idle: { pointerRest: true, rgbDim: true, cpuSleep: false }, dutyPct: 24, scanHz: 1000,
+    rows: 5, hostBootloader: true, rebootArmed: false, idle: { pointerRest: true, rgbDim: true, cpuSleep: false, lowClock: false, longNap: false }, dutyPct: 24, scanHz: 1000,
     ...over,
 });
 vi.mock('@/services/scanlab.service', async (importOriginal) => {
@@ -62,8 +62,8 @@ describe('ScanLabPanel', () => {
         svc.applyPacing.mockResolvedValue(undefined);
         svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
         svc.getIdle.mockImplementation(async (hand: 0 | 1) => ({
-            reachable: hand === 0, flags: { pointerRest: true, rgbDim: true, cpuSleep: false }, sensorPresent: hand === 0, sensorMode: 1, sensorLifted: false,
-            sensorRestEnabled: true, rgbValNow: 32, rgbValAwake: 128, rgbStage: 1, rgbEnabled: true, stage: 1, quietInputMs: 12345, quietMatrixMs: 12345, quietPointerMs: 700,
+            reachable: hand === 0, flags: { pointerRest: true, rgbDim: true, cpuSleep: false, lowClock: true, longNap: false }, sensorPresent: hand === 0, sensorMode: 1, sensorLifted: false,
+            sensorRestEnabled: true, rgbValNow: 32, rgbValAwake: 128, rgbStage: 1, rgbEnabled: true, stage: 1, quietInputMs: 12345, quietMatrixMs: 12345, quietPointerMs: 700, sysClockMhz: 48,
         }));
     });
 
@@ -104,7 +104,7 @@ describe('ScanLabPanel', () => {
         render(<ScanLabPanel />);
         await waitFor(() => expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('sensor rest 1'));
         expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('RGB 32/128 dimmed');
-        expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('quiet keys 12 s, ball 700 ms');
+        expect(screen.getByTestId('idle-diag-0')).toHaveTextContent('quiet keys 12 s, ball 700 ms · clock 48 MHz');
     });
 
     it('shows the idle power toggles from the readout and switches one', async () => {

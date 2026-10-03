@@ -17,13 +17,17 @@ export const ID_SCAN_DEEP_PERIOD_MS = 24;
 export const ID_IDLE_POINTER_REST = 25;
 export const ID_IDLE_RGB_DIM = 26;
 export const ID_IDLE_CPU_SLEEP = 27;
+export const ID_IDLE_LOW_CLOCK = 28;
+export const ID_IDLE_LONG_NAP = 29;
 
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */
-export type IdleFeature = "pointerRest" | "rgbDim" | "cpuSleep";
+export type IdleFeature = "pointerRest" | "rgbDim" | "cpuSleep" | "lowClock" | "longNap";
 export const IDLE_FEATURES: ReadonlyArray<{ key: IdleFeature; id: number; cacheKey: string; label: string; hint: string }> = [
     { key: "pointerRest", id: ID_IDLE_POINTER_REST, cacheKey: "id_idle_pointer_rest", label: "Trackball rest mode", hint: "The sensor drops to its own rest modes when the ball is still (≈21 → 3 → 0.06 mA) and wakes itself on motion." },
     { key: "rgbDim", id: ID_IDLE_RGB_DIM, cacheKey: "id_idle_rgb_dim", label: "Dim RGB when idle", hint: "Quarter brightness in light idle, off in deep idle, restored on the first input." },
     { key: "cpuSleep", id: ID_IDLE_CPU_SLEEP, cacheKey: "id_idle_cpu_sleep", label: "Sleep between scans", hint: "The core parks in WFI until the next frame is due instead of spinning. Needs a frame period." },
+    { key: "lowClock", id: ID_IDLE_LOW_CLOCK, cacheKey: "id_idle_low_clock", label: "48 MHz in deep idle", hint: "Deep idle runs the system clock from the USB PLL at 48 MHz and powers the system PLL down; the first input restores 125 MHz." },
+    { key: "longNap", id: ID_IDLE_LONG_NAP, cacheKey: "id_idle_long_nap", label: "Long naps in deep idle", hint: "Deep idle wakes the core every 20 ms (4 ms on the other half) instead of every 1 ms; the sensor only reports every 100–500 ms in rest anyway." },
 ];
 /**
  * Firmware overhead per row beyond pre-wait: row switching, the six pin reads
@@ -122,6 +126,7 @@ export interface ScanLabIdle {
     quietInputMs: number;
     quietMatrixMs: number;
     quietPointerMs: number;
+    sysClockMhz: number | null;   // null on firmware that does not report it
 }
 
 export interface ScanLabPower extends IdleSettings {
@@ -259,7 +264,7 @@ export class ScanLabService {
                 reachable: false, periodUs: 0, idlePeriodMs: 0, idleAfterMs: 0, deepAfterS: 0, deepPeriodMs: 0,
                 measuredFrameUs: 0, frameCapped: false, effectivePeriodTrueUs: 0, measuredLedUs: 0, stage: 0, idleActive: false,
                 effectivePeriodUs: 0, effPrewaitUs: 0, effPostwaitUs: 0, rows: 0, hostBootloader: false, rebootArmed: false,
-                idle: { pointerRest: false, rgbDim: false, cpuSleep: false }, dutyPct: null, scanHz: null,
+                idle: { pointerRest: false, rgbDim: false, cpuSleep: false, lowClock: false, longNap: false }, dutyPct: null, scanHz: null,
             };
         }
         const measuredFrameUs = u16(b, 6);
@@ -294,7 +299,7 @@ export class ScanLabService {
             deepPeriodMs,
             hostBootloader: (b[22] & 1) !== 0,
             rebootArmed: (b[22] & 2) !== 0,
-            idle: { pointerRest: (b[22] & 4) !== 0, rgbDim: (b[22] & 8) !== 0, cpuSleep: (b[22] & 16) !== 0 },
+            idle: { pointerRest: (b[22] & 4) !== 0, rgbDim: (b[22] & 8) !== 0, cpuSleep: (b[22] & 16) !== 0, lowClock: (b[22] & 32) !== 0, longNap: (b[22] & 64) !== 0 },
             dutyPct: frameUs > 0 ? (100 * measuredLedUs) / frameUs : null,
             scanHz: frameUs > 0 ? 1e6 / frameUs : null,
         };
@@ -312,15 +317,15 @@ export class ScanLabService {
     parseIdle(b: Uint8Array): ScanLabIdle {
         if (b[0] === UNREACHABLE && b[1] === 0 && b[8] === 0 && u32(b, 9) === 0) {
             return {
-                reachable: false, flags: { pointerRest: false, rgbDim: false, cpuSleep: false }, sensorPresent: false, sensorMode: null,
+                reachable: false, flags: { pointerRest: false, rgbDim: false, cpuSleep: false, lowClock: false, longNap: false }, sensorPresent: false, sensorMode: null,
                 sensorLifted: false, sensorRestEnabled: false, rgbValNow: 0, rgbValAwake: 0, rgbStage: 0, rgbEnabled: false, stage: 0,
-                quietInputMs: 0, quietMatrixMs: 0, quietPointerMs: 0,
+                quietInputMs: 0, quietMatrixMs: 0, quietPointerMs: 0, sysClockMhz: null,
             };
         }
         const mode = b[2];
         return {
             reachable: true,
-            flags: { pointerRest: (b[0] & 1) !== 0, rgbDim: (b[0] & 2) !== 0, cpuSleep: (b[0] & 4) !== 0 },
+            flags: { pointerRest: (b[0] & 1) !== 0, rgbDim: (b[0] & 2) !== 0, cpuSleep: (b[0] & 4) !== 0, lowClock: (b[0] & 8) !== 0, longNap: (b[0] & 16) !== 0 },
             sensorPresent: b[1] === 1,
             sensorMode: (mode & 0x80) !== 0 ? ((mode & 0x03) as 0 | 1 | 2 | 3) : null,
             sensorLifted: (mode & 0x40) !== 0,
@@ -333,6 +338,7 @@ export class ScanLabService {
             quietInputMs: u32(b, 9),
             quietMatrixMs: u32(b, 13),
             quietPointerMs: u32(b, 17),
+            sysClockMhz: b[21] > 0 ? b[21] : null,
         };
     }
 
