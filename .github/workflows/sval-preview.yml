@@ -31,7 +31,7 @@ jobs:
       # Pin its source so the deployed pair is reproducible.
       - uses: actions/checkout@v5
         with:
-          ref: d198aa3f04db6b57e6ad73bbb0fdf1cb17803bbb
+          ref: c2e205e2532bd409c0b5a71c14e9560805a998a8
           path: production-check-source
       - run: npm ci
         working-directory: production-check-source
@@ -41,7 +41,7 @@ jobs:
         working-directory: production-check-source
         env:
           GIT_BRANCH: fix/sval-preview-connection-guard
-          GIT_SHA: d198aa3f04db6b57e6ad73bbb0fdf1cb17803bbb
+          GIT_SHA: c2e205e2532bd409c0b5a71c14e9560805a998a8
       - run: mv production-check-source/dist dist/production-check
       - uses: actions/upload-artifact@v4
         with:
