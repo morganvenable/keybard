@@ -45,7 +45,7 @@ describe('Sval firmware handoff', () => {
     expect(usbInstance.close).toHaveBeenCalledTimes(1);
     expect(qmkService.get).not.toHaveBeenCalled();
     expect(vialService.updateKey).not.toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: 'Open Sval Preview' })).toHaveAttribute('href', SVAL_PREVIEW_URL);
+    expect(screen.getByRole('link', { name: 'Open Keybard Preview' })).toHaveAttribute('href', SVAL_PREVIEW_URL);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     vi.mocked(vialService.load).mockResolvedValue({ rows: 10, cols: 6 });
