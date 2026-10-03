@@ -19,6 +19,8 @@ export const ID_IDLE_RGB_DIM = 26;
 export const ID_IDLE_CPU_SLEEP = 27;
 export const ID_IDLE_LOW_CLOCK = 28;
 export const ID_IDLE_LONG_NAP = 29;
+export const ID_SCAN_DEEP_CLOCK_IDX = 30;
+export const DEEP_CLOCK_CHOICES_MHZ = [48, 24, 12] as const;
 
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */
 export type IdleFeature = "pointerRest" | "rgbDim" | "cpuSleep" | "lowClock" | "longNap";
@@ -26,7 +28,7 @@ export const IDLE_FEATURES: ReadonlyArray<{ key: IdleFeature; id: number; cacheK
     { key: "pointerRest", id: ID_IDLE_POINTER_REST, cacheKey: "id_idle_pointer_rest", label: "Trackball rest mode", hint: "The sensor drops to its own rest modes when the ball is still (≈21 → 3 → 0.06 mA) and wakes itself on motion." },
     { key: "rgbDim", id: ID_IDLE_RGB_DIM, cacheKey: "id_idle_rgb_dim", label: "Dim RGB when idle", hint: "Quarter brightness in light idle, off in deep idle, restored on the first input." },
     { key: "cpuSleep", id: ID_IDLE_CPU_SLEEP, cacheKey: "id_idle_cpu_sleep", label: "Sleep between scans", hint: "The core parks in WFI until the next frame is due instead of spinning. Needs a frame period." },
-    { key: "lowClock", id: ID_IDLE_LOW_CLOCK, cacheKey: "id_idle_low_clock", label: "48 MHz in deep idle", hint: "Deep idle runs the system clock from the USB PLL at 48 MHz and powers the system PLL down; the first input restores 125 MHz." },
+    { key: "lowClock", id: ID_IDLE_LOW_CLOCK, cacheKey: "id_idle_low_clock", label: "Low clock in deep idle", hint: "Deep idle lowers the system clock (48 or 24 MHz from the USB PLL, or the 12 MHz crystal) and powers the system PLL down; the first input restores 125 MHz. USB keeps its own 48 MHz PLL." },
     { key: "longNap", id: ID_IDLE_LONG_NAP, cacheKey: "id_idle_long_nap", label: "Long naps in deep idle", hint: "Deep idle wakes the core every 20 ms (4 ms on the other half) instead of every 1 ms; the sensor only reports every 100–500 ms in rest anyway." },
 ];
 /**
@@ -127,6 +129,7 @@ export interface ScanLabIdle {
     quietMatrixMs: number;
     quietPointerMs: number;
     sysClockMhz: number | null;   // null on firmware that does not report it
+    deepClockMhz: number | null;  // configured deep-idle clock; null on firmware that does not report it
 }
 
 export interface ScanLabPower extends IdleSettings {
@@ -319,7 +322,7 @@ export class ScanLabService {
             return {
                 reachable: false, flags: { pointerRest: false, rgbDim: false, cpuSleep: false, lowClock: false, longNap: false }, sensorPresent: false, sensorMode: null,
                 sensorLifted: false, sensorRestEnabled: false, rgbValNow: 0, rgbValAwake: 0, rgbStage: 0, rgbEnabled: false, stage: 0,
-                quietInputMs: 0, quietMatrixMs: 0, quietPointerMs: 0, sysClockMhz: null,
+                quietInputMs: 0, quietMatrixMs: 0, quietPointerMs: 0, sysClockMhz: null, deepClockMhz: null,
             };
         }
         const mode = b[2];
@@ -339,7 +342,16 @@ export class ScanLabService {
             quietMatrixMs: u32(b, 13),
             quietPointerMs: u32(b, 17),
             sysClockMhz: b[21] > 0 ? b[21] : null,
+            deepClockMhz: b[22] > 0 ? b[22] : null,
         };
+    }
+
+    /** Pick the deep-idle clock (index into DEEP_CLOCK_CHOICES_MHZ) and save. */
+    async setDeepClock(mhz: number): Promise<void> {
+        const idx = DEEP_CLOCK_CHOICES_MHZ.indexOf(mhz as (typeof DEEP_CLOCK_CHOICES_MHZ)[number]);
+        if (idx < 0) throw new Error(`unsupported deep-idle clock ${mhz} MHz`);
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_DEEP_CLOCK_IDX, [idx]);
+        await this.usb.customValueSave(KEYBOARD_CHANNEL);
     }
 
     /** Persist frame pacing and both idle stages; the master relays them to the other half. */

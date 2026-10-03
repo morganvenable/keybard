@@ -15,6 +15,7 @@ import {
     predictCurrentMa,
     DEFAULT_BASELINE_MA,
     DEFAULT_LIT_ROW_MA,
+    DEEP_CLOCK_CHOICES_MHZ,
     IDLE_FEATURES,
     IDLE_PRESETS,
     IDLE_STAGE_NAMES,
@@ -247,6 +248,13 @@ const ScanLabPanel = () => {
             await refreshPower();
         });
     };
+
+    const handleDeepClock = (mhz: number) =>
+        run(`Setting deep-idle clock to ${mhz} MHz…`, async () => {
+            await scanlabService.setDeepClock(mhz);
+            customValueService.setCached("id_scan_deep_clock_idx", DEEP_CLOCK_CHOICES_MHZ.indexOf(mhz as 48 | 24 | 12));
+            await refreshPower();
+        });
 
     const handleReboot = (h: Hand) => {
         if (rebootArmedFor !== h) {
@@ -598,6 +606,12 @@ const ScanLabPanel = () => {
                         <label key={f.key} className="flex items-center gap-1.5 text-xs" title={f.hint}>
                             <input type="checkbox" checked={anyPower.idle[f.key]} disabled={!!busy} onChange={(e) => handleIdleFeature(f.key, e.target.checked)} data-testid={`idle-${f.key}`} />
                             {f.label}
+                            {f.key === "lowClock" && (idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz) != null && (
+                                <select className="h-6 text-xs border rounded px-1" value={idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz ?? 48} disabled={!!busy}
+                                    onChange={(e) => handleDeepClock(Number(e.target.value))} data-testid="deep-clock" aria-label="deep idle clock MHz">
+                                    {DEEP_CLOCK_CHOICES_MHZ.map((m) => <option key={m} value={m}>{m} MHz</option>)}
+                                </select>
+                            )}
                         </label>
                     ))}
                 </div>

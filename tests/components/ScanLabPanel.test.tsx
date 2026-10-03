@@ -35,6 +35,7 @@ const svc = vi.hoisted(() => ({
     applyPacing: vi.fn(),
     rebootToBootloader: vi.fn(),
     setIdleFeature: vi.fn(),
+    setDeepClock: vi.fn(),
     probeAll: vi.fn(),
     runSweepStep: vi.fn(),
     abort: vi.fn(),
@@ -63,7 +64,7 @@ describe('ScanLabPanel', () => {
         svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
         svc.getIdle.mockImplementation(async (hand: 0 | 1) => ({
             reachable: hand === 0, flags: { pointerRest: true, rgbDim: true, cpuSleep: false, lowClock: true, longNap: false }, sensorPresent: hand === 0, sensorMode: 1, sensorLifted: false,
-            sensorRestEnabled: true, rgbValNow: 32, rgbValAwake: 128, rgbStage: 1, rgbEnabled: true, stage: 1, quietInputMs: 12345, quietMatrixMs: 12345, quietPointerMs: 700, sysClockMhz: 48,
+            sensorRestEnabled: true, rgbValNow: 32, rgbValAwake: 128, rgbStage: 1, rgbEnabled: true, stage: 1, quietInputMs: 12345, quietMatrixMs: 12345, quietPointerMs: 700, sysClockMhz: 48, deepClockMhz: 48,
         }));
     });
 
@@ -126,6 +127,14 @@ describe('ScanLabPanel', () => {
         expect(screen.getByTestId('pacing-on-board')).toHaveTextContent('differ');
         fireEvent.keyDown(screen.getByLabelText('deep idle after s (0 = never)'), { key: 'Enter' });
         await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(1000, { idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 2, deepPeriodMs: 0 }));
+    });
+
+    it('offers the deep-idle clock choices and applies one', async () => {
+        svc.setDeepClock.mockResolvedValue(undefined);
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(screen.getByTestId('deep-clock')).toHaveValue('48'));
+        fireEvent.change(screen.getByTestId('deep-clock'), { target: { value: '12' } });
+        await waitFor(() => expect(svc.setDeepClock).toHaveBeenCalledWith(12));
     });
 
     it('idle presets fill the fields', async () => {
