@@ -1,3 +1,4 @@
+import { appStorage } from "@/utils/app-storage";
 import { HARDWARE_SETTINGS_REGISTRY } from "@/services/hardware-settings.registry";
 import { SettingsState } from "@/types/settings.types";
 
@@ -6,7 +7,7 @@ export class SettingsService {
 
     load(): SettingsState {
         try {
-            const stored = localStorage.getItem(this.storageKey);
+            const stored = appStorage.getItem(this.storageKey);
             if (stored) {
                 return JSON.parse(stored);
             }
@@ -18,7 +19,7 @@ export class SettingsService {
 
     save(settings: SettingsState): void {
         try {
-            localStorage.setItem(this.storageKey, JSON.stringify(settings));
+            appStorage.setItem(this.storageKey, JSON.stringify(settings));
         } catch (error) {
             console.error("Failed to save settings to localStorage:", error);
         }
@@ -26,7 +27,7 @@ export class SettingsService {
 
     clear(): void {
         try {
-            localStorage.removeItem(this.storageKey);
+            appStorage.removeItem(this.storageKey);
         } catch (error) {
             console.error("Failed to clear settings from localStorage:", error);
         }

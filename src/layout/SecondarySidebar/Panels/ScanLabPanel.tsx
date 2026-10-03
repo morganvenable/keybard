@@ -1,3 +1,4 @@
+import { appStorage } from "@/utils/app-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,13 +95,13 @@ const ScanLabPanel = () => {
     // Per-browser current model (baseline mA, mA per lit row) so the panel can
     // turn measured duty into an expected total current without the ammeter.
     const [baselineMa, setBaselineMa] = useState(() => {
-        try { return Number(localStorage.getItem("scanlab-baseline-ma")) || DEFAULT_BASELINE_MA; } catch { return DEFAULT_BASELINE_MA; }
+        try { return Number(appStorage.getItem("scanlab-baseline-ma")) || DEFAULT_BASELINE_MA; } catch { return DEFAULT_BASELINE_MA; }
     });
     const [litRowMa, setLitRowMa] = useState(() => {
-        try { return Number(localStorage.getItem("scanlab-lit-row-ma")) || DEFAULT_LIT_ROW_MA; } catch { return DEFAULT_LIT_ROW_MA; }
+        try { return Number(appStorage.getItem("scanlab-lit-row-ma")) || DEFAULT_LIT_ROW_MA; } catch { return DEFAULT_LIT_ROW_MA; }
     });
     useEffect(() => {
-        try { localStorage.setItem("scanlab-baseline-ma", String(baselineMa)); localStorage.setItem("scanlab-lit-row-ma", String(litRowMa)); } catch { /* per-browser convenience only */ }
+        try { appStorage.setItem("scanlab-baseline-ma", String(baselineMa)); appStorage.setItem("scanlab-lit-row-ma", String(litRowMa)); } catch { /* per-browser convenience only */ }
     }, [baselineMa, litRowMa]);
 
     const reachableHands = useMemo(() => HANDS.filter((h) => status[h]?.reachable), [status]);
