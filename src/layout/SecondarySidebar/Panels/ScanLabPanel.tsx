@@ -668,7 +668,7 @@ const ScanLabPanel = () => {
 
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-4 h-full items-start flex-wrap content-start overflow-auto">
+            <div className="flex flex-row gap-4 items-start flex-wrap content-start">
                 <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{powerSection}{applySection}{firmwareSection}</div>
                 <div className="min-w-[420px]">{probeSection}</div>
                 <div className="min-w-[420px]">{sweepSection}</div>
@@ -677,8 +677,8 @@ const ScanLabPanel = () => {
     }
 
     return (
-        <section className="h-full flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto flex flex-col gap-5 pb-4">
+        <section className="flex flex-col">
+            <div className="flex flex-col gap-5 pb-4">
                 <DescriptionBlock>
                     Measure how long the sense lines take to settle and recover, sweep the scan timing to find where reads go wrong, then apply explicit pre- and post-wait to the keyboard.
                 </DescriptionBlock>

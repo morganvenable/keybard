@@ -3,8 +3,8 @@ import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBl
 
 const AboutPanel: React.FC = () => {
     return (
-        <div className="space-y-3 pt-0 pb-8 relative h-full max-h-full flex flex-col">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <div className="space-y-3 pt-0 pb-8 relative flex flex-col">
+            <div className="flex flex-col">
                 <DescriptionBlock wrapText={false}>
                     <p className="mb-4 text-sm text-slate-500 leading-relaxed">
                         <b>Keybard</b> version 1.0.0

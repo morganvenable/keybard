@@ -387,7 +387,7 @@ const LayoutsPanel: FC = () => {
     return (
         <section
             ref={dropZoneRef}
-            className="space-y-3 h-full max-h-full flex flex-col pt-0"
+            className="space-y-3 flex flex-col pt-0"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -468,7 +468,7 @@ const LayoutsPanel: FC = () => {
             }
 
             {/* Layout List */}
-            <div className="flex-1 overflow-auto pl-0 pr-3 pb-3 space-y-3 scrollbar-thin">
+            <div className="pl-0 pr-3 pb-3 space-y-3 scrollbar-thin">
                 {/* Imported Layouts */}
                 {importedLayouts
                     .filter(hasMatchingLayers)

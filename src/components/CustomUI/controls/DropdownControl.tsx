@@ -38,7 +38,7 @@ export const DropdownControl: React.FC<DropdownControlProps> = ({ item, value, o
                 value={String(safeValue)}
                 onValueChange={(val) => onChange(parseInt(val))}
             >
-                <SelectTrigger className={compact ? "w-24 h-7 text-xs" : "w-40"}>
+                <SelectTrigger aria-label={item.label} aria-description={item.description} className={compact ? "w-24 h-7 text-xs" : "w-40"}>
                     <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>

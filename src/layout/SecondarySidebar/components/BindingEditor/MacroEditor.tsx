@@ -176,7 +176,7 @@ const MacroEditor: FC = () => {
 
     return (
         <div
-            className="flex flex-col items-start pl-[84px] gap-1 pt-5 pb-20 w-full max-h-[600px] overflow-y-auto"
+            className="flex flex-col items-start pl-[84px] gap-1 pt-5 pb-20 w-full"
             onClick={(e) => {
                 // Should only clear if clicking the background, not a child element
                 if (e.target === e.currentTarget) {

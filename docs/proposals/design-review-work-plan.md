@@ -10,6 +10,7 @@ Because the keyboard being used may also be the keyboard being edited, ordinary 
 
 Other constraints agreed during review:
 
+- Preserve the intentionally spacious layout canvas. The clean overview and the denser key-picking/editing view serve different tasks; do not fill empty space or force panels open to optimize density. Responsive changes should fix reachability without erasing this distinction.
 - Preserve vertical space. Routine connection identity and status must fit existing controls or their tooltips. Do not add a permanent status row above the editor.
 - Keep the preview badge exactly **“Sval preview.”**
 - Keep power and diagnostic controls under Developer, including trackball rest mode.
@@ -26,7 +27,7 @@ The earlier Pointing Devices nested-scrollbar repair and layer-name persistence 
 | Batch | Packages | Objective | Current status |
 | --- | --- | --- | --- |
 | 1 | 1–5 | Reliable edits, persistence, import, and recovery | Implemented for local review on `fix/keybard-editing-reliability`; physical-board acceptance remains |
-| 2 | 6–9 | Reachable layouts, consistent panels, optional accessible operation | Proposed; not authorized for implementation |
+| 2 | 6–9 | Reachable layouts, consistent panels, optional accessible operation | Implemented for local review on `fix/keybard-layout-panels`; item 9.7 remains a separate interaction review |
 | 3 | 10–15 | Clear organization, usable editors, consistent visuals, useful help | Proposed; not authorized for implementation |
 
 Batch 1 implementation: `712de8d`. Follow-up corrections: concentric layer-color indicator in `16d1e62`; removal of the extra status row and relocation of Undo into the existing toolbar in `201703b`.
@@ -174,9 +175,20 @@ Acceptance:
 
 ## Batch 2 — Layout, panel consistency, and optional access
 
+Implementation notes for local review:
+
+- The spacious canvas remains intentional. Sidebar and bottom placement remain user choices; Auto uses sidebar at desktop widths and bottom below 900px, rather than switching when opening a panel. Narrow navigation has its own compact state, preserving the desktop preference.
+- The canvas pans independently. Auto sizing stops at Medium; explicit Small remains available. Constrained toolbar rows can scroll without adding a permanent status row.
+- A shared panel registry and persistent shell provide the same Settings, hardware, help, and diagnostic destinations. Taller bottom settings/help panels reserve their actual height from the canvas.
+- Ordinary panels use one shell scrollbar. Key palettes and binding editors are separate bounded work areas; wide keyboards and complex editors may pan horizontally. Macro content no longer adds a nested vertical scrollbar.
+- Panel and binding drafts remain mounted when placement changes. Hidden picker content is inert, and open/close focus is managed.
+- Labels, semantic states, rename/color controls, firmware settings, and picker navigation support optional keyboard access. No new board-selection navigation scheme or implicit recording was introduced.
+
+Validation: the full suite passed **579 tests**, followed by focused checks for the last responsive changes and two additional narrow-navigation tests. TypeScript and the preview production build passed. Chromium checks used the offline demo at 1280×720, 1024×768, 390×844, and a 640×360 viewport representing the available CSS space at 200% zoom. Both placements, including explicit sidebar on a narrow screen, were exercised with Settings, Quick Start, About, Pointing Devices, and macro creation/closure. Actual canvas horizontal panning and ordinary-panel scroll ownership were checked. Native browser zoom, physical-board writes, touch scrolling, and screen-reader output still require manual acceptance. Existing React test warnings and bundle-size warnings remain. Nothing has been pushed or deployed.
+
 ### 6. Fix clipping and responsive layout
 
-**P1 · Large · Proposed**
+**P1 · Large · Implemented for review**
 
 **Problem:** Browser checks reproduced clipped board/layer content at 1024×768 and substantial inaccessible content in a narrow window. The 850px editor minimum and shrinking keycaps do not form a usable responsive strategy.
 
@@ -193,7 +205,7 @@ Acceptance: common mouse-driven tasks work at 1280×720, 1024×768, and 200% zoo
 
 ### 7. Give every panel one scrolling owner
 
-**P2 · Medium · Proposed**
+**P2 · Medium · Implemented for review**
 
 **Problem:** Settings, Quick Start, QMK Settings, Scan Lab, Fragments, and their shells contain competing scroll containers. The structural risk is confirmed; double bars were not reproduced in every panel and mode.
 
@@ -209,7 +221,7 @@ Acceptance: each ordinary panel has one content scrollbar, all controls remain r
 
 ### 8. Preserve functionality across layout modes
 
-**P1 · Medium · Proposed**
+**P1 · Medium · Implemented for review**
 
 **Problem:** Compact Settings omits functions, and bottom-bar Quick Start/About lack real content cases. Layout selection changes available functionality.
 
@@ -225,7 +237,7 @@ Acceptance: every advertised destination works in every supported layout, with t
 
 ### 9. Provide safe, optional keyboard and assistive access
 
-**P1 for focus/control correctness · Medium–Large · Proposed, revised after feedback**
+**P1 for focus/control correctness · Medium–Large · Basic access implemented for review; 9.7 deferred**
 
 **Direction:** Preserve the complete mouse-first GUI. Optional keyboard operation should make the existing interface usable consistently; it should not reshape the app around keyboard commands or encourage typing into a live binding unintentionally.
 
@@ -361,7 +373,7 @@ Reproduction should distinguish pointer movement speed from scroll output, compa
 
 ## Review and acceptance workflow
 
-Approve by package number or sub-item number. Batch 1 is on a local review branch; approval of its implementation does not authorize Batches 2 or 3.
+Approve by package number or sub-item number. Batch 1 is on a local review branch; Batch 2 is now authorized on a separate local branch. Batch 3 and the new board-navigation interaction in item 9.7 remain unapproved.
 
 For each approved batch, use the applicable parts of this matrix:
 

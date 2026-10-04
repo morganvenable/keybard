@@ -208,8 +208,8 @@ const AltRepeatPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key. Click on a key slot to assign a keycode.
                 </DescriptionBlock>

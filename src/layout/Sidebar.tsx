@@ -128,7 +128,7 @@ const SidebarNavItem = ({
                 (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
             )}
         >
-            <button type="button" onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
+            <button type="button" aria-label={item.title} aria-pressed={isActive} onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
                 <div className={cn(getIconGutterWidth(isCollapsed), "h-full flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                     <item.icon className="h-5 w-5 shrink-0" />
                 </div>
@@ -143,7 +143,7 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
-    const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
+    const { state, toggleSidebar, setOpen: setNavigationOpen } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
         setItemToEdit,
@@ -165,6 +165,9 @@ const AppSidebar = () => {
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
+            // Labels can be expanded to choose a destination; return the narrow
+            // viewport to its icon rail so the chosen panel remains usable.
+            if (window.innerWidth < 900) setNavigationOpen(false);
             if (item.url === "matrixtester") {
                 if (activePanel === "matrixtester") {
                     setActivePanel(null);
@@ -187,7 +190,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [setNavigationOpen, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 
@@ -277,6 +280,8 @@ const AppSidebar = () => {
                                 <button
                                     type="button"
                                     className={cn("flex w-full items-center", getIconJustify(isCollapsed))}
+                                    aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+                                    aria-expanded={!isCollapsed}
                                     onClick={() => toggleSidebar()}
                                 >
                                     <div className={cn(getIconGutterWidth(isCollapsed), "h-8 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>

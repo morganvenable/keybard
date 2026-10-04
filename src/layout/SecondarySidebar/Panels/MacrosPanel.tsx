@@ -218,13 +218,13 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+        <section className="space-y-3 flex flex-col pt-0">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Macro Keys</span>
                 </div>
             )}
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Send customizable sequences of keystrokes to trigger text strings, complex shortcuts, or automated actions with a single keypress.
                 </DescriptionBlock>

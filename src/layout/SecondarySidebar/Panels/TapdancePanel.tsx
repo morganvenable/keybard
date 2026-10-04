@@ -171,8 +171,8 @@ const TapdancePanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <div className="space-y-3 pt-0 pb-8 relative h-full max-h-full flex flex-col">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <div className="space-y-3 pt-0 pb-8 relative flex flex-col">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Allows a single key to perform multiple, different actions based on the number of times it is tapped in sequence (e.g., tap once for 'A', twice for 'B', or hold for a modifier).
                 </DescriptionBlock>

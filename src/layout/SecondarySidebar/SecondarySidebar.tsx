@@ -5,76 +5,28 @@ import { ArrowLeft, X } from "lucide-react";
 
 import BindingEditorContainer from "./components/BindingEditor/BindingEditorContainer";
 import EditorSidePanel, { PickerMode } from "./components/EditorSidePanel";
-import AltRepeatPanel from "./Panels/AltRepeatPanel";
 import BasicKeyboards from "./Panels/BasicKeyboards";
-import CombosPanel from "./Panels/CombosPanel";
-import DynamicMenuPanel from "./Panels/DynamicMenuPanel";
-import LayoutsPanel from "./Panels/LayoutsPanel";
-import LeadersPanel from "./Panels/LeadersPanel";
 import LayersPanel from "./Panels/LayersPanel";
 import MacrosPanel from "./Panels/MacrosPanel";
 import SpecialKeysPanel from "./Panels/SpecialKeysPanel/SpecialKeysPanel";
-import OverridesPanel from "./Panels/OverridesPanel";
 import PointingPanel from "./Panels/PointingPanel";
 import OneShotComposerPanel from "./Panels/OneShotComposerPanel";
 import QmkKeyPanel from "./Panels/QmkKeysPanel";
 import MousePanel from "./Panels/MousePanel";
-import QMKSettingsPanel from "./Panels/QMKSettingsPanel";
-import ScanLabPanel from "./Panels/ScanLabPanel";
-import SettingsPanel from "./Panels/SettingsPanel";
-import TapdancePanel from "./Panels/TapdancePanel";
-import AboutPanel from "./Panels/AboutPanel";
-import QuickStartPanel from "./Panels/QuickStartPanel";
 
 import { Button } from "@/components/ui/button";
-import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import type { CustomUIMenuItem } from "@/types/vial.types";
 
+import { getPanelTitle, PanelContent } from "../PanelContent";
+
 export const DETAIL_SIDEBAR_WIDTH = "32rem";
-
-/**
- * Resolves the human-readable title for a given panel identifier.
- * For dynamic menu panels, looks up the menu label from the keyboard definition.
- */
-const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuItem[]): string => {
-    if (!panel) return "Details";
-
-    // Handle dynamic menu panels
-    if (panel.startsWith("dynamic-menu-")) {
-        const indexStr = panel.replace("dynamic-menu-", "");
-        const index = parseInt(indexStr, 10);
-        if (!isNaN(index) && menus && menus[index]) {
-            return menus[index].label || `Menu ${index}`;
-        }
-        return "Settings";
-    }
-
-    const titles: Record<string, string> = {
-        keyboard: "Standard Keys",
-        layers: "Layer Keys",
-        tapdances: "Tap Dance Keys",
-        macros: "Macro Keys",
-        qmk: "One-Shot (Legacy)",
-        oneshot: "One-Shot / Mod-Tap",
-        special: "Special Keys",
-        mouse: "Mouse Keys",
-        combos: "Combos",
-        overrides: "Overrides",
-        altrepeat: "Alt-Repeat Keys",
-        leaders: "Leader Sequences",
-        layouts: "Layouts",
-        pointing: "Pointing Devices",
-        qmksettings: "QMK Settings",
-        settings: "Settings",
-        quickstart: "Quick Start",
-        about: "About",
-    };
-
-    return titles[panel] ?? "Details";
-};
+export const getDetailPanelHeight = (panel: string | null | undefined, height: number): string | number =>
+    ["settings", "qmksettings", "scanlab", "quickstart", "about", "fragments"].includes(panel ?? "")
+        ? "min(60dvh, 36rem)" : height;
 
 /**
  * Header component shown when in "Add Key" mode (Alternative Header).
@@ -112,10 +64,27 @@ const AlternativeHeader = ({ onBack, menus }: AlternativeHeaderProps) => {
  * The Secondary Sidebar (Detail Panel) slides in to show context-specific tools
  * like Layer management, Key settings, macros, etc.
  */
-const SecondarySidebar = () => {
+interface SecondarySidebarProps {
+    bottom?: boolean;
+    leftOffset?: string;
+    pickerMode?: PickerMode;
+    height?: number;
+}
+const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: SecondarySidebarProps) => {
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
     const { activePanel, handleCloseDetails, state, alternativeHeader, itemToEdit, setItemToEdit } = usePanels();
     const { keyboard } = useVial();
+
+    const panelRef = React.useRef<HTMLElement>(null);
+    const returnFocus = React.useRef<HTMLElement | null>(null);
+    React.useEffect(() => {
+        if (state !== "expanded") return;
+        returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        panelRef.current?.focus({ preventScroll: true });
+        return () => {
+            if (returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true });
+        };
+    }, [state]);
 
     // Calculate dynamic offset based on primary sidebar state
     const primaryOffset = primarySidebar.state === "collapsed"
@@ -130,6 +99,16 @@ const SecondarySidebar = () => {
     // Check if we should show the key picker overlay
     // We show it if we are editing an item and we are in a panel that supports key picking
     const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides", "altrepeat", "leaders"].includes(activePanel || "");
+
+    const bindingRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        if (!showPicker) return;
+        const source = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        bindingRef.current?.focus({ preventScroll: true });
+        return () => {
+            if (source?.isConnected && !source.closest('[hidden], [inert]')) source.focus({ preventScroll: true });
+        };
+    }, [showPicker]);
 
     const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
     const [isClosingEditor, setIsClosingEditor] = React.useState(false);
@@ -146,67 +125,27 @@ const SecondarySidebar = () => {
         if (itemToEdit === null) setIsClosingEditor(false);
     }, [itemToEdit]);
 
-    const renderContent = () => {
-        if (!activePanel) {
-            return (
-                <div className="grid place-items-center h-full text-center text-sm text-muted-foreground px-6">
-                    Select a menu item to view contextual actions and key groups.
-                </div>
-            );
-        }
-
-        // Handle dynamic menu panels
-        if (activePanel.startsWith("dynamic-menu-")) {
-            const indexStr = activePanel.replace("dynamic-menu-", "");
-            const menuIndex = parseInt(indexStr, 10);
-            if (!isNaN(menuIndex)) {
-                return <DynamicMenuPanel menuIndex={menuIndex} />;
-            }
-        }
-
-        switch (activePanel) {
-            case "keyboard": return <BasicKeyboards />;
-            case "layers": return <LayersPanel />;
-            case "tapdances": return <TapdancePanel />;
-            case "macros": return <MacrosPanel />;
-            case "combos": return <CombosPanel />;
-            case "overrides": return <OverridesPanel />;
-            case "altrepeat": return <AltRepeatPanel />;
-            case "leaders": return <LeadersPanel />;
-            case "layouts": return <LayoutsPanel />;
-            case "pointing": return <PointingPanel />;
-            case "qmk": return <QmkKeyPanel />;
-            case "oneshot": return <OneShotComposerPanel />;
-            case "special": return <SpecialKeysPanel />;
-            case "mouse": return <MousePanel />;
-            case "qmksettings": return <QMKSettingsPanel />;
-            case "scanlab": return <ScanLabPanel />;
-            case "settings": return <SettingsPanel />;
-            case "quickstart": return <QuickStartPanel />;
-            case "about": return <AboutPanel />;
-            default:
-                return (
-                    <div className="grid place-items-center h-full text-center text-sm text-muted-foreground px-6">
-                        {`Content for "${activePanel}" will appear here soon.`}
-                    </div>
-                );
-        }
-    };
-
     return (
-        <Sidebar
-            name="details-panel"
-            defaultOpen={false}
-            collapsible="offcanvas"
-            hideGap
-            className="z-[60] absolute select-none"
+        <aside
+            ref={panelRef}
+            tabIndex={-1}
+            aria-label={getPanelTitle(activePanel, keyboard?.menus)}
+            aria-hidden={state !== "expanded"}
+            inert={state !== "expanded"}
+            data-binding-open={showPicker ? "true" : undefined}
+            data-placement={bottom ? "bottom" : "side"}
+            className={cn("detail-panel fixed z-[60] flex flex-col bg-white border shadow-lg min-h-0", bottom ? "bottom-panel bottom-0 right-0" : "top-2 bottom-2 rounded-2xl", state !== "expanded" && "hidden")}
             style={{
-                left: state === "collapsed" ? undefined : primaryOffset,
-                "--sidebar-width": DETAIL_SIDEBAR_WIDTH,
+                left: leftOffset ?? primaryOffset,
+                width: bottom ? undefined : `min(${DETAIL_SIDEBAR_WIDTH}, calc(100vw - ${leftOffset ?? primaryOffset} - 8px))`,
+                height: bottom ? getDetailPanelHeight(activePanel, height) : undefined,
+                maxHeight: "calc(100dvh - 16px)",
+                "--panel-left": leftOffset ?? primaryOffset,
+                "--panel-height": `${height}px`,
             } as React.CSSProperties}
         >
             <div className="absolute inset-0 bg-sidebar-background pointer-events-none" />
-            <SidebarHeader className="px-4 py-6 pt-7 z-10 bg-sidebar-background">
+            <div hidden={showPicker && !bottom} className="px-4 py-3 shrink-0 z-10 bg-sidebar-background">
                 {(alternativeHeader || showPicker) ? (
                     <AlternativeHeader menus={keyboard?.menus} />
                 ) : (
@@ -228,34 +167,33 @@ const SecondarySidebar = () => {
                         </Button>
                     </div>
                 )}
-            </SidebarHeader>
-            <SidebarContent className="z-10 relative flex-1 overflow-visible">
-                <div
-                    key={activePanel ?? "panel-placeholder"}
-                    className="panel-fade-bounce absolute inset-0 overflow-auto px-4 transition-all duration-300 ease-in-out"
-                >
-                    {renderContent()}
+            </div>
+            <div className="z-10 relative flex-1 min-h-0 overflow-auto overscroll-contain px-4 pb-4" data-panel-scroll-owner>
+                <div hidden={showPicker}>
+                    <PanelContent panel={activePanel} horizontal={bottom} />
                 </div>
-            </SidebarContent>
+                {bottom && showPicker && <PanelContent panel={pickerMode} horizontal isPicker />}
+            </div>
 
             {/* Overlay Panel for Key Picker */}
             <div
                 className={cn(
                     "absolute top-0 bottom-0 left-0 -right-[2px] bg-white shadow-[4px_0_16px_rgba(0,0,0,0.1)] z-20 transition-all duration-500 ease-in-out flex flex-col",
-                    showPicker ? "translate-x-0 opacity-100" : "-translate-x-[120%] opacity-0 pointer-events-none"
+                    showPicker && !bottom ? "translate-x-0 opacity-100" : "-translate-x-[120%] opacity-0 pointer-events-none"
                 )}
-                aria-hidden={!showPicker}
+                aria-hidden={!showPicker || bottom}
+                inert={!showPicker || bottom}
                 style={{ clipPath: "inset(-50px -300px -50px 0px)" }}
             >
                 <div className="px-4 py-6 bg-white shrink-0">
                     <AlternativeHeader onBack={() => setIsClosingEditor(true)} menus={keyboard?.menus} />
                 </div>
 
-                <div className="absolute top-1/2 -translate-y-1/2 -right-[56px] h-48 z-50">
+                <div className="absolute top-24 right-0 bottom-0 overflow-y-auto z-30">
                     <EditorSidePanel activeTab={pickerMode} onTabChange={setPickerMode} showMacros={activePanel !== "macros"} />
                 </div>
 
-                <div className="flex-1 overflow-auto px-4 pb-4">
+                <div className="flex-1 min-h-0 overflow-auto overscroll-contain pl-4 pr-16 pb-4">
                     {pickerMode === "keyboard" && <BasicKeyboards isPicker />}
                     {pickerMode === "layers" && <LayersPanel isPicker />}
                     {pickerMode === "macros" && <MacrosPanel isPicker />}
@@ -266,8 +204,18 @@ const SecondarySidebar = () => {
                     {pickerMode === "mouse" && <MousePanel isPicker />}
                 </div>
             </div>
-            {itemToEdit !== null ? <div className="z-[-1] absolute inset-y-0 right-0 h-full w-0"><BindingEditorContainer shouldClose={isClosingEditor} /></div> : null}
-        </Sidebar>
+            {showPicker && <div ref={bindingRef} tabIndex={-1} className="binding-workspace z-30 bg-kb-gray-medium shadow-lg flex min-h-0" aria-label="Binding editor">
+                {bottom && <div className="shrink-0 bg-white overflow-y-auto">
+                    <EditorSidePanel activeTab={pickerMode} onTabChange={setPickerMode} showMacros={activePanel !== "macros"} />
+                </div>}
+                <div className="relative min-w-0 flex-1 overflow-auto overscroll-contain" data-binding-scroll-owner>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Close binding editor"
+                        className="sticky top-1 left-full z-40 bg-kb-gray-medium"
+                        onClick={() => setIsClosingEditor(true)}><X className="h-4 w-4" /></Button>
+                    <BindingEditorContainer shouldClose={isClosingEditor} inline />
+                </div>
+            </div>}
+        </aside>
     );
 };
 

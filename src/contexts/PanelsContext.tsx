@@ -40,23 +40,11 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [initialEditorSlot, setInitialEditorSlot] = useState<any | null>(null);
 
     const sidebar = useSidebar("details-panel", { defaultOpen: false });
-    const { isMobile, open: detailsOpen, setOpen, setOpenMobile } = sidebar;
+    const { open: detailsOpen, setOpen } = sidebar;
 
-    const openDetails = useCallback(() => {
-        if (isMobile) {
-            setOpenMobile(true);
-        } else {
-            setOpen(true);
-        }
-    }, [isMobile, setOpen, setOpenMobile]);
-
-    const closeDetails = useCallback(() => {
-        if (isMobile) {
-            setOpenMobile(false);
-        } else {
-            setOpen(false);
-        }
-    }, [isMobile, setOpen, setOpenMobile]);
+    // The shared detail shell uses the same open state in either placement.
+    const openDetails = useCallback(() => setOpen(true), [setOpen]);
+    const closeDetails = useCallback(() => setOpen(false), [setOpen]);
 
     useEffect(() => {
         if (activePanel && activePanel !== "matrixtester" && !detailsOpen) {

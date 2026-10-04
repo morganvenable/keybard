@@ -249,8 +249,8 @@ const CombosPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     A chording type solution for adding custom actions. It lets you hit multiple keys at once and produce a different effect. For instance, hitting A and B within the combo term would hit ESC instead, or have it perform even more complex tasks.
                 </DescriptionBlock>

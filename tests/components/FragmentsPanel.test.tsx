@@ -12,7 +12,7 @@ vi.mock('@/contexts/LayoutSettingsContext', () => ({useLayoutSettings: () => ({l
 vi.mock('@/components/ui/select', () => ({
     Select: ({children, onValueChange}: any) => <div><button onClick={() => onValueChange('new')}>Choose hardware</button>{children}</div>,
     SelectContent: ({children}: any) => <div>{children}</div>, SelectItem: ({children}: any) => <div>{children}</div>,
-    SelectTrigger: ({children}: any) => <div>{children}</div>, SelectValue: () => null,
+    SelectTrigger: ({children, ...props}: any) => <button role="combobox" {...props}>{children}</button>, SelectValue: () => null,
 }));
 vi.mock('@/services/vial.service', () => ({vialService: {
     getFragmentService: () => ({hasFragments: () => true, getSelectableInstances: () => [{idx: 0, instance: {id: 'left-test'}}],
@@ -24,6 +24,11 @@ vi.mock('@/services/vial.service', () => ({vialService: {
 
 describe('hardware selections', () => {
     beforeEach(() => {vi.clearAllMocks(); mocks.connected = true; mocks.update.mockResolvedValue(true);});
+    it('names hardware selectors independently of the selected fragment', () => {
+        render(<FragmentsPanel />);
+        expect(screen.getByRole('combobox', {name: 'Test'})).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: 'Restore default hardware selections'})).toBeInTheDocument();
+    });
     it('updates the draft but defers connected writes to the shared queue', async () => {
         render(<FragmentsPanel />);
         fireEvent.click(screen.getByRole('button', {name: 'Choose hardware'}));

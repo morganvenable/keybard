@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useVial } from "@/contexts/VialContext";
 import { vialService } from "@/services/vial.service";
@@ -35,9 +34,7 @@ const FragmentsPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected, getKeyboardSnapshot } = useVial();
     const { queue } = useChanges();
     const [updating, setUpdating] = useState<number | "bulk" | null>(null);
-    const { layoutMode } = useLayoutSettings();
 
-    const isHorizontal = layoutMode === "bottombar";
     const fragmentService = vialService.getFragmentService();
 
     const applyLocalSelections = useCallback((
@@ -182,7 +179,7 @@ const FragmentsPanel: React.FC = () => {
     // Check if keyboard has fragments
     if (!keyboard || !fragmentService.hasFragments(keyboard)) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+            <section className="space-y-3 flex flex-col pt-0">
                 <div className="text-center text-gray-500 mt-10">
                     No fragment configuration available for this keyboard.
                 </div>
@@ -194,7 +191,7 @@ const FragmentsPanel: React.FC = () => {
 
     if (selectableInstances.length === 0) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+            <section className="space-y-3 flex flex-col pt-0">
                 <div className="text-center text-gray-500 mt-10">
                     No selectable fragment positions available.
                 </div>
@@ -216,139 +213,16 @@ const FragmentsPanel: React.FC = () => {
     const rightInstances = selectableInstances.filter(({ instance }) => getSide(instance.id) === "right");
     const otherInstances = selectableInstances.filter(({ instance }) => getSide(instance.id) === "other");
 
-    // Horizontal layout for bottom panel
-    if (isHorizontal) {
-        return (
-            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
-                <div className="w-full">
-                    <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        className="rounded-full px-4 bg-black text-white hover:bg-gray-800"
-                        onClick={handleApplyDefault}
-                        disabled={updating !== null}
-                    >
-                        Default
-                    </Button>
-                </div>
-                {leftInstances.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                        <span className="text-[10px] font-bold text-black uppercase">Left</span>
-                        <div className="flex flex-row gap-3 flex-wrap">
-                            {leftInstances.map(({ idx, instance }) => {
-                                const options = fragmentService.getFragmentOptions(instance);
-                                const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
-                                const instanceDisplayName = formatInstanceLabel(fragmentService.getInstanceDisplayName(instance.id));
-                                const isUpdating = updating === idx || updating === "bulk";
-
-                                return (
-                                    <div key={instance.id} className="flex flex-col gap-1 min-w-[120px]">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                                            {instanceDisplayName}
-                                        </span>
-                                        <Select
-                                            value={currentFragment}
-                                            onValueChange={(value) => handleSelectionChange(idx, instance, value)}
-                                            disabled={isUpdating}
-                                        >
-                                            <SelectTrigger className="h-7 text-xs">
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {options.map((fragmentName) => (
-                                                    <SelectItem key={fragmentName} value={fragmentName} className="text-xs">
-                                                        {fragmentService.getFragmentDisplayName(keyboard, fragmentName)}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-                {rightInstances.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                        <span className="text-[10px] font-bold text-black uppercase">Right</span>
-                        <div className="flex flex-row gap-3 flex-wrap">
-                            {rightInstances.map(({ idx, instance }) => {
-                                const options = fragmentService.getFragmentOptions(instance);
-                                const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
-                                const instanceDisplayName = formatInstanceLabel(fragmentService.getInstanceDisplayName(instance.id));
-                                const isUpdating = updating === idx || updating === "bulk";
-
-                                return (
-                                    <div key={instance.id} className="flex flex-col gap-1 min-w-[120px]">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                                            {instanceDisplayName}
-                                        </span>
-                                        <Select
-                                            value={currentFragment}
-                                            onValueChange={(value) => handleSelectionChange(idx, instance, value)}
-                                            disabled={isUpdating}
-                                        >
-                                            <SelectTrigger className="h-7 text-xs">
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {options.map((fragmentName) => (
-                                                    <SelectItem key={fragmentName} value={fragmentName} className="text-xs">
-                                                        {fragmentService.getFragmentDisplayName(keyboard, fragmentName)}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-                {otherInstances.map(({ idx, instance }) => {
-                    const options = fragmentService.getFragmentOptions(instance);
-                    const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
-                    const instanceDisplayName = fragmentService.getInstanceDisplayName(instance.id);
-                    const isUpdating = updating === idx || updating === "bulk";
-
-                    return (
-                        <div key={instance.id} className="flex flex-col gap-1 min-w-[120px]">
-                            <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                                {instanceDisplayName}
-                            </span>
-                            <Select
-                                value={currentFragment}
-                                onValueChange={(value) => handleSelectionChange(idx, instance, value)}
-                                disabled={isUpdating}
-                            >
-                                <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue placeholder="Select" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.map((fragmentName) => (
-                                        <SelectItem key={fragmentName} value={fragmentName} className="text-xs">
-                                            {fragmentService.getFragmentDisplayName(keyboard, fragmentName)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    }
-
     return (
-        <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex flex-col overflow-auto scrollbar-thin px-4 gap-3 py-2">
+        <div className="flex flex-col">
+            <div className="flex flex-col px-4 gap-3 py-2">
                 <div>
                     <Button
                         type="button"
                         variant="default"
                         size="sm"
                         className="rounded-full px-4 bg-black text-white hover:bg-gray-800"
+                        aria-label="Restore default hardware selections"
                         onClick={handleApplyDefault}
                         disabled={updating !== null}
                     >
@@ -404,7 +278,10 @@ const FragmentsPanel: React.FC = () => {
                                         onValueChange={(value) => handleSelectionChange(idx, instance, value)}
                                         disabled={isLocked || isUpdating}
                                     >
-                                        <SelectTrigger className="flex-1 min-w-0">
+                                        <SelectTrigger
+                                            aria-label={fragmentService.getInstanceDisplayName(instance.id)}
+                                            aria-description={statusText || undefined}
+                                            className="flex-1 min-w-0">
                                             <SelectValue placeholder="Select fragment" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -469,7 +346,10 @@ const FragmentsPanel: React.FC = () => {
                                         onValueChange={(value) => handleSelectionChange(idx, instance, value)}
                                         disabled={isLocked || isUpdating}
                                     >
-                                        <SelectTrigger className="flex-1 min-w-0">
+                                        <SelectTrigger
+                                            aria-label={fragmentService.getInstanceDisplayName(instance.id)}
+                                            aria-description={statusText || undefined}
+                                            className="flex-1 min-w-0">
                                             <SelectValue placeholder="Select fragment" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -531,7 +411,10 @@ const FragmentsPanel: React.FC = () => {
                                 onValueChange={(value) => handleSelectionChange(idx, instance, value)}
                                 disabled={isLocked || isUpdating}
                             >
-                                <SelectTrigger className="flex-1 min-w-0">
+                                <SelectTrigger
+                                            aria-label={fragmentService.getInstanceDisplayName(instance.id)}
+                                            aria-description={statusText || undefined}
+                                            className="flex-1 min-w-0">
                                     <SelectValue placeholder="Select fragment" />
                                 </SelectTrigger>
                                 <SelectContent>

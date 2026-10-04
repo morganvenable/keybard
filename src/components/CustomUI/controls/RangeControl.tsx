@@ -33,6 +33,8 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
                 <span title={item.description} className="text-xs">{item.label}</span>
                 <div className="flex flex-row items-center gap-1.5">
                     <Slider
+                        aria-label={item.label}
+                        aria-description={item.description}
                         value={[Number(draft) || min]}
                         onValueChange={(values) => setDraft(String(values[0]))}
                         onValueCommit={(values) => commit(String(values[0]))}
@@ -43,6 +45,8 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
                     />
                     <Input
                         type="number"
+                        aria-label={item.label}
+                        aria-description={item.description}
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onBlur={(e) => commit(e.target.value)}
@@ -64,6 +68,8 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
             <span title={item.description} className="text-md">{item.label}</span>
             <div className="flex flex-row items-center gap-3">
                 <Slider
+                        aria-label={item.label}
+                        aria-description={item.description}
                     value={[Number(draft) || min]}
                     onValueChange={(values) => setDraft(String(values[0]))}
                         onValueCommit={(values) => commit(String(values[0]))}
@@ -74,6 +80,8 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
                 />
                 <Input
                     type="number"
+                        aria-label={item.label}
+                        aria-description={item.description}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                         onBlur={(e) => commit(e.target.value)}

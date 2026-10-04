@@ -62,6 +62,15 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
+    const colorButtonRef = useRef<HTMLButtonElement>(null);
+    const renameButtonRef = useRef<HTMLButtonElement>(null);
+    const cancelRename = useRef(false);
+    const savingRename = useRef(false);
+    const restoreRenameFocus = () => requestAnimationFrame(() => renameButtonRef.current?.focus());
+
+    useEffect(() => {
+        if (isColorPickerOpen) pickerRef.current?.querySelector<HTMLButtonElement>("[data-color-choice]")?.focus();
+    }, [isColorPickerOpen]);
 
     // Close picker when clicking outside
     useEffect(() => {
@@ -106,20 +115,34 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     const handleStartEditing = () => {
         const currentName = svalService.getLayerName(keyboard, selectedLayer);
+        cancelRename.current = false;
         setEditValue(currentName);
         setIsEditing(true);
         setTimeout(() => inputRef.current?.focus(), 0);
     };
 
-    const handleSave = async () => {
-        if (await renameLayer(selectedLayer, editValue)) setIsEditing(false);
+    const handleSave = async (restoreFocus = false) => {
+        if (cancelRename.current || savingRename.current) return;
+        savingRename.current = true;
+        try {
+            if (await renameLayer(selectedLayer, editValue)) {
+                setIsEditing(false);
+                if (restoreFocus) restoreRenameFocus();
+            }
+        } finally { savingRename.current = false; }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
-            handleSave();
+            e.preventDefault();
+            e.stopPropagation();
+            void handleSave(true);
         } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            cancelRename.current = true;
             setIsEditing(false);
+            restoreRenameFocus();
         }
     };
 
@@ -140,6 +163,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             }
         }
         setIsColorPickerOpen(false);
+        colorButtonRef.current?.focus();
     };
 
     const handleSetCustomColor = async (
@@ -344,13 +368,27 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 <div
                     className="relative"
                     ref={pickerRef}
+                    onKeyDown={(e) => {
+                        if (e.key === "Escape" && isColorPickerOpen) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsColorPickerOpen(false);
+                            colorButtonRef.current?.focus();
+                        }
+                    }}
+                    onBlur={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsColorPickerOpen(false);
+                    }}
                 >
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
                                 type="button"
+                                ref={colorButtonRef}
+                                aria-label={`Change color for layer ${selectedLayer}`}
+                                aria-expanded={isColorPickerOpen}
                                 className={cn(
-                                    "relative w-7 h-7 shrink-0 p-0 border-0 rounded-full cursor-pointer transition-transform hover:scale-110",
+                                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 relative w-7 h-7 shrink-0 p-0 border-0 rounded-full cursor-pointer transition-transform hover:scale-110",
                                     isColorPickerOpen && "z-30"
                                 )}
                                 onDoubleClick={(e) => {
@@ -379,8 +417,12 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             {allColors.map((color) => (
                                 <button
                                     key={color.name}
+                                    type="button"
+                                    data-color-choice
+                                    aria-label={color.name}
+                                    aria-pressed={currentLayerColorName === color.name}
                                     className={cn(
-                                        "w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
+                                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
                                         currentLayerColorName === color.name ? "border-black" : "border-transparent"
                                     )}
                                     style={{ backgroundColor: color.hex }}
@@ -389,7 +431,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             ))}
                             {/* Custom color button - always available, hardware write only happens when connected */}
                             <button
-                                className="w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
+                                type="button"
+                                aria-label="Custom layer color"
+                                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
                                 onClick={() => {
                                     setIsColorPickerOpen(false);
                                     setIsCustomColorOpen(true);
@@ -405,29 +449,33 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 {isEditing ? (
                     <Input
                         ref={inputRef}
+                        aria-label={`Rename layer ${selectedLayer}`}
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleSave}
+                        onBlur={() => void handleSave()}
                         onKeyDown={handleKeyDown}
                         className="h-6 py-0 px-2 text-xs font-bold border border-black rounded w-24 bg-white"
                         autoFocus
                     />
                 ) : (
-                    <span
+                    <button
+                        type="button"
+                        ref={renameButtonRef}
+                        aria-label={`Rename layer ${selectedLayer}: ${svalService.getLayerName(keyboard, selectedLayer)}`}
                         className={cn(
-                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 rounded text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
                         )}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >
                         {svalService.getLayerName(keyboard, selectedLayer)}
-                    </span>
+                    </button>
                 )}
 
                 {/* Layer Actions Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
+                        <button type="button" aria-label={`Actions for layer ${selectedLayer}`} className="focus-visible:ring-2 focus-visible:ring-black hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
                             <EllipsisVertical size={16} strokeWidth={1.5} />
                         </button>
                     </DropdownMenuTrigger>
@@ -485,6 +533,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             <CustomColorDialog
                 open={isCustomColorOpen}
                 onOpenChange={setIsCustomColorOpen}
+                onCloseAutoFocus={(event) => { event.preventDefault(); colorButtonRef.current?.focus(); }}
                 // LED Color (Hardware)
                 initialLedHue={keyboard.layer_colors?.[selectedLayer]?.hue ?? 85}
                 initialLedSat={keyboard.layer_colors?.[selectedLayer]?.sat ?? 255}

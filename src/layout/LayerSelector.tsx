@@ -283,13 +283,16 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         return (
             <button
                 key={`layer-tab-${i}`}
+                type="button"
+                aria-label={`Layer ${i}: ${layerShortName}`}
+                aria-pressed={isActive}
                 onClick={handleSelectLayer(i)}
                 onDoubleClick={(e) => {
                     e.stopPropagation();
                     onToggleLayerOn(i);
                 }}
                 className={cn(
-                    "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
+                    "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 whitespace-nowrap",
                     isActive
                         ? "bg-gray-800 text-white shadow-md scale-105"
                         : "bg-transparent text-gray-600 hover:bg-gray-200"
@@ -333,7 +336,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                 <div className="flex flex-col w-full bg-transparent">
                     <div className="relative w-full bg-transparent">
                         {/* Top Row: Connect/Import/Export + Live Controls + Tab Icon + Tabs */}
-                        <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent">
+                        <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
 
                             {/* File Input (Hidden) */}
                             <input
@@ -357,7 +360,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="format" className="text-right">Format</Label>
                                             <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "svil" | "vil")}>
-                                                <SelectTrigger className="col-span-3">
+                                                <SelectTrigger aria-label="Export format" className="col-span-3">
                                                     <SelectValue placeholder="Select format" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -620,6 +623,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isMultiLayersActive}
                                             aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
                                         >
                                             <LayoutMultiLayersIcon className={cn(
@@ -648,6 +652,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={is3DMode}
                                             aria-label={is3DMode ? "Exit 3D View" : "3D View"}
                                         >
                                             <BoxIcon className={cn(
@@ -676,7 +681,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
-                                            aria-label="Hide Thumbs"
+                                            aria-pressed={isThumb3DOffsetActive}
+                                            aria-label={isThumb3DOffsetActive ? "Show Thumbs" : "Hide Thumbs"}
                                         >
                                             <ThumbGrid3x2Icon className={cn(
                                                 "h-5 w-5",
@@ -704,6 +710,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isAllTransparencyActive}
                                             aria-label={isAllTransparencyActive ? "Show All Transparent Keys" : "Hide All Transparent Keys"}
                                         >
                                             <span className={cn(
@@ -733,6 +740,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isOverviewActive}
                                             aria-label={isOverviewActive ? "Disable Overview" : "Overview"}
                                         >
                                             <TelescopeIcon className={cn(
@@ -767,7 +775,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
 
                         {/* Layer Tabs Row - fixed position in 3D and/or multi-layer mode */}
                         {(isMultiLayersActive || is3DMode) && (
-                            <div className="absolute left-0 right-0 top-full z-30 flex items-center gap-2 pl-5 pb-2 whitespace-nowrap bg-transparent pointer-events-auto">
+                            <div className="absolute left-0 right-0 top-full z-30 flex items-center gap-2 pl-5 pb-2 whitespace-nowrap bg-transparent pointer-events-auto overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
                                 <div className="flex items-center gap-1">
                                     <Tooltip delayDuration={500}>
                                         <TooltipTrigger asChild>
@@ -784,6 +792,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                         ? "text-gray-400 cursor-not-allowed opacity-30"
                                                         : "text-black hover:bg-gray-200"
                                                 )}
+                                            aria-pressed={showAllLayers}
                                             aria-label={showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
                                         >
                                             {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}

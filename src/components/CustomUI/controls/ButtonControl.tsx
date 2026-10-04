@@ -16,6 +16,8 @@ export const ButtonControl: React.FC<ButtonControlProps> = ({ item, onClick, com
         )}>
             <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
             <Button
+                aria-label={item.label}
+                aria-description={item.description}
                 variant="outline"
                 onClick={onClick}
                 size={compact ? "sm" : "default"}

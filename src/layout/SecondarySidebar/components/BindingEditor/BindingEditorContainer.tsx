@@ -95,9 +95,10 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
 
     useEffect(() => {
         if (shouldClose && !isClosing) {
-            setIsClosing(true);
+            if (inline) handleCloseEditor();
+            else setIsClosing(true);
         }
-    }, [shouldClose, isClosing]);
+    }, [shouldClose, isClosing, inline, handleCloseEditor]);
 
     const handleAnimatedClose = useCallback(() => {
         if (isClosing) {
@@ -300,10 +301,10 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         : cn("absolute top-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : bindingTypeToEdit === "combos" ? "w-[660px] right-[-660px]" : bindingTypeToEdit === "leaders" ? "w-[520px] right-[-520px]" : "w-[450px] right-[-450px]");
 
     const panelClasses = inline
-        ? cn("bg-kb-gray-medium p-0 flex flex-col w-full overflow-hidden")
+        ? cn("bg-kb-gray-medium p-0 flex flex-col w-full min-w-[280px]")
         : cn(
             "binding-editor bg-kb-gray-medium rounded-r-2xl p-0 flex flex-col w-full shadow-[4px_0_16px_rgba(0,0,0,0.1)] overflow-hidden relative",
-            bindingTypeToEdit === "overrides" ? "min-h-[620px]" : (bindingTypeToEdit === "tapdances" || bindingTypeToEdit === "macros") ? "min-h-[500px]" : "min-h-0",
+            "min-h-0",
             isClosing ? "binding-editor--exit" : "binding-editor--enter"
         );
 
@@ -355,7 +356,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 {bindingTypeToEdit === "tapdances" && keyboard?.tapdances && itemToEdit !== null && (
                     <div className="mt-[20px]" aria-label="Tap dance enabled">
                         <span className="text-xs">Enabled</span>
-                        <OnOffToggle value={keyboard.tapdances[itemToEdit]?.enabled !== false} onToggle={async enabled => {
+                        <OnOffToggle label="Tap dance enabled" value={keyboard.tapdances[itemToEdit]?.enabled !== false} onToggle={async enabled => {
                             const updatedKeyboard = structuredClone(keyboard);
                             updatedKeyboard.tapdances![itemToEdit].enabled = enabled;
                             setKeyboard(updatedKeyboard);
@@ -366,6 +367,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 {bindingTypeToEdit === "leaders" && keyboard?.leaders && itemToEdit !== null && (
                     <div className="mt-[20px]">
                         <OnOffToggle
+                            label="Leader sequence enabled"
                             value={(keyboard.leaders[itemToEdit]?.options & LeaderOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
                                 const updatedKeyboard = structuredClone(keyboard);
@@ -383,6 +385,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 {bindingTypeToEdit === "overrides" && keyboard?.key_overrides && itemToEdit !== null && (
                     <div className="mt-[20px]">
                         <OnOffToggle
+                            label="Override enabled"
                             value={(keyboard.key_overrides[itemToEdit]?.options & (1 << 7)) !== 0}
                             onToggle={async (enabled) => {
                                 const updatedKeyboard = structuredClone(keyboard);
@@ -400,6 +403,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 {bindingTypeToEdit === "altrepeat" && keyboard?.alt_repeat_keys && itemToEdit !== null && (
                     <div className="mt-[20px]">
                         <OnOffToggle
+                            label="Alt-repeat enabled"
                             value={(keyboard.alt_repeat_keys[itemToEdit]?.options & AltRepeatKeyOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
                                 const updatedKeyboard = structuredClone(keyboard);
@@ -417,6 +421,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 {bindingTypeToEdit === "combos" && keyboard?.combos && itemToEdit !== null && (
                     <div className="mt-[20px]">
                         <OnOffToggle
+                            label="Combo enabled"
                             value={(keyboard.combos[itemToEdit]?.options & ComboOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
                                 const updatedKeyboard = structuredClone(keyboard);
@@ -443,12 +448,12 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
             }}
         >
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
-                <div
+                {!inline && <div
                     className="w-full h-6 flex items-center justify-center cursor-ns-resize hover:bg-black/5 transition-colors group z-20"
                     onMouseDown={handleMouseDown}
                 >
                     <GripHorizontal className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                </div>
+                </div>}
                 <div className={inline ? "p-3 pt-0" : "p-5 pt-0"}>
                     <div className={cn(
                         "flex flex-row w-full items-start justify-between",
@@ -463,6 +468,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                             <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
                                                 <Input
                                                     ref={inputRef}
+                                                    aria-label="Binding name"
                                                     value={editTitleValue}
                                                     onChange={(e) => setEditTitleValue(e.target.value)}
                                                     onBlur={handleSaveTitle}
@@ -472,13 +478,15 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                                 />
                                             </div>
                                         ) : (
-                                            <div
-                                                className="cursor-pointer hover:bg-black/5 rounded-md px-2 py-1 transition-colors"
+                                            <button
+                                                type="button"
+                                                aria-label={`Rename ${getEditorTitle()}`}
+                                                className="cursor-pointer hover:bg-black/5 rounded-md px-2 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 text-left"
                                                 onClick={handleStartEditingTitle}
                                                 title="Click to rename"
                                             >
                                                 {getEditorTitle()}
-                                            </div>
+                                            </button>
                                         )
                                     ) : (
                                         getEditorTitle()
@@ -490,6 +498,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                             <div className="h-14 flex items-center">
                                 <button
                                     type="button"
+                                    aria-label="Close binding editor"
                                     onClick={handleAnimatedClose}
                                     className="rounded-sm p-1 text-kb-gray-border transition-all hover:text-black focus:outline-none focus:text-black cursor-pointer"
                                 >
@@ -507,12 +516,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                     {bindingTypeToEdit === "altrepeat" && <AltRepeatEditor />}
                     {bindingTypeToEdit === "leaders" && <LeaderEditor />}
 
-                    {!inline && hasContent && (
-                        <div className="absolute bottom-[22px] right-5 z-10">
+                    {hasContent && (
+                        <div className="flex justify-end mt-3">
                             <DelayedTooltip>
                                 <TooltipTrigger asChild>
                                     <button
                                         type="button"
+                                        aria-label={`Clear ${getEditorTitle()}`}
                                         onClick={() => setIsConfirmOpen(true)}
                                         className="rounded-full p-1 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
                                     >

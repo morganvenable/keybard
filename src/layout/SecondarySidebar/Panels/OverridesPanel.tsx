@@ -170,8 +170,8 @@ const OverridesPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Reconfiguration of modifier-key combinations to send a different modifier-key combination or perform completely custom actions. e.g. Send delete when pressing shift + backspace
                 </DescriptionBlock>

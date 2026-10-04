@@ -133,7 +133,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Vertical mode: title on top, controls stacked below
     if (horizontal) {
         return (
-            <section className={embedded ? "px-2 py-1" : "h-full overflow-auto px-2 py-1"}>
+            <section className={embedded ? "px-2 py-1" : "px-2 py-1"}>
                 <CustomUIRenderer
                     items={displayItems}
                     values={values}
@@ -147,8 +147,8 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     }
 
     return (
-        <section className={embedded ? "" : "h-full flex flex-col overflow-hidden"}>
-            <div className={embedded ? "pb-4" : "flex-1 overflow-auto pb-4"}>
+        <section className={embedded ? "" : "flex flex-col"}>
+            <div className={embedded ? "pb-4" : "pb-4"}>
                 <CustomUIRenderer
                     items={displayItems}
                     values={values}

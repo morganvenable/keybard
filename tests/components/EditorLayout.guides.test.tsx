@@ -118,6 +118,7 @@ vi.mock("../../src/layout/Sidebar", () => ({
 vi.mock("../../src/layout/SecondarySidebar/SecondarySidebar", () => ({
   default: () => null,
   DETAIL_SIDEBAR_WIDTH: "360px",
+  getDetailPanelHeight: (_panel: unknown, height: number) => height,
 }));
 
 vi.mock("../../src/layout/BottomPanel", () => ({

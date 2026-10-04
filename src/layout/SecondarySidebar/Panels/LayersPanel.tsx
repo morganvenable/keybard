@@ -184,7 +184,7 @@ const LayersPanel = ({ isPicker }: Props) => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col">
+        <section className="space-y-3 flex flex-col">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Layer Keys</span>
@@ -214,7 +214,7 @@ const LayersPanel = ({ isPicker }: Props) => {
             </div>
 
             {/* Scrollable Layer List */}
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+            <div className="flex flex-col">
                 {nameError && <p role="alert" className="text-red-600">{nameError}</p>}
                 <DescriptionBlock wrapText={false}>
                     <span className="text-md font-medium text-black">

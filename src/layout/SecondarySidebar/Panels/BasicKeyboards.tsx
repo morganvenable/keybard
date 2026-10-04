@@ -348,7 +348,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
                 {/* QWERTY keyboard - main content, no language selector here */}
                 <div className="flex-shrink-0">
+                    <div className="min-w-[440px]">
                     <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                </div>
                 </div>
 
                 {/* Blank/Transparent keys */}
@@ -494,7 +496,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         ))}
                     </select>
                 </div>
-                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                <div className="min-w-[440px]">
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                </div>
             </div>
 
             <section className="flex flex-col gap-2">
