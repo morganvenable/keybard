@@ -260,7 +260,7 @@ const FragmentsPanel: React.FC = () => {
                             return (
                                 <div
                                     key={instance.id}
-                                    className="flex flex-row items-center p-3 gap-4 panel-layer-item group/item rounded-md"
+                                    className="flex flex-row flex-wrap items-center p-3 gap-3 panel-layer-item group/item rounded-md"
                                 >
                                     <div className="flex flex-col items-start gap-1 shrink-0 w-[100px]">
                                         <Label className="text-sm font-medium">
@@ -281,7 +281,7 @@ const FragmentsPanel: React.FC = () => {
                                         <SelectTrigger
                                             aria-label={fragmentService.getInstanceDisplayName(instance.id)}
                                             aria-description={statusText || undefined}
-                                            className="flex-1 min-w-0">
+                                            className="flex-1 basis-36 min-w-0">
                                             <SelectValue placeholder="Select fragment" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -328,7 +328,7 @@ const FragmentsPanel: React.FC = () => {
                             return (
                                 <div
                                     key={instance.id}
-                                    className="flex flex-row items-center p-3 gap-4 panel-layer-item group/item rounded-md"
+                                    className="flex flex-row flex-wrap items-center p-3 gap-3 panel-layer-item group/item rounded-md"
                                 >
                                     <div className="flex flex-col items-start gap-1 shrink-0 w-[100px]">
                                         <Label className="text-sm font-medium">
@@ -349,7 +349,7 @@ const FragmentsPanel: React.FC = () => {
                                         <SelectTrigger
                                             aria-label={fragmentService.getInstanceDisplayName(instance.id)}
                                             aria-description={statusText || undefined}
-                                            className="flex-1 min-w-0">
+                                            className="flex-1 basis-36 min-w-0">
                                             <SelectValue placeholder="Select fragment" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -393,7 +393,7 @@ const FragmentsPanel: React.FC = () => {
                     return (
                         <div
                             key={instance.id}
-                            className="flex flex-row items-center p-3 gap-4 panel-layer-item group/item rounded-md"
+                            className="flex flex-row flex-wrap items-center p-3 gap-3 panel-layer-item group/item rounded-md"
                         >
                             <div className="flex flex-col items-start gap-1 shrink-0 w-[100px]">
                                 <Label className="text-sm font-medium">
@@ -414,7 +414,7 @@ const FragmentsPanel: React.FC = () => {
                                 <SelectTrigger
                                             aria-label={fragmentService.getInstanceDisplayName(instance.id)}
                                             aria-description={statusText || undefined}
-                                            className="flex-1 min-w-0">
+                                            className="flex-1 basis-36 min-w-0">
                                     <SelectValue placeholder="Select fragment" />
                                 </SelectTrigger>
                                 <SelectContent>

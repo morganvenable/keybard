@@ -297,7 +297,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
 
     // In inline mode, render without absolute positioning for overlay use
     const containerClasses = inline
-        ? cn("flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : bindingTypeToEdit === "combos" ? "w-[660px]" : "w-full")
+        ? "flex flex-col w-full min-w-0"
         : cn("absolute top-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : bindingTypeToEdit === "combos" ? "w-[660px] right-[-660px]" : bindingTypeToEdit === "leaders" ? "w-[520px] right-[-520px]" : "w-[450px] right-[-450px]");
 
     const panelClasses = inline

@@ -114,7 +114,7 @@ const OverridesPanel: React.FC = () => {
     // Horizontal grid layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start pt-2">
+            <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {overrides.map((override, i) => {
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
                     const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO") || isEnabled;

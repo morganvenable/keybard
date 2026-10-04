@@ -127,7 +127,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const [, setContainerWidth] = useState(0);
 
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    const [isHovered, setIsHovered] = useState(false);
+    const [toolbarPinned, setToolbarPinned] = useState(false);
     const [ignoreHover, setIgnoreHover] = useState(false);
     const [isOverviewActive, setIsOverviewActive] = useState(false);
     const overviewSnapshotRef = useRef<OverviewStateSnapshot | null>(null);
@@ -150,9 +150,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // When vertically constrained, go into hover-only mode
+    // Short windows use an explicit toolbar disclosure.
     const isVerticallyConstrained = windowHeight < 550;
-    const showFullBar = !isVerticallyConstrained || isHovered;
+    const showFullBar = !isVerticallyConstrained || toolbarPinned;
 
     const getDisplayOrderForState = (
         nextShowAllLayers: boolean,
@@ -309,8 +309,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const visibleLayerIds = allLayerIds.filter(shouldRenderLayerTab);
     const displayOrder = isLayerOrderReversed ? [...visibleLayerIds].reverse() : visibleLayerIds;
 
-    // Single clean render - horizontal bar of layer tabs (single line, no wrap, no scroll)
-    // When vertically constrained: hover-only mode with collapsed hint bar
+    // Keep toolbar and layer rows compact; constrained rows can scroll.
+    // When vertically constrained: explicit disclosure keeps controls reachable.
     return (
         <div
             ref={containerRef}
@@ -319,24 +319,30 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                 showFullBar ? "pt-[22px]" : "pt-0"
             )}
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
             <EditingTargetStatus />
             {importReview}
-            {/* Collapsed hint bar - shown when vertically constrained and not hovered */}
-            {isVerticallyConstrained && !isHovered && (
-                <div className="flex items-center justify-center text-gray-300 cursor-pointer h-3">
+            {/* Collapsed toolbar disclosure for short windows */}
+            {!showFullBar && (
+                <button type="button" aria-label="Show editor controls" title="Show editor controls" aria-expanded={false}
+                    className="flex w-full items-center justify-center text-gray-500 hover:text-black cursor-pointer h-5 focus-visible:outline-2"
+                    onClick={() => setToolbarPinned(true)}>
                     <ChevronDown className="h-3 w-3" />
-                </div>
+                </button>
             )}
 
-            {/* Full layer tabs - shown when not constrained or when hovered */}
+            {/* Full toolbar - shown normally or explicitly expanded */}
             {showFullBar && (
                 <div className="flex flex-col w-full bg-transparent">
                     <div className="relative w-full bg-transparent">
                         {/* Top Row: Connect/Import/Export + Live Controls + Tab Icon + Tabs */}
                         <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
+
+                            {isVerticallyConstrained && <button type="button" aria-label="Hide editor controls" title="Hide editor controls"
+                                className="rounded p-1 text-gray-500 hover:bg-gray-200 focus-visible:outline-2"
+                                onClick={() => { setToolbarPinned(false); }}>
+                                <ChevronDown className="h-3 w-3 rotate-180" />
+                            </button>}
 
                             {/* File Input (Hidden) */}
                             <input

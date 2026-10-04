@@ -93,10 +93,10 @@ const AltRepeatEditor: FC = () => {
     if (!altRepeatEntry) return <div className="p-5">Alt-repeat entry not found</div>;
 
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pb-20">
+        <div className="flex flex-col gap-2 py-6 pl-10 pb-20">
 
             {/* Key Slots */}
-            <div className="flex flex-row gap-8 justify-start items-center">
+            <div className="flex flex-row flex-wrap gap-4 justify-start items-center">
                 <div className="flex flex-col items-center gap-2 relative">
                     <span className="text-sm font-bold text-slate-600">Trigger</span>
                     <EditorKey

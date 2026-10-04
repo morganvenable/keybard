@@ -152,7 +152,7 @@ const ComboEditor: FC = () => {
     // Horizontal layout: 2x2 grid of input keys + arrow + output
     if (isHorizontal) {
         return (
-            <div className="flex flex-row items-center gap-6 px-6 py-3">
+            <div className="flex flex-row flex-wrap items-center gap-4 pl-8 pr-2 py-3">
                 <div className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 mb-1">Input Keys</span>
                     <div className="grid grid-cols-2 gap-2">
@@ -176,7 +176,7 @@ const ComboEditor: FC = () => {
     // ==========================================
 
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
+        <div className="flex flex-col gap-8 py-6 pl-10 pb-20">
             <div className="flex flex-col gap-3">
                 <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3].map((slotIdx) => (

@@ -177,12 +177,12 @@ const OverrideEditor: FC = () => {
     if (!override) return <div className="p-5">Override not found</div>;
 
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pb-16">
+        <div className="flex flex-col gap-2 py-6 pl-10 pb-16">
             {/* Active Switch */}
             {/* Active Toggle */}
 
 
-            <div className="flex flex-row gap-8 justify-start items-center">
+            <div className="flex flex-row flex-wrap gap-4 justify-start items-center">
                 {renderOverrideKey("Trigger", "trigger")}
                 <div className="pt-6 text-black -mr-1">
                     <ArrowRight className="w-6 h-6" />
@@ -191,13 +191,13 @@ const OverrideEditor: FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-row items-center bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-4">
+            <div className="flex flex-row flex-wrap gap-1 items-center bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-4">
                 {TABS.map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={cn(
-                            "flex-1 py-1.5 text-xs uppercase tracking-wider rounded-md transition-all font-bold border-none",
+                            "flex-1 min-w-20 px-2 py-1.5 text-xs uppercase tracking-wider rounded-md transition-all font-bold border-none",
                             activeTab === tab
                                 ? "bg-black text-white shadow-md"
                                 : "text-gray-500 hover:text-black hover:bg-white/50"
@@ -214,7 +214,7 @@ const OverrideEditor: FC = () => {
             {/* Layers Section */}
             <div className="flex flex-col gap-1.5">
                 <span className="font-semibold text-lg text-black">Layers</span>
-                <div className="grid grid-cols-8 gap-2 w-fit">
+                <div className="grid grid-cols-[repeat(auto-fit,2.5rem)] gap-2 w-full">
                     {Array.from({ length: 16 }).map((_, i) => {
                         const isActive = (override.layers & (1 << i)) !== 0;
                         return (

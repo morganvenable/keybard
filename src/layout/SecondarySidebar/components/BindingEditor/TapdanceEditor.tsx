@@ -27,7 +27,7 @@ const TapdanceEditor: FC = () => {
     const effectiveVariant = isHorizontal ? "medium" : keyVariant;
     const keySizeClass = effectiveVariant === 'small' ? 'w-[30px] h-[30px]' : effectiveVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
     const gapClass = isHorizontal ? 'gap-6' : (effectiveVariant === 'small' ? 'gap-3' : effectiveVariant === 'medium' ? 'gap-4' : 'gap-6');
-    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 pb-20 pt-4' : effectiveVariant === 'medium' ? 'pl-14 pb-20 pt-6' : 'pl-[84px] pb-20 pt-8');
+    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 pb-20 pt-4' : effectiveVariant === 'medium' ? 'pl-10 pb-20 pt-6' : 'pl-10 pb-20 pt-8');
     const labelClass = effectiveVariant === 'small' ? 'text-xs' : effectiveVariant === 'medium' ? 'text-sm' : 'text-sm';
 
     const isSlotSelected = (slot: string) => {
@@ -217,7 +217,7 @@ const TapdanceEditor: FC = () => {
     // Horizontal layout: 2x2 quad of keys + ms input
     if (isHorizontal) {
         return (
-            <div className="flex flex-row items-center gap-10 px-8 py-3">
+            <div className="flex flex-row flex-wrap items-center gap-6 pl-8 pr-2 py-3">
                 {/* 2x2 grid of tap dance keys */}
                 <div className="grid grid-cols-2 gap-5">
                     {renderTapdanceKey("Tap", keys.tap, "tap")}

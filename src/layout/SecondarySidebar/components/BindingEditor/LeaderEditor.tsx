@@ -217,9 +217,9 @@ const LeaderEditor: FC = () => {
         return (
             <div className="flex flex-col gap-1 px-4 py-2">
                 {/* Keys row */}
-                <div className="flex flex-row items-center gap-4">
+                <div className="flex flex-row flex-wrap items-center gap-4">
                     {/* Sequence Keys */}
-                    <div className="flex flex-row gap-1 items-end">
+                    <div className="flex flex-row flex-wrap gap-1 items-end">
                         {[0, 1, 2, 3, 4].map((idx) => {
                             if (idx > filledKeys) return null;
                             return (
@@ -249,7 +249,7 @@ const LeaderEditor: FC = () => {
     // VERTICAL LAYOUT (Sidebar Mode)
     // ==========================================
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
+        <div className="flex flex-col gap-8 py-6 pl-10 pb-20">
             {/* Sequence & Output Keys */}
             <div className="flex flex-col gap-3">
                 <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>

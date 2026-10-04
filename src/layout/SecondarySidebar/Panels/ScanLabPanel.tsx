@@ -328,7 +328,7 @@ const ScanLabPanel = () => {
     }
 
     const statusCards = (
-        <div className={cn("grid gap-2", isHorizontal ? "grid-cols-2 min-w-[360px]" : "grid-cols-2")}>
+        <div className="grid gap-2 grid-cols-2">
             {HANDS.map((h) => {
                 const s = status[h];
                 return (
@@ -669,9 +669,9 @@ const ScanLabPanel = () => {
     if (isHorizontal) {
         return (
             <div className="flex flex-row gap-4 items-start flex-wrap content-start">
-                <div className="flex flex-col gap-2 min-w-[300px]">{statusCards}{feedback}{powerSection}{applySection}{firmwareSection}</div>
-                <div className="min-w-[420px]">{probeSection}</div>
-                <div className="min-w-[420px]">{sweepSection}</div>
+                <div className="flex flex-col gap-2 min-w-0 w-full max-w-[520px]">{statusCards}{feedback}{powerSection}{applySection}{firmwareSection}</div>
+                <div className="min-w-0 w-full max-w-[520px]">{probeSection}</div>
+                <div className="min-w-0 w-full max-w-[520px]">{sweepSection}</div>
             </div>
         );
     }

@@ -211,9 +211,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
     // Compact horizontal layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start">
+            <div className="flex min-w-0 flex-row flex-wrap gap-4 items-start content-start">
                 {/* Left column: Language selector + Modifiers */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
+                <div className="flex min-w-0 max-w-full flex-col gap-1">
                     {/* Language selector at top */}
                     <select
                         className="border rounded text-[10px] text-slate-600 py-0.5 px-1 border-gray-200 bg-gray-50 !outline-none focus:border-gray-300 cursor-pointer w-full mb-1"
@@ -244,8 +244,8 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         None
                     </Button>
 
-                    {/* Modifier 2x2 grid */}
-                    <div className="grid grid-cols-2 gap-0.5">
+                    {/* Modifier choices stay in a compact row. */}
+                    <div className="grid grid-cols-4 gap-1">
                         {modifierOptions.map((modifier) => {
                             const isActive = activeModifiers.includes(modifier);
                             return (
@@ -255,7 +255,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     variant={isActive ? "default" : "secondary"}
                                     size="sm"
                                     className={cn(
-                                        "rounded-md px-0.5 py-0.5 h-6 transition-all text-[8px] font-medium border-none",
+                                        "rounded-md px-0.5 py-0.5 h-6 transition-all text-[11px] font-medium border-none",
                                         isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                     )}
                                     onClick={() => handleModifierToggle(modifier)}
@@ -268,8 +268,8 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                     </div>
 
                     {/* Four constructed keys: Standalone Modifier, Modifier, Mod-Tap, One-Shot */}
-                    <div className="border-t border-gray-200 pt-1 mt-1 flex flex-col gap-1">
-                        <span className="text-[7px] font-bold text-slate-400 uppercase">Standalone</span>
+                    <div className="border-t border-gray-200 pt-1 mt-1 grid grid-rows-[auto_auto] grid-flow-col gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Standalone</span>
                         <div className={cn(!hasModifiers && "opacity-30 pointer-events-none")}>
                             <Key
                                 x={0} y={0} w={1} h={1} row={0} col={0}
@@ -289,7 +289,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 disableTooltip={true}
                             />
                         </div>
-                        <span className="text-[7px] font-bold text-slate-400 uppercase">Modifier</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Modifier</span>
                         <div className={cn(!hasModifiers && "opacity-30 pointer-events-none")}>
                             <Key
                                 x={0} y={0} w={1} h={1} row={0} col={0}
@@ -307,7 +307,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 disableTooltip={true}
                             />
                         </div>
-                        <span className="text-[7px] font-bold text-slate-400 uppercase">Mod-Tap</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Mod-Tap</span>
                         <div className={cn(!hasModifiers && "opacity-30 pointer-events-none")}>
                             <Key
                                 x={0} y={0} w={1} h={1} row={0} col={0}
@@ -325,7 +325,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 disableTooltip={true}
                             />
                         </div>
-                        <span className="text-[7px] font-bold text-slate-400 uppercase">One-Shot</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">One-Shot</span>
                         <div className={cn(!hasModifiers && "opacity-30 pointer-events-none")}>
                             <Key
                                 x={0} y={0} w={1} h={1} row={0} col={0}
@@ -347,14 +347,16 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
 
                 {/* QWERTY keyboard - main content, no language selector here */}
-                <div className="flex-shrink-0">
-                    <div className="min-w-[440px]">
-                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
-                </div>
+                <div className="min-w-0 max-w-full">
+                    <div className="max-w-full overflow-x-auto">
+                        <div className="w-max min-w-full">
+                            <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Blank/Transparent keys */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
+                <div className="flex min-w-0 max-w-full flex-col gap-1">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Blank</span>
                     <div className="flex flex-col gap-1">
                         {blankKeys.map((k, i) => {
@@ -382,7 +384,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
 
                 {/* Numpad section - compact grid */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
+                <div className="flex min-w-0 max-w-full flex-col gap-1">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Numpad</span>
                     <div className="grid grid-cols-7 gap-0.5">
                         {numpadKeys.map((k, i) => {
@@ -414,7 +416,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
 
                 {/* Function Keys section */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
+                <div className="flex min-w-0 max-w-full flex-col gap-1">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Function Keys</span>
                     <div className="flex flex-wrap gap-0.5 max-w-[260px]">
                         {functionKeys.map((k) => {
@@ -436,34 +438,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     hoverLayerColor={layerColorName}
                                     onClick={() => handleKeyClick(k.keycode)}
                                     disableTooltip={true}
-                                />
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Function Keys section */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Function Keys</span>
-                    <div className="flex flex-wrap gap-0.5 max-w-[260px]">
-                        {functionKeys.map((k) => {
-                            const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
-                            return (
-                                <Key
-                                    key={k.keycode}
-                                    x={0} y={0} w={1} h={1} row={0} col={0}
-                                    keycode={k.keycode}
-                                    label={k.label}
-                                    keyContents={keyContents as KeyContent | undefined}
-                                    layerColor="sidebar"
-                                    headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
-                                    isRelative
-                                    variant="small"
-                                    className="h-[30px] w-[30px]"
-                                    hoverBorderColor={hoverBorderColor}
-                                    hoverBackgroundColor={hoverBackgroundColor}
-                                    hoverLayerColor={layerColorName}
-                                    onClick={() => handleKeyClick(k.keycode)}
                                 />
                             );
                         })}
@@ -496,8 +470,10 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         ))}
                     </select>
                 </div>
-                <div className="min-w-[440px]">
-                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                <div className="max-w-full overflow-x-auto">
+                    <div className="w-max min-w-full">
+                        <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
+                    </div>
                 </div>
             </div>
 
@@ -604,7 +580,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-black">Numpad</span>
-                    {renderKeyGrid(numpadKeys, numpadKeySize)}
+                    <div className="max-w-full overflow-x-auto">{renderKeyGrid(numpadKeys, numpadKeySize)}</div>
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-black">Function Keys</span>

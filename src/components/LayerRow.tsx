@@ -71,7 +71,7 @@ export const LayerRow: FC<LayerRowProps> = ({
     const [isMaximized, setIsMaximized] = useState(false);
 
     // Convert ImportedLayer to LayerEntry for the clipboard
-    const layerEntry = useMemo(() => 
+    const layerEntry = useMemo(() =>
         layerLibraryService.importedLayerToLayerEntry(layer, sourceLayout),
         [layer, sourceLayout]
     );
@@ -136,14 +136,8 @@ export const LayerRow: FC<LayerRowProps> = ({
     useEffect(() => {
         const updateScale = () => {
             if (containerRef.current) {
-                // Account for both outer and inner padding to prevent clipping
-                const outerPaddingWidth = compact ? 8 : 16;
-                const innerPaddingWidth = compact ? 12 : 16;
-                const extraSafety = 8; // Extra buffer to ensure no clipping on right edge
-                const totalPadding = outerPaddingWidth + innerPaddingWidth + extraSafety;
-
-                const containerWidth = containerRef.current.clientWidth - totalPadding;
-                const newScale = Math.min(1, containerWidth / dimensions.width);
+                const containerWidth = containerRef.current.clientWidth;
+                const newScale = Math.min(1, containerWidth / Math.max(1, dimensions.width));
                 setScale(newScale);
             }
         };
@@ -242,16 +236,15 @@ export const LayerRow: FC<LayerRowProps> = ({
 
     return (
         <div
-            ref={containerRef}
             className={cn(
                 "px-1 py-1 transition-colors group/row",
-                compact ? "w-[340px] flex-shrink-0 h-full" : "px-2 py-1",
+                compact ? "min-w-0" : "px-2 py-1",
                 isDragging && "opacity-50"
             )}
         >
             <div className={cn(
                 "rounded-sm bg-kb-gray dark:bg-gray-800/80 flex flex-col",
-                compact ? "p-1.5 h-full" : "p-2"
+                compact ? "p-1.5" : "p-2"
             )}>
                 {/* Layer header */}
                 <Tooltip>
@@ -259,12 +252,12 @@ export const LayerRow: FC<LayerRowProps> = ({
                         <div className={cn(
                             "relative flex items-center justify-start transition-colors hover:bg-black/5 group-hover/row:bg-black/5 rounded-t-md rounded-b-none cursor-grab active:cursor-grabbing",
                             compact
-                                ? "-mx-1.5 -mt-1.5 px-2.5 pt-1.5 pb-1 mb-1 scale-95 origin-left"
+                                ? "-mx-1.5 -mt-1.5 px-2.5 pt-1.5 pb-1 mb-1"
                                 : "-mx-2 -mt-2 px-3 pt-2 pb-1.5 mb-2"
                         )}
                             onMouseDown={handleDragStart}
                         >
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
                                 {/* Layer color indicator - shows LED hardware color if available */}
                                 <div
                                     className={cn(
@@ -288,7 +281,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                             </div>
 
                             {/* Maximize button moved to title bar */}
-                            <div className="flex items-center ml-auto">
+                            <div className="flex shrink-0 items-center ml-auto">
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Button
@@ -299,7 +292,8 @@ export const LayerRow: FC<LayerRowProps> = ({
                                                 e.stopPropagation();
                                                 setIsMaximized(true);
                                             }}
-                                            title=""
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            aria-label={`Enlarge ${layer.name} preview`}
                                         >
                                             <Maximize2Icon className="w-3.5 h-3.5" />
                                         </Button>
@@ -318,16 +312,17 @@ export const LayerRow: FC<LayerRowProps> = ({
 
                 {/* Full-width keyboard preview with scaling */}
                 <div
+                    ref={containerRef}
                     className="overflow-hidden relative"
                     style={{
-                        height: compact ? "100%" : `${scaledHeight}px`,
+                        height: `${scaledHeight}px`,
                     }}
                 >
                     <div
-                        className={compact ? "flex items-center justify-center h-full" : ""}
+
                         style={{
                             transform: `scale(${scale})`,
-                            transformOrigin: compact ? "center center" : "top left",
+                            transformOrigin: "top left",
                             width: `${dimensions.width}px`,
                             height: `${dimensions.height}px`,
                         }}
@@ -342,7 +337,7 @@ export const LayerRow: FC<LayerRowProps> = ({
 
                     {/* Hover action: delete in bottom-left */}
                     {canDelete && (
-                        <div className="absolute bottom-1 left-1 opacity-0 group-hover/row:opacity-100 transition-all z-10">
+                        <div className="absolute bottom-1 left-1 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-all z-10">
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <button
@@ -352,7 +347,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                             setIsDeleteConfirmOpen(true);
                                         }}
                                         className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
-                                        title=""
+                                        aria-label={`Delete ${layer.name}`}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
@@ -365,7 +360,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                     )}
 
                     {/* Copy button in bottom-right */}
-                    <div className="absolute bottom-1 right-1 opacity-0 group-hover/row:opacity-100 transition-all z-10">
+                    <div className="absolute bottom-1 right-1 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-all z-10">
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -381,7 +376,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                         setJustCopied(true);
                                         setTimeout(() => setJustCopied(false), 2000);
                                     }}
-                                    title=""
+                                    aria-label={`Copy ${layer.name}`}
                                 >
                                     {justCopied ? (
                                         <Check className="w-4 h-4" />
@@ -403,18 +398,19 @@ export const LayerRow: FC<LayerRowProps> = ({
                 <TooltipProvider delayDuration={0}>
                 <div
                     ref={floatingRef}
-                    className="fixed z-[9999] rounded-xl bg-kb-gray dark:bg-gray-800/80 shadow-2xl flex flex-col select-none group/floating"
+                    className="fixed z-[9999] max-h-[calc(100dvh-2rem)] rounded-xl bg-kb-gray dark:bg-gray-800/80 shadow-2xl flex flex-col select-none group/floating"
                     style={{
-                        left: `${floatingPos.x}px`,
-                        top: `${floatingPos.y}px`,
+                        width: `min(${fullDimensions.width + 64}px, calc(100vw - 2rem))`,
+                        left: `clamp(16px, ${floatingPos.x}px, calc(100vw - min(${fullDimensions.width + 64}px, 100vw - 2rem) - 16px))`,
+                        top: `clamp(16px, ${floatingPos.y}px, calc(100dvh - 64px))`,
                     }}
                 >
                     {/* Floating panel header – draggable */}
                     <div
-                        className="relative flex items-center justify-between px-4 pt-3 pb-2.5 cursor-grab active:cursor-grabbing rounded-t-xl transition-colors hover:bg-black/5 group-hover/floating:bg-black/5"
+                        className="relative flex shrink-0 items-center justify-between px-4 pt-3 pb-2.5 cursor-grab active:cursor-grabbing rounded-t-xl transition-colors hover:bg-black/5 group-hover/floating:bg-black/5"
                         onMouseDown={handleFloatingDragStart}
                     >
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                             <div
                                 className={cn(
                                     "w-3 h-3 rounded-full flex-shrink-0 shadow-sm",
@@ -434,7 +430,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                             <GripHorizontal className="w-5 h-5" />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                             {/* Close button */}
                             <Button
                                 variant="ghost"
@@ -444,7 +440,8 @@ export const LayerRow: FC<LayerRowProps> = ({
                                     e.stopPropagation();
                                     setIsMaximized(false);
                                 }}
-                                title=""
+                                onMouseDown={(e) => e.stopPropagation()}
+                                aria-label="Close enlarged preview"
                             >
                                 <X className="w-4 h-4" />
                             </Button>
@@ -452,7 +449,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                     </div>
 
                     {/* Full-size keyboard preview */}
-                    <div className="p-8 pb-12 overflow-auto flex items-center justify-center min-w-[300px] relative min-h-[400px]">
+                    <div className="p-4 pb-12 overflow-auto min-h-0 relative">
                         <MiniKeyboardPreview
                             keymap={layer.keymap}
                             layerColor={resolvedColorName}
@@ -471,7 +468,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                                 setIsDeleteConfirmOpen(true);
                                             }}
                                             className="h-10 w-10 rounded-full flex items-center justify-center p-0 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium shadow-sm"
-                                            title=""
+                                            aria-label={`Delete ${layer.name}`}
                                         >
                                             <Trash2 className="h-5 w-5" />
                                         </button>
@@ -500,7 +497,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                             setJustCopied(true);
                                             setTimeout(() => setJustCopied(false), 2000);
                                         }}
-                                        title=""
+                                        aria-label={`Copy ${layer.name}`}
                                     >
                                         {justCopied ? (
                                             <Check className="w-5 h-5" />

@@ -120,18 +120,19 @@ const LayersPanel = ({ isPicker }: Props) => {
     // Horizontal layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
-                {/* Modifier tabs - compact vertical */}
-                <div className="flex flex-col gap-0.5 flex-shrink-0">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Type</span>
+            <div className="flex min-w-0 flex-col gap-2">
+                {/* Layer type selector stays above the palette and wraps at narrow widths. */}
+                <div className="flex flex-wrap items-center gap-1">
                     {LAYER_MODIFIERS.map((modifier) => {
                         const isActive = modifier === activeModifier;
                         return (
                             <button
                                 key={modifier}
+                                aria-pressed={isActive}
+                                title={MODIFIER_NAMES[modifier]}
                                 onClick={() => setActiveModifier(modifier)}
                                 className={cn(
-                                    "px-3 py-1 text-[11px] font-medium rounded-full transition-all",
+                                    "px-3 py-1 text-sm font-medium rounded-full transition-all",
                                     isActive ? "bg-gray-800 text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
                                 )}
                             >
@@ -139,16 +140,6 @@ const LayersPanel = ({ isPicker }: Props) => {
                             </button>
                         );
                     })}
-                </div>
-
-                {/* Active Modifier Legend */}
-                <div className="flex flex-col gap-1 pl-1 pr-1 w-full box-border">
-                    <span className="text-xs font-semibold text-black">
-                        {MODIFIER_NAMES[activeModifier]}
-                    </span>
-                    <span className="text-xs text-slate-500 leading-relaxed max-w-[320px]">
-                        {MODIFIER_DESCRIPTIONS[activeModifier]}
-                    </span>
                 </div>
 
                 {/* Layer keys grid */}
@@ -179,6 +170,16 @@ const LayersPanel = ({ isPicker }: Props) => {
                         );
                     })}
                 </div>
+                {/* Active Modifier Legend */}
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="text-xs font-semibold text-black">
+                        {MODIFIER_NAMES[activeModifier]}
+                    </span>
+                    <span className="text-xs text-slate-500 leading-relaxed max-w-prose">
+                        {MODIFIER_DESCRIPTIONS[activeModifier]}
+                    </span>
+                </div>
+
             </div>
         );
     }
@@ -192,7 +193,7 @@ const LayersPanel = ({ isPicker }: Props) => {
             )}
             {/* Layer Modifier Selection Tabs */}
             <div className="flex flex-wrap items-center justify-start gap-3">
-                <div className="flex items-center justify-start gap-1">
+                <div className="flex flex-wrap items-center justify-start gap-1">
                     {LAYER_MODIFIERS.map((modifier) => {
                         const isActive = modifier === activeModifier;
                         return (
@@ -204,6 +205,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                                     "px-4 py-1 text-sm font-medium rounded-full transition-all min-w-[2.5rem]",
                                     isActive ? "shadow-sm bg-gray-800 text-white hover:bg-gray-700" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
                                 )}
+                                aria-pressed={isActive}
+                                title={MODIFIER_NAMES[modifier]}
                                 onClick={() => setActiveModifier(modifier)}
                             >
                                 {modifier}

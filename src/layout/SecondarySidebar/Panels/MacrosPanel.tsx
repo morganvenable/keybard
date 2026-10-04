@@ -140,7 +140,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     // Horizontal grid layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start pt-2">
+            <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {macros.map((macroEntry, i) => {
                     const actions = macroEntry?.actions || [];
                     const hasActions = actions.length > 0;
