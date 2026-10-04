@@ -82,7 +82,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     isAllTransparencyActive,
     onToggleAllTransparency
 }) => {
-    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex } = useVial();
+    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex, loadedFrom } = useVial();
+    const editingTarget = `${isConnected ? "Editing keyboard" : "Offline draft"}: ${loadedFrom || keyboard?.name || "Layout"}${isConnected ? "" : ". Export to keep edits."}`;
     const { undo, undoLabel, commit, getPendingCount, getPendingChanges, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
     const { updateSetting } = useSettings();
     const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
@@ -320,7 +321,6 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         >
             <EditingTargetStatus />
             {importReview}
-            {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={undoLabel}>Undo {undoLabel}</button>}
             {/* Collapsed hint bar - shown when vertically constrained and not hovered */}
             {isVerticallyConstrained && !isHovered && (
                 <div className="flex items-center justify-center text-gray-300 cursor-pointer h-3">
@@ -387,13 +387,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); connect(); }}
                                     className="flex items-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full mr-2"
-                                    title="Click to Connect"
+                                    title={`${editingTarget} Click to connect.`}
                                 >
                                     <Unplug className="h-4 w-4 text-gray-200" />
                                     <span className="select-none">Connect</span>
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1" title={editingTarget}>
 
                                     {saveError && (
                                         <div role="alert" className="max-w-xs text-xs text-red-700">
@@ -525,6 +525,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                 </div>
                             )}
 
+                            {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={`Undo ${undoLabel}`}>Undo</button>}
                             {/* Divider */}
                             <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
