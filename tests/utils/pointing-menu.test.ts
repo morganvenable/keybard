@@ -21,17 +21,17 @@ describe('Pointing / Developer control placement', () => {
         expect(original).toEqual(SVALBOARD_POINTING_MENU);
     });
 
-    it('keeps trackball rest and unknown pointer controls while moving board-wide power settings', () => {
+    it('moves trackball rest with power settings while retaining unknown pointer controls', () => {
         const keys = ['id_idle_pointer_rest', 'future_pointer_setting', 'id_idle_rgb_dim',
             'id_scan_deep_clock_idx', 'id_idle_cpu_sleep'];
         const entries: CustomUIMenuItem[] = keys.map((key, i) => ({ type: 'toggle', content: [key, 0, i] }));
         const menu: CustomUIMenuItem[] = [{ label: 'Advanced', content: entries }];
         const pointing = controls(selectPointingMenu(menu, 'pointing'));
         const developer = controls(selectPointingMenu(menu, 'developer'));
-        expect(pointing.map(item => item.content?.[0])).toEqual(keys.slice(0, 2));
-        expect(developer.map(item => item.content?.[0])).toEqual(keys.slice(2));
+        expect(pointing.map(item => item.content?.[0])).toEqual(['future_pointer_setting']);
+        expect(developer.map(item => item.content?.[0])).toEqual([keys[0], ...keys.slice(2)]);
         // Keep the exact value references/options used by USB read/write and persistence.
-        expect(developer[0]).toBe(entries[2]);
+        expect(developer[0]).toBe(entries[0]);
         expect(selectPointingMenu([{ label: 'Advanced', content: [entries[2]] }], 'pointing')).toEqual([]);
     });
 });

@@ -7,7 +7,7 @@ const developerKeys = new Set([
     "id_scan_period_us", "id_scan_idle_period_ms", "id_scan_idle_after_ms",
     "id_scan_deep_after_s", "id_scan_deep_period_ms", "id_idle_rgb_dim",
     "id_idle_cpu_sleep", "id_idle_low_clock", "id_idle_long_nap",
-    "id_scan_deep_clock_idx",
+    "id_scan_deep_clock_idx", "id_idle_pointer_rest",
 ]);
 
 export type PointingMenuSection = "all" | "pointing" | "developer";
