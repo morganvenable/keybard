@@ -85,6 +85,11 @@ export class SvalService {
      * Set default cosmetic layer names if not present
      */
     setupCosmeticLayerNames(kbinfo: KeyboardInfo): void {
+        if ((kbinfo.svil_proto ?? 1) >= 2) {
+            kbinfo.cosmetic ??= {};
+            kbinfo.cosmetic.layer ??= {};
+            return;
+        }
         if (!kbinfo.cosmetic) {
             kbinfo.cosmetic = {
                 layer: {
@@ -111,7 +116,7 @@ export class SvalService {
     getLayerName(kbinfo: KeyboardInfo, layerIndex: number): string {
         const name = this.getLayerCosmetic(kbinfo, layerIndex);
         if (name) return name;
-        if (layerIndex === 15) {
+        if (layerIndex === 15 && (kbinfo.svil_proto ?? 1) < 2) {
             return "Mouse";
         }
         return `Layer ${layerIndex}`;
@@ -128,7 +133,7 @@ export class SvalService {
     getLayerNameNoLabel(kbinfo: KeyboardInfo, layerIndex: number): string {
         const name = this.getLayerCosmetic(kbinfo, layerIndex);
         if (name) return name;
-        if (layerIndex === 15) {
+        if (layerIndex === 15 && (kbinfo.svil_proto ?? 1) < 2) {
             return "mouse";
         }
         return `${layerIndex}`;

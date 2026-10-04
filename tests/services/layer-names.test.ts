@@ -50,6 +50,24 @@ describe('layer names stored on the board', () => {
         expect(svalService.getLayerName(reconnected, 2)).toBe('Layer 2');
     });
 
+    it('treats blank board labels as authoritative, including layers 4, 5 and 15', async () => {
+        const { service } = board();
+        await service.saveLayerName(keyboard(), 7, 'Tools');
+        const reconnected = keyboard();
+        // Simulate stale/default names already in the app when loading the board.
+        reconnected.cosmetic = { layer: { '0': 'default', '4': 'NAS', '5': 'Fn Keys', '15': 'Mouse' }, layer_colors: { '4': 'red' } };
+        await service.loadLayerNames(reconnected);
+        expect(reconnected.cosmetic.layer).toEqual({ '7': 'Tools' });
+        expect(reconnected.cosmetic.layer_colors).toEqual({ '4': 'red' });
+        for (const index of [0, 4, 5, 15]) {
+            expect(svalService.getLayerName(reconnected, index)).toBe(`Layer ${index}`);
+            expect(svalService.getLayerNameNoLabel(reconnected, index)).toBe(`${index}`);
+        }
+        await service.saveLayerName(reconnected, 7, '');
+        await service.loadLayerNames(reconnected);
+        expect(reconnected.cosmetic.layer).toEqual({});
+    });
+
     it('rejects names that would be truncated on hardware, before writing', async () => {
         const { service, usb } = board();
         await expect(service.saveLayerName(keyboard(), 0, '🎹'.repeat(5))).rejects.toThrow('16 UTF-8 bytes');

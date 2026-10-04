@@ -12,7 +12,9 @@ export class LabelService {
         if ((kb.svil_proto ?? 1) < 2) return;
         const labels = await this.getAll(SvilUSB.SVIL_LABEL_TYPE_LAYER, kb.layers ?? 0);
         kb.cosmetic ??= {};
-        kb.cosmetic.layer ??= {};
+        // The board is authoritative: labels omitted by its sparse scan are blank.
+        // Replace the entire map so cleared names cannot inherit old/default labels.
+        kb.cosmetic.layer = {};
         for (const [index, name] of labels) {
             if (index < (kb.layers ?? 0)) kb.cosmetic.layer[index.toString()] = name;
         }
