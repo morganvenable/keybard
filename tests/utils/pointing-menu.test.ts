@@ -31,7 +31,9 @@ describe('Pointing / Developer control placement', () => {
         expect(pointing.map(item => item.content?.[0])).toEqual(['future_pointer_setting']);
         expect(developer.map(item => item.content?.[0])).toEqual([keys[0], ...keys.slice(2)]);
         // Keep the exact value references/options used by USB read/write and persistence.
-        expect(developer[0]).toBe(entries[0]);
+        expect(developer[0].content).toBe(entries[0].content);
+        expect(developer[0].label).toBe("Trackball power saving");
+        expect(developer[0].description).toContain("Movement wakes it automatically");
         expect(selectPointingMenu([{ label: 'Advanced', content: [entries[2]] }], 'pointing')).toEqual([]);
     });
 });

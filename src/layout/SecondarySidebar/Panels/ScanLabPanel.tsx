@@ -1,3 +1,4 @@
+import { developerSettingsCopy } from "@/utils/developer-settings-copy";
 import { appStorage } from "@/utils/app-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -251,7 +252,7 @@ const ScanLabPanel = () => {
     };
 
     const handleDeepClock = (mhz: number) =>
-        run(`Setting deep-idle clock to ${mhz} MHz…`, async () => {
+        run(`Setting deep idle processor speed to ${mhz} MHz…`, async () => {
             await scanlabService.setDeepClock(mhz);
             customValueService.setCached("id_scan_deep_clock_idx", DEEP_CLOCK_CHOICES_MHZ.indexOf(mhz as 48 | 24 | 12));
             await refreshPower();
@@ -530,7 +531,7 @@ const ScanLabPanel = () => {
         periodUs !== anyPower.periodUs || idle.idleAfterMs !== anyPower.idleAfterMs || idle.idlePeriodMs !== anyPower.idlePeriodMs ||
         idle.deepAfterS !== anyPower.deepAfterS || idle.deepPeriodMs !== anyPower.deepPeriodMs);
     const onBoard = anyPower
-        ? `On board: period ${anyPower.periodUs === 0 ? "unpaced" : `${anyPower.periodUs} µs`} · light idle ${anyPower.idleAfterMs === 0 ? "off" : `${anyPower.idlePeriodMs} ms after ${fmtMs(anyPower.idleAfterMs)}`} · deep idle ${anyPower.deepAfterS === 0 ? "off" : `${anyPower.deepPeriodMs} ms after ${anyPower.deepAfterS} s`}`
+        ? `On board: period ${anyPower.periodUs === 0 ? "unpaced" : `${anyPower.periodUs} µs`} · idle ${anyPower.idleAfterMs === 0 ? "off" : `${anyPower.idlePeriodMs} ms after ${fmtMs(anyPower.idleAfterMs)}`} · deep idle ${anyPower.deepAfterS === 0 ? "off" : `${anyPower.deepPeriodMs} ms after ${anyPower.deepAfterS} s`}`
         : null;
 
     const powerSection = (
@@ -562,7 +563,7 @@ const ScanLabPanel = () => {
                                         const fmtQuiet = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)} s` : `${ms} ms`);
                                         return (
                                             <span className={cn("text-muted-foreground", mono)} data-testid={`idle-diag-${h}`}>
-                                                {d.sensorPresent ? `sensor ${d.sensorMode === null ? "no read yet" : SENSOR_MODE_NAMES[d.sensorMode]}${d.sensorLifted ? " (lifted)" : ""}${d.sensorRestEnabled ? "" : " (rest off)"}` : "no sensor"}
+                                                {d.sensorPresent ? `sensor ${d.sensorMode === null ? "no read yet" : SENSOR_MODE_NAMES[d.sensorMode]}${d.sensorLifted ? " · lifted" : ""}${d.sensorRestEnabled ? "" : " · power saving off"}` : "no sensor"}
                                                 {` · RGB ${d.rgbEnabled ? d.rgbValNow : "off"}/${d.rgbValAwake}${d.rgbStage === 1 ? " dimmed" : d.rgbStage === 2 ? " off" : ""}`}
                                                 {` · quiet keys ${fmtQuiet(d.quietMatrixMs)}, ball ${fmtQuiet(d.quietPointerMs)}`}
                                                 {d.sysClockMhz !== null && ` · clock ${d.sysClockMhz} MHz`}
@@ -579,7 +580,7 @@ const ScanLabPanel = () => {
                 })}
             </div>
             <div className="flex flex-wrap items-end gap-2">
-                {numberField("frame period µs (0 = unpaced)", periodUs, setPeriodUs, "scanlab-period", handleApplyPacing)}
+                {numberField(developerSettingsCopy.id_scan_period_us.label, periodUs, setPeriodUs, "scanlab-period", handleApplyPacing)}
             </div>
             <div className="flex flex-wrap items-center gap-1">
                 <span className="text-[10px] text-muted-foreground mr-1">Idle presets:</span>
@@ -592,15 +593,15 @@ const ScanLabPanel = () => {
             </div>
             <div className="flex flex-col gap-1.5" data-testid="idle-stage-fields">
                 <div className="flex items-end gap-2">
-                    {numberField("light idle after ms (0 = never)", idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
-                    {numberField("light idle period ms", idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
+                    {numberField(developerSettingsCopy.id_scan_idle_after_ms.label, idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
+                    {numberField(developerSettingsCopy.id_scan_idle_period_ms.label, idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
                 </div>
                 <div className="flex items-end gap-2">
-                    {numberField("deep idle after s (0 = never)", idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
-                    {numberField("deep idle period ms", idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
+                    {numberField(developerSettingsCopy.id_scan_deep_after_s.label, idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
+                    {numberField(developerSettingsCopy.id_scan_deep_period_ms.label, idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
                 </div>
             </div>
-            <p className="text-xs text-muted-foreground">A quiet spell of the timeout stretches the frame period to that stage; the first key press restores full rate on the next frame, so the wake-up latency is one idle frame.</p>
+            <p className="text-xs text-muted-foreground">Idle and deep idle reduce key scanning after inactivity. Input restores active scanning. Longer scan intervals can delay the first response. Zero disables a timeout.</p>
             {anyPower && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1" data-testid="idle-features">
                     {IDLE_FEATURES.map((f) => (
@@ -609,7 +610,7 @@ const ScanLabPanel = () => {
                             {f.label}
                             {f.key === "lowClock" && (idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz) != null && (
                                 <select className="h-6 text-xs border rounded px-1" value={idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz ?? 48} disabled={!!busy}
-                                    onChange={(e) => handleDeepClock(Number(e.target.value))} data-testid="deep-clock" aria-label="deep idle clock MHz">
+                                    onChange={(e) => handleDeepClock(Number(e.target.value))} data-testid="deep-clock" aria-label="Deep idle processor speed">
                                     {DEEP_CLOCK_CHOICES_MHZ.map((m) => <option key={m} value={m}>{m} MHz</option>)}
                                 </select>
                             )}
@@ -620,7 +621,7 @@ const ScanLabPanel = () => {
             {anyPower && (
                 <p className="text-xs text-muted-foreground" data-testid="power-expected">
                     Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {fmtDuty(expectedActive)}
-                    {expectedLight !== null && `; light idle ${fmtDuty(expectedLight)}`}
+                    {expectedLight !== null && `; idle ${fmtDuty(expectedLight)}`}
                     {expectedDeep !== null && `; deep idle ${fmtDuty(expectedDeep)}`}.
                 </p>
             )}

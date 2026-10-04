@@ -30,7 +30,7 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
         // Compact: label on top, slider + input inline below
         return (
             <div className="flex flex-col gap-0.5 py-0.5">
-                <span className="text-xs">{item.label}</span>
+                <span title={item.description} className="text-xs">{item.label}</span>
                 <div className="flex flex-row items-center gap-1.5">
                     <Slider
                         value={[Number(draft) || min]}
@@ -61,7 +61,7 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
 
     return (
         <div className="flex flex-col gap-2 p-2 panel-layer-item">
-            <span className="text-md">{item.label}</span>
+            <span title={item.description} className="text-md">{item.label}</span>
             <div className="flex flex-row items-center gap-3">
                 <Slider
                     value={[Number(draft) || min]}

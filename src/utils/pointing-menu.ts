@@ -1,4 +1,5 @@
 import type { CustomUIMenuItem } from "@/types/vial.types";
+import { developerSettingsCopy } from "./developer-settings-copy";
 
 // Firmware places these board-wide controls in its Pointing Device menu.
 // Route by stable value IDs so translated/renamed labels do not change placement.
@@ -18,12 +19,13 @@ export function selectPointingMenu(items: CustomUIMenuItem[], section: PointingM
     return items.flatMap(item => {
         if (typeof item.content?.[0] === "string") {
             const isDeveloper = developerKeys.has(item.content[0]);
-            return isDeveloper === (section === "developer") ? [item] : [];
+            return isDeveloper === (section === "developer")
+                ? [section === "developer" ? { ...item, ...developerSettingsCopy[item.content[0]] } : item] : [];
         }
         const content = selectPointingMenu((item.content ?? []) as CustomUIMenuItem[], section);
         if (!content.length) return [];
         return [{ ...item, content,
-            ...(section === "developer" && item.label === "Advanced" ? { label: "Scan and power settings" } : {}),
+            ...(section === "developer" && item.label === "Advanced" ? { label: "Key scanning and power saving" } : {}),
         }];
     });
 }
