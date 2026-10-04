@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "default_layer": null,
+  "rules": [
+    {
+      "name": "Onshape — choose your layer before enabling",
+      "exe": "chrome.exe",
+      "origin": "https://cad.onshape.com",
+      "layer": 1,
+      "enabled": false
+    }
+  ]
+}

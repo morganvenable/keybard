@@ -1,0 +1,62 @@
+name: Windows Context Companion Draft
+
+on:
+  push:
+    branches: [feat/windows-context-companion]
+    paths: ['companion/**', '.github/workflows/windows-context-companion.yml']
+  pull_request:
+    paths: ['companion/**', '.github/workflows/windows-context-companion.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-context-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: companion/requirements.txt
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Browser bridge regression tests
+        run: node --test browser-extension/tests/*.test.cjs
+      - name: Build and smoke-test Windows application
+        shell: pwsh
+        run: ./build-windows.ps1
+      - name: Record resolved dependencies
+        run: python -m pip freeze > dist/dependencies.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KeybardContext-Windows-${{ github.sha }}
+          path: |
+            companion/dist/KeybardContext-Windows.zip
+            companion/dist/dependencies.txt
+            companion/dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  portable-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test matching and protocol without a keyboard
+        working-directory: companion
+        run: python -m unittest discover -s tests -v

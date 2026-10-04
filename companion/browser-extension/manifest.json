@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Keybard Onshape Context (draft)",
+  "version": "0.1.0",
+  "description": "Reports the focused Onshape origin to your paired local Keybard companion. No document text, titles, or full URLs.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.onshape.com/*", "http://127.0.0.1/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "content_scripts": [{"matches": ["https://*.onshape.com/*"], "js": ["content.js"], "run_at": "document_idle"}],
+  "options_page": "options.html",
+  "action": {"default_title": "Pair Keybard context companion"}
+}
