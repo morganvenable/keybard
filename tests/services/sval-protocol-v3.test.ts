@@ -232,7 +232,7 @@ describe('Sval v3 TABLE_SCAN', () => {
     expect(kbinfo.tapdances![100]).toMatchObject({ idx: 100, tap: 'KC_B', tapping_term: 200 });
     expect(kbinfo.tapdances![255]).toMatchObject({ idx: 255, tap: 'KC_C', tapping_term: 250 });
     // Unreturned entries read as all zero, term included
-    expect(kbinfo.tapdances![0]).toEqual({ idx: 0, tap: 'KC_NO', hold: 'KC_NO', doubletap: 'KC_NO', taphold: 'KC_NO', tapping_term: 0 });
+    expect(kbinfo.tapdances![0]).toEqual({ enabled: false, idx: 0, tap: 'KC_NO', hold: 'KC_NO', doubletap: 'KC_NO', taphold: 'KC_NO', tapping_term: 0 });
   });
 
   it('stops at found = 0 after the last entry in use', async () => {

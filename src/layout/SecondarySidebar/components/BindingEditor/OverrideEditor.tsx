@@ -24,49 +24,20 @@ const OPTIONS = [
 
 
 
-const ENABLED_BIT = 1 << 7;
 
-import { vialService } from "@/services/vial.service";
+
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 
 const OverrideEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectOverrideKey, selectedTarget } = useKeyBinding();
     const [activeTab, setActiveTab] = useState<TabType>("Trigger");
 
     const overrideIndex = itemToEdit!;
     const override = keyboard?.key_overrides?.[overrideIndex];
-
-    useEffect(() => {
-        if (!keyboard?.key_overrides || itemToEdit === null) return;
-        const entry = keyboard.key_overrides[itemToEdit];
-        if (!entry) return;
-
-        const hasTrigger = entry.trigger !== "KC_NO" && entry.trigger !== "";
-        const hasReplacement = entry.replacement !== "KC_NO" && entry.replacement !== "";
-        const isEmpty = !hasTrigger && !hasReplacement;
-        const isEnabled = (entry.options & ENABLED_BIT) !== 0;
-
-        if (isEmpty && !isEnabled) {
-            console.log("Auto-enabling empty override", itemToEdit);
-            const updatedOverrides = [...keyboard.key_overrides];
-            const newOptions = (entry.options || 0) | ENABLED_BIT;
-
-            updatedOverrides[itemToEdit] = {
-                ...entry,
-                options: newOptions,
-                layers: 0xFFFF
-            };
-
-            const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
-            setKeyboard(updatedKeyboard);
-
-            vialService.updateKeyoverride(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveSvil())
-                .catch(err => console.error("Failed to auto-enable override:", err));
-        }
-    }, [itemToEdit]);
 
     useEffect(() => {
         selectOverrideKey(overrideIndex, initialEditorSlot || "trigger");
@@ -93,67 +64,47 @@ const OverrideEditor: FC = () => {
 
     const updateMask = async (newMask: number) => {
         if (!keyboard || !override) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        const ovr = updatedKeyboard.key_overrides[overrideIndex];
+        const updatedKeyboard = structuredClone(keyboard);
+        const ovr = updatedKeyboard.key_overrides![overrideIndex];
         switch (activeTab) {
             case "Trigger": ovr.trigger_mods = newMask; break;
             case "Negative": ovr.negative_mod_mask = newMask; break;
             case "Suspended": ovr.suppressed_mods = newMask; break;
         }
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", overrideIndex);
     };
 
     const updateOption = async (bit: number, checked: boolean) => {
         if (!keyboard || !override) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        let options = updatedKeyboard.key_overrides[overrideIndex].options;
+        const updatedKeyboard = structuredClone(keyboard);
+        let options = updatedKeyboard.key_overrides![overrideIndex].options;
         if (checked) options |= bit;
         else options &= ~bit;
-        updatedKeyboard.key_overrides[overrideIndex].options = options;
+        updatedKeyboard.key_overrides![overrideIndex].options = options;
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override option:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", overrideIndex);
     };
 
     const updateLayer = async (layer: number, active: boolean) => {
         if (!keyboard || !override) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        let layers = updatedKeyboard.key_overrides[overrideIndex].layers;
+        const updatedKeyboard = structuredClone(keyboard);
+        let layers = updatedKeyboard.key_overrides![overrideIndex].layers;
         if (active) layers |= (1 << layer);
         else layers &= ~(1 << layer);
-        updatedKeyboard.key_overrides[overrideIndex].layers = layers;
+        updatedKeyboard.key_overrides![overrideIndex].layers = layers;
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override layer:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", overrideIndex);
     };
 
     const clearKey = async (slot: "trigger" | "replacement") => {
         if (!keyboard || !override) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        const ovr = updatedKeyboard.key_overrides[overrideIndex];
+        const updatedKeyboard = structuredClone(keyboard);
+        const ovr = updatedKeyboard.key_overrides![overrideIndex];
         if (slot === "trigger") ovr.trigger = "KC_NO";
         else ovr.replacement = "KC_NO";
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to clear override key:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", overrideIndex);
     };
 
     const handleDrop = async (slot: "trigger" | "replacement", item: DragItem) => {
@@ -163,8 +114,8 @@ const OverrideEditor: FC = () => {
             if (sourceSlot === targetSlot) return;
 
             if (!keyboard || !override) return;
-            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-            const ovr = updatedKeyboard.key_overrides[overrideIndex];
+            const updatedKeyboard = structuredClone(keyboard);
+            const ovr = updatedKeyboard.key_overrides![overrideIndex];
 
             const sourceVal = sourceSlot === "trigger" ? ovr.trigger : ovr.replacement;
             const targetVal = targetSlot === "trigger" ? ovr.trigger : ovr.replacement;
@@ -176,12 +127,7 @@ const OverrideEditor: FC = () => {
             else ovr.replacement = sourceVal;
 
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update override swap:", err);
-            }
+            await persistBinding(updatedKeyboard, "override", overrideIndex);
         } else {
             updateOverrideAssignment(slot, item.keycode);
         }
@@ -189,17 +135,12 @@ const OverrideEditor: FC = () => {
 
     const updateOverrideAssignment = async (slot: "trigger" | "replacement", keycode: string) => {
         if (!keyboard || !override) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        const ovr = updatedKeyboard.key_overrides[overrideIndex];
+        const updatedKeyboard = structuredClone(keyboard);
+        const ovr = updatedKeyboard.key_overrides![overrideIndex];
         if (slot === "trigger") ovr.trigger = keycode;
         else ovr.replacement = keycode;
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, overrideIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override assignment:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", overrideIndex);
     };
 
     const currentMask = getActiveMask();

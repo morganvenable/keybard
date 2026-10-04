@@ -1,8 +1,9 @@
 import * as React from "react";
+import { KeyCaptureBar } from "@/components/KeyCaptureBar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
-import { DragProvider, useDrag, DragItem } from "@/contexts/DragContext";
+import { DragProvider, useDrag } from "@/contexts/DragContext";
 import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
 import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
@@ -53,27 +54,12 @@ import {
 } from "./layer-scene";
 
 const EditorLayout = () => {
-    const { assignKeycodeTo } = useKeyBinding();
-
-    const handleUnhandledDrop = React.useCallback((item: DragItem, event: MouseEvent) => {
-        if (item.row !== undefined && item.col !== undefined && item.layer !== undefined) {
-            const targetKeycode = event.altKey ? "KC_TRNS" : "KC_NO";
-            console.log(`Unhandled drop for keyboard key, assigning ${targetKeycode}`, item);
-            assignKeycodeTo({
-                type: "keyboard",
-                row: item.row,
-                col: item.col,
-                layer: item.layer
-            }, targetKeycode);
-        }
-    }, [assignKeycodeTo]);
-
     return (
         <SidebarProvider defaultOpen={false}>
             <PanelsProvider>
                 <LayoutSettingsProvider>
                     <LayerProvider>
-                        <DragProvider onUnhandledDrop={handleUnhandledDrop}>
+                        <DragProvider>
                             <EditorLayoutInner />
                             <DragOverlay />
                         </DragProvider>
@@ -1078,6 +1064,7 @@ const EditorLayoutInner = () => {
                     },
                     {
                         type: "key",
+                        writeKey: `key:${targetLayer}:${row}:${col}`,
                         layer: targetLayer,
                         row,
                         col,
@@ -1353,6 +1340,7 @@ const EditorLayoutInner = () => {
 
     return (
         <div className={cn("flex flex-1 h-screen max-w-screen min-w-[850px] p-0", showDetailsSidebar && "bg-white")}>
+            <KeyCaptureBar />
             <AppSidebar />
             {/* Render SecondarySidebar only in sidebar mode */}
             {useSidebarLayout && <SecondarySidebar />}

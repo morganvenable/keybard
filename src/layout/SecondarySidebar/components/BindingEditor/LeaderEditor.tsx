@@ -7,12 +7,12 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
-import { vialService } from "@/services/vial.service";
-import { LeaderOptions } from "@/types/vial.types";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 
 const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectLeaderKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
@@ -30,29 +30,6 @@ const LeaderEditor: FC = () => {
 
         const entry = keyboard.leaders[itemToEdit];
         if (!entry) return;
-
-        const hasSeq = entry.sequence.some(k => k !== "KC_NO" && k !== "");
-        const hasOut = entry.output !== "KC_NO" && entry.output !== "";
-        const isEmpty = !hasSeq && !hasOut;
-        const isEnabled = (entry.options & LeaderOptions.ENABLED) !== 0;
-
-        if (isEmpty && !isEnabled) {
-            console.log("Auto-enabling empty leader", itemToEdit);
-            const updatedLeaders = [...keyboard.leaders];
-            const newOptions = (entry.options || 0) | LeaderOptions.ENABLED;
-
-            updatedLeaders[itemToEdit] = {
-                ...entry,
-                options: newOptions
-            };
-
-            const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
-            setKeyboard(updatedKeyboard);
-
-            vialService.updateLeader(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveSvil())
-                .catch(err => console.error("Failed to auto-enable leader:", err));
-        }
 
         if (initialEditorSlot) {
             if (initialEditorSlot.type === "sequence") {
@@ -84,8 +61,8 @@ const LeaderEditor: FC = () => {
             if (sourceSlot === targetSlot) return;
 
             if (!keyboard || !leaderEntry) return;
-            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-            const entry = updatedKeyboard.leaders[leaderIndex];
+            const updatedKeyboard = structuredClone(keyboard);
+            const entry = updatedKeyboard.leaders![leaderIndex];
 
             // Helper to get/set value
             const getValue = (s: string | number) => {
@@ -104,12 +81,7 @@ const LeaderEditor: FC = () => {
             setValue(targetSlot, sourceVal);
 
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateLeader(updatedKeyboard, leaderIndex);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update leader:", err);
-            }
+            await persistBinding(updatedKeyboard, "leader", leaderIndex);
         } else {
             updateLeaderAssignment(slot, item.keycode, seqIndex);
         }
@@ -117,8 +89,8 @@ const LeaderEditor: FC = () => {
 
     const updateLeaderAssignment = async (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
         if (!keyboard || !leaderEntry) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        const entry = updatedKeyboard.leaders[leaderIndex];
+        const updatedKeyboard = structuredClone(keyboard);
+        const entry = updatedKeyboard.leaders![leaderIndex];
 
         if (slot === "sequence" && seqIndex !== undefined) {
             entry.sequence[seqIndex] = keycode;
@@ -127,38 +99,28 @@ const LeaderEditor: FC = () => {
         }
 
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateLeader(updatedKeyboard, leaderIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update leader:", err);
-        }
+        await persistBinding(updatedKeyboard, "leader", leaderIndex);
     };
 
     const clearKey = async (slot: "sequence" | "output", seqIndex?: number) => {
         if (!keyboard || !leaderEntry) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const updatedKeyboard = structuredClone(keyboard);
 
         if (slot === "sequence" && seqIndex !== undefined) {
             // Remove the key at seqIndex and shift remaining keys left
-            const seq = updatedKeyboard.leaders[leaderIndex].sequence;
+            const seq = updatedKeyboard.leaders![leaderIndex].sequence;
             seq.splice(seqIndex, 1);
             // Pad back to 5 with KC_NO
             while (seq.length < 5) {
                 seq.push("KC_NO");
             }
         } else if (slot === "output") {
-            updatedKeyboard.leaders[leaderIndex].output = "KC_NO";
+            updatedKeyboard.leaders![leaderIndex].output = "KC_NO";
         }
 
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateLeader(updatedKeyboard, leaderIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update leader:", err);
-        }
+        await persistBinding(updatedKeyboard, "leader", leaderIndex);
     };
 
     const renderSequenceKey = (seqIndex: number) => {

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { useChanges } from "@/contexts/ChangesContext";
 import { useVial } from "@/contexts/VialContext";
 import { vialService } from "@/services/vial.service";
 import type { FragmentInstance, KeyboardInfo } from "@/types/vial.types";
@@ -31,7 +32,8 @@ function safeMapGet<K extends string | number, V>(
  * be locked depending on the keyboard configuration.
  */
 const FragmentsPanel: React.FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard, isConnected, getKeyboardSnapshot } = useVial();
+    const { queue } = useChanges();
     const [updating, setUpdating] = useState<number | "bulk" | null>(null);
     const { layoutMode } = useLayoutSettings();
 
@@ -62,6 +64,8 @@ const FragmentsPanel: React.FC = () => {
 
         selections.forEach(({ instanceId, fragmentName }) => {
             newKeyboard.fragmentState?.userSelections.set(instanceId, fragmentName);
+            const entry = fragmentService.getSelectableInstances(baseKeyboard).find(({instance}) => instance.id === instanceId);
+            if (entry) newEepromSelections.set(entry.idx, fragmentService.getOptionIndex(entry.instance, fragmentName));
         });
 
         const fragmentComposer = vialService.getFragmentComposer();
@@ -72,7 +76,7 @@ const FragmentsPanel: React.FC = () => {
         }
 
         setKeyboard(newKeyboard);
-    }, [setKeyboard]);
+    }, [setKeyboard, fragmentService]);
 
     // Handle fragment selection change
     const handleSelectionChange = useCallback(async (
@@ -88,31 +92,19 @@ const FragmentsPanel: React.FC = () => {
             // Get option index for the selected fragment
             const optionIdx = fragmentService.getOptionIndex(instance, newFragmentName);
 
-            // Try to update on device (will fail if not connected, but that's OK)
-            let deviceSuccess = false;
-            try {
-                deviceSuccess = await vialService.updateFragmentSelection(keyboard, instanceIdx, optionIdx);
-            } catch (e) {
-                console.log("Device not connected, updating locally only");
-            }
-
-            // Always update local state (works in demo mode and connected mode)
             applyLocalSelections(keyboard, [{ instanceId: instance.id, fragmentName: newFragmentName }]);
-            console.log("Fragment selection updated", deviceSuccess ? "(saved to device)" : "(local only)");
-
-            if (deviceSuccess) {
-                try {
-                    await vialService.saveSvil();
-                } catch (e) {
-                    console.error("Failed to save fragment selection:", e);
+            if (isConnected) await queue(`Hardware position ${instance.id}`, async () => {
+                if (!await vialService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, instanceIdx, optionIdx)) {
+                    throw new Error(`Keyboard rejected the selection for ${instance.id}`);
                 }
-            }
+                await vialService.saveSvil();
+            }, {writeKey: `fragment:${instanceIdx}`});
         } catch (error) {
             console.error("Failed to update fragment selection:", error);
         } finally {
             setUpdating(null);
         }
-    }, [keyboard, fragmentService, applyLocalSelections]);
+    }, [keyboard, fragmentService, applyLocalSelections, isConnected, queue, getKeyboardSnapshot]);
 
     const resolveDefaultFragmentName = useCallback((instance: FragmentInstance): string | undefined => {
         const options = instance.fragment_options ?? [];
@@ -170,32 +162,22 @@ const FragmentsPanel: React.FC = () => {
 
         setUpdating("bulk");
 
-        let deviceUpdated = false;
-        for (const update of updates) {
-            const optionIdx = fragmentService.getOptionIndex(update.instance, update.fragmentName);
-            try {
-                const success = await vialService.updateFragmentSelection(keyboard, update.idx, optionIdx);
-                deviceUpdated = deviceUpdated || success;
-            } catch {
-                // Continue updating local state even if device is not connected
-            }
-        }
-
         applyLocalSelections(
             keyboard,
             updates.map(({ instance, fragmentName }) => ({ instanceId: instance.id, fragmentName }))
         );
-
-        if (deviceUpdated) {
-            try {
+        if (isConnected) for (const update of updates) {
+            const optionIdx = fragmentService.getOptionIndex(update.instance, update.fragmentName);
+            await queue(`Hardware position ${update.instance.id}`, async () => {
+                if (!await vialService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, update.idx, optionIdx)) {
+                    throw new Error(`Keyboard rejected the selection for ${update.instance.id}`);
+                }
                 await vialService.saveSvil();
-            } catch (e) {
-                console.error("Failed to save default fragment selections:", e);
-            }
+            }, {writeKey: `fragment:${update.idx}`});
         }
 
         setUpdating(null);
-    }, [keyboard, fragmentService, resolveDefaultFragmentName, applyLocalSelections]);
+    }, [keyboard, fragmentService, resolveDefaultFragmentName, applyLocalSelections, isConnected, queue, getKeyboardSnapshot]);
 
     // Check if keyboard has fragments
     if (!keyboard || !fragmentService.hasFragments(keyboard)) {

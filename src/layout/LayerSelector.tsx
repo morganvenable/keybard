@@ -1,3 +1,5 @@
+import EditingTargetStatus from "@/components/EditingTargetStatus";
+import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
@@ -80,13 +82,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     isAllTransparencyActive,
     onToggleAllTransparency
 }) => {
-    const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting, activeLayerIndex } = useVial();
-    const { queue, commit, getPendingCount, clearAll } = useChanges();
-    const { getSetting, updateSetting } = useSettings();
+    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex } = useVial();
+    const { undo, undoLabel, commit, getPendingCount, getPendingChanges, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
+    const { updateSetting } = useSettings();
     const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
     const { activePanel, setActivePanel, setOpen, setItemToEdit, setPanelToGoBack } = usePanels();
 
-    const liveUpdating = getSetting("live-updating") === true;
+    const liveUpdating = isInstant;
     const selectedLayer = _selectedLayer;
     const transparentKeyGlyph = KEYMAP["KC_TRNS"]?.str || "▽";
 
@@ -98,76 +100,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const [exportFormat, setExportFormat] = useState<"svil" | "vil">("svil");
     const [includeMacros, setIncludeMacros] = useState(true);
 
-    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsImporting(true);
-        // Double-yield to guarantee React paints the spinner before heavy work
-        await new Promise<void>(resolve =>
-            requestAnimationFrame(() => setTimeout(resolve, 0))
-        );
-
-        try {
-            const newKbInfo = await fileService.uploadFile(file);
-            if (newKbInfo) {
-                // Start sync if connected
-                if (keyboard && isConnected) {
-                    const { importService } = await import('@/services/import.service');
-                    const { vialService } = await import('@/services/vial.service');
-
-                    await importService.syncWithKeyboard(
-                        newKbInfo,
-                        keyboard,
-                        queue,
-                        { vialService }
-                    );
-
-                    // Merge fragment definitions and state from connected keyboard
-                    if (keyboard.fragments) {
-                        newKbInfo.fragments = keyboard.fragments;
-                    }
-                    if (keyboard.composition) {
-                        newKbInfo.composition = keyboard.composition;
-                    }
-                    // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                    const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                        if (!obj) return new Map();
-                        if (obj instanceof Map) return obj;
-                        return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                    };
-
-                    if (keyboard.fragmentState) {
-                        const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                        newKbInfo.fragmentState = {
-                            hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                            eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                            userSelections: importedUserSelections,
-                        };
-                    }
-
-                    // Recompose layout with fragment selections
-                    const fragmentComposer = vialService.getFragmentComposer();
-                    if (fragmentComposer.hasFragments(newKbInfo)) {
-                        const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                        if (Object.keys(composedLayout).length > 0) {
-                            newKbInfo.keylayout = composedLayout;
-                        }
-                    }
-                }
-
-                setKeyboard(newKbInfo);
-            }
-        } catch (err) {
-            console.error("Upload failed", err);
-        } finally {
-            setIsImporting(false);
-        }
-        // Reset input so same file can be selected again
-        if (event.target) {
-            event.target.value = '';
-        }
-    };
+    const { handleFileImport, importReview, setFileError } = useLayoutImport();
 
     const handleExport = async () => {
         if (!keyboard) {
@@ -184,7 +117,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
             }
             setIsExportOpen(false);
         } catch (err) {
-            console.error("Export failed", err);
+            setFileError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -385,6 +318,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
+            <EditingTargetStatus />
+            {importReview}
+            {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={undoLabel}>Undo {undoLabel}</button>}
             {/* Collapsed hint bar - shown when vertically constrained and not hovered */}
             {isVerticallyConstrained && !isHovered && (
                 <div className="flex items-center justify-center text-gray-300 cursor-pointer h-3">
@@ -459,15 +395,29 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                             ) : (
                                 <div className="flex items-center gap-1">
 
+                                    {saveError && (
+                                        <div role="alert" className="max-w-xs text-xs text-red-700">
+                                            <span>Not saved: {saveError}. Pending edits are retained. Retry before discarding; some writes may already have succeeded. </span>
+                                            <button disabled={isSaving} onClick={() => void commit()} className="underline font-semibold">Retry</button>
+                                        </div>
+                                    )}
+                                    {getPendingCount() > 0 && (
+                                        <details className="relative text-xs">
+                                            <summary className="cursor-pointer">Pending ({getPendingCount()})</summary>
+                                            <ul className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded border bg-white p-3 shadow-lg">
+                                                {getPendingChanges().map(change => <li key={change.writeKey || change.desc} className="py-1">{change.desc}</li>)}
+                                            </ul>
+                                        </details>
+                                    )}
                                     {/* Mode Switch Button (Zap) - Only show when NOT live updating (to switch TO live) */}
                                     {!liveUpdating && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <button
-                                                    onClick={(e) => {
+                                                    disabled={isSaving}
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        commit();
-                                                        updateSetting("live-updating", true);
+                                                        if (await setInstant(true)) updateSetting("live-updating", true);
                                                     }}
                                                     className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100"
                                                     aria-label="Switch to Live Updating"
@@ -489,6 +439,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
+                                                            void setInstant(false);
                                                             updateSetting("live-updating", false);
                                                         }}
                                                         className="p-2 rounded-full transition-all cursor-pointer bg-black hover:bg-gray-800"
@@ -506,7 +457,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 disabled={true}
                                                 className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-black border border-transparent cursor-default"
                                             >
-                                                <span className="select-none">Live Updating</span>
+                                                <span className="select-none">{isSaving ? "Saving…" : saveError ? "Changes not saved" : "Live Updating"}</span>
                                             </button>
                                         </>
                                     ) : (
@@ -518,7 +469,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 commit();
                                             }}
                                             onMouseLeave={() => setIgnoreHover(false)}
-                                            disabled={getPendingCount() === 0}
+                                            disabled={isSaving || getPendingCount() === 0}
                                             className={cn(
                                                 "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
                                                 // Disabled state
@@ -538,9 +489,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             )}
                                         >
                                             <span className="select-none">
-                                                {getPendingCount() > 0
-                                                    ? `Update ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
-                                                    : 'Update Changes'}
+                                                {isSaving ? "Saving…" : getPendingCount() > 0
+                                                    ? `Apply ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
+                                                    : 'No pending changes'}
                                             </span>
                                         </button>
                                     )}
@@ -551,12 +502,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (getPendingCount() > 0) {
+                                                        if (getPendingCount() > 0 && !saveError && window.confirm("Discard all pending edits in this draft? Changes already applied to the keyboard are not undone.")) {
                                                             clearAll();
                                                             resetToOriginal();
                                                         }
                                                     }}
-                                                    disabled={getPendingCount() === 0}
+                                                    disabled={isSaving || !!saveError || getPendingCount() === 0}
+                                                    aria-label="Discard pending edits"
                                                     className={cn(
                                                         "p-2 rounded-full transition-all text-black ml-0",
                                                         getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"
@@ -566,7 +518,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                Revert
+                                                Discard pending edits
                                             </TooltipContent>
                                         </Tooltip>
                                     )}

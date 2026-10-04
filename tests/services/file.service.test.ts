@@ -314,7 +314,7 @@ describe('FileService', () => {
       expect(svil.macro.every((m: any[]) => m.length === 0)).toBe(true);
     });
 
-    it('sanitizes non-ASCII in macro text', () => {
+    it('preserves non-ASCII macro text in backups', () => {
       const kbinfo = createExportableKeyboardInfo({
         rows: 2,
         cols: 2,
@@ -328,9 +328,10 @@ describe('FileService', () => {
       const svilJson = (fileService as any).kbinfoToSvil(kbinfo, true);
       const svil = JSON.parse(svilJson);
 
-      // Non-ASCII should be removed
+      // Backups must preserve the original text verbatim
       const macroText = svil.macro[0]?.[0]?.[1];
-      expect(macroText).toBe('helloworlds'); // Non-ASCII removed
+      expect(macroText).toBe('hello\u00A0world\u2019s');
+      expect(fileService.parseContent(svilJson).macros?.[0].actions[0][1]).toBe(macroText);
     });
 
     it('exports fragment definitions and composition', () => {

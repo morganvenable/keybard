@@ -1,3 +1,4 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -6,7 +7,6 @@ import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
@@ -18,6 +18,7 @@ const ENABLED_BIT = 1 << 7;
 
 const OverridesPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -75,12 +76,7 @@ const OverridesPanel: React.FC = () => {
         }
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, index);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override option:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", index);
     };
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {

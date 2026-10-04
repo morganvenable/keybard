@@ -1,3 +1,5 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
+import { useChanges } from "@/contexts/ChangesContext";
 import React, { useState, useEffect } from "react";
 import { Plus, ArrowRightFromLine } from "lucide-react";
 
@@ -21,6 +23,8 @@ import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBl
 
 const CombosPanel: React.FC = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
+    const { queue } = useChanges();
+    const persistBinding = useBindingChanges();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -79,8 +83,10 @@ const CombosPanel: React.FC = () => {
                 settings: { ...keyboard.settings, [COMBO_TIMEOUT_QSID]: clamped }
             };
             setKeyboard(updated);
-            await qmkService.push(updated, COMBO_TIMEOUT_QSID);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${COMBO_TIMEOUT_QSID}`, async () => {
+                await qmkService.push(updated, COMBO_TIMEOUT_QSID);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${COMBO_TIMEOUT_QSID}` });
         } catch (err) {
             console.error("Failed to update combo timeout:", err);
         } finally {
@@ -121,12 +127,7 @@ const CombosPanel: React.FC = () => {
         const updatedKeyboard = { ...keyboard, combos: updatedCombos };
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateCombo(updatedKeyboard, index);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to toggle combo enabled:", err);
-        }
+        await persistBinding(updatedKeyboard, "combo", index);
     };
 
     const isKeyAssigned = (content: KeyContent | undefined) => {

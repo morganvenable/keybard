@@ -146,6 +146,7 @@ export class SvilService {
         await this.tapdance.get(kbinfo);
         await this.combo.get(kbinfo);
         await this.override.get(kbinfo);
+        await new LabelService(this.usb).loadBindingNames(kbinfo);
 
         // Load Svil-specific features based on feature flags
         // Alt Repeat Keys don't have a flag - check entry count from definition

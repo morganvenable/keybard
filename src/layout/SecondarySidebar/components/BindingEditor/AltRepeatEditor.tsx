@@ -7,7 +7,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { DragItem } from "@/contexts/DragContext";
 import { AltRepeatKeyOptions } from "@/types/vial.types";
-import { vialService } from "@/services/vial.service";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 
 const OPTIONS = [
@@ -18,6 +18,7 @@ const OPTIONS = [
 
 const AltRepeatEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectAltRepeatKey, selectedTarget } = useKeyBinding();
 
@@ -29,29 +30,6 @@ const AltRepeatEditor: FC = () => {
 
         const entry = keyboard.alt_repeat_keys[itemToEdit];
         if (!entry) return;
-
-        const hasKeycode = entry.keycode !== "KC_NO" && entry.keycode !== "";
-        const hasAltKeycode = entry.alt_keycode !== "KC_NO" && entry.alt_keycode !== "";
-        const isEmpty = !hasKeycode && !hasAltKeycode;
-        const isEnabled = (entry.options & AltRepeatKeyOptions.ENABLED) !== 0;
-
-        if (isEmpty && !isEnabled) {
-            console.log("Auto-enabling empty alt repeat", itemToEdit);
-            const updatedKeys = [...keyboard.alt_repeat_keys];
-            const newOptions = (entry.options || 0) | AltRepeatKeyOptions.ENABLED;
-
-            updatedKeys[itemToEdit] = {
-                ...entry,
-                options: newOptions
-            };
-
-            const updatedKeyboard = { ...keyboard, alt_repeat_keys: updatedKeys };
-            setKeyboard(updatedKeyboard);
-
-            vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit)
-                .then(() => vialService.saveSvil())
-                .catch(err => console.error("Failed to auto-enable alt repeat:", err));
-        }
 
         selectAltRepeatKey(altRepeatIndex, initialEditorSlot || "keycode");
         setPanelToGoBack("altrepeat");
@@ -68,63 +46,48 @@ const AltRepeatEditor: FC = () => {
 
     const updateOption = async (bit: number, checked: boolean) => {
         if (!keyboard || !altRepeatEntry) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        let options = updatedKeyboard.alt_repeat_keys[altRepeatIndex].options;
+        const updatedKeyboard = structuredClone(keyboard);
+        let options = updatedKeyboard.alt_repeat_keys![altRepeatIndex].options;
         if (checked) options |= bit;
         else options &= ~bit;
-        updatedKeyboard.alt_repeat_keys[altRepeatIndex].options = options;
+        updatedKeyboard.alt_repeat_keys![altRepeatIndex].options = options;
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveSvil(); // Persist to EEPROM
-        } catch (err) {
-            console.error("Failed to update alt-repeat key:", err);
-        }
+        await persistBinding(updatedKeyboard, "altrepeat", altRepeatIndex);
     };
 
     const clearKey = async (slot: "keycode" | "alt_keycode") => {
         if (!keyboard || !altRepeatEntry) return;
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        updatedKeyboard.alt_repeat_keys[altRepeatIndex][slot] = "KC_NO";
+        const updatedKeyboard = structuredClone(keyboard);
+        updatedKeyboard.alt_repeat_keys![altRepeatIndex][slot] = "KC_NO";
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveSvil(); // Persist to EEPROM
-        } catch (err) {
-            console.error("Failed to update alt-repeat key:", err);
-        }
+        await persistBinding(updatedKeyboard, "altrepeat", altRepeatIndex);
     };
 
     const handleDrop = async (slot: "keycode" | "alt_keycode", item: DragItem) => {
         if (!keyboard || !altRepeatEntry) return;
 
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const updatedKeyboard = structuredClone(keyboard);
 
         if (item.editorType === "altrepeat" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
             const sourceSlot = item.editorSlot as "keycode" | "alt_keycode";
             const targetSlot = slot;
             if (sourceSlot === targetSlot) return;
 
-            const entry = updatedKeyboard.alt_repeat_keys[altRepeatIndex];
+            const entry = updatedKeyboard.alt_repeat_keys![altRepeatIndex];
             const sourceVal = entry[sourceSlot];
             const targetVal = entry[targetSlot];
 
             entry[sourceSlot] = targetVal;
             entry[targetSlot] = sourceVal;
         } else {
-            updatedKeyboard.alt_repeat_keys[altRepeatIndex][slot] = item.keycode;
+            updatedKeyboard.alt_repeat_keys![altRepeatIndex][slot] = item.keycode;
         }
 
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update alt-repeat key:", err);
-        }
+        await persistBinding(updatedKeyboard, "altrepeat", altRepeatIndex);
     };
 
     if (!altRepeatEntry) return <div className="p-5">Alt-repeat entry not found</div>;

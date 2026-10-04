@@ -1,3 +1,4 @@
+import { useChanges } from "@/contexts/ChangesContext";
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -16,6 +17,7 @@ import type { QMKSettingsField } from "@/types/qmk";
 
 const QMKSettingsPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const { queue } = useChanges();
     const [expanded, setExpanded] = useState<Record<string, boolean>>({
         "Magic": false,
         "Grave Escape": false,
@@ -92,8 +94,10 @@ const QMKSettingsPanel: React.FC = () => {
             };
             setKeyboard(updated);
 
-            await qmkService.push(updated, qsid);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${qsid}`, async () => {
+                await qmkService.push(updated, qsid);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {
@@ -114,8 +118,10 @@ const QMKSettingsPanel: React.FC = () => {
             };
             setKeyboard(updated);
 
-            await qmkService.push(updated, qsid);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${qsid}`, async () => {
+                await qmkService.push(updated, qsid);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {

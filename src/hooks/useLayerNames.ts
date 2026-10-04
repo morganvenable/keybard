@@ -15,17 +15,7 @@ export function useLayerNames() {
         const name = value.trim();
         setNameError(null);
         try {
-            if (isConnected) {
-                labels.validateLayerName(keyboard, name);
-                await queue(`Layer ${index} name`, async () => {
-                    try {
-                        await labels.saveLayerName(keyboard, index, name);
-                    } catch (error) {
-                        setNameError(error instanceof Error ? error.message : "Could not save layer name.");
-                        throw error;
-                    }
-                }, { layer: index });
-            }
+            if (isConnected) labels.validateLayerName(keyboard, name);
             setKeyboard(current => {
                 if (!current) return current;
                 const layer = { ...current.cosmetic?.layer };
@@ -33,6 +23,16 @@ export function useLayerNames() {
                 else delete layer[index.toString()];
                 return { ...current, cosmetic: { ...current.cosmetic, layer } };
             });
+            if (isConnected) {
+                await queue(`Layer ${index} name`, async () => {
+                    try {
+                        await labels.saveLayerName(keyboard, index, name);
+                    } catch (error) {
+                        setNameError(error instanceof Error ? error.message : "Could not save layer name.");
+                        throw error;
+                    }
+                }, { type: "label", layer: index, writeKey: `label:layer:${index}` });
+            }
             return true;
         } catch (error) {
             setNameError(error instanceof Error ? error.message : "Could not save layer name.");

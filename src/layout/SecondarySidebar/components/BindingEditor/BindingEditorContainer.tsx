@@ -17,7 +17,7 @@ import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 
 import { LeaderOptions, AltRepeatKeyOptions, ComboOptions } from "@/types/vial.types";
-import { vialService } from "@/services/vial.service";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { Input } from "@/components/ui/input";
 import AltRepeatEditor from "./AltRepeatEditor";
 import LeaderEditor from "./LeaderEditor";
@@ -25,6 +25,7 @@ import ComboEditor from "./ComboEditor";
 import MacroEditor from "./MacroEditor";
 import OverrideEditor from "./OverrideEditor";
 import TapdanceEditor from "./TapdanceEditor";
+import { useBindingNames } from "@/hooks/useBindingNames";
 import { useVial } from "@/contexts/VialContext";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
@@ -113,6 +114,8 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
     }, [handleCloseEditor, isClosing]);
 
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
+    const { renameBinding, nameError } = useBindingNames();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editTitleValue, setEditTitleValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -137,30 +140,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         setIsEditingTitle(true);
     };
 
-    const handleSaveTitle = () => {
-        if (!keyboard || itemToEdit === null) {
-            setIsEditingTitle(false);
-            return;
-        }
-
-        const editConfig = getEditableTitleDefaults();
-        if (!editConfig) {
-            setIsEditingTitle(false);
-            return;
-        }
-        const { cosmeticKey, defaultLabel } = editConfig;
-
-        const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || {}));
-        if (!cosmetic[cosmeticKey]) cosmetic[cosmeticKey] = {};
-
-        if (editTitleValue.trim() === "" || editTitleValue.trim() === defaultLabel) {
-            delete cosmetic[cosmeticKey][itemToEdit.toString()];
-        } else {
-            cosmetic[cosmeticKey][itemToEdit.toString()] = editTitleValue;
-        }
-
-        setKeyboard({ ...keyboard, cosmetic });
-        setIsEditingTitle(false);
+    const handleSaveTitle = async () => {
+        if (itemToEdit === null) return;
+        const config = getEditableTitleDefaults();
+        if (!config) return;
+        const kind = config.cosmeticKey === "macros" ? "macro" : "tapdance";
+        const value = editTitleValue.trim() === config.defaultLabel ? "" : editTitleValue;
+        if (await renameBinding(kind, itemToEdit, value)) setIsEditingTitle(false);
     };
 
     const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -176,7 +162,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
 
         setIsConfirmOpen(false);
 
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const updatedKeyboard = structuredClone(keyboard);
 
         switch (bindingTypeToEdit) {
             case "tapdances":
@@ -187,31 +173,31 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         hold: "KC_NO",
                         doubletap: "KC_NO",
                         taphold: "KC_NO",
-                        tapms: 200
+                        tapping_term: 200
                     };
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateTapdance(updatedKeyboard, itemToEdit);
+                    await persistBinding(updatedKeyboard, "tapdance", itemToEdit);
                 }
                 break;
             case "macros":
                 if (updatedKeyboard.macros?.[itemToEdit]) {
                     updatedKeyboard.macros[itemToEdit].actions = [];
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateMacros(updatedKeyboard);
+                    await persistBinding(updatedKeyboard, "macro", itemToEdit);
                 }
                 break;
             case "combos":
                 if (updatedKeyboard.combos?.[itemToEdit]) {
-                    updatedKeyboard.combos[itemToEdit].keys = ["KC_NO", "KC_NO", "KC_NO", "KC_NO"];
-                    updatedKeyboard.combos[itemToEdit].output = "KC_NO";
+                    updatedKeyboard.combos![itemToEdit].keys = ["KC_NO", "KC_NO", "KC_NO", "KC_NO"];
+                    updatedKeyboard.combos![itemToEdit].output = "KC_NO";
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                    await persistBinding(updatedKeyboard, "combo", itemToEdit);
                 }
                 break;
             case "overrides":
                 if (updatedKeyboard.key_overrides?.[itemToEdit]) {
-                    updatedKeyboard.key_overrides[itemToEdit] = {
-                        ...updatedKeyboard.key_overrides[itemToEdit],
+                    updatedKeyboard.key_overrides![itemToEdit] = {
+                        ...updatedKeyboard.key_overrides![itemToEdit],
                         trigger: "KC_NO",
                         replacement: "KC_NO",
                         layers: 0xFFFF,
@@ -221,37 +207,37 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         options: 0
                     };
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateKeyoverride(updatedKeyboard, itemToEdit);
+                    await persistBinding(updatedKeyboard, "override", itemToEdit);
                 }
                 break;
             case "altrepeat":
                 if (updatedKeyboard.alt_repeat_keys?.[itemToEdit]) {
-                    updatedKeyboard.alt_repeat_keys[itemToEdit] = {
-                        ...updatedKeyboard.alt_repeat_keys[itemToEdit],
+                    updatedKeyboard.alt_repeat_keys![itemToEdit] = {
+                        ...updatedKeyboard.alt_repeat_keys![itemToEdit],
                         keycode: "KC_NO",
                         alt_keycode: "KC_NO",
                         allowed_mods: 0,
                         options: 0
                     };
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit);
+                    await persistBinding(updatedKeyboard, "altrepeat", itemToEdit);
                 }
                 break;
             case "leaders":
                 if (updatedKeyboard.leaders?.[itemToEdit]) {
-                    updatedKeyboard.leaders[itemToEdit] = {
-                        ...updatedKeyboard.leaders[itemToEdit],
+                    updatedKeyboard.leaders![itemToEdit] = {
+                        ...updatedKeyboard.leaders![itemToEdit],
                         sequence: ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"],
                         output: "KC_NO",
                         options: 0
                     };
                     setKeyboard(updatedKeyboard);
-                    await vialService.updateLeader(updatedKeyboard, itemToEdit);
+                    await persistBinding(updatedKeyboard, "leader", itemToEdit);
                 }
                 break;
         }
 
-        await vialService.saveSvil();
+
     };
 
     const getEditorTitle = () => {
@@ -366,23 +352,29 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                     />
                 </div>
 
+                {bindingTypeToEdit === "tapdances" && keyboard?.tapdances && itemToEdit !== null && (
+                    <div className="mt-[20px]" aria-label="Tap dance enabled">
+                        <span className="text-xs">Enabled</span>
+                        <OnOffToggle value={keyboard.tapdances[itemToEdit]?.enabled !== false} onToggle={async enabled => {
+                            const updatedKeyboard = structuredClone(keyboard);
+                            updatedKeyboard.tapdances![itemToEdit].enabled = enabled;
+                            setKeyboard(updatedKeyboard);
+                            await persistBinding(updatedKeyboard, "tapdance", itemToEdit);
+                        }} />
+                    </div>
+                )}
                 {bindingTypeToEdit === "leaders" && keyboard?.leaders && itemToEdit !== null && (
                     <div className="mt-[20px]">
                         <OnOffToggle
                             value={(keyboard.leaders[itemToEdit]?.options & LeaderOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
-                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                                let options = updatedKeyboard.leaders[itemToEdit].options;
+                                const updatedKeyboard = structuredClone(keyboard);
+                                let options = updatedKeyboard.leaders![itemToEdit].options;
                                 if (enabled) options |= LeaderOptions.ENABLED;
                                 else options &= ~LeaderOptions.ENABLED;
-                                updatedKeyboard.leaders[itemToEdit].options = options;
+                                updatedKeyboard.leaders![itemToEdit].options = options;
                                 setKeyboard(updatedKeyboard);
-                                try {
-                                    await vialService.updateLeader(updatedKeyboard, itemToEdit);
-                                    await vialService.saveSvil();
-                                } catch (err) {
-                                    console.error("Failed to update leader:", err);
-                                }
+                                await persistBinding(updatedKeyboard, "leader", itemToEdit);
                             }}
                         />
                     </div>
@@ -393,18 +385,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         <OnOffToggle
                             value={(keyboard.key_overrides[itemToEdit]?.options & (1 << 7)) !== 0}
                             onToggle={async (enabled) => {
-                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                                let options = updatedKeyboard.key_overrides[itemToEdit].options;
+                                const updatedKeyboard = structuredClone(keyboard);
+                                let options = updatedKeyboard.key_overrides![itemToEdit].options;
                                 if (enabled) options |= (1 << 7);
                                 else options &= ~(1 << 7);
-                                updatedKeyboard.key_overrides[itemToEdit].options = options;
+                                updatedKeyboard.key_overrides![itemToEdit].options = options;
                                 setKeyboard(updatedKeyboard);
-                                try {
-                                    await vialService.updateKeyoverride(updatedKeyboard, itemToEdit);
-                                    await vialService.saveSvil();
-                                } catch (err) {
-                                    console.error("Failed to update key override:", err);
-                                }
+                                await persistBinding(updatedKeyboard, "override", itemToEdit);
                             }}
                         />
                     </div>
@@ -415,18 +402,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         <OnOffToggle
                             value={(keyboard.alt_repeat_keys[itemToEdit]?.options & AltRepeatKeyOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
-                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                                let options = updatedKeyboard.alt_repeat_keys[itemToEdit].options;
+                                const updatedKeyboard = structuredClone(keyboard);
+                                let options = updatedKeyboard.alt_repeat_keys![itemToEdit].options;
                                 if (enabled) options |= AltRepeatKeyOptions.ENABLED;
                                 else options &= ~AltRepeatKeyOptions.ENABLED;
-                                updatedKeyboard.alt_repeat_keys[itemToEdit].options = options;
+                                updatedKeyboard.alt_repeat_keys![itemToEdit].options = options;
                                 setKeyboard(updatedKeyboard);
-                                try {
-                                    await vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit);
-                                    await vialService.saveSvil();
-                                } catch (err) {
-                                    console.error("Failed to update alt-repeat key:", err);
-                                }
+                                await persistBinding(updatedKeyboard, "altrepeat", itemToEdit);
                             }}
                         />
                     </div>
@@ -437,18 +419,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         <OnOffToggle
                             value={(keyboard.combos[itemToEdit]?.options & ComboOptions.ENABLED) !== 0}
                             onToggle={async (enabled) => {
-                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                                let options = updatedKeyboard.combos[itemToEdit].options;
+                                const updatedKeyboard = structuredClone(keyboard);
+                                let options = updatedKeyboard.combos![itemToEdit].options;
                                 if (enabled) options |= ComboOptions.ENABLED;
                                 else options &= ~ComboOptions.ENABLED;
-                                updatedKeyboard.combos[itemToEdit].options = options;
+                                updatedKeyboard.combos![itemToEdit].options = options;
                                 setKeyboard(updatedKeyboard);
-                                try {
-                                    await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                                    await vialService.saveSvil();
-                                } catch (err) {
-                                    console.error("Failed to update combo:", err);
-                                }
+                                await persistBinding(updatedKeyboard, "combo", itemToEdit);
                             }}
                         />
                     </div>
@@ -522,6 +499,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         )}
 
                     </div>
+                    {nameError && <p role="alert" className="px-4 text-sm text-red-700">{nameError}</p>}
                     {bindingTypeToEdit === "tapdances" && <TapdanceEditor />}
                     {bindingTypeToEdit === "combos" && <ComboEditor />}
                     {bindingTypeToEdit === "overrides" && <OverrideEditor />}

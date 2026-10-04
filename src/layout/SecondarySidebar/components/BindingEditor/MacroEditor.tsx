@@ -4,13 +4,13 @@ import PlusIcon from "@/components/icons/Plus";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { useChanges } from "@/hooks/useChanges";
 import { DragItem } from "@/contexts/DragContext";
 import { MacroAction } from "@/types/vial.types";
 import { ArrowDown } from "lucide-react";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
-import { vialService } from "@/services/vial.service";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
+import { isEditorInput } from "@/utils/editor-input";
 
 const MacroEditor: FC = () => {
     const [actions, setActions] = useState<MacroAction[]>([]);
@@ -19,7 +19,7 @@ const MacroEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectComboKey: _selectComboKey, selectMacroKey, selectedTarget, clearSelection } = useKeyBinding();
-    const { queue } = useChanges();
+    const persistBinding = useBindingChanges();
 
     useEffect(() => {
         setPanelToGoBack("macros");
@@ -28,7 +28,8 @@ const MacroEditor: FC = () => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Delete" || e.key === "Backspace") {
+            if (!e.defaultPrevented && !isEditorInput(e.target) && (e.key === "Delete" || e.key === "Backspace")) {
+                e.preventDefault();
                 // Ensure we are not typing in an input
                 const target = e.target as HTMLElement;
                 if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
@@ -37,9 +38,9 @@ const MacroEditor: FC = () => {
                     const indexToDelete = selectedTarget.macroIndex;
                     if (indexToDelete !== undefined && indexToDelete >= 0 && indexToDelete < actions.length) {
                         e.preventDefault();
-                        const newActions = [...actions];
+                        const newActions = actions.map(action => [...action] as MacroAction);
                         newActions.splice(indexToDelete, 1);
-                        setActions(newActions);
+                        void updateActions(newActions);
                         clearSelection();
                     }
                 }
@@ -108,20 +109,7 @@ const MacroEditor: FC = () => {
         };
         setKeyboard(updatedKeyboard);
 
-        // Queue the change for the Update Changes button
-        const macroId = itemToEdit;
-        queue(
-            `macro_${macroId}`,
-            async () => {
-                try {
-                    await vialService.updateMacros(updatedKeyboard);
-                    await vialService.saveSvil();
-                } catch (err) {
-                    console.error("Failed to update macro:", err);
-                }
-            },
-            { type: "macro" }
-        );
+        await persistBinding(updatedKeyboard, "macro", itemToEdit);
     };
 
     const handleAddItem = (type: string) => {
@@ -140,14 +128,14 @@ const MacroEditor: FC = () => {
     };
 
     const handleDeleteItem = (index: number) => {
-        const newActions = [...actions];
+        const newActions = actions.map(action => [...action] as MacroAction);
         newActions.splice(index, 1);
         updateActions(newActions);
         clearSelection();
     };
 
     const handleTextChange = (index: number, value: string | number) => {
-        const newActions = [...actions];
+        const newActions = actions.map(action => [...action] as MacroAction);
         newActions[index][1] = value;
         updateActions(newActions);
     };
@@ -168,7 +156,7 @@ const MacroEditor: FC = () => {
             const targetIndex = index;
             if (sourceIndex === targetIndex) return;
 
-            const newActions = [...actions];
+            const newActions = actions.map(action => [...action] as MacroAction);
             // Swap action values
             const temp = newActions[sourceIndex];
             newActions[sourceIndex] = newActions[targetIndex];
@@ -178,7 +166,7 @@ const MacroEditor: FC = () => {
             // Update selection to follow the swapped item if needed, 
             // but usually simplistic swap is enough visually.
         } else {
-            const newActions = [...actions];
+            const newActions = actions.map(action => [...action] as MacroAction);
             if (newActions[index]) {
                 newActions[index][1] = item.keycode;
                 updateActions(newActions);

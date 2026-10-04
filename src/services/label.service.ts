@@ -1,6 +1,13 @@
 import type { KeyboardInfo } from "@/types/vial.types";
 import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
 
+export type LabelKind = "layer" | "macro" | "tapdance";
+const labelTypes = {
+    layer: SvilUSB.SVIL_LABEL_TYPE_LAYER,
+    macro: SvilUSB.SVIL_LABEL_TYPE_MACRO,
+    tapdance: SvilUSB.SVIL_LABEL_TYPE_TAP_DANCE,
+};
+
 /**
  * Labels stored on the keyboard (CMD_SVIL_LABEL_*): a fixed 16-byte, null-padded
  * UTF-8 name per layer, tap dance or macro (SvilUSB.SVIL_LABEL_TYPE_*).
@@ -18,6 +25,35 @@ export class LabelService {
         for (const [index, name] of labels) {
             if (index < (kb.layers ?? 0)) kb.cosmetic.layer[index.toString()] = name;
         }
+    }
+
+    async loadBindingNames(kb: KeyboardInfo): Promise<void> {
+        if ((kb.svil_proto ?? 1) < 2) return;
+        kb.cosmetic ??= {};
+        for (const kind of ["macro", "tapdance"] as const) {
+            const count = kind === "macro" ? kb.macro_count ?? kb.macros?.length ?? 0
+                : kb.tapdance_count ?? kb.tapdances?.length ?? 0;
+            const names = count > 0 ? await this.getAll(labelTypes[kind], count) : new Map<number, string>();
+            const key = kind === "macro" ? "macros" : "tapdances";
+            kb.cosmetic[key] = {};
+            for (const [index, name] of names) {
+                if (index < count) kb.cosmetic[key]![String(index)] = name;
+            }
+        }
+    }
+
+    validateName(kb: KeyboardInfo, kind: LabelKind, name: string): void {
+        if ((kb.svil_proto ?? 1) < 2) throw new Error(`This firmware cannot save ${kind} names on the keyboard. Names in offline layouts are included in exported backups.`);
+        if (new TextEncoder().encode(name).length > SvilUSB.SVIL_LABEL_SIZE) {
+            throw new Error("Names can use up to 16 UTF-8 bytes; accented letters and emoji use more than one byte.");
+        }
+        if (/[\u0000-\u001f\u007f]/.test(name)) throw new Error("Names cannot contain control characters.");
+    }
+
+    async saveName(kb: KeyboardInfo, kind: LabelKind, index: number, name: string): Promise<void> {
+        this.validateName(kb, kind, name);
+        const ok = name ? await this.set(labelTypes[kind], index, name) : await this.clear(labelTypes[kind], index);
+        if (!ok) throw new Error(`The keyboard refused to save the ${kind} name.`);
     }
 
     validateLayerName(kb: KeyboardInfo, name: string): void {

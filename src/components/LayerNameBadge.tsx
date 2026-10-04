@@ -136,11 +136,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             setKeyboard({ ...keyboard, cosmetic, layer_colors: updatedLayerColors });
 
             if (isConnected) {
-                try {
-                    await usbInstance.setLayerColor(selectedLayer, hsv.hue, hsv.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color:", e);
-                }
+                await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, hsv.hue, hsv.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
             }
         }
         setIsColorPickerOpen(false);
@@ -165,11 +161,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             setKeyboard({ ...keyboard, cosmetic, layer_colors: updatedLayerColors });
 
             if (isConnected) {
-                try {
-                    await usbInstance.setLayerColor(selectedLayer, ledHsv.hue, ledHsv.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color:", e);
-                }
+                await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, ledHsv.hue, ledHsv.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
             }
         }
     };
@@ -237,7 +229,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                 queue(
                                     `key_${selectedLayer}_${row}_${col}`,
                                     async () => updateKey(selectedLayer, row, col, newValue),
-                                    { type: "key", layer: selectedLayer, row, col, keycode: newValue, previousValue }
+                                    { type: "key", writeKey: `key:${selectedLayer}:${row}:${col}`, layer: selectedLayer, row, col, keycode: newValue, previousValue }
                                 );
                             }
                         }
@@ -262,13 +254,10 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     updatedKeyboard.layer_colors[selectedLayer] = { ...ledColor };
                     hasChanges = true;
 
-                    // Update hardware if connected
+                    // Update draft before the queued write captures its confirmed snapshot.
+                    setKeyboard(updatedKeyboard);
                     if (isConnected) {
-                        try {
-                            await usbInstance.setLayerColor(selectedLayer, ledColor.hue, ledColor.sat);
-                        } catch (e) {
-                            console.error("Failed to set hardware layer color during paste:", e);
-                        }
+                        await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, ledColor.hue, ledColor.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
                     }
                 }
 
@@ -299,7 +288,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     queue(
                         `key_${selectedLayer}_${row}_${col}`,
                         async () => updateKey(selectedLayer, row, col, targetKeycode),
-                        { type: "key", layer: selectedLayer, row, col, keycode: targetKeycode, previousValue }
+                        { type: "key", writeKey: `key:${selectedLayer}:${row}:${col}`, layer: selectedLayer, row, col, keycode: targetKeycode, previousValue }
                     );
                 }
             }

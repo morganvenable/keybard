@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BoardIdentitySection from '../../src/layout/SecondarySidebar/Panels/BoardIdentitySection';
 
-const vial = { isConnected: true };
+const vial = { isConnected: true, runDeviceMaintenance: vi.fn(async (operation: () => Promise<unknown>) => operation()) };
 vi.mock('@/contexts/VialContext', () => ({ useVial: () => vial }));
 
 const svc = vi.hoisted(() => ({ getInfo: vi.fn(), setName: vi.fn(), restart: vi.fn() }));
@@ -15,6 +15,7 @@ const info = (over = {}) => ({ available: true, name: 'Lab board', nameMaxBytes:
 
 describe('BoardIdentitySection', () => {
     beforeEach(() => {
+        vi.spyOn(window, "confirm").mockReturnValue(true);
         svc.getInfo.mockReset();
         svc.setName.mockReset();
         svc.restart.mockReset();
@@ -36,7 +37,7 @@ describe('BoardIdentitySection', () => {
         const input = (await screen.findByLabelText('Board name')) as HTMLInputElement;
         expect(input.value).toBe('Lab board');
         expect(screen.getByText('sval:E46498769F365934')).toBeTruthy();
-        const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+        const save = screen.getByRole('button', { name: 'Save now' }) as HTMLButtonElement;
         expect(save.disabled).toBe(true);
 
         fireEvent.change(input, { target: { value: 'Morgan’s Sval ✓' } });
@@ -54,9 +55,9 @@ describe('BoardIdentitySection', () => {
         svc.setName.mockRejectedValueOnce(new Error('USB Command Timeout')).mockResolvedValueOnce(0);
         render(<BoardIdentitySection />);
         fireEvent.change(await screen.findByLabelText('Board name'), { target: { value: 'New name' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save now' }));
         expect(await screen.findByText(/Couldn't save the name/)).toBeTruthy();
-        const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+        const save = screen.getByRole('button', { name: 'Save now' }) as HTMLButtonElement;
         expect(save.disabled).toBe(false);
         fireEvent.click(save);
         expect(await screen.findByRole('button', { name: 'Restart keyboard' })).toBeTruthy();
@@ -68,7 +69,7 @@ describe('BoardIdentitySection', () => {
         svc.restart.mockRejectedValue(new Error('USB Command Timeout'));
         render(<BoardIdentitySection />);
         fireEvent.change(await screen.findByLabelText('Board name'), { target: { value: 'New name' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save now' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Restart keyboard' }));
         expect(await screen.findByText(/Couldn't confirm the restart/)).toBeTruthy();
         expect((screen.getByRole('button', { name: 'Restart keyboard' }) as HTMLButtonElement).disabled).toBe(false);
@@ -80,7 +81,7 @@ describe('BoardIdentitySection', () => {
         const input = await screen.findByLabelText('Board name');
         fireEvent.change(input, { target: { value: 'x'.repeat(33) } });
         expect(screen.getByText(/at most 32 characters/)).toBeTruthy();
-        expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole('button', { name: 'Save now' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('says when the keyboard has nowhere to keep a name', async () => {
@@ -89,4 +90,13 @@ describe('BoardIdentitySection', () => {
         expect(await screen.findByText(/no room for a name/)).toBeTruthy();
         expect(screen.queryByLabelText('Board name')).toBeNull();
     });
+    it('does not perform immediate maintenance when confirmation is cancelled', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        svc.getInfo.mockResolvedValue(info());
+        render(<BoardIdentitySection />);
+        fireEvent.change(await screen.findByLabelText('Board name'), {target: {value: 'New name'}});
+        fireEvent.click(screen.getByRole('button', {name: 'Save now'}));
+        expect(svc.setName).not.toHaveBeenCalled();
+    });
+
 });

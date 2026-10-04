@@ -5,6 +5,7 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { keyService } from "@/services/key.service";
 import { isTapdanceKeycode } from "@/utils/keys";
+import { isEditorInput } from "@/utils/editor-input";
 import { vialService } from "@/services/vial.service";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
@@ -37,6 +38,8 @@ interface BindingTarget {
 
 
 interface KeyBindingContextType {
+    isCapturing: boolean;
+    setCapturing: (active: boolean) => void;
     selectedTarget: BindingTarget | null;
     selectKeyboardKey: (layer: number, row: number, col: number) => void;
     selectKeyboardKeyWithSubsection: (layer: number, row: number, col: number, subsection: "full" | "inner") => void;
@@ -59,12 +62,16 @@ interface KeyBindingContextType {
 const KeyBindingContext = createContext<KeyBindingContextType | undefined>(undefined);
 
 export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { keyboard, setKeyboard, updateKey } = useVial();
-    const { queue } = useChanges();
+    const { keyboard, setKeyboard, updateKey, getKeyboardSnapshot } = useVial();
+    const { queue, registerUndo } = useChanges();
     const { getSetting } = useSettings();
     const [selectedTarget, setSelectedTarget] = useState<BindingTarget | null>(null);
     const [hoveredKey, setHoveredKey] = useState<BindingTarget | null>(null);
     const [isBinding, setIsBinding] = useState(false);
+    const [isCapturing, setCapturing] = useState(false);
+
+    // Selection changes and opening a different editor never arm typing capture.
+    useEffect(() => { setCapturing(false); }, [selectedTarget]);
 
     // Use a ref to always have access to the current selectedTarget value
     const selectedTargetRef = useRef<BindingTarget | null>(null);
@@ -201,7 +208,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const assignKeycodeTo = useCallback(
         (target: BindingTarget, keycode: number | string, options?: { skipAdvance?: boolean }) => {
             if (!target || !keyboard) return;
-            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const updatedKeyboard = structuredClone(keyboard) as typeof keyboard & Record<string, any>;
             console.log("assignKeycodeTo called with", keycode, "for target", target);
             // Convert keycode string to number using keyService
             const keycodeValue = typeof keycode === "string" ? keyService.parse(keycode) : keycode;
@@ -244,14 +251,25 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                     // Queue the change with callback
                     const changeDesc = `key_${layer}_${row}_${col}`;
+                    registerUndo?.(`key on layer ${layer}`, async () => {
+                        const current = getKeyboardSnapshot?.() ?? keyboard;
+                        if (!current?.keymap) return;
+                        const restored = structuredClone(current);
+                        restored.keymap![layer][matrixPos] = previousValue;
+                        setKeyboard(restored);
+                        await queue(changeDesc, () => updateKey(layer, row, col, previousValue), {
+                            type: "key", writeKey: `key:${layer}:${row}:${col}`, layer, row, col, keycode: previousValue,
+                        });
+                    });
                     queue(
                         changeDesc,
                         async () => {
                             console.log(`Committing key change: Layer ${layer}, Key [${row},${col}] → ${finalKeycodeValue}`);
-                            updateKey(layer, row, col, finalKeycodeValue);
+                            await updateKey(layer, row, col, finalKeycodeValue);
                         },
                         {
                             type: "key",
+                            writeKey: `key:${layer}:${row}:${col}`,
                             layer,
                             row,
                             col,
@@ -274,7 +292,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                     // Create a defensive copy of the entire combos array to preserve all combos
                     const originalCombos = (keyboard as any)?.combos || [];
-                    const combos = Array.isArray(originalCombos) ? [...originalCombos] : [];
+                    const combos = Array.isArray(originalCombos) ? originalCombos.map((entry: any) => structuredClone(entry)) : [];
                     (updatedKeyboard as any).combos = combos;
 
                     // Get the ORIGINAL combo from the source keyboard to preserve existing values
@@ -328,15 +346,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing combo change: Combo ${cmbId}, Slot ${comboSlot} → ${keycodeName}`);
-                            try {
-                                await vialService.updateCombo(updatedKeyboard, cmbId);
-                                await vialService.saveSvil();
-                            } catch (err) {
-                                console.error("Failed to update combo:", err);
-                            }
+                            await vialService.updateCombo(updatedKeyboard, cmbId);
+                            await vialService.saveSvil();
                         },
                         {
                             type: "combo",
+                            writeKey: `combo:${comboId}`,
                             comboId,
                             comboSlot,
                             keycode: keycodeValue,
@@ -390,15 +405,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing tapdance change: Tapdance ${tdId}, ${tapdanceSlot} → ${keycodeName}`);
-                            try {
-                                await vialService.updateTapdance(updatedKeyboard, tdId);
-                                await vialService.saveSvil();
-                            } catch (err) {
-                                console.error("Failed to update tapdance:", err);
-                            }
+                            await vialService.updateTapdance(updatedKeyboard, tdId);
+                            await vialService.saveSvil();
                         },
                         {
                             type: "tapdance",
+                            writeKey: `tapdance:${tapdanceId}`,
                             tapdanceId,
                             tapdanceSlot,
                             keycode: keycodeValue,
@@ -428,15 +440,11 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         `macro_${mId}`,
                         async () => {
                             console.log(`Committing macro change: Macro ${macroId}, Index ${macroIndex} → ${keycodeName}`);
-                            try {
-                                await vialService.updateMacros(updatedKeyboard);
-                                await vialService.saveSvil();
-                            } catch (err) {
-                                console.error("Failed to update macro:", err);
-                            }
+                            await vialService.updateMacros(updatedKeyboard);
+                            await vialService.saveSvil();
                         },
                         {
-                            type: "macro" as any,
+                            writeKey: "macros", type: "macro" as any,
                             macroId,
                             macroIndex,
                             keycode: keycodeValue,
@@ -466,15 +474,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing override change: Override ${koId}, ${overrideSlot} → ${keycodeName}`);
-                            try {
-                                await vialService.updateKeyoverride(updatedKeyboard, koId);
-                                await vialService.saveSvil();
-                            } catch (err) {
-                                console.error("Failed to update key override:", err);
-                            }
+                            await vialService.updateKeyoverride(updatedKeyboard, koId);
+                            await vialService.saveSvil();
                         },
                         {
                             type: "override",
+                            writeKey: `override:${koId}`,
                             overrideId,
                             overrideSlot,
                             keycode: keycodeValue,
@@ -505,15 +510,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing alt-repeat change: AltRepeat ${arkId}, ${altRepeatSlot} → ${keycodeName}`);
-                            try {
-                                await vialService.updateAltRepeatKey(updatedKeyboard, arkId);
-                                await vialService.saveSvil(); // Persist to EEPROM
-                            } catch (err) {
-                                console.error("Failed to update alt-repeat key:", err);
-                            }
+                            await vialService.updateAltRepeatKey(updatedKeyboard, arkId);
+                            await vialService.saveSvil(); // Persist to EEPROM
                         },
                         {
                             type: "altrepeat" as any,
+                            writeKey: `altrepeat:${arkId}`,
                             altRepeatId,
                             altRepeatSlot,
                             keycode: keycodeValue,
@@ -555,15 +557,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing leader change: Leader ${ldrId}, ${leaderSlot} → ${keycodeName}`);
-                            try {
-                                await vialService.updateLeader(updatedKeyboard, ldrId);
-                                await vialService.saveSvil();
-                            } catch (err) {
-                                console.error("Failed to update leader:", err);
-                            }
+                            await vialService.updateLeader(updatedKeyboard, ldrId);
+                            await vialService.saveSvil();
                         },
                         {
                             type: "leaders" as any,
+                            writeKey: `leader:${ldrId}`,
                             leaderId,
                             leaderSlot,
                             leaderSeqIndex,
@@ -610,7 +609,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
             }
         },
-        [keyboard, setKeyboard, clearSelection, selectNextKey, selectComboKey, selectTapdanceKey, selectOverrideKey, selectAltRepeatKey, selectLeaderKey, queue, updateKey]
+        [keyboard, setKeyboard, clearSelection, selectNextKey, selectComboKey, selectTapdanceKey, selectOverrideKey, selectAltRepeatKey, selectLeaderKey, queue, updateKey, registerUndo, getKeyboardSnapshot]
     );
 
     const swapKeys = useCallback(
@@ -629,7 +628,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             ) return;
 
             // Clone state ONCE
-            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const updatedKeyboard = structuredClone(keyboard) as typeof keyboard & Record<string, any>;
             if (!updatedKeyboard.keymap) updatedKeyboard.keymap = [];
 
             // Ensure layers exist
@@ -655,10 +654,11 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 `key_${layer1}_${row1}_${col1}`,
                 async () => {
                     console.log(`Committing swap change 1: Layer ${layer1}, Key [${row1},${col1}] → ${val2}`);
-                    updateKey(layer1, row1, col1, val2);
+                    await updateKey(layer1, row1, col1, val2);
                 },
                 {
                     type: "key",
+                    writeKey: `key:${layer1}:${row1}:${col1}`,
                     layer: layer1,
                     row: row1,
                     col: col1,
@@ -672,10 +672,11 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 `key_${layer2}_${row2}_${col2}`,
                 async () => {
                     console.log(`Committing swap change 2: Layer ${layer2}, Key [${row2},${col2}] → ${val1}`);
-                    updateKey(layer2, row2, col2, val1);
+                    await updateKey(layer2, row2, col2, val1);
                 },
                 {
                     type: "key",
+                    writeKey: `key:${layer2}:${row2}:${col2}`,
                     layer: layer2,
                     row: row2,
                     col: col2,
@@ -728,11 +729,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const handleKeyDown = (event: KeyboardEvent) => {
             const typingBindsKey = getSetting("typing-binds-key");
 
-            if (!typingBindsKey || !selectedTargetRef.current) return;
-
-            // Ignore if user is typing in an input or textarea
-            const target = event.target as HTMLElement;
-            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+            if (event.key === "Escape" || event.key === "Tab") {
+                setCapturing(false);
+                return;
+            }
+            if (!isCapturing || !typingBindsKey || !selectedTargetRef.current || event.defaultPrevented || event.repeat) return;
+            if (isEditorInput(event.target)) return;
 
             const qmkKeycode = KEYBOARD_EVENT_MAP[event.code];
 
@@ -801,6 +803,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const useRight = anyRight && !anyLeft;
 
                 const wrapper = (useRight ? rightWrapperMap[comboKey] : undefined) || modWrapperMap[comboKey];
+                setCapturing(false);
                 assignKeycode(wrapper ? `${wrapper}(${qmkKeycode})` : qmkKeycode);
             }
         };
@@ -809,9 +812,11 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [assignKeycode, getSetting]);
+    }, [assignKeycode, getSetting, isCapturing]);
 
     const value: KeyBindingContextType = {
+        isCapturing,
+        setCapturing,
         selectedTarget,
         selectKeyboardKey,
         selectKeyboardKeyWithSubsection,

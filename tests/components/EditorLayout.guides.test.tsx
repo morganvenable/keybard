@@ -83,6 +83,10 @@ vi.mock("@/contexts/VialContext", () => ({
   }),
 }));
 
+vi.mock("@/contexts/SettingsContext", () => ({
+  useSettings: () => ({ getSetting: () => false }),
+}));
+
 vi.mock("@/contexts/KeyBindingContext", () => ({
   useKeyBinding: () => ({
     assignKeycodeTo: vi.fn(),

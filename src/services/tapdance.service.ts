@@ -17,8 +17,7 @@ export class TapdanceService {
             const data = entries[i];
 
             // Entry: [tap:2][hold:2][doubletap:2][taphold:2][tapping_term:2]
-            // tapping_term is 2 bytes: bit 15 = enabled flag (ignored), bits 0-14 = timing in ms
-            // Keybard always treats tap dances as enabled
+            // tapping_term is 2 bytes: bit 15 = enabled flag, bits 0-14 = timing in ms
             const dv = new DataView(data.buffer);
             const termRaw = dv.getUint16(8, true);
             kbinfo.tapdances.push({
@@ -28,6 +27,7 @@ export class TapdanceService {
                 doubletap: keyService.stringify(dv.getUint16(4, true)),
                 taphold: keyService.stringify(dv.getUint16(6, true)),
                 tapping_term: termRaw & 0x7FFF,
+                enabled: (termRaw & 0x8000) !== 0,
             });
         }
     }
@@ -42,8 +42,10 @@ export class TapdanceService {
         for (const td of toPush) {
             // Use Svil protocol: direct tap dance set command
             // tapping_term is 2 bytes: bit 15 = enabled flag, bits 0-14 = timing in ms
-            // Keybard always enables tap dances (the disabled feature is pointless)
-            const termWithEnabled = ((td.tapping_term || 200) & 0x7FFF) | 0x8000;
+            const requestedTerm = td.tapping_term ?? 200;
+            if (!Number.isFinite(requestedTerm)) throw new Error("Tap dance timing must be a finite number.");
+            const term = Math.max(0, Math.min(32767, Math.round(requestedTerm)));
+            const termWithEnabled = term | (td.enabled !== false ? 0x8000 : 0);
             const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_TAP_DANCE_SET, [
                 ...svilIndexArgs(this.usb.svilProtocolVersion, td.idx),
                 ...this.LE16(keyService.parse(td.tap)),

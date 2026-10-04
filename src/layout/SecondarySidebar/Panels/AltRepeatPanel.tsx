@@ -1,3 +1,4 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -12,12 +13,12 @@ import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent, AltRepeatKeyOptions } from "@/types/vial.types";
-import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -86,12 +87,7 @@ const AltRepeatPanel: React.FC = () => {
         };
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, index);
-            await vialService.saveSvil(); // Persist to EEPROM
-        } catch (err) {
-            console.error("Failed to update alt repeat key:", err);
-        }
+        await persistBinding(updatedKeyboard, "altrepeat", index);
     };
 
 

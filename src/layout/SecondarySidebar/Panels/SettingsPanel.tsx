@@ -20,7 +20,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useNavigation } from "@/App";
 import { cn } from "@/lib/utils";
-import { customValueService } from "@/services/custom-value.service";
+import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { fileService } from "@/services/file.service";
 import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
@@ -33,7 +33,7 @@ import type { CustomUIMenuItem } from "@/types/vial.types";
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
-    const { keyboard, setKeyboard, isConnected, setIsImporting } = useVial();
+    const { keyboard } = useVial();
     const { setActivePanel } = usePanels();
     const { layoutMode } = useLayoutSettings();
     const { navigateTo } = useNavigation();
@@ -53,122 +53,13 @@ const SettingsPanel = () => {
     // Print Dialog State
     const [isPrintOpen, setIsPrintOpen] = useState(false);
 
-    const { queue } = useChanges();
-
-    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsImporting(true);
-        // Double-yield to guarantee React paints the spinner before heavy work
-        await new Promise<void>(resolve =>
-            requestAnimationFrame(() => setTimeout(resolve, 0))
-        );
-
-        try {
-            const newKbInfo = await fileService.uploadFile(file);
-            if (newKbInfo) {
-                // Start sync if connected
-                if (keyboard && isConnected) {
-                    const { importService } = await import('@/services/import.service');
-                    const { vialService } = await import('@/services/vial.service');
-
-                    await importService.syncWithKeyboard(
-                        newKbInfo,
-                        keyboard,
-                        queue,
-                        { vialService }
-                    );
-
-                    // Merge hardware-specific properties from connected keyboard
-                    // These come from the keyboard definition and aren't in save files
-                    if (keyboard.menus) newKbInfo.menus = keyboard.menus;
-                    if (keyboard.payload) newKbInfo.payload = keyboard.payload;
-                    if (keyboard.cosmetic) {
-                        // Preserve layer names from connected keyboard, but allow file to override colors
-                        newKbInfo.cosmetic = {
-                            ...keyboard.cosmetic,
-                            ...(newKbInfo.cosmetic || {}),
-                            layer: keyboard.cosmetic.layer || newKbInfo.cosmetic?.layer,
-                        };
-                    }
-                    // Preserve hardware counts from connected keyboard
-                    newKbInfo.combo_count = keyboard.combo_count;
-                    newKbInfo.key_override_count = keyboard.key_override_count;
-                    newKbInfo.macro_count = keyboard.macro_count;
-                    newKbInfo.tapdance_count = keyboard.tapdance_count;
-                    newKbInfo.alt_repeat_key_count = keyboard.alt_repeat_key_count;
-                    newKbInfo.leader_count = keyboard.leader_count;
-                    // Preserve hardware dimensions
-                    newKbInfo.rows = keyboard.rows;
-                    newKbInfo.cols = keyboard.cols;
-                    newKbInfo.layers = keyboard.layers;
-
-                    // Merge fragment definitions and state from connected keyboard
-                    if (keyboard.fragments) {
-                        newKbInfo.fragments = keyboard.fragments;
-                    }
-                    if (keyboard.composition) {
-                        newKbInfo.composition = keyboard.composition;
-                    }
-                    // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                    // Ensure Maps are actual Maps (they may have been serialized to plain objects)
-                    const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                        if (!obj) return new Map();
-                        if (obj instanceof Map) return obj;
-                        // Convert plain object to Map
-                        return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                    };
-
-                    if (keyboard.fragmentState) {
-                        const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                        newKbInfo.fragmentState = {
-                            hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                            eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                            userSelections: importedUserSelections,
-                        };
-                    }
-
-                    // Recompose layout with fragment selections
-                    const fragmentComposer = vialService.getFragmentComposer();
-                    if (fragmentComposer.hasFragments(newKbInfo)) {
-                        const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                        if (Object.keys(composedLayout).length > 0) {
-                            newKbInfo.keylayout = composedLayout;
-                            console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
-                        }
-                    }
-
-                    // Preserve keylayout from connected keyboard if not set by fragments or file
-                    if (!newKbInfo.keylayout && keyboard.keylayout) {
-                        newKbInfo.keylayout = keyboard.keylayout;
-                    }
-
-                    // Refresh custom_values: after import sync wrote values to USB,
-                    // re-read all custom values so the UI reflects the actual keyboard state
-                    if (newKbInfo.menus) {
-                        try {
-                            newKbInfo.custom_values = await customValueService.loadAllMenuValues(newKbInfo.menus);
-                            console.log("Custom values refreshed after import:", newKbInfo.custom_values.length, "entries");
-                        } catch (err) {
-                            console.warn("Failed to refresh custom values after import:", err);
-                        }
-                    }
-                }
-
-                setKeyboard(newKbInfo);
-                console.log("Import successful", newKbInfo);
-            }
-        } catch (err) {
-            console.error("Upload failed", err);
-        } finally {
-            setIsImporting(false);
-        }
-        // Reset input so same file can be selected again
-        if (event.target) {
-            event.target.value = '';
-        }
+    const { setInstant } = useChanges();
+    const updateBooleanSetting = async (name: string, checked: boolean) => {
+        if (name === 'live-updating' && !await setInstant(checked)) return;
+        updateSetting(name, checked);
     };
+
+    const { handleFileImport, importReview, fileError, setFileError } = useLayoutImport();
 
     const handleExport = async () => {
         if (!keyboard) {
@@ -185,7 +76,7 @@ const SettingsPanel = () => {
             }
             setIsExportOpen(false);
         } catch (err) {
-            console.error("Export failed", err);
+            setFileError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -216,6 +107,7 @@ const SettingsPanel = () => {
     if (isHorizontal) {
         return (
             <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {importReview}
                 {/* Hidden file input for import */}
                 <input
                     type="file"
@@ -231,7 +123,7 @@ const SettingsPanel = () => {
                         <DialogHeader>
                             <DialogTitle>Export Configuration</DialogTitle>
                             <DialogDescription>
-                                Choose the format to save your keyboard configuration.
+                                Choose the format to save your keyboard configuration. Native .svil preserves Sval features and names. Legacy .vil omits Sval-specific settings, names, colors, and hardware selections.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="flex flex-col gap-4 py-4">
@@ -257,6 +149,7 @@ const SettingsPanel = () => {
                                 </label>
                             </div>
                         </div>
+                        {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
                         <DialogFooter>
                             <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
                                 Cancel
@@ -308,7 +201,7 @@ const SettingsPanel = () => {
                                     <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
                                     <OnOffToggle
                                         value={getSetting(setting.name, setting.defaultValue) as boolean}
-                                        onToggle={(checked) => updateSetting(setting.name, checked)}
+                                        onToggle={(checked) => { void updateBooleanSetting(setting.name, checked); }}
                                     />
                                 </div>
                             );
@@ -318,7 +211,7 @@ const SettingsPanel = () => {
                                 <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
                                 <Switch
                                     checked={getSetting(setting.name, setting.defaultValue) as boolean}
-                                    onCheckedChange={(checked) => updateSetting(setting.name, checked)}
+                                    onCheckedChange={(checked) => { void updateBooleanSetting(setting.name, checked); }}
                                 />
                             </div>
                         );
@@ -387,6 +280,7 @@ const SettingsPanel = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col w-full mx-auto py-4">
+            {importReview}
             {/* Hidden file input for import */}
             <input
                 type="file"
@@ -402,7 +296,7 @@ const SettingsPanel = () => {
                     <DialogHeader>
                         <DialogTitle>Export Configuration</DialogTitle>
                         <DialogDescription>
-                            Choose the format to save your keyboard configuration.
+                            Choose the format to save your keyboard configuration. Native .svil preserves Sval features and names. Legacy .vil omits Sval-specific settings, names, colors, and hardware selections.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-4 py-4">
@@ -428,6 +322,7 @@ const SettingsPanel = () => {
                             </label>
                         </div>
                     </div>
+                    {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
                     <DialogFooter>
                         <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
                             Cancel

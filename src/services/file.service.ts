@@ -141,30 +141,17 @@ export class FileService {
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             }
         } catch (err) {
-            console.error("Error saving file", err);
+            throw err;
         }
     }
 
     // --- Upload Logic ---
 
     async uploadFile(file: File): Promise<KeyboardInfo> {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                try {
-                    const content = evt.target?.result as string;
-                    if (!content) return reject("Empty file");
-                    const parsed = this.parseContent(content);
-                    resolve(parsed);
-                } catch (err) {
-                    reject(err);
-                }
-            };
-            reader.onerror = () => reject("Error reading file");
-            reader.readAsText(file);
-        });
+        return this.loadFile(file);
     }
 
     parseContent(content: string): KeyboardInfo {
@@ -173,12 +160,25 @@ export class FileService {
         const rawUidStr = uidMatch ? uidMatch[1] : null;
 
         const js = JSON.parse(content);
+        if (!js || typeof js !== "object" || !("uid" in js)) throw new Error("Unknown file format. Expected .svil or .vil; raw .kbi snapshots are not supported.");
+        if (!js || typeof js !== "object" || !Array.isArray(js.layout) || !js.layout.length) {
+            throw new Error("Invalid layout file: expected a non-empty layout. Raw .kbi snapshots are not supported; export .svil or .vil instead.");
+        }
+        const rows = js.layout[0]?.length;
+        const cols = js.layout[0]?.[0]?.length;
+        if (!rows || !cols || js.layout.some((layer: any) => !Array.isArray(layer) || layer.length !== rows || layer.some((row: any) => !Array.isArray(row) || row.length !== cols || row.some((key: any) => typeof key !== "string" && (!Number.isInteger(key) || key < -1 || key > 65535))))) {
+            throw new Error("Invalid layout file: all layers must have the same rectangular matrix and valid keycodes.");
+        }
+        for (const field of ["macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader"]) {
+            if (js[field] !== undefined && !Array.isArray(js[field])) throw new Error(`Invalid layout file: ${field} must be a list.`);
+            js[field] ??= [];
+        }
         let kbinfo: KeyboardInfo | null = null;
 
-        if (js.uid && (js.sval_protocol !== undefined || js.svil_protocol !== undefined || js.viable_protocol !== undefined || js.version === 1)) {
+        if (js.uid !== undefined && (js.sval_protocol !== undefined || js.svil_protocol !== undefined || js.viable_protocol !== undefined || (js.version === 1 && js.vial_protocol === undefined))) {
             // It's a .svil / legacy .viable file (has uid + svil_protocol or version: 1)
             kbinfo = this.svilToKBINFO(js);
-        } else if (js.uid) {
+        } else if (js.uid !== undefined) {
             // It's a .vil (has uid but no svil_protocol)
             kbinfo = this.vilToKBINFO(js);
         } else {
@@ -206,6 +206,9 @@ export class FileService {
 
         // Normalize keycodes (string -> number) if necessary
         this.normalizeKeymap(kbinfo);
+        if (kbinfo.keymap?.some(layer => layer.some(key => !Number.isInteger(key) || key < 0 || key > 65535))) {
+            throw new Error("This layout contains unrecognized keycodes. No changes have been applied.");
+        }
 
         return kbinfo;
     }
@@ -233,7 +236,7 @@ export class FileService {
             layout_options: -1,
             macro: macros,
             settings: kbinfo.settings,
-            tap_dance: (kbinfo.tapdances as any)?.map((td: any) => [td.tap, td.hold, td.doubletap, td.taphold, td.tapms]) || [],
+            tap_dance: (kbinfo.tapdances as any)?.map((td: any) => [td.tap, td.hold, td.doubletap, td.taphold, td.tapping_term]) || [],
             uid: kbidrepl,
             version: 1,
             via_protocol: 12,
@@ -289,46 +292,20 @@ export class FileService {
             }
         }
 
-        // Build macros
-        // Sanitize text actions to ASCII-only (32-126) for viable-gui compatibility
-        const sanitizeText = (text: string): string => {
-            return text.split('').filter(c => {
-                const code = c.charCodeAt(0);
-                return code >= 32 && code <= 126;
-            }).join('');
-        };
-
-        let macros: any[];
-        if (includeMacros && kbinfo.macros) {
-            macros = kbinfo.macros.map((macro: any) => {
-                const actions = macro.actions || [];
-                return actions.map((action: any) => {
-                    if (Array.isArray(action) && action[0] === 'text') {
-                        // Sanitize text content to ASCII-only
-                        return ['text', sanitizeText(action[1] || '')];
-                    }
-                    return action;
-                }).filter((action: any) => {
-                    // Remove empty text actions
-                    if (Array.isArray(action) && action[0] === 'text' && !action[1]) {
-                        return false;
-                    }
-                    return true;
-                });
-            });
-        } else {
-            macros = new Array(kbinfo.macro_count || 0).fill([]);
-        }
+        // Backups preserve text verbatim. Firmware compatibility is checked at import.
+        const macros = includeMacros
+            ? (kbinfo.macros || []).map(macro => macro.actions || [])
+            : new Array(kbinfo.macro_count || 0).fill([]);
 
         // Build tap dances (dict format with "on" flag)
         // Tap dance values are stored as strings, use them directly
         const tapDances = (kbinfo.tapdances || []).map((td: any) => ({
-            on: true, // Keybard always enables tap dances
+            on: td.enabled !== false,
             on_tap: typeof td.tap === 'string' ? td.tap : keyService.stringify(td.tap || 0),
             on_hold: typeof td.hold === 'string' ? td.hold : keyService.stringify(td.hold || 0),
             on_double_tap: typeof td.doubletap === 'string' ? td.doubletap : keyService.stringify(td.doubletap || 0),
             on_tap_hold: typeof td.taphold === 'string' ? td.taphold : keyService.stringify(td.taphold || 0),
-            tapping_term: td.tapping_term || 200,
+            tapping_term: td.tapping_term ?? 200,
         }));
 
         // Build combos (dict format with "on" flag).
@@ -469,7 +446,7 @@ export class FileService {
         // Save layer colors from kbinfo.layer_colors (matching viable-gui format)
         if (kbinfo.layer_colors && kbinfo.layer_colors.length > 0) {
             kbinfo.layer_colors.forEach((color, idx) => {
-                if (color && (color.hue !== 0 || color.sat !== 0)) {
+                if (color) {
                     customValues.push({
                         key: `id_layer${idx}_color`,
                         channel: 0,
@@ -544,6 +521,7 @@ export class FileService {
             return { actions: actions, mid: mid };
         });
 
+        kbinfo.vial_proto = vil.vial_protocol || 6;
         kbinfo.settings = vil.settings;
         kbinfo.tapdances = vil.tap_dance.map((td: any[], tdid: number) => {
             return {
@@ -567,8 +545,8 @@ export class FileService {
             const cols = vil.layout[0]?.[0]?.length || 0;
 
             kbinfo.layers = layers;
-            kbinfo.rows = kbinfo.rows || rows;
-            kbinfo.cols = kbinfo.cols || cols;
+            kbinfo.rows = rows;
+            kbinfo.cols = cols;
 
             for (let l = 0; l < layers; l++) {
                 km.push([]);
@@ -646,7 +624,7 @@ export class FileService {
             enabled: ko.on !== false,
             trigger: ko.trigger,
             replacement: ko.replacement,
-            layers: ko.layers || 0xFFFF,
+            layers: ko.layers ?? 0xFFFF,
             trigger_mods: ko.trigger_mods || 0,
             negative_mod_mask: ko.negative_mod_mask || 0,
             suppressed_mods: ko.suppressed_mods || 0,
@@ -675,7 +653,7 @@ export class FileService {
             hold: td.on_hold || 'KC_NO',
             doubletap: td.on_double_tap || 'KC_NO',
             taphold: td.on_tap_hold || 'KC_NO',
-            tapping_term: td.tapping_term || 200,
+            tapping_term: td.tapping_term ?? 200,
         }));
 
         // Convert alt repeat keys (Svil-specific)

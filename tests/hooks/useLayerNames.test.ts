@@ -48,7 +48,7 @@ describe('layer name editor persistence', () => {
         const { result } = renderHook(() => useLayerNames());
         await act(async () => { expect(await result.current.renameLayer(2, 'Tools')).toBe(false); });
         expect(result.current.nameError).toContain('refused');
-        expect(state.keyboard?.cosmetic?.layer?.['2']).toBeUndefined();
+        expect(state.keyboard?.cosmetic?.layer?.['2']).toBe('Tools'); // Failed write retains the editable draft for retry.
     });
 
     it('allows offline layout edits without issuing USB commands', async () => {
