@@ -350,25 +350,22 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             <button
                                 type="button"
                                 className={cn(
-                                    "relative w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center",
+                                    "relative w-7 h-7 shrink-0 p-0 border-0 rounded-full cursor-pointer transition-transform hover:scale-110",
                                     isColorPickerOpen && "z-30"
                                 )}
-                                style={showStatusRing ? { border: `2px solid ${displayColorHex}` } : undefined}
                                 onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     onToggleLayerOn?.(selectedLayer);
                                 }}
                                 onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
                             >
-                                <span
-                                    className="w-[18px] h-[18px] rounded-full shadow-sm"
-                                    style={useInsetDotStyle
-                                        ? {
-                                            backgroundColor: "transparent",
-                                            boxShadow: `inset 0 0 0 6px ${displayColorHex}`,
-                                        }
-                                        : { backgroundColor: displayColorHex }}
-                                />
+                                <svg viewBox="0 0 28 28" className="absolute inset-0 block h-full w-full" aria-hidden="true">
+                                    {showStatusRing && <circle cx="14" cy="14" r="13" fill="none" stroke={displayColorHex} strokeWidth="2" />}
+                                    <circle cx="14" cy="14" r={useInsetDotStyle ? 6 : 9}
+                                        fill={useInsetDotStyle ? "none" : displayColorHex}
+                                        stroke={useInsetDotStyle ? displayColorHex : "none"}
+                                        strokeWidth={useInsetDotStyle ? 6 : 0} />
+                                </svg>
                                 {isColorPickerOpen && (
                                     <span className="absolute -inset-[3px] rounded-full border-2 border-black pointer-events-none z-20" />
                                 )}
