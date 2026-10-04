@@ -1,3 +1,4 @@
+import { useLayerNames } from "@/hooks/useLayerNames";
 import { useState } from "react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -51,6 +52,7 @@ interface Props {
 }
 
 const LayersPanel = ({ isPicker }: Props) => {
+    const { renameLayer, nameError } = useLayerNames();
     const [activeModifier, setActiveModifier] = useState<LayerModifier>("MO");
     const { keyboard, setKeyboard } = useVial();
     const { assignKeycode, selectedTarget } = useKeyBinding();
@@ -97,21 +99,7 @@ const LayersPanel = ({ isPicker }: Props) => {
         }
     };
 
-    const handleNameChange = (index: number, newName: string) => {
-        if (keyboard) {
-            const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
-            if (!cosmetic.layer) cosmetic.layer = {};
-
-            // If the input is empty, remove the custom name to revert to default
-            if (newName.trim() === "") {
-                delete cosmetic.layer[index.toString()];
-            } else {
-                cosmetic.layer[index.toString()] = newName;
-            }
-
-            setKeyboard({ ...keyboard, cosmetic });
-        }
-    };
+    const handleNameChange = (index: number, name: string) => { void renameLayer(index, name); };
 
     const getLayerKeycode = (modifier: LayerModifier, layerIndex: number) => {
         if (modifier === "LT") {
@@ -227,6 +215,7 @@ const LayersPanel = ({ isPicker }: Props) => {
 
             {/* Scrollable Layer List */}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                {nameError && <p role="alert" className="text-red-600">{nameError}</p>}
                 <DescriptionBlock wrapText={false}>
                     <span className="text-md font-medium text-black">
                         {MODIFIER_NAMES[activeModifier]}

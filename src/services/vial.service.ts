@@ -1,3 +1,4 @@
+import { LabelService } from "./label.service";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
 import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
@@ -136,6 +137,7 @@ export class SvilService {
 
         // Load features (combos, macros, etc.)
         await this.getFeatures(kbinfo);
+        await new LabelService(this.usb).loadLayerNames(kbinfo);
 
         // Get keymap for all layers
         await this.getKeyMap(kbinfo);

@@ -1,3 +1,4 @@
+import { useLayerNames } from "@/hooks/useLayerNames";
 import React, { useState, useRef, useEffect } from "react";
 import { EllipsisVertical } from "lucide-react";
 import Settings2Icon from "@/components/icons/Settings2Icon";
@@ -50,6 +51,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     defaultLayerIndex = 0,
     trailingAction,
 }) => {
+    const { renameLayer, nameError } = useLayerNames();
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
     const { copyLayer } = useLayoutLibrary();
     const { queue } = useChanges();
@@ -109,14 +111,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
         setTimeout(() => inputRef.current?.focus(), 0);
     };
 
-    const handleSave = () => {
-        if (editValue.trim() && keyboard) {
-            const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
-            if (!cosmetic.layer) cosmetic.layer = {};
-            cosmetic.layer[selectedLayer.toString()] = editValue.trim();
-            setKeyboard({ ...keyboard, cosmetic });
-        }
-        setIsEditing(false);
+    const handleSave = async () => {
+        if (await renameLayer(selectedLayer, editValue)) setIsEditing(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -347,6 +343,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     return (
         <>
+        {nameError && <div role="alert" className="text-red-600">{nameError}</div>}
             <div
                 className={cn(
                     "group/layer-badge flex items-center gap-2 z-50 transition-[margin] duration-150",

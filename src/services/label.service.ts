@@ -1,3 +1,4 @@
+import type { KeyboardInfo } from "@/types/vial.types";
 import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
 
 /**
@@ -6,6 +7,31 @@ import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
  */
 export class LabelService {
     constructor(private usb: SvilUSB) { }
+
+    async loadLayerNames(kb: KeyboardInfo): Promise<void> {
+        if ((kb.svil_proto ?? 1) < 2) return;
+        const labels = await this.getAll(SvilUSB.SVIL_LABEL_TYPE_LAYER, kb.layers ?? 0);
+        kb.cosmetic ??= {};
+        kb.cosmetic.layer ??= {};
+        for (const [index, name] of labels) {
+            if (index < (kb.layers ?? 0)) kb.cosmetic.layer[index.toString()] = name;
+        }
+    }
+
+    validateLayerName(kb: KeyboardInfo, name: string): void {
+        if ((kb.svil_proto ?? 1) < 2) throw new Error("This firmware cannot save layer names on the keyboard.");
+        if (new TextEncoder().encode(name).length > SvilUSB.SVIL_LABEL_SIZE) {
+            throw new Error("Layer names can use up to 16 UTF-8 bytes; accented letters and emoji use more than one byte.");
+        }
+        if (/[\u0000-\u0008\u000a-\u001f\u007f]/.test(name)) throw new Error("Layer names cannot contain control characters.");
+    }
+
+    async saveLayerName(kb: KeyboardInfo, index: number, name: string): Promise<void> {
+        this.validateLayerName(kb, name);
+        const ok = name ? await this.set(SvilUSB.SVIL_LABEL_TYPE_LAYER, index, name)
+            : await this.clear(SvilUSB.SVIL_LABEL_TYPE_LAYER, index);
+        if (!ok) throw new Error("The keyboard refused to save the layer name.");
+    }
 
     /**
      * Read every non-empty label of a type, keyed by index.

@@ -106,10 +106,11 @@ export class SvalService {
 
     /**
      * Get the display name for a layer
-     * Note: Custom layer names are disabled until Sval-QMK supports them.
-     * Layer 15 is always "Mouse".
+     * Prefer the custom name, with a fallback for unnamed layers.
      */
-    getLayerName(_kbinfo: KeyboardInfo, layerIndex: number): string {
+    getLayerName(kbinfo: KeyboardInfo, layerIndex: number): string {
+        const name = this.getLayerCosmetic(kbinfo, layerIndex);
+        if (name) return name;
         if (layerIndex === 15) {
             return "Mouse";
         }
@@ -122,10 +123,11 @@ export class SvalService {
 
     /**
      * Get the short display name for a layer (used in tabs)
-     * Note: Custom layer names are disabled until Sval-QMK supports them.
-     * Layer 15 is always "mouse".
+     * Prefer the custom name, with a fallback for unnamed layers.
      */
-    getLayerNameNoLabel(_kbinfo: KeyboardInfo, layerIndex: number): string {
+    getLayerNameNoLabel(kbinfo: KeyboardInfo, layerIndex: number): string {
+        const name = this.getLayerCosmetic(kbinfo, layerIndex);
+        if (name) return name;
         if (layerIndex === 15) {
             return "mouse";
         }
