@@ -42,7 +42,7 @@ describe('LayerLibraryService', () => {
 
     const layers = await service.loadLayers();
 
-    expect(mockFetch).toHaveBeenCalledWith('/keybard-ng/layer-library/layers.json');
+    expect(mockFetch).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}layer-library/layers.json`);
     expect(layers).toHaveLength(2);
     expect(layers[0].id).toBe('user1');
     expect(layers[1].id).toBe('bundled1');
