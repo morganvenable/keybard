@@ -53,10 +53,10 @@ const PointingPanel = ({ isPicker }: Props) => {
     // Horizontal layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+            <div className="flex flex-row gap-3 items-start flex-wrap content-start">
                 <MouseKeysSection compact variant="medium" />
                 {pointingMenuIndex !== -1 && (
-                    <DynamicMenuPanel menuIndex={pointingMenuIndex} horizontal />
+                    <DynamicMenuPanel menuIndex={pointingMenuIndex} horizontal embedded section="pointing" />
                 )}
             </div>
         );
@@ -64,8 +64,8 @@ const PointingPanel = ({ isPicker }: Props) => {
 
     // Vertical layout for sidebar
     return (
-        <section className="h-full flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto">
+        <section className="flex flex-col">
+            <div>
                 <DescriptionBlock>
                     Emulate a mouse using the Mouse Button keys, adjust the Track Ball speed with the Sniper and Boost keys, and adjust the settings for your pointing devices.
                 </DescriptionBlock>
@@ -76,7 +76,7 @@ const PointingPanel = ({ isPicker }: Props) => {
 
                 {/* Dynamic menu content below */}
                 {pointingMenuIndex !== -1 ? (
-                    <DynamicMenuPanel menuIndex={pointingMenuIndex} />
+                    <DynamicMenuPanel menuIndex={pointingMenuIndex} embedded section="pointing" />
                 ) : (
                     <p className="text-muted-foreground text-center">
                         This keyboard does not have additional pointing device settings

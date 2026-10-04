@@ -26,6 +26,9 @@ import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
 import BoardIdentitySection from "./BoardIdentitySection";
 import FragmentsPanel from "./FragmentsPanel";
+import DynamicMenuPanel from "./DynamicMenuPanel";
+import { selectPointingMenu } from "@/utils/pointing-menu";
+import type { CustomUIMenuItem } from "@/types/vial.types";
 
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
@@ -36,6 +39,10 @@ const SettingsPanel = () => {
     const { navigateTo } = useNavigation();
 
     const isHorizontal = layoutMode === "bottombar";
+    const pointingMenuIndex = keyboard?.menus?.findIndex(menu => menu.label?.toLowerCase().includes("pointing")) ?? -1;
+    const hasDeveloperControls = pointingMenuIndex >= 0 && selectPointingMenu(
+        (keyboard?.menus?.[pointingMenuIndex]?.content ?? []) as CustomUIMenuItem[], "developer",
+    ).length > 0;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Export Dialog State
@@ -357,6 +364,12 @@ const SettingsPanel = () => {
                 {/* Developer tools */}
                 <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Developer</span>
+                    {hasDeveloperControls && (
+                        <details>
+                            <summary className="cursor-pointer text-xs">Firmware settings</summary>
+                            <DynamicMenuPanel menuIndex={pointingMenuIndex} section="developer" embedded horizontal />
+                        </details>
+                    )}
                     <div className="flex flex-row gap-1">
                         <Button
                             size="sm"
@@ -475,6 +488,9 @@ const SettingsPanel = () => {
                 ) : (
                     <div className="flex flex-col overflow-auto px-4 gap-2 h-full scrollbar-thin">
                         {activeCategory === "general" && <BoardIdentitySection />}
+                        {activeCategory === "developer" && hasDeveloperControls && (
+                            <DynamicMenuPanel menuIndex={pointingMenuIndex} section="developer" embedded />
+                        )}
                         {settingsCategories
                             .find((cat) => cat.name === activeCategory)
                             ?.settings.map((se) => {

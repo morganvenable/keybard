@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { selectPointingMenu, type PointingMenuSection } from "@/utils/pointing-menu";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { CustomUIRenderer } from "@/components/CustomUI";
 import { customValueService } from "@/services/custom-value.service";
 import { useChanges } from "@/contexts/ChangesContext";
@@ -18,6 +19,9 @@ interface DynamicMenuPanelProps {
     menuIndex: number;
     /** When true, renders controls in a horizontal flow layout (for BottomPanel) */
     horizontal?: boolean;
+    /** Let the containing panel own scrolling when this menu is embedded. */
+    embedded?: boolean;
+    section?: PointingMenuSection;
 }
 
 /**
@@ -26,7 +30,7 @@ interface DynamicMenuPanelProps {
  * then refreshes from USB if connected for latest state.
  * On value change, updates both the keyboard and kbinfo.custom_values.
  */
-const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false }) => {
+const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false, embedded = false, section = "all" }) => {
     const { keyboard, isConnected } = useVial();
     const { queue } = useChanges();
     const [values, setValues] = useState<Map<string, number>>(new Map());
@@ -38,6 +42,9 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
 
     // Get the menu for this panel
     const menu = keyboard?.menus?.[menuIndex];
+    const displayItems = useMemo(() => selectPointingMenu(
+        (menu?.content ?? []) as CustomUIMenuItem[], section,
+    ), [menu, section]);
 
     // Debounced persist of a channel's custom values to EEPROM.
     const scheduleSave = useCallback((channel: number) => {
@@ -154,7 +161,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // No menu found
     if (!menu) {
         return (
-            <section className="h-full flex flex-col items-center justify-center p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col items-center justify-center p-4`}>
                 <p className="text-muted-foreground">Menu not found</p>
             </section>
         );
@@ -163,7 +170,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Not connected
     if (!isConnected) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-muted-foreground">Connect to a keyboard to view settings</p>
             </section>
@@ -173,7 +180,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Loading
     if (loading) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-muted-foreground">Loading settings...</p>
             </section>
@@ -183,7 +190,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Error
     if (error) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-red-500">{error}</p>
             </section>
@@ -195,9 +202,9 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Vertical mode: title on top, controls stacked below
     if (horizontal) {
         return (
-            <section className="h-full overflow-auto px-2 py-1">
+            <section className={embedded ? "px-2 py-1" : "h-full overflow-auto px-2 py-1"}>
                 <CustomUIRenderer
-                    items={menu.content as CustomUIMenuItem[]}
+                    items={displayItems}
                     values={values}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}
@@ -209,10 +216,10 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     }
 
     return (
-        <section className="h-full flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto pb-4">
+        <section className={embedded ? "" : "h-full flex flex-col overflow-hidden"}>
+            <div className={embedded ? "pb-4" : "flex-1 overflow-auto pb-4"}>
                 <CustomUIRenderer
-                    items={menu.content as CustomUIMenuItem[]}
+                    items={displayItems}
                     values={values}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}
