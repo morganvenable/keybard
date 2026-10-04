@@ -98,7 +98,7 @@ Run `./build-windows.ps1` in PowerShell with Python 3.12 available. It runs test
 ```sh
 cd companion
 python -m unittest discover -s tests -v
-node --test browser-extension/tests/*.test.cjs
+node --test browser-extension/tests/*.node.cjs
 ```
 
 Fake-HID and simulated UI tests establish software behavior. They do not establish correctness of a physical PMW3389 keyboard, every Windows foreground transition, or browser timing under real workloads.

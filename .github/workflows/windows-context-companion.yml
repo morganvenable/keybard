@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: Browser bridge regression tests
-        run: node --test browser-extension/tests/*.test.cjs
+        run: node --test browser-extension/tests/*.node.cjs
       - name: Build and smoke-test Windows application
         shell: pwsh
         run: ./build-windows.ps1
