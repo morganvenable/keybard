@@ -16,7 +16,7 @@ export type PointingMenuSection = "all" | "pointing" | "developer";
 /** Partition the display tree without changing firmware definitions or value references. */
 export function selectPointingMenu(items: CustomUIMenuItem[], section: PointingMenuSection): CustomUIMenuItem[] {
     if (section === "all") return items;
-    return items.flatMap(item => {
+    const selected = items.flatMap(item => {
         if (typeof item.content?.[0] === "string") {
             const isDeveloper = developerKeys.has(item.content[0]);
             return isDeveloper === (section === "developer")
@@ -28,4 +28,10 @@ export function selectPointingMenu(items: CustomUIMenuItem[], section: PointingM
             ...(section === "developer" && item.label === "Advanced" ? { label: "Key scanning and power saving" } : {}),
         }];
     });
+    if (section === "developer") {
+        const priority = (item: CustomUIMenuItem) =>
+            item.content?.[0] === "id_scan_period_us" ? 0 : item.content?.[0] === "id_idle_cpu_sleep" ? 1 : 2;
+        selected.sort((a, b) => priority(a) - priority(b));
+    }
+    return selected;
 }

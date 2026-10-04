@@ -140,6 +140,7 @@ describe('ScanLabPanel', () => {
     it('idle presets fill the fields', async () => {
         render(<ScanLabPanel />);
         await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        fireEvent.click(screen.getByText('Power tuning'));
         fireEvent.click(screen.getByRole('button', { name: 'Deep idle' }));
         expect(screen.getByLabelText('Idle scan interval · ms')).toHaveValue(100);
         expect(screen.getByLabelText('Enter deep idle after · s')).toHaveValue(600);

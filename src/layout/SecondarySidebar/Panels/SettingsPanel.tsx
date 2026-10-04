@@ -259,7 +259,7 @@ const SettingsPanel = () => {
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Developer</span>
                     {hasDeveloperControls && (
                         <details>
-                            <summary className="cursor-pointer text-xs">Firmware settings</summary>
+                            <summary className="cursor-pointer text-xs">Scanning and power</summary>
                             <DynamicMenuPanel menuIndex={pointingMenuIndex} section="developer" embedded horizontal />
                         </details>
                     )}
@@ -268,6 +268,11 @@ const SettingsPanel = () => {
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs px-2"
+                            onClick={() => setActivePanel("scanlab")}
+                        >
+                            Scan Lab
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2"
                             onClick={() => navigateTo("proof-sheet")}
                         >
                             Proof Sheet

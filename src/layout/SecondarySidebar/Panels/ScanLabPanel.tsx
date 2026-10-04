@@ -538,9 +538,7 @@ const ScanLabPanel = () => {
         <div className="flex flex-col gap-2" data-testid="power-section">
             <div className="flex items-center justify-between gap-2">
                 <span className={sectionTitle}>Power</span>
-                <Button size="sm" variant={pacingDirty ? "kb-primary" : "secondary"} onClick={handleApplyPacing} disabled={!!busy || reachableHands.length === 0} data-testid="apply-pacing">
-                    {pacingDirty ? "Apply pacing (not on board yet)" : "Apply pacing"}
-                </Button>
+
             </div>
             <p className="text-xs text-muted-foreground">
                 Sensor LED duty = rows × (pre-wait + read) ÷ frame period. The firmware measures both; change a value, apply (or press Enter), and watch the ammeter.
@@ -579,57 +577,65 @@ const ScanLabPanel = () => {
                     );
                 })}
             </div>
-            <div className="flex flex-wrap items-end gap-2">
-                {numberField(developerSettingsCopy.id_scan_period_us.label, periodUs, setPeriodUs, "scanlab-period", handleApplyPacing)}
-            </div>
-            <div className="flex flex-wrap items-center gap-1">
-                <span className="text-[10px] text-muted-foreground mr-1">Idle presets:</span>
-                {IDLE_PRESETS.map((pr) => (
-                    <Button key={pr.name} size="sm" variant="secondary" title={pr.hint} disabled={!!busy}
-                        onClick={() => setIdle({ idleAfterMs: pr.idleAfterMs, idlePeriodMs: pr.idlePeriodMs, deepAfterS: pr.deepAfterS, deepPeriodMs: pr.deepPeriodMs })}>
-                        {pr.name}
+            <details>
+                <summary className="cursor-pointer text-sm font-medium">Power tuning</summary>
+                <div className="flex flex-col gap-2 pt-2">
+                    <Button size="sm" variant={pacingDirty ? "kb-primary" : "secondary"} onClick={handleApplyPacing} disabled={!!busy || reachableHands.length === 0} data-testid="apply-pacing">
+                        {pacingDirty ? "Apply pacing (not on board yet)" : "Apply pacing"}
                     </Button>
-                ))}
-            </div>
-            <div className="flex flex-col gap-1.5" data-testid="idle-stage-fields">
-                <div className="flex items-end gap-2">
-                    {numberField(developerSettingsCopy.id_scan_idle_after_ms.label, idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
-                    {numberField(developerSettingsCopy.id_scan_idle_period_ms.label, idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
+                    <div className="flex flex-wrap items-end gap-2">
+                        {numberField("Active scan interval · µs", periodUs, setPeriodUs, "scanlab-period", handleApplyPacing)}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground mr-1">Idle presets:</span>
+                        {IDLE_PRESETS.map((pr) => (
+                            <Button key={pr.name} size="sm" variant="secondary" title={pr.hint} disabled={!!busy}
+                                onClick={() => setIdle({ idleAfterMs: pr.idleAfterMs, idlePeriodMs: pr.idlePeriodMs, deepAfterS: pr.deepAfterS, deepPeriodMs: pr.deepPeriodMs })}>
+                                {pr.name}
+                            </Button>
+                        ))}
+                    </div>
+                    <div className="flex flex-col gap-1.5" data-testid="idle-stage-fields">
+                        <div className="flex items-end gap-2">
+                            {numberField(developerSettingsCopy.id_scan_idle_after_ms.label, idle.idleAfterMs, setIdleField("idleAfterMs"), "scanlab-idle-after", handleApplyPacing)}
+                            {numberField(developerSettingsCopy.id_scan_idle_period_ms.label, idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
+                        </div>
+                        <div className="flex items-end gap-2">
+                            {numberField(developerSettingsCopy.id_scan_deep_after_s.label, idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
+                            {numberField(developerSettingsCopy.id_scan_deep_period_ms.label, idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Idle and deep idle reduce key scanning after inactivity. Input restores active scanning. Longer scan intervals can delay the first response. Zero disables a timeout.</p>
+                    {anyPower && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1" data-testid="idle-features">
+                            {IDLE_FEATURES.map((f) => (
+                                <label key={f.key} className="flex items-center gap-1.5 text-xs" title={f.hint}>
+                                    <input type="checkbox" checked={anyPower.idle[f.key]} disabled={!!busy} onChange={(e) => handleIdleFeature(f.key, e.target.checked)} data-testid={`idle-${f.key}`} />
+                                    {f.label}
+                                    {f.key === "lowClock" && (idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz) != null && (
+                                        <select className="h-6 text-xs border rounded px-1" value={idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz ?? 48} disabled={!!busy}
+                                            onChange={(e) => handleDeepClock(Number(e.target.value))} data-testid="deep-clock" aria-label="Deep idle processor speed">
+                                            {DEEP_CLOCK_CHOICES_MHZ.map((m) => <option key={m} value={m}>{m} MHz</option>)}
+                                        </select>
+                                    )}
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                    {anyPower && (
+                        <p className="text-xs text-muted-foreground" data-testid="power-expected">
+                            Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {fmtDuty(expectedActive)}
+                            {expectedLight !== null && `; idle ${fmtDuty(expectedLight)}`}
+                            {expectedDeep !== null && `; deep idle ${fmtDuty(expectedDeep)}`}.
+                        </p>
+                    )}
+                    <div className="flex flex-wrap items-end gap-2">
+                        {numberField("baseline mA (LEDs off)", baselineMa, setBaselineMa, "scanlab-baseline-ma")}
+                        {numberField("mA per lit row", litRowMa, setLitRowMa, "scanlab-lit-row-ma")}
+                        <span className="text-[10px] text-muted-foreground max-w-[220px]">Current model for the ≈ figures. Measure baseline at a 65 ms period; the per-row figure is (total − baseline) ÷ duty.</span>
+                    </div>
                 </div>
-                <div className="flex items-end gap-2">
-                    {numberField(developerSettingsCopy.id_scan_deep_after_s.label, idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
-                    {numberField(developerSettingsCopy.id_scan_deep_period_ms.label, idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
-                </div>
-            </div>
-            <p className="text-xs text-muted-foreground">Idle and deep idle reduce key scanning after inactivity. Input restores active scanning. Longer scan intervals can delay the first response. Zero disables a timeout.</p>
-            {anyPower && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1" data-testid="idle-features">
-                    {IDLE_FEATURES.map((f) => (
-                        <label key={f.key} className="flex items-center gap-1.5 text-xs" title={f.hint}>
-                            <input type="checkbox" checked={anyPower.idle[f.key]} disabled={!!busy} onChange={(e) => handleIdleFeature(f.key, e.target.checked)} data-testid={`idle-${f.key}`} />
-                            {f.label}
-                            {f.key === "lowClock" && (idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz) != null && (
-                                <select className="h-6 text-xs border rounded px-1" value={idleDiag[0]?.deepClockMhz ?? idleDiag[1]?.deepClockMhz ?? 48} disabled={!!busy}
-                                    onChange={(e) => handleDeepClock(Number(e.target.value))} data-testid="deep-clock" aria-label="Deep idle processor speed">
-                                    {DEEP_CLOCK_CHOICES_MHZ.map((m) => <option key={m} value={m}>{m} MHz</option>)}
-                                </select>
-                            )}
-                        </label>
-                    ))}
-                </div>
-            )}
-            {anyPower && (
-                <p className="text-xs text-muted-foreground" data-testid="power-expected">
-                    Expected from {anyPower.measuredLedUs > 0 ? `measured ${anyPower.measuredLedUs} µs LED-on per frame` : `pre-wait ${anyPower.effPrewaitUs} µs`}: active {fmtDuty(expectedActive)}
-                    {expectedLight !== null && `; idle ${fmtDuty(expectedLight)}`}
-                    {expectedDeep !== null && `; deep idle ${fmtDuty(expectedDeep)}`}.
-                </p>
-            )}
-            <div className="flex flex-wrap items-end gap-2">
-                {numberField("baseline mA (LEDs off)", baselineMa, setBaselineMa, "scanlab-baseline-ma")}
-                {numberField("mA per lit row", litRowMa, setLitRowMa, "scanlab-lit-row-ma")}
-                <span className="text-[10px] text-muted-foreground max-w-[220px]">Current model for the ≈ figures. Measure baseline at a 65 ms period; the per-row figure is (total − baseline) ÷ duty.</span>
-            </div>
+            </details>
         </div>
     );
 
