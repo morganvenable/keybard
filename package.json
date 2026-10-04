@@ -13,6 +13,7 @@
         "test:coverage": "vitest run --coverage",
         "test:ui": "vitest --ui",
         "build:sval-preview": "tsc && vite build --mode sval-preview",
+        "build:svalboard": "tsc && vite build --mode svalboard",
         "dev:sval-preview": "vite --mode sval-preview --host 127.0.0.1 --port 5176"
     },
     "repository": {
