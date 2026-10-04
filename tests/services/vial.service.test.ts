@@ -1,3 +1,4 @@
+import { LabelService } from "../../src/services/label.service";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SvilService } from '../../src/services/vial.service';
 import { SvilUSB } from '../../src/services/usb.service';
@@ -283,6 +284,22 @@ describe('SvilService', () => {
       expect(kbinfo.kbid).toBe('1234567890abcdef');
       expect(kbinfo.keymap).toHaveLength(2);
       expect(keyService.generateAllKeycodes).toHaveBeenCalledWith(kbinfo);
+    });
+
+    it('restores board labels on a fresh connection before any layer count is known', async () => {
+      // VialContext starts every connection with dimensions only, not a saved layout.
+      const kbinfo = createTestKeyboardInfo({ layers: undefined, cosmetic: undefined });
+      const labels = vi.spyOn(LabelService.prototype, 'getAll').mockResolvedValueOnce(
+        new Map([[0, 'Work'], [1, 'Symbols']]),
+      );
+      try {
+        await svilService.load(kbinfo);
+        expect(kbinfo.layers).toBe(2);
+        expect(labels).toHaveBeenCalledWith(SvilUSB.SVIL_LABEL_TYPE_LAYER, 2);
+        expect(kbinfo.cosmetic?.layer).toMatchObject({ '0': 'Work', '1': 'Symbols' });
+      } finally {
+        labels.mockRestore();
+      }
     });
 
     it('should propagate load errors', async () => {

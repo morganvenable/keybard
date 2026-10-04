@@ -137,10 +137,11 @@ export class SvilService {
 
         // Load features (combos, macros, etc.)
         await this.getFeatures(kbinfo);
-        await new LabelService(this.usb).loadLayerNames(kbinfo);
 
         // Get keymap for all layers
         await this.getKeyMap(kbinfo);
+        // getKeyMap establishes the layer count needed to accept stored labels.
+        await new LabelService(this.usb).loadLayerNames(kbinfo);
         await this.macro.get(kbinfo);
         await this.tapdance.get(kbinfo);
         await this.combo.get(kbinfo);
