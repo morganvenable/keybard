@@ -85,7 +85,7 @@ The first enabled matching rule wins. Edits become active while enabled; pause b
 
 Firmware keeps host context separate from manual layer state. Active **manual non-base layers take precedence**, followed by the app layer, then the normal base/default layers. Transparent keys fall through. Manual layer priority does not depend on whether its index is higher than the app layer. Layer 0 and firmware default layers are treated as base layers.
 
-The companion displays the app layer separately. Keyboard RGB layer indicators, ordinary Keybard active-layer display, and existing layer hooks/constraints still see manual state only. A physical `TO(base)` changes manual state but does not clear the app contribution; use Pause to clear it.
+The companion displays the app layer separately. This draft changes key resolution, not QMK's global manual layer state: RGB indicators, ordinary Keybard active-layer display, layer-constrained combos, auto-mouse gating, and existing layer hooks/constraints still see manual state only. Ordinary `KC_TRNS` fallthrough is supported; the special `MT(mod, KC_TRNS)` tap-through helper on an app layer is unverified. A physical `TO(base)` changes manual state but does not clear the app contribution; use Pause to clear it.
 
 A context switch selects existing assignments without rewriting the saved keymap, saved tap-dance definitions, or calibration. Ordinary held-key releases use QMK's existing source-layer cache; this draft requires normal release behavior, not strict layer release. The app renews a five-second firmware lease. On crash or loss of USB control traffic, lease expiry removes only the host contribution, preserving manual/base state.
 
