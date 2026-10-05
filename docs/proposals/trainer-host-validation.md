@@ -65,3 +65,7 @@ All 622 web tests and 32 native Windows tests pass; production build passes. Ver
 - Ubuntu: 646 web tests passed; production build passed; 36 native tests completed (four Qt-dependent tests skipped). Chromium exercised Shift/Caps combinations, unavailable-state fallback and shared SVG rendering.
 - Windows: 36 native tests passed. Actual Qt WebEngine rendering checked `:`, `!`, lowercase, Shift uppercase and Shift+Caps lowercase using display-only snapshots. The running companion reports native modifier flags and reconnects to the remembered main board. No firmware writes, flashing or synthetic keyboard input.
 - macOS reader is implemented with mocked flag tests but has not been hardware-tested. Wayland deliberately retains static uppercase rather than using incomplete XWayland state. Validate physical Shift press/release and Caps toggles while another application has focus on Windows and X11; firmware one-shot modifiers become visible only after they reach the OS.
+
+### Short fade under Windows reduced motion
+
+Fixed a CSS override that converted the explicitly selected opacity fade into a full-brightness flash when Windows reported reduced motion. Keep this non-spatial effect enabled when the user selects Short fade; Off remains available. Confirmed on Windows Qt WebEngine with `prefers-reduced-motion: reduce` and the existing 250 ms setting: before the fix, opacity stayed at 1 until removal; afterward it decreased through 0.53, 0.27, 0.07 to 0 across the animation. Production build and Windows package updated; no preference changes.
