@@ -8,8 +8,8 @@ import sys
 import threading
 import time
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile
-from PySide6.QtGui import QAction, QColor, QIcon
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPointF
+from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -71,12 +71,32 @@ class Surface(QWebEngineView):
         self.show()
 
 
+def overlay_control_icon(kind):
+    # Draw at 2x resolution rather than relying on platform-specific font glyphs.
+    pixmap = QPixmap(32, 32)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.scale(2, 2)
+    painter.setPen(QPen(QColor('#eeeeee'), 1.3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+    if kind == 'move':
+        for x1, y1, x2, y2 in ((8,2,8,14), (2,8,14,8), (5.5,4.5,8,2), (8,2,10.5,4.5), (5.5,11.5,8,14), (8,14,10.5,11.5), (4.5,5.5,2,8), (2,8,4.5,10.5), (11.5,5.5,14,8), (14,8,11.5,10.5)):
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+    else:
+        painter.setPen(Qt.NoPen); painter.setBrush(QColor('#eeeeee'))
+        for x in (3, 8, 13): painter.drawEllipse(QPointF(x, 8), 1.2, 1.2)
+    painter.end()
+    pixmap.setDevicePixelRatio(2)
+    return QIcon(pixmap)
+
+
 class DragHandle(QToolButton):
     def __init__(self, surface, parent):
         super().__init__(parent)
         self.surface = surface
         self.offset = None
-        self.setText('⠿')
+        self.setIcon(overlay_control_icon('move'))
+        self.setIconSize(QSize(16, 16))
         self.setToolTip('Drag overlay')
         self.setAccessibleName('Drag overlay')
         self.setCursor(Qt.SizeAllCursor)
@@ -107,10 +127,10 @@ class OverlayControls(QWidget):
         self.setWindowTitle('Keybard · Overlay controls')
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setStyleSheet('QToolButton {color:#eee;background:#303436;border:1px solid #666;border-radius:5px;font-size:16px;} QToolButton:hover {background:#505456;}')
-        layout = QHBoxLayout(self); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(2)
+        self.setStyleSheet('QToolButton {color:#eee;background:#303436;border:1px solid #666;border-radius:2px;padding:0;} QToolButton:hover {background:#505456;} QToolButton::menu-indicator {image:none;width:0;height:0;}')
+        layout = QHBoxLayout(self); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(4)
         self.handle = DragHandle(surface, self)
-        self.more = QToolButton(self); self.more.setText('⋯'); self.more.setToolTip('Overlay controls'); self.more.setAccessibleName('Overlay controls')
+        self.more = QToolButton(self); self.more.setIcon(overlay_control_icon('more')); self.more.setIconSize(QSize(16, 16)); self.more.setToolTip('Overlay controls'); self.more.setAccessibleName('Overlay controls')
         self.more.setPopupMode(QToolButton.InstantPopup)
         menu = QMenu(self.more)
         menu.addAction('Hide overlay', hide)
@@ -119,8 +139,8 @@ class OverlayControls(QWidget):
         self.click_through.triggered.connect(set_click_through)
         self.more.setMenu(menu)
         for button in (self.handle, self.more):
-            button.setFixedSize(28, 24); layout.addWidget(button)
-        self.setFixedSize(58, 24)
+            button.setFixedSize(24, 24); layout.addWidget(button)
+        self.setFixedSize(52, 24)
         surface.geometry_changed.connect(self.reposition)
         self.reposition()
 
