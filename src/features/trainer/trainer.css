@@ -27,3 +27,12 @@
 
 /* Short fade is an explicitly selected opacity effect, with no spatial motion.
    Keep it under reduced-motion settings; disabling it turns it into a flash. */
+
+.trainer-install { max-width:1700px; margin:0 auto 20px; padding:16px 20px; background:white; border:1px solid #d8dcda; }
+.trainer-install-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.trainer-install h2 { font-size:15px; font-weight:600; margin:0 0 4px; }
+.trainer-install p { font-size:12px; line-height:1.6; color:#526359; margin:4px 0; }
+.trainer-install-download { display:inline-flex; align-items:center; gap:8px; background:#099e7c; color:white; padding:10px 14px; font-size:13px; font-weight:600; }
+.trainer-install-download:hover { background:#087e60; }
+.trainer-install-links { display:flex; gap:20px; flex-wrap:wrap; margin-top:12px; font-size:12px; }
+.trainer-install-links a { display:inline-flex; align-items:center; gap:5px; color:#087e60; text-decoration:underline; text-underline-offset:3px; }

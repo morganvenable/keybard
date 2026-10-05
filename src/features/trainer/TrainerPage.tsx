@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GraduationCap, Monitor, Upload, RotateCcw } from 'lucide-react';
+import { GraduationCap, Upload, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useVial } from '@/contexts/VialContext';
@@ -11,6 +11,7 @@ import { DEFAULTS, PRESETS, STORAGE_KEY, preferences, type Appearance, type Pref
 import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import './trainer.css';
 import { useHost } from './host';
+import { HostInstall } from './HostInstall';
 import { surfaceKeys } from './useSurfaceKeys';
 
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
@@ -105,6 +106,7 @@ export default function TrainerPage({ active = true }: { active?: boolean }) {
     return <div className="trainer-page">
         <header className="trainer-header"><GraduationCap size={19} className="text-kb-green" /><h1>Trainer</h1></header>
         <main className="trainer-main">
+            {!host.state && <HostInstall />}
             <div className="trainer-workspace"><section className="trainer-stage">
                 {host.state && <div className="trainer-host-section"><div className="trainer-host-toolbar"><select aria-label="Host keyboard" value={host.state.selectedDevice || ''} onChange={e => { setLive(true); void host.command({ op: 'connect', id: e.target.value }); }}><option value="" disabled>Select a Svalboard…</option>{host.state.devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><Button variant="outline" onClick={() => void host.command({ op: 'show', value: !host.state!.visible })}>{host.state.visible ? 'Hide overlay' : 'Show overlay'}</Button></div><p className="trainer-error" role="status" hidden={host.state.valid}>{host.state.status}</p></div>}
                 {host.error && <p role="alert" className="trainer-error">{host.error}</p>}
@@ -116,7 +118,7 @@ export default function TrainerPage({ active = true }: { active?: boolean }) {
                 <div className="trainer-layer-controls" style={{ display: following ? 'none' : undefined }}>{[['Default layer', base, setBase], ['Preview layer', layer, setLayer]].map(([label, value, set]) => <div className="trainer-field" key={label as string}><label htmlFor={`trainer-${label}`}>{label as string}</label><select id={`trainer-${label}`} value={value as number} onChange={e => (set as (n: number) => void)(Number(e.target.value))}>{board.keymap?.map((_, i) => <option key={i} value={i}>{i} · {board.cosmetic?.layer?.[String(i)] || `Layer ${i}`}</option>)}</select></div>)}</div>
 
                 {error && <p role="alert" className="trainer-error">{error}</p>}
-                <div className="trainer-host-card" hidden={!!host.state}><Monitor size={20} /><div><strong>Desktop overlay</strong><p>Start Keybard Host and open its local Keybard page to use the transparent desktop overlay.</p></div><span className="trainer-badge">Not connected</span></div>
+
             </section><aside className="trainer-inspector"><div className="trainer-tabs" role="tablist" aria-label="Trainer settings">{['Overlay', 'Appearance', 'Feedback', 'Practice'].map(t => <button key={t} id={`trainer-tab-${t}`} role="tab" aria-selected={tab === t} aria-controls="trainer-panel" onClick={() => setTab(t)}>{t}</button>)}</div>
                 <div className="trainer-pane" role="tabpanel" id="trainer-panel" aria-labelledby={`trainer-tab-${tab}`}>
                     {tab === 'Appearance' && <><div className="trainer-field"><label htmlFor="trainer-preset">Preset</label><select id="trainer-preset" value={preset} onChange={e => { if (PRESETS[e.target.value]) update('appearance', { ...PRESETS[e.target.value] }); }}><option disabled value="Custom">Custom</option>{Object.keys(PRESETS).map(p => <option key={p}>{p}</option>)}</select></div>

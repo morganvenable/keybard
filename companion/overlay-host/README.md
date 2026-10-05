@@ -46,3 +46,11 @@ The native overlay uses Keybard's layer, tap dance, macro, mouse and other actio
 Shift and Caps Lock update character legends from local host modifier flags, sampled every 16 ms and delivered directly to the native renderer. Letters use Shift XOR Caps Lock; Shift changes punctuation using the keyboard language selected in Keybard. A modifier assigned to a mod-tap hold does not shift its tap legend by itself. Browser previews and unavailable modifier sources retain static uppercase keycaps.
 
 Windows uses User32 key flags, macOS uses CoreGraphics session flags, and Linux X11 uses XKB state. Wayland currently retains static legends: XWayland state cannot faithfully represent modifiers in other Wayland applications. These flags describe the host's combined keyboard state, not a guessed Svalboard matrix state. Pending firmware one-shot modifiers and application-specific text transformations are not visible before the firmware sends them to the host. No input is captured or injected, and no firmware update is needed.
+
+## Publishing Windows previews
+
+Public Windows downloads live in `svalboard/keybard` GitHub Releases. The Trainer install prompt uses a versioned release asset and release-notes link in `src/features/trainer/HostInstall.tsx`; update both by changing `HOST_RELEASE` for each new version. Do not use GitHub's `latest` redirect for prereleases.
+
+Before releasing, update `RELEASE-NOTES.md`, run the web/native checks and Windows smoke tests, build with `npm run build:svalboard`, then run `python3 companion/overlay-host/scripts/package.py`. Generate `SHA256SUMS.txt` in `dist` using `sha256sum KeybardHost-Windows.zip`. Tag that exact source commit as `keybard-host-vX.Y.Z-preview.N` and publish a GitHub prerelease containing the ZIP and checksum. Never include local runtimes or preferences.
+
+The manually dispatched **Package Keybard Host preview** workflow accepts an existing version tag, validates/builds that source and creates a draft prerelease with both assets. Validate the Windows package before publishing the draft. The workflow becomes available for dispatch when merged into the repository's default branch. The portable preview launcher installs the pinned runtime on first launch; signing and a native installer remain future distribution work.
