@@ -32,8 +32,8 @@ class App:
         self.devices = []
         self.selected_rule = None
         self.root.title("Keybard Context — Windows draft")
-        self.root.geometry("1100x780")
-        self.root.minsize(920, 650)
+        self.root.geometry(f"{min(1100, root.winfo_screenwidth() - 80)}x{min(780, root.winfo_screenheight() - 100)}")
+        self.root.minsize(640, 400)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self._build()
         self.refresh_devices()
@@ -46,8 +46,37 @@ class App:
         self.root.after(250, self.tick)
 
     def _build(self):
-        outer = ttk.Frame(self.root, padding=18)
-        outer.pack(fill="both", expand=True)
+        # Let the form retain its requested height instead of clipping packed
+        # children when Windows scaling or a small desktop reduces the viewport.
+        viewport = ttk.Frame(self.root)
+        viewport.pack(fill="both", expand=True)
+        viewport.rowconfigure(0, weight=1)
+        viewport.columnconfigure(0, weight=1)
+        self.canvas = tk.Canvas(viewport, highlightthickness=0)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        vertical = ttk.Scrollbar(viewport, orient="vertical", command=self.canvas.yview)
+        vertical.grid(row=0, column=1, sticky="ns")
+        horizontal = ttk.Scrollbar(viewport, orient="horizontal", command=self.canvas.xview)
+        horizontal.grid(row=1, column=0, sticky="ew")
+        self.canvas.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+        outer = ttk.Frame(self.canvas, padding=18)
+        self.form = outer
+        self.form_window = self.canvas.create_window(0, 0, window=outer, anchor="nw")
+
+        def layout(_event=None):
+            self.canvas.itemconfigure(self.form_window, width=max(self.canvas.winfo_width(), outer.winfo_reqwidth()))
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        outer.bind("<Configure>", layout)
+        self.canvas.bind("<Configure>", layout)
+
+        def wheel(event):
+            if isinstance(event.widget, (tk.Listbox, ttk.Combobox)):
+                return
+            steps = -int(event.delta / 120) if abs(event.delta) >= 120 else (-1 if event.delta > 0 else 1)
+            self.canvas.yview_scroll(steps, "units")
+
+        self.root.bind("<MouseWheel>", wheel)
         ttk.Label(outer, text="App-specific layers", font=("Segoe UI", 22, "bold")).pack(anchor="w")
         ttk.Label(outer, text="Select an existing keyboard layer when an app or Onshape has focus.").pack(anchor="w", pady=(4, 16))
         connection = ttk.Frame(outer)
@@ -109,7 +138,9 @@ class App:
         ttk.Button(edit, text="Apply rule / default", command=self.apply_rule).grid(row=4, column=1, sticky="e", pady=7)
         edit.columnconfigure(1, weight=1)
         ttk.Label(right, text="Quick start", font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(22, 8))
-        ttk.Label(right, text="1. Configure a useful layer in Keybard and note its zero-based index.\n2. Add an app, enter its executable (for example chrome.exe), and choose that layer.\n3. For Onshape only, keep https://cad.onshape.com and pair the extension.\n4. Check Rule enabled, click Apply, then Enable app switching.\n\nLeave origin empty to match the entire app. Other layers are configured on the keyboard; this editor only chooses them.\n\nDefault: Onboard / manual leaves layer selection to the keyboard when no rule matches. Choosing a numbered default adds that layer instead.\n\nUse default stays selected until Follow apps or Pin. Edits take effect while enabled. Save your configuration to keep it after closing.", wraplength=650, justify="left").pack(anchor="w")
+        self.quick_start = ttk.Label(right, text="1. Configure a useful layer in Keybard and note its zero-based index.\n2. Add an app, enter its executable (for example chrome.exe), and choose that layer.\n3. For Onshape only, keep https://cad.onshape.com and pair the extension.\n4. Check Rule enabled, click Apply, then Enable app switching.\n\nLeave origin empty to match the entire app. Other layers are configured on the keyboard; this editor only chooses them.\n\nDefault: Onboard / manual leaves layer selection to the keyboard when no rule matches. Choosing a numbered default adds that layer instead.\n\nUse default stays selected until Follow apps or Pin. Edits take effect while enabled. Save your configuration to keep it after closing.", wraplength=650, justify="left")
+        self.quick_start.pack(anchor="w")
+        right.bind("<Configure>", lambda event: self.quick_start.configure(wraplength=max(240, event.width)))
         self.refresh_rules()
 
     def copy_token(self):
@@ -414,9 +445,12 @@ class App:
 
 def run(browser_provider=None, demo=False, browser_bridge=None, smoke_test=False):
     root = tk.Tk()
+    if smoke_test:
+        root.tk.call("tk", "scaling", 2.0)  # Windows 150% display scaling.
     app = App(root, browser_provider=browser_provider, demo=demo, browser_bridge=browser_bridge)
     errors = []
     if smoke_test:
+        root.geometry("800x500")
         def fail(exc):
             errors.append(str(exc))
             app.close()
@@ -437,6 +471,14 @@ def run(browser_provider=None, demo=False, browser_bridge=None, smoke_test=False
                     raise RuntimeError(state.get('error', 'Worker failed'))
                 if phase[0] == 0 and resolver:
                     assert resolver.paused, "Connection must start paused"
+                    root.update_idletasks()
+                    assert app.form.winfo_height() >= app.form.winfo_reqheight(), "Form content was clipped"
+                    app.canvas.yview_moveto(1)
+                    root.update_idletasks()
+                    bottom = app.quick_start.winfo_rooty() + app.quick_start.winfo_height()
+                    viewport_bottom = app.canvas.winfo_rooty() + app.canvas.winfo_height()
+                    assert bottom <= viewport_bottom + 2, "Bottom instructions are not reachable by scrolling"
+                    app.canvas.yview_moveto(0)
                     app.demo_context.set("Onshape in Chrome")
                     app.toggle_enabled()
                     phase[0] = 1
