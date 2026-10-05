@@ -24,3 +24,11 @@ Trainer is a single left-navigation option backed by the existing PanelsContext,
 The existing editor and Trainer remain mounted during panel switches. Trainer retains its tab, imported preview, and practice state; its practice heartbeat stops while inactive. Other sidebar selections use their original panel behavior and never navigate to the connection screen. The keyboard-only native overlay is unchanged.
 
 Regression checks cover landing content in host mode and Trainer session preservation. Browser validation clicked all 15 existing sidebar destinations and returned to Trainer, both with an editor layout loaded and through the direct host entry without one. No uncaught JavaScript errors or unexpected landing navigation occurred. Responsive checks at 1024×768, 760×650, and 480×700 found no horizontal Trainer overflow.
+
+## Host landing connection
+
+The existing Connect Keyboard button and remembered-device list now use a host connection adapter on the host-served origin. They load a fresh layout from the selected board, or explicitly connect the chosen enumerated device and await its layout. Browser-only WebHID behavior is unchanged. Host snapshots remain read-only: they do not mark the USB transport connected or enable device writes. Optional tap-dance definitions can be absent without crashing the editor.
+
+Verified the attached main board reports 16 layers and that its actual snapshot loads through Connect Keyboard and opens Trainer with 52 keys. Adapter tests cover selected-board reuse, enumeration, ambiguous selection, switching boards, unreachable hosts, and omitted tap-dance metadata.
+
+Native Windows Qt WebEngine then exercised the actual server (no API mocks): Connect Keyboard loaded the live main-board snapshot, and clicking Trainer rendered 52 keys for `52 1BTU Right`. Production build and all 430 tests passed.

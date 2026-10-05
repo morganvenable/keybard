@@ -1,3 +1,4 @@
+import { connectHostKeyboard, hostKeyboards, isHostPage, type ConnectableKeyboard } from "@/features/trainer/hostConnection";
 import { SvalPreviewRequiredError } from "../services/firmware-compatibility";
 import { SvalCompatibilityNotice } from "../components/SvalCompatibilityNotice";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -26,7 +27,7 @@ interface VialContextType {
     loadedFrom: string | null;
     connect: (filters?: HIDDeviceFilter[]) => Promise<boolean>;
     /** Open an already-permitted device (from listPermittedDevices) without the chooser. */
-    connectDevice: (device: HIDDevice) => Promise<boolean>;
+    connectDevice: (device: ConnectableKeyboard) => Promise<boolean>;
     disconnect: () => Promise<void>;
     loadKeyboard: () => Promise<void>;
     loadFromFile: (file: File) => Promise<void>;
@@ -49,8 +50,8 @@ export const DEFAULT_HID_FILTERS: HIDDeviceFilter[] = [
  * already granted, restricted to interfaces matching the given filters, one
  * entry per physical device.
  */
-export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_HID_FILTERS): Promise<HIDDevice[]> {
-    if (typeof document !== "undefined" && document.documentElement.dataset.keybardHost === "true") return [];
+export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_HID_FILTERS): Promise<ConnectableKeyboard[]> {
+    if (typeof document !== "undefined" && isHostPage()) return hostKeyboards();
     if (typeof navigator === "undefined" || !navigator.hid?.getDevices) return [];
     const devices = await navigator.hid.getDevices();
     const matches = (d: HIDDevice) => d.collections.some((c) => filters.some((f) =>
@@ -115,25 +116,38 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return success;
     }, []);
 
+    const loadHostSnapshot = useCallback(async (id?: string) => {
+        const info = await connectHostKeyboard(id);
+        svalService.setupCosmeticLayerNames(info);
+        keyService.generateAllKeycodes(info);
+        setKeyboard(info);
+        setOriginalKeyboard(structuredClone(info));
+        setLoadedFrom(`Keyboard snapshot · ${info.name || "Svalboard"}`);
+        // This is a read-only snapshot. Never enable direct USB writes or pollers.
+        setIsConnected(false);
+        return true;
+    }, []);
+
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
-        if (document.documentElement.dataset.keybardHost === "true") return false;
+        if (isHostPage()) return loadHostSnapshot();
         try {
             return afterOpen(await usbInstance.open(filters || DEFAULT_HID_FILTERS));
         } catch (error) {
             console.error("Failed to connect to keyboard:", error);
             return false;
         }
-    }, [afterOpen]);
+    }, [afterOpen, loadHostSnapshot]);
 
-    const connectDevice = useCallback(async (device: HIDDevice) => {
-        if (document.documentElement.dataset.keybardHost === "true") return false;
+    const connectDevice = useCallback(async (device: ConnectableKeyboard) => {
+        if (isHostPage()) return loadHostSnapshot("hostId" in device ? device.hostId : undefined);
+        if ("hostId" in device) return false;
         try {
             return afterOpen(await usbInstance.openDevice(device));
         } catch (error) {
             console.error("Failed to open permitted keyboard:", error);
             return false;
         }
-    }, [afterOpen]);
+    }, [afterOpen, loadHostSnapshot]);
 
     const disconnect = useCallback(async () => {
         try {
