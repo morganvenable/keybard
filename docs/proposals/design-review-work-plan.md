@@ -6,7 +6,9 @@ This document collects the three proposed batches from the design review, preser
 
 **Keybard is a mouse-first GUI for editing a physical keyboard.** Clicking, selecting, dragging, and using visible controls should provide a complete, efficient workflow. Keyboard operation is an optional alternative, not the organizing principle of the interface.
 
-Because the keyboard being used may also be the keyboard being edited, ordinary typing must never implicitly become assignment. Keyboard navigation and recording a key are separate operations. Recording requires an explicit action, a visible destination, and a clear way to cancel. Menus, dialogs, form fields, and ordinary navigation must not accidentally change live bindings.
+Clicking a key and typing its replacement is an established editing workflow and must remain available through **Typing Binds a Key**. Selection is the user's intent to assign; no separate recording action is required. Text fields, dialogs, and other focused GUI controls must receive their own input without changing the selected binding.
+
+The explicit “Record a key” gate introduced during Batch 1 was rejected and has been removed. Earlier references to explicit recording in the implementation history below are superseded by this correction.
 
 Other constraints agreed during review:
 

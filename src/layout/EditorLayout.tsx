@@ -1,5 +1,4 @@
 import * as React from "react";
-import { KeyCaptureBar } from "@/components/KeyCaptureBar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
@@ -1274,7 +1273,6 @@ const EditorLayoutInner = () => {
 
     return (
         <div className={cn("flex flex-1 h-dvh w-full min-w-0 overflow-hidden p-0", showDetailsSidebar && "bg-white")}>
-            <KeyCaptureBar />
             <AppSidebar />
             {/* Keep the panel mounted when its placement changes. */}
             <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />

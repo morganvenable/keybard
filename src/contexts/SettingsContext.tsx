@@ -16,7 +16,7 @@ export const SETTINGS: SettingDefinition[] = [
     {
         name: "typing-binds-key",
         label: "Typing Binds a Key",
-        description: "Show Record a key for the selected binding. Recording is explicit and stops after one assignment; Escape cancels. You can include held modifiers.",
+        description: "Select a key, then type to assign it. You can include held modifiers.",
         defaultValue: true,
         type: "boolean",
     },

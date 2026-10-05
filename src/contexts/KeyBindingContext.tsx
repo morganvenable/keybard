@@ -38,8 +38,6 @@ interface BindingTarget {
 
 
 interface KeyBindingContextType {
-    isCapturing: boolean;
-    setCapturing: (active: boolean) => void;
     selectedTarget: BindingTarget | null;
     selectKeyboardKey: (layer: number, row: number, col: number) => void;
     selectKeyboardKeyWithSubsection: (layer: number, row: number, col: number, subsection: "full" | "inner") => void;
@@ -68,10 +66,6 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [selectedTarget, setSelectedTarget] = useState<BindingTarget | null>(null);
     const [hoveredKey, setHoveredKey] = useState<BindingTarget | null>(null);
     const [isBinding, setIsBinding] = useState(false);
-    const [isCapturing, setCapturing] = useState(false);
-
-    // Selection changes and opening a different editor never arm typing capture.
-    useEffect(() => { setCapturing(false); }, [selectedTarget]);
 
     // Use a ref to always have access to the current selectedTarget value
     const selectedTargetRef = useRef<BindingTarget | null>(null);
@@ -729,11 +723,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const handleKeyDown = (event: KeyboardEvent) => {
             const typingBindsKey = getSetting("typing-binds-key");
 
-            if (event.key === "Escape" || event.key === "Tab") {
-                setCapturing(false);
-                return;
-            }
-            if (!isCapturing || !typingBindsKey || !selectedTargetRef.current || event.defaultPrevented || event.repeat) return;
+            if (!typingBindsKey || !selectedTargetRef.current || event.defaultPrevented || event.repeat) return;
             if (isEditorInput(event.target)) return;
 
             const qmkKeycode = KEYBOARD_EVENT_MAP[event.code];
@@ -803,7 +793,6 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const useRight = anyRight && !anyLeft;
 
                 const wrapper = (useRight ? rightWrapperMap[comboKey] : undefined) || modWrapperMap[comboKey];
-                setCapturing(false);
                 assignKeycode(wrapper ? `${wrapper}(${qmkKeycode})` : qmkKeycode);
             }
         };
@@ -812,11 +801,9 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [assignKeycode, getSetting, isCapturing]);
+    }, [assignKeycode, getSetting]);
 
     const value: KeyBindingContextType = {
-        isCapturing,
-        setCapturing,
         selectedTarget,
         selectKeyboardKey,
         selectKeyboardKeyWithSubsection,
