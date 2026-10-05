@@ -3,6 +3,7 @@ import type { KeyboardInfo } from '@/types/vial.types';
 import type { Preferences } from './core';
 export interface HostConfig extends Preferences { highlightPressed: boolean; manualDefault: number }
 export interface HostSnapshot {
+    modifiers?: { shift: boolean; capsLock: boolean } | null;
     apiVersion: number; config: HostConfig; revision: number; layoutRevision: number;
     board: (KeyboardInfo & { trainerLabels: Record<string, string> }) | null;
     selectedDevice: string | null; status: string; devices: { id: string; name: string; serial: string }[];

@@ -38,3 +38,11 @@ PYTHONPATH=companion/overlay-host python3 -m unittest discover -s companion/over
 ```
 
 The read-only reader and worker originated in Sval Trainer commit `7bfef64`; the companion polling loop now targets an 8 ms cycle, with protocol/definition regression coverage. They are deliberately isolated from the existing context companion's write-capable protocol. Native window movement, focus/click-through, fullscreen, and hardware layer/held-key transitions still need interactive host acceptance.
+
+### Live legends and command icons
+
+The native overlay uses Keybard's layer, tap dance, macro, mouse and other action icons, with separate hold/tap labels. Control names use readable casing (Escape, Delete, Shift, Control, Alt, Caps). Appearance colors and opacity also apply to the icons.
+
+Shift and Caps Lock update character legends from local host modifier flags, sampled every 16 ms and delivered directly to the native renderer. Letters use Shift XOR Caps Lock; Shift changes punctuation using the keyboard language selected in Keybard. A modifier assigned to a mod-tap hold does not shift its tap legend by itself. Browser previews and unavailable modifier sources retain static uppercase keycaps.
+
+Windows uses User32 key flags, macOS uses CoreGraphics session flags, and Linux X11 uses XKB state. Wayland currently retains static legends: XWayland state cannot faithfully represent modifiers in other Wayland applications. These flags describe the host's combined keyboard state, not a guessed Svalboard matrix state. Pending firmware one-shot modifiers and application-specific text transformations are not visible before the firmware sends them to the host. No input is captured or injected, and no firmware update is needed.

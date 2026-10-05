@@ -17,6 +17,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngi
 from .device.protocol import candidates
 from .device.worker import DeviceWorker
 from .state import HostState, serialize_profile
+from .modifiers import ModifierReader
 from .server import make_server
 
 
@@ -204,11 +205,20 @@ class Host(QObject):
         self.tray.setContextMenu(menu); self.tray.setToolTip('Keybard Host')
         self.tray.activated.connect(lambda reason: self.open_controls() if reason == QSystemTrayIcon.DoubleClick else None)
         self.tray.show()
+        self.modifier_reader = ModifierReader()
+        self.modifier_timer = QTimer(self); self.modifier_timer.timeout.connect(self.read_modifiers); self.modifier_timer.start(16)
         self.timer = QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(100)
         self.scan_timer = QTimer(self); self.scan_timer.timeout.connect(self.scan); self.scan_timer.start(2500)
         QTimer.singleShot(0, self.scan)
         self.surface.windowHandle().screenChanged.connect(lambda screen: QTimer.singleShot(0, self.size_surface))
         app.aboutToQuit.connect(self.shutdown)
+
+    def read_modifiers(self):
+        value = self.modifier_reader.read()
+        with self.state.lock:
+            if value == self.state.modifiers: return
+            self.state.modifiers = value
+        self.publish_state()
 
     def renderer_loaded(self, ok):
         self.published_layout = -1
@@ -372,6 +382,8 @@ class Host(QObject):
         self.publish_state()
 
     def shutdown(self):
+        self.modifier_timer.stop()
+        self.modifier_reader.close()
         self.scan_timer.stop(); self.timer.stop()
         if self.worker:
             self.worker.stop(); self.worker.wait(5000)
