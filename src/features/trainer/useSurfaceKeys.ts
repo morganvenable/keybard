@@ -13,10 +13,10 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
         const label = getLabelForKeycode(keycode, layoutId) || defaultLabel;
         const text = getKeyDisplayText(keycode, label, keyContents, false, layoutId);
         let letter = text.displayLabel;
+        const baseCode = ['modmask', 'modtap', 'layerhold'].includes(keyContents?.type || '') ? binding.code & 0xff : binding.code;
+        const base = keyService.stringify(baseCode);
         if (modifiers) {
             // Only character-producing bindings follow the host state. Behavior IDs are not letters.
-            const baseCode = ['modmask', 'modtap', 'layerhold'].includes(keyContents?.type || '') ? binding.code & 0xff : binding.code;
-            const base = keyService.stringify(baseCode);
             const plain = getLabelForKeycode(base, layoutId);
             const assignedShift = keyContents?.type === 'modmask' && !!(binding.code & 0x0200);
             const shifted = modifiers.shift || assignedShift;
@@ -27,6 +27,8 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
                 }
             }
         } else if (/^[a-z]$/.test(letter)) letter = letter.toUpperCase();
+        // Function-key names are labels, never case-sensitive character output.
+        if (/^KC_F(?:[1-9]|1[0-9]|2[0-4])$/.test(base)) letter = base.slice(3);
         const names: Record<string, string> = { esc: 'Escape', escape: 'Escape', del: 'Delete', delete: 'Delete',
             shift: 'Shift', lsft: 'Shift', rsft: 'Shift', lshift: 'Shift', rshift: 'Shift',
             ctrl: 'Control', control: 'Control', lctl: 'Control', rctl: 'Control', lctrl: 'Control', rctrl: 'Control',

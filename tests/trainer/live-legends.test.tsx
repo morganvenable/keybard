@@ -12,6 +12,14 @@ function keys(key: string, modifiers?: { shift: boolean; capsLock: boolean }) {
 describe('live overlay legends', () => {
     it.each([[false,false,'a'], [true,false,'A'], [false,true,'A'], [true,true,'a']] as const)(
         'Shift %s Caps %s gives %s', (shift,capsLock,expected) => expect(keys('KC_A', {shift,capsLock})[0].label).toBe(expected));
+    it.each(Array.from({ length: 24 }, (_, i) => i + 1))('keeps F%s uppercase with every modifier state', n => {
+        for (const modifiers of [undefined, {shift:false,capsLock:false}, {shift:true,capsLock:false}, {shift:false,capsLock:true}, {shift:true,capsLock:true}]) {
+            expect(keys(`KC_F${n}`, modifiers)[0].legend?.displayLabel).toBe(`F${n}`);
+        }
+    });
+    it.each(['LCTL(KC_F1)', 'LSFT_T(KC_F9)', 'LT3(KC_F24)'])('keeps wrapped function-key labels uppercase: %s', action => {
+        expect(keys(action, {shift:false,capsLock:false})[0].legend?.displayLabel).toMatch(/^F(?:1|9|24)$/);
+    });
     it('keeps static uppercase when state is unavailable', () => expect(keys('KC_A')[0].label).toBe('A'));
     it('shifts punctuation but Caps does not', () => {
         expect(keys('KC_SCOLON', {shift:true,capsLock:false})[0].label).toBe(':');
