@@ -12,11 +12,13 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
         const { label: defaultLabel, keyContents } = getKeyLabel(board, binding.code);
         const label = getLabelForKeycode(keycode, layoutId) || defaultLabel;
         const text = getKeyDisplayText(keycode, label, keyContents, false, layoutId);
+        // Static keycap legends: modifier state is not tracked by this view.
+        const letter = /^[a-z]$/.test(text.displayLabel) ? text.displayLabel.toUpperCase() : text.displayLabel;
         // Host-only behavior definitions can supply details absent from the editor snapshot.
         const deviceLabel = board.trainerLabels?.[String(binding.code)];
         const needsDeviceLabel = (keycode.startsWith('TD(') && !board.tapdances?.length) ||
             ((binding.code >= 0x7e00 && binding.code <= 0x7fff) && !board.custom_keycodes?.length);
         return { ...k, ...binding, label: needsDeviceLabel && deviceLabel ? deviceLabel :
-            [text.topLabel, text.displayLabel, text.bottomStr].filter(Boolean).join('\n') };
+            [text.topLabel, letter, text.bottomStr].filter(Boolean).join('\n') };
     });
 }
