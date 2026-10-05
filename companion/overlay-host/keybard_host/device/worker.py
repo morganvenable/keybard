@@ -69,6 +69,7 @@ class DeviceWorker(QThread):
                         self.profile.emit(profile)
                         mode = "automatic defaults" if reader.feature_flags & DEFAULT_LAYER_STATE_FLAG else "manual default (older firmware)"
                         self.status.emit(f"Connected · Sval v{version} · layout read from board; {mode}")
+                    cycle_start = time.monotonic()
                     self.state.emit(reader.layer_snapshot())
                     with self.press_lock:
                         enabled, generation = self.press_enabled, self.press_generation
@@ -81,7 +82,7 @@ class DeviceWorker(QThread):
                             unavailable_generation = generation
                         else:
                             self.pressed.emit((generation, positions, time.monotonic()))
-                    self.stop_event.wait(.04)
+                    self.stop_event.wait(max(0, .008 - (time.monotonic() - cycle_start)))
             except Cancelled:
                 return
             except (OSError, ValueError, ProtocolError) as exc:

@@ -51,3 +51,23 @@ class OverlayControlsTest(unittest.TestCase):
         self.assertEqual(self.surface.pos(), before + QPoint(20,10))
         handle.mouseReleaseEvent(QMouseEvent(QMouseEvent.MouseButtonRelease, QPointF(24,14), QPointF(220,210), Qt.LeftButton, Qt.NoButton, Qt.NoModifier))
         self.assertIsNone(handle.offset)
+
+    def test_layer_changes_publish_immediately_without_an_http_poll(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock, patch
+        from keybard_host.__main__ import Host
+        state = {'layoutRevision': 1, 'active': 0}
+        page = SimpleNamespace(runJavaScript=Mock())
+        host = SimpleNamespace(state=SimpleNamespace(snapshot=lambda revision: dict(state)),
+            surface=SimpleNamespace(page=lambda: page), published_layout=-1, published_state=None, last_publish=0)
+        with patch('keybard_host.__main__.time.monotonic', return_value=10):
+            Host.publish_state(host)
+            Host.publish_state(host)
+            self.assertEqual(page.runJavaScript.call_count, 1)
+            state['active'] = 4
+            Host.publish_state(host)
+            self.assertEqual(page.runJavaScript.call_count, 2)
+            self.assertIn('"active":4', page.runJavaScript.call_args.args[0])
+        with patch('keybard_host.__main__.time.monotonic', return_value=10.3):
+            Host.publish_state(host)
+            self.assertIn('keybard-host-heartbeat', page.runJavaScript.call_args.args[0])

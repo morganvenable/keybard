@@ -1,6 +1,7 @@
 """Tray-only host; all overlay pixels and controls belong to Keybard's web build."""
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import secrets
@@ -12,7 +13,7 @@ from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QL
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineScript
 from .device.protocol import candidates
 from .device.worker import DeviceWorker
 from .state import HostState, serialize_profile
@@ -50,6 +51,13 @@ class Surface(QWebEngineView):
         page = LocalPage(self)
         self.setPage(page)
         page.setBackgroundColor(QColor(Qt.transparent))
+        native = QWebEngineScript()
+        native.setName('keybard-native-state')
+        native.setInjectionPoint(QWebEngineScript.DocumentCreation)
+        native.setWorldId(QWebEngineScript.MainWorld)
+        native.setRunsOnSubFrames(False)
+        native.setSourceCode('window.__keybardNativeState = true;')
+        page.scripts().insert(native)
         page.settings().setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, True)
         self.resize(1050, 330)
         self.setUrl(QUrl(f'http://127.0.0.1:{port}/?hostOverlay=1'))
@@ -167,6 +175,10 @@ class Host(QObject):
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f'http://127.0.0.1:{self.server.server_port}/#trainer'
         self.surface = Surface(self.server.server_port)
+        self.published_layout = -1
+        self.published_state = None
+        self.last_publish = 0
+        self.surface.loadFinished.connect(self.renderer_loaded)
         self.surface.show()
         self.surface.set_arrange(True)
         self.place()
@@ -197,6 +209,25 @@ class Host(QObject):
         QTimer.singleShot(0, self.scan)
         self.surface.windowHandle().screenChanged.connect(lambda screen: QTimer.singleShot(0, self.size_surface))
         app.aboutToQuit.connect(self.shutdown)
+
+    def renderer_loaded(self, ok):
+        self.published_layout = -1
+        self.published_state = None
+        if ok: self.publish_state()
+
+    def publish_state(self):
+        # Native delivery avoids browser timer throttling and a second polling cycle.
+        snapshot = self.state.snapshot(self.published_layout)
+        encoded = json.dumps(snapshot, separators=(',', ':'))
+        if encoded == self.published_state:
+            if time.monotonic() - self.last_publish < .25: return
+            script = "window.dispatchEvent(new Event('keybard-host-heartbeat'))"
+        else:
+            self.published_state = encoded
+            self.published_layout = snapshot['layoutRevision']
+            script = "window.dispatchEvent(new CustomEvent('keybard-host-state',{detail:" + encoded + "}))"
+        self.last_publish = time.monotonic()
+        self.surface.page().runJavaScript(script)
 
     def open_controls(self):
         from PySide6.QtGui import QDesktopServices
@@ -275,6 +306,7 @@ class Host(QObject):
                 except OSError: pass
         self.profile_ready = True
         self.size_surface()
+        self.publish_state()
 
     def layers(self, snapshot):
         if self.sender() is not self.worker or not self.profile_ready: return
@@ -284,6 +316,7 @@ class Host(QObject):
             mask = snapshot.active | (snapshot.default if snapshot.default is not None else self.state.config['manualDefault'])
             self.state.valid = not (mask >> len(self.state.board['keymap']))
             if not self.state.valid: self.state.status = 'Board refers to an unknown layer; reload the layout'
+        self.publish_state()
 
     def pressed(self, snapshot):
         if self.sender() is not self.worker: return
@@ -293,6 +326,7 @@ class Host(QObject):
             self.state.matrix_available = positions is not None
             self.state.pressed = [row * 6 + col for row, col in positions] if positions is not None and self.state.valid and time.monotonic() - sampled_at <= .5 else []
         self.last_press = sampled_at
+        self.publish_state()
 
     def status(self, status):
         if self.sender() is not self.worker: return
@@ -311,6 +345,7 @@ class Host(QObject):
             if time.monotonic() - self.state.practice_at > 2.5:
                 self.state.practice_hidden = []; self.state.practice_target = None
         self.status_action.setText(self.state.status[:65])
+        self.publish_state()
 
     def command(self, value):
         op = value['op']
@@ -334,6 +369,7 @@ class Host(QObject):
             if self.disconnect(): self.state.status = 'Disconnected by user'
         elif op == 'reload' and self.worker:
             self.state.valid = False; self.profile_ready = False; self.worker.reload()
+        self.publish_state()
 
     def shutdown(self):
         self.scan_timer.stop(); self.timer.stop()

@@ -35,6 +35,12 @@ Native Windows Qt WebEngine then exercised the actual server (no API mocks): Con
 
 ## Simplified Trainer controls
 
-Removed Hide preview, decorative headings/subtitles, routine host status, saved confirmations, raw layer masks, and nonzero-layer dots. Trainer is below Layouts. Dragging remains the default; Click through keyboard is an explicit opt-in. A separate 58×24 native grip/menu window remains interactive while the keyboard window passes input through. Its menu hides the overlay, opens Keybard, or toggles click-through. Hiding also hides the grip; restore from Keybard or the tray.
+Removed Hide preview, decorative headings/subtitles, routine host status, saved confirmations, raw layer masks, and nonzero-layer dots. Trainer is below Layouts. Dragging remains the default; Click through keyboard is an explicit opt-in. A separate 52×24 native grip/menu window remains interactive while the keyboard window passes input through. Its menu hides the overlay, opens Keybard, or toggles click-through. Hiding also hides the grip; restore from Keybard or the tray.
 
 Build and all 430 web tests pass. All 30 companion tests pass on Windows, including three new native control tests; Ubuntu passes 27 with the three Qt WebEngine tests skipped because that runtime is unavailable there. Restarted the updated Windows companion and confirmed its remembered main board reconnects with dragging enabled. Physical mixed-DPI and compositor interaction still require manual acceptance.
+
+## Native layer latency
+
+Measured the original Windows overlay polling at approximately 94 ms per HTTP cycle (about 3 ms request duration), in addition to the worker's 40 ms post-read pause. Native overlays now receive changed snapshots directly through their local Qt webview, with idle heartbeats and an initial HTTP snapshot for bootstrapping/recovery. Ordinary browser previews retain their prior polling cadence. Device polling targets an 8 ms cycle including read time; slow device replies can extend it.
+
+A temporary Windows native surface received 15 synthetic layer transitions, without any device writes. Delivery through two animation-frame callbacks averaged 17.7 ms (4.1–32.9 ms); only one initial HTTP state request occurred. This measures the local renderer path, not physical key-to-photon latency. The real host was restarted and reconnected to the main board. Regression tests cover direct native updates and layout caching without recurring native HTTP polling, immediate publishing of changed states, and idle heartbeat throttling.

@@ -10,6 +10,7 @@ export interface HostSnapshot {
     practiceHidden: number[]; practiceTarget: number | null;
     matrixAvailable: boolean | null; visible: boolean; arrange: boolean; session: string;
 }
+declare global { interface Window { __keybardNativeState?: boolean } }
 export function useHost() {
     const [state, setState] = useState<HostSnapshot | null>(null);
     const [error, setError] = useState('');
@@ -22,20 +23,30 @@ export function useHost() {
         const abort = new AbortController();
         let lastReceived = Date.now();
         const watchdog = setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setError('Host connection stale. The preview is paused.'); } }, 200);
+        function receive(data: HostSnapshot) {
+            if (!alive || data.apiVersion !== 1) return;
+            lastReceived = Date.now();
+            if (current.current?.session !== data.session) current.current = null;
+            if (current.current && data.revision < current.current.revision) { data.revision = current.current.revision; data.config = current.current.config; }
+            if (data.layoutRevision === current.current?.layoutRevision && !data.board) data.board = current.current.board;
+            current.current = data; setState(data);
+        }
+        const native = !!window.__keybardNativeState;
+        const onState = (event: Event) => receive((event as CustomEvent<HostSnapshot>).detail);
+        const onHeartbeat = () => { lastReceived = Date.now(); if (!current.current) void poll(); };
+        if (native) {
+            window.addEventListener('keybard-host-state', onState);
+            window.addEventListener('keybard-host-heartbeat', onHeartbeat);
+        }
         async function poll() {
             try {
                 const r = await fetch(`/api/host/state?layout=${current.current?.layoutRevision ?? -1}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
                 if (!r.ok) throw new Error('Host connection lost');
-                const data = await r.json() as HostSnapshot;
-                if (!alive || data.apiVersion !== 1) return;
-                lastReceived = Date.now();
-                if (current.current && data.revision < current.current.revision) { data.revision = current.current.revision; data.config = current.current.config; }
-                if (data.layoutRevision === current.current?.layoutRevision) data.board = current.current.board;
-                current.current = data; setState(data);
+                receive(await r.json() as HostSnapshot);
             } catch {
                 if (alive) { current.current = null; setState(null); setError('Host connection lost. The preview is paused.'); }
             }
-            if (alive) timer = setTimeout(poll, 80);
+            if (alive && !native) timer = setTimeout(poll, 80);
         }
         void (async () => {
             try {
@@ -46,7 +57,7 @@ export function useHost() {
                 token.current = data.token; void poll();
             } catch { /* Browser-only Keybard has no host endpoint. */ }
         })();
-        return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); };
+        return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
     }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
