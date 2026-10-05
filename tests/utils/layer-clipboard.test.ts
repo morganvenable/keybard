@@ -1,0 +1,8 @@
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+beforeEach(()=>{vi.resetModules();Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:vi.fn().mockResolvedValue(undefined),readText:vi.fn()}})});
+describe('layer clipboard formats and browser permissions',()=>{
+ it('accepts legacy arrays and rich layer objects',async()=>{const {parseLayerClipboard}=await import('../../src/utils/layer-clipboard');expect(parseLayerClipboard([0,65535]).keymap).toEqual([0,65535]);expect(parseLayerClipboard({_type:'layer',keymap:[4],layerColor:'blue'})).toMatchObject({keymap:[4],layerColor:'blue'});});
+ it('falls back to the in-app snapshot when writing is blocked',async()=>{const {writeLayerClipboard,readLayerClipboard}=await import('../../src/utils/layer-clipboard');vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('denied'));const source={keymap:[4]};await writeLayerClipboard(source);source.keymap[0]=5;expect((await readLayerClipboard()).keymap).toEqual([4]);});
+ it('uses newer external clipboard data when available',async()=>{const {writeLayerClipboard,readLayerClipboard}=await import('../../src/utils/layer-clipboard');await writeLayerClipboard({keymap:[4]});vi.mocked(navigator.clipboard.readText).mockResolvedValue('[5]');expect((await readLayerClipboard()).keymap).toEqual([5]);});
+ it('rejects invalid external data rather than silently pasting an old copy',async()=>{const {writeLayerClipboard,readLayerClipboard}=await import('../../src/utils/layer-clipboard');await writeLayerClipboard({keymap:[4]});vi.mocked(navigator.clipboard.readText).mockResolvedValue('not a layer');await expect(readLayerClipboard()).rejects.toThrow('valid keyboard layer');});
+});

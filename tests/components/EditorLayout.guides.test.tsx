@@ -1,3 +1,4 @@
+vi.mock("@/hooks/useLayerClipboardActions", () => ({ useLayerClipboardActions: () => ({apply: vi.fn(), clearClipboardError: vi.fn()}) }));
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createContext, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

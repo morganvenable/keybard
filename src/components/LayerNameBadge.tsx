@@ -23,7 +23,7 @@ import { KEYMAP } from "@/constants/keygen";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import CustomColorDialog from "@/components/CustomColorDialog";
 import { PublishLayerDialog } from "@/components/PublishLayerDialog";
-import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
+import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 
 interface LayerNameBadgeProps {
     selectedLayer: number;
@@ -53,7 +53,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 }) => {
     const { renameLayer, nameError } = useLayerNames();
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
-    const { copyLayer } = useLayoutLibrary();
+    const { copy, paste, clipboardError } = useLayerClipboardActions();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
@@ -191,106 +191,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     };
 
     // Layer Actions
-    const handleCopyLayer = () => {
-        if (!keyboard?.keymap) return;
-        const layerData = keyboard.keymap[selectedLayer];
-        
-        // Use the centralized copy logic
-        copyLayer({
-            id: `current-${selectedLayer}`,
-            name: svalService.getLayerName(keyboard, selectedLayer),
-            description: `Current layer ${selectedLayer}`,
-            author: "Local User",
-            tags: [],
-            keyboardType: "svalboard",
-            keyCount: layerData.length,
-            keymap: layerData,
-            layerColor: keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        }, false); // Don't show the "Now/Later" dialog for contextual menu copy
-    };
-
-    const handlePasteLayer = async () => {
-        if (!keyboard || !keyboard.keymap) return;
-        try {
-            const text = await navigator.clipboard.readText();
-            if (!text || !text.trim()) return;
-            
-            const clipboardData = JSON.parse(text);
-            let keymap: number[] | null = null;
-            let layerColor: string | undefined = undefined;
-            let ledColor: { hue: number; sat: number; val: number } | undefined = undefined;
-
-            if (Array.isArray(clipboardData)) {
-                keymap = clipboardData;
-            } else if (clipboardData && typeof clipboardData === 'object' && clipboardData._type === 'layer') {
-                keymap = clipboardData.keymap;
-                layerColor = clipboardData.layerColor;
-                ledColor = clipboardData.ledColor;
-            }
-
-            if (keymap && Array.isArray(keymap)) {
-                if (keymap.length === 0) return;
-                const matrixCols = keyboard.cols || MATRIX_COLS;
-                const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                let hasChanges = false;
-
-                // 1. Paste keymap
-                for (let r = 0; r < keyboard.rows; r++) {
-                    for (let c = 0; c < keyboard.cols; c++) {
-                        const idx = r * matrixCols + c;
-                        if (idx < keymap.length) {
-                            const newValue = keymap[idx];
-                            const currentValue = currentLayerKeymap[idx];
-                            if (newValue !== currentValue) {
-                                hasChanges = true;
-                                updatedKeyboard.keymap[selectedLayer][idx] = newValue;
-                                const row = r;
-                                const col = c;
-                                const previousValue = currentValue;
-                                queue(
-                                    `key_${selectedLayer}_${row}_${col}`,
-                                    async () => updateKey(selectedLayer, row, col, newValue),
-                                    { type: "key", writeKey: `key:${selectedLayer}:${row}:${col}`, layer: selectedLayer, row, col, keycode: newValue, previousValue }
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // 2. Paste layer color (UI)
-                if (layerColor) {
-                    if (!updatedKeyboard.cosmetic) updatedKeyboard.cosmetic = {};
-                    if (!updatedKeyboard.cosmetic.layer_colors) updatedKeyboard.cosmetic.layer_colors = {};
-                    updatedKeyboard.cosmetic.layer_colors[selectedLayer.toString()] = layerColor;
-                    hasChanges = true;
-                }
-
-                // 3. Paste LED color (Hardware HSV)
-                if (ledColor) {
-                    if (!updatedKeyboard.layer_colors) updatedKeyboard.layer_colors = [];
-                    // Ensure array is long enough
-                    while (updatedKeyboard.layer_colors.length <= selectedLayer) {
-                        updatedKeyboard.layer_colors.push({ hue: 0, sat: 0, val: 0 });
-                    }
-                    updatedKeyboard.layer_colors[selectedLayer] = { ...ledColor };
-                    hasChanges = true;
-
-                    // Update draft before the queued write captures its confirmed snapshot.
-                    setKeyboard(updatedKeyboard);
-                    if (isConnected) {
-                        await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, ledColor.hue, ledColor.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
-                    }
-                }
-
-                if (hasChanges) setKeyboard(updatedKeyboard);
-            }
-        } catch (e) {
-            console.error("Failed to paste layer:", e);
-        }
-    };
+    const handleCopyLayer = () => copy(selectedLayer);
+    const handlePasteLayer = () => { void paste(selectedLayer); };
 
     const batchWipeKeys = (targetKeycode: number, filterFn: (currentValue: number) => boolean) => {
         if (!keyboard || !keyboard.keymap) return;
@@ -356,7 +258,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     return (
         <>
-        {nameError && <div role="alert" className="text-red-600">{nameError}</div>}
+            {clipboardError && <p role="alert" className="text-sm text-red-700">{clipboardError}</p>}
+            {nameError && <div role="alert" className="text-red-600">{nameError}</div>}
             <div
                 className={cn(
                     "group/layer-badge flex items-center gap-2 z-50 transition-[margin] duration-150",

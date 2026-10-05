@@ -1,3 +1,5 @@
+import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
+import { isEditorInput } from "@/utils/editor-input";
 import * as React from "react";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -16,7 +18,6 @@ import KeyboardViewInstance from "./KeyboardViewInstance";
 import LayersPlusIcon from "@/components/icons/LayersPlusIcon";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import AppSidebar from "./Sidebar";
-import { usbInstance } from "@/services/usb.service";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
 import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
@@ -29,7 +30,6 @@ import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { THUMB_OFFSET_U, MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useChanges } from "@/hooks/useChanges";
 // import { PanelBottom, PanelRight, X } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -75,7 +75,7 @@ const EditorLayoutInner = () => {
         selectedLayer: number;
     };
 
-    const { keyboard, setKeyboard, updateKey, isConnected /*, resetToOriginal*/ } = useVial();
+    const { keyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
     const {
@@ -968,13 +968,14 @@ const EditorLayoutInner = () => {
     }, [keyboardWidths, keyboardHeights, rawKeyboardWidths, setMeasuredDimensions]);
 
 
-    const { queue } = useChanges();
+    const { apply: applyClipboardLayer, clipboardError, clearClipboardError } = useLayerClipboardActions();
+    const [layerPasteError, setLayerPasteError] = React.useState<string | null>(null);
 
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Check for Ctrl+V (or Cmd+V on Mac)
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            if (!e.defaultPrevented && !e.repeat && !isEditorInput(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 // Only handle if we have a layer in clipboard
                 if (layerClipboard) {
                     e.preventDefault();
@@ -992,88 +993,12 @@ const EditorLayoutInner = () => {
         return svalService.getLayerName(keyboard, layerIndex);
     }, [keyboard]);
 
-    const applyLayerToTarget = React.useCallback((sourceLayer: LayerEntry, targetLayer: number) => {
-        if (!keyboard || !keyboard.keymap) return;
-
-        const sourceKeymap = sourceLayer.keymap;
-        const sourceLayerColor = sourceLayer.layerColor;
-        const sourceLedColor = sourceLayer.ledColor;
-        const targetLayerKeymap = keyboard.keymap[targetLayer] || [];
-        const cols = keyboard.cols || MATRIX_COLS;
-
-        // Create ONE copy and batch all changes to avoid React state batching issues
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        if (!updatedKeyboard.keymap[targetLayer]) {
-            updatedKeyboard.keymap[targetLayer] = [];
-        }
-
-        // Copy cosmetic layer color if the source layer has one
-        if (sourceLayerColor) {
-            if (!updatedKeyboard.cosmetic) {
-                updatedKeyboard.cosmetic = {};
-            }
-            if (!updatedKeyboard.cosmetic.layer_colors) {
-                updatedKeyboard.cosmetic.layer_colors = {};
-            }
-            updatedKeyboard.cosmetic.layer_colors[targetLayer] = sourceLayerColor;
-        }
-
-        // Copy LED hardware color if the source layer has one
-        if (sourceLedColor) {
-            if (!updatedKeyboard.layer_colors) {
-                updatedKeyboard.layer_colors = [];
-            }
-            // Ensure array is long enough
-            while (updatedKeyboard.layer_colors.length <= targetLayer) {
-                updatedKeyboard.layer_colors.push({ hue: 0, sat: 0, val: 0 });
-            }
-            updatedKeyboard.layer_colors[targetLayer] = { ...sourceLedColor };
-
-            // Update hardware if connected
-            if (isConnected) {
-                try {
-                    usbInstance.setLayerColor(targetLayer, sourceLedColor.hue, sourceLedColor.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color in applyLayerToTarget:", e);
-                }
-            }
-        }
-
-        // Collect all changes and apply to the single copy
-        for (let i = 0; i < targetLayerKeymap.length && i < sourceKeymap.length; i++) {
-            const row = Math.floor(i / cols);
-            const col = i % cols;
-            const newValue = sourceKeymap[i];
-            const currentValue = targetLayerKeymap[i];
-            const matrixPos = row * cols + col;
-
-            if (newValue !== currentValue) {
-                // Apply to the single copy
-                updatedKeyboard.keymap[targetLayer][matrixPos] = newValue;
-
-                // Queue change for push to device
-                const changeDesc = `key_${targetLayer}_${row}_${col}`;
-                queue(
-                    changeDesc,
-                    async () => {
-                        await updateKey(targetLayer, row, col, newValue);
-                    },
-                    {
-                        type: "key",
-                        writeKey: `key:${targetLayer}:${row}:${col}`,
-                        layer: targetLayer,
-                        row,
-                        col,
-                        keycode: newValue,
-                        previousValue: currentValue,
-                    }
-                );
-            }
-        }
-
-        // Update state ONCE with all changes
-        setKeyboard(updatedKeyboard);
-    }, [keyboard, queue, updateKey, setKeyboard]);
+    const applyLayerToTarget = (sourceLayer: LayerEntry, targetLayer: number) => {
+        clearClipboardError();
+        setLayerPasteError(null);
+        try { applyClipboardLayer(sourceLayer, targetLayer); }
+        catch (error) { setLayerPasteError(error instanceof Error ? error.message : "Could not paste the layer."); }
+    };
 
     // Handler for when clipboard paste is confirmed
     const handlePasteConfirm = React.useCallback(() => {
@@ -1273,6 +1198,10 @@ const EditorLayoutInner = () => {
 
     return (
         <div className={cn("flex flex-1 h-dvh w-full min-w-0 overflow-hidden p-0", showDetailsSidebar && "bg-white")}>
+            {(layerPasteError || clipboardError) && <div role="alert" className="fixed top-2 right-2 z-[100] rounded border bg-white p-3 text-sm text-red-700">
+                {layerPasteError || clipboardError}
+                <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
+            </div>}
             <AppSidebar />
             {/* Keep the panel mounted when its placement changes. */}
             <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />

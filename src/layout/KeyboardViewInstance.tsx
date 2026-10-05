@@ -1,3 +1,4 @@
+import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 import { FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Keyboard } from "@/components/Keyboard";
@@ -9,11 +10,9 @@ import SquareArrowLeftIcon from "@/components/icons/SquareArrowLeft";
 import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
 import { useVial } from "@/contexts/VialContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useChanges } from "@/contexts/ChangesContext";
 import { cn } from "@/lib/utils";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { svalService } from "@/services/sval.service";
-import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
 import { LEGACY_FORWARD_ENTRY_MS, type LayerScenePose } from "./layer-scene";
@@ -96,10 +95,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onLayerDropHover,
     onLayerDrop,
 }) => {
-    const { keyboard, updateKey, setKeyboard, activeLayerIndex, isConnected } = useVial();
+    const { keyboard, activeLayerIndex, isConnected } = useVial();
     const transparentKeyGlyph = KEYMAP["KC_TRNS"]?.str || "▽";
     const { clearSelection } = useKeyBinding();
-    const { queue } = useChanges();
+    const { copy, paste, clipboardError } = useLayerClipboardActions();
     const { activePanel } = usePanels();
     const { is3DMode, keyVariant } = useLayoutSettings();
     const badgeRowRef = useRef<HTMLDivElement | null>(null);
@@ -320,69 +319,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         onToggleShowLayers();
     };
 
-    // Layer context menu actions
-    const handleCopyLayer = () => {
-        if (!keyboard?.keymap) return;
-        const layerData = keyboard.keymap[selectedLayer];
-        navigator.clipboard.writeText(JSON.stringify(layerData));
-    };
-
-    const handlePasteLayer = async () => {
-        if (!keyboard || !keyboard.keymap) return;
-        try {
-            const text = await navigator.clipboard.readText();
-            const layerData = JSON.parse(text);
-            if (Array.isArray(layerData)) {
-                if (layerData.length === 0) return;
-
-                const matrixCols = keyboard.cols || MATRIX_COLS;
-                const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                if (!updatedKeyboard.keymap[selectedLayer]) {
-                    updatedKeyboard.keymap[selectedLayer] = [];
-                }
-
-                let hasChanges = false;
-                for (let r = 0; r < keyboard.rows; r++) {
-                    for (let c = 0; c < keyboard.cols; c++) {
-                        const idx = r * matrixCols + c;
-                        if (idx < layerData.length) {
-                            const newValue = layerData[idx];
-                            const currentValue = currentLayerKeymap[idx];
-                            if (newValue !== currentValue) {
-                                hasChanges = true;
-                                updatedKeyboard.keymap[selectedLayer][idx] = newValue;
-                                const row = r;
-                                const col = c;
-                                const previousValue = currentValue;
-                                const changeDesc = `key_${selectedLayer}_${row}_${col}`;
-                                queue(
-                                    changeDesc,
-                                    async () => {
-                                        updateKey(selectedLayer, row, col, newValue);
-                                    },
-                                    {
-                                        type: "key",
-                                        layer: selectedLayer,
-                                        row,
-                                        col,
-                                        keycode: newValue,
-                                        previousValue,
-                                    }
-                                );
-                            }
-                        }
-                    }
-                }
-                if (hasChanges) {
-                    setKeyboard(updatedKeyboard);
-                }
-            }
-        } catch (e) {
-            console.error("Failed to paste layer", e);
-        }
-    };
-
     const shouldRenderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
@@ -452,10 +388,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </button>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-56">
-                    <ContextMenuItem onSelect={handleCopyLayer}>
+                    <ContextMenuItem onSelect={() => copy(i)}>
                         Copy Layer
                     </ContextMenuItem>
-                    <ContextMenuItem onSelect={handlePasteLayer}>
+                    <ContextMenuItem onSelect={() => { void paste(i); }}>
                         Paste Layer
                     </ContextMenuItem>
                     <ContextMenuSeparator />
@@ -613,6 +549,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 transition: effectiveRootTransition,
             }}
         >
+            {clipboardError && <p role="alert" className="pointer-events-auto text-sm text-red-700">{clipboardError}</p>}
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             {!hideLayerTabs && !isOverviewSceneActive && !show3DScene && (
                 <div

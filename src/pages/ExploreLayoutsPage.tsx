@@ -50,13 +50,7 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
     };
 
     // Handle copy - copies keymap to system clipboard and context
-    const handleCopy = async (layer: LayerEntry) => {
-        // Copy keymap to system clipboard (for Ctrl+V paste in editor)
-        await navigator.clipboard.writeText(JSON.stringify(layer.keymap));
-
-        // Also copy to context for tracking
-        copyLayer(layer);
-    };
+    const handleCopy = (layer: LayerEntry) => { copyLayer(layer); };
 
     // Handle delete - removes layer from library
     const handleDelete = async (layer: LayerEntry) => {
