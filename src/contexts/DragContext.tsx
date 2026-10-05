@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
 import type { KeyProps } from "@/components/Key";
 import { EditorKeyProps } from "@/layout/SecondarySidebar/components/EditorKey";
 import { KeyContent } from "@/types/vial.types";
@@ -87,6 +87,33 @@ export const DragProvider: React.FC<DragProviderProps> = ({ children, onUnhandle
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
     }, [handleMouseMove, onUnhandledDrop]);
+
+    useEffect(() => {
+        const cancel = () => {
+            isDraggingRef.current = false;
+            dragItemRef.current = null;
+            dropConsumedRef.current = false;
+            setIsDragging(false);
+            setDraggedItem(null);
+            setDragSourceId(null);
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && isDraggingRef.current) {
+                event.preventDefault();
+                cancel();
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        window.addEventListener("blur", cancel);
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            window.removeEventListener("blur", cancel);
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [handleMouseMove, handleMouseUp]);
 
     const startDrag = useCallback((item: DragItem, event: React.MouseEvent | MouseEvent) => {
         if (isDraggingRef.current) return;

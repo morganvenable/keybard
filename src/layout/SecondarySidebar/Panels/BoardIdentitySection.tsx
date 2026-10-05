@@ -15,7 +15,7 @@ const STATUS_TEXT: Record<number, string> = {
  * firmware updates. Shown only when the firmware supports it.
  */
 export default function BoardIdentitySection() {
-    const { isConnected } = useVial();
+    const { isConnected, connectionSessionId, hasUnsavedChanges, runDeviceMaintenance } = useVial();
     const [info, setInfo] = useState<IdentityInfo | null>(null);
     const [draft, setDraft] = useState("");
     const [busy, setBusy] = useState(false);
@@ -39,7 +39,7 @@ export default function BoardIdentitySection() {
         return () => {
             cancelled = true;
         };
-    }, [isConnected]);
+    }, [isConnected, connectionSessionId]);
 
     if (!info) return null;
 
@@ -47,10 +47,11 @@ export default function BoardIdentitySection() {
     const problem = nameProblem(draft, info.nameMaxBytes);
 
     const save = async () => {
+        if (!window.confirm("Save this board name to the keyboard now? This maintenance action takes effect immediately, including in Manual Updates mode.")) return;
         setBusy(true);
         setMessage(null);
         try {
-            const status = await identityService.setName(draft);
+            const status = await runDeviceMaintenance(() => identityService.setName(draft));
             if (status === IdentityStatus.Ok) {
                 setInfo({ ...info, name: draft });
                 setNeedsRestart(true);
@@ -65,10 +66,13 @@ export default function BoardIdentitySection() {
     };
 
     const restart = async () => {
+        if (!window.confirm(hasUnsavedChanges
+            ? "There are unsaved layout edits. Restarting disconnects the keyboard; export a backup or apply those edits first. Restart anyway?"
+            : "Restart the keyboard now? It will disconnect temporarily.")) return;
         setBusy(true);
         setMessage(null);
         try {
-            await identityService.restart();
+            await runDeviceMaintenance(() => identityService.restart());
             setNeedsRestart(false);
         } catch {
             setMessage("Couldn't confirm the restart. Reconnect the keyboard if needed.");
@@ -82,7 +86,7 @@ export default function BoardIdentitySection() {
             <div className="flex flex-col gap-1">
                 <span className="text-md text-left">Board name</span>
                 <span className="text-xs text-muted-foreground">
-                    Shown by your computer and browser. Kept on the keyboard, so it survives firmware updates.
+                    Shown by your computer and browser. Kept on the keyboard across firmware updates. Save writes immediately, independently of layout Apply.
                 </span>
             </div>
             {info.available ? (
@@ -103,11 +107,11 @@ export default function BoardIdentitySection() {
                             className={dirty ? "border-amber-500" : undefined}
                         />
                         <Button size="sm" disabled={!dirty || !!problem || busy} onClick={save}>
-                            Save
+                            Save now
                         </Button>
                     </div>
                     <div className="flex flex-row justify-between text-xs text-muted-foreground">
-                        <span className={problem ? "text-red-600" : undefined}>{problem ?? message ?? (dirty ? "Not saved yet" : "")}</span>
+                        <span role={problem || message ? "alert" : "status"} className={problem ? "text-red-600" : undefined}>{problem ?? message ?? (dirty ? "Not saved yet" : "")}</span>
                         <span>
                             {nameLength(draft)}/{NAME_MAX_CHARS}
                         </span>

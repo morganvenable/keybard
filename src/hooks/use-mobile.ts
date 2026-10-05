@@ -1,6 +1,7 @@
 import * as React from "react"
 
-// Disable mobile mode - this app requires minimum 850px width and uses scrollbars
+// Keep navigation in the shared rail instead of switching to a modal sheet.
+// Narrow rail state and responsive panel placement are handled by their providers.
 const MOBILE_BREAKPOINT = 0
 
 export function useIsMobile() {

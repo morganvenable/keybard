@@ -20,3 +20,32 @@
     background-size: 8px 100%;
     background-repeat: repeat-x;
 }
+/* Binding input stays mounted as placement changes. Each editor has its own
+   bounded viewport beside (or above) the independently scrollable key palette. */
+.detail-panel[data-placement="side"] .binding-workspace {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    bottom: 0;
+    width: min(660px, calc(100vw - var(--panel-left) - 32rem - 8px));
+}
+.detail-panel[data-placement="bottom"] .binding-workspace {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    width: min(740px, 100%);
+    max-height: calc(100dvh - var(--panel-height) - 16px);
+}
+@media (max-width: 1000px) {
+    .detail-panel[data-placement="side"][data-binding-open="true"] {
+        top: 50dvh;
+    }
+    .detail-panel[data-placement="side"] .binding-workspace {
+        position: fixed;
+        left: var(--panel-left);
+        right: 8px;
+        top: 8px;
+        bottom: 50dvh;
+        width: auto;
+    }
+}

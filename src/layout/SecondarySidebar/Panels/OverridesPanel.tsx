@@ -1,3 +1,4 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -6,7 +7,6 @@ import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
@@ -18,6 +18,7 @@ const ENABLED_BIT = 1 << 7;
 
 const OverridesPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -75,12 +76,7 @@ const OverridesPanel: React.FC = () => {
         }
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, index);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update override option:", err);
-        }
+        await persistBinding(updatedKeyboard, "override", index);
     };
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {
@@ -118,7 +114,7 @@ const OverridesPanel: React.FC = () => {
     // Horizontal grid layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start pt-2">
+            <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {overrides.map((override, i) => {
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
                     const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO") || isEnabled;
@@ -174,8 +170,8 @@ const OverridesPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Reconfiguration of modifier-key combinations to send a different modifier-key combination or perform completely custom actions. e.g. Send delete when pressing shift + backspace
                 </DescriptionBlock>

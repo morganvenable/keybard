@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useChanges } from "@/contexts/ChangesContext";
+import React, { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +17,8 @@ import type { QMKSettingsField } from "@/types/qmk";
 
 const QMKSettingsPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const { queue } = useChanges();
+    const panelId = useId();
     const [expanded, setExpanded] = useState<Record<string, boolean>>({
         "Magic": false,
         "Grave Escape": false,
@@ -33,7 +36,7 @@ const QMKSettingsPanel: React.FC = () => {
     // Check if keyboard has QMK settings
     if (!keyboard.settings || Object.keys(keyboard.settings).length === 0) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+            <section className="space-y-3 flex flex-col pt-0">
                 <div className="px-4 text-center text-muted-foreground">
                     <p className="font-medium">No QMK Settings Available</p>
                     <p className="text-sm mt-2">
@@ -92,8 +95,10 @@ const QMKSettingsPanel: React.FC = () => {
             };
             setKeyboard(updated);
 
-            await qmkService.push(updated, qsid);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${qsid}`, async () => {
+                await qmkService.push(updated, qsid);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {
@@ -114,8 +119,10 @@ const QMKSettingsPanel: React.FC = () => {
             };
             setKeyboard(updated);
 
-            await qmkService.push(updated, qsid);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${qsid}`, async () => {
+                await qmkService.push(updated, qsid);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
         } finally {
@@ -142,6 +149,7 @@ const QMKSettingsPanel: React.FC = () => {
                 >
                     <span className="text-sm">{field.title}</span>
                     <Switch
+                        aria-label={field.title}
                         checked={checked}
                         onCheckedChange={(c) => handleBoolToggle(field.qsid, field.bit, c)}
                         disabled={isSaving}
@@ -169,6 +177,7 @@ const QMKSettingsPanel: React.FC = () => {
                     </div>
                     <Input
                         type="number"
+                        aria-label={field.title}
                         value={value}
                         min={field.min}
                         max={field.max}
@@ -199,6 +208,9 @@ const QMKSettingsPanel: React.FC = () => {
         return (
             <div key={name} className="border-b border-gray-200 dark:border-gray-700">
                 <button
+                    type="button"
+                    aria-expanded={!!isExpanded}
+                    aria-controls={`${panelId}-${encodeURIComponent(name)}`}
                     onClick={() => toggleSection(name)}
                     className="flex justify-between items-center w-full p-3 hover:bg-muted/50 transition-colors"
                 >
@@ -211,7 +223,7 @@ const QMKSettingsPanel: React.FC = () => {
                     />
                 </button>
                 {isExpanded && (
-                    <div className="px-3 pb-3 space-y-1">
+                    <div id={`${panelId}-${encodeURIComponent(name)}`} className="px-3 pb-3 space-y-1">
                         {supportedFields.map((field, index) => renderField(field, index))}
                     </div>
                 )}
@@ -220,17 +232,17 @@ const QMKSettingsPanel: React.FC = () => {
     };
 
     return (
-        <section className="space-y-0 h-full max-h-full flex flex-col">
+        <section className="space-y-0 flex flex-col">
             {/* Header */}
             <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="font-semibold text-sm">QMK Settings</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                    Configure firmware behavior. Changes are saved immediately.
+                    Configure firmware behavior. Changes follow your update mode.
                 </p>
             </div>
 
             {/* Scrollable sections */}
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+            <div className="flex flex-col">
                 {QMK_SETTINGS.tabs.map(tab => renderSection(tab.name, tab.fields))}
             </div>
         </section>

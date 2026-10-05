@@ -1,4 +1,4 @@
-import { FunctionComponent, useState } from "react";
+import { FunctionComponent, useState, useRef, useLayoutEffect } from "react";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useVial } from "@/contexts/VialContext";
@@ -93,6 +93,24 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
         }
     };
 
+    const fitRef = useRef<HTMLDivElement>(null);
+    const [availableWidth, setAvailableWidth] = useState(0);
+    useLayoutEffect(() => {
+        const element = fitRef.current;
+        if (!element) return;
+        const measure = () => setAvailableWidth(element.clientWidth);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+    const naturalWidth = Math.max(...currentLayout.default.map(row => {
+        const keys = row.split(" ");
+        return keys.reduce((sum, key) => sum + getKeyWidth(key) * 30, 0) + (keys.length - 1) * 4;
+    }));
+    const scale = availableWidth > 0 ? Math.min(1, availableWidth / naturalWidth) : 1;
+    const naturalHeight = currentLayout.default.length * 30 + (currentLayout.default.length - 1) * 4;
+
     const renderRow = (defaultRowStr: string, shiftRowStr: string) => {
         const defaultKeys = defaultRowStr.split(" ");
         const shiftKeys = shiftRowStr.split(" ");
@@ -159,6 +177,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     return (
                         <Key
                             key={`${defaultKey}-${i}`}
+                            data-picker-key={defaultKey}
                             x={0} y={0} w={width} h={1} row={0} col={0}
                             keycode={keycode}
                             label={displayLabel}
@@ -183,7 +202,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
     };
 
     return (
-        <div className={`flex flex-col gap-1 ${isCompact ? '' : 'scale-[0.95]'} origin-top`}>
+        <div className="flex flex-col gap-1 w-full min-w-0">
             {/* Language selector - hidden when hideLanguageSelector is true */}
             {!hideLanguageSelector && (
                 isCompact ? (
@@ -218,10 +237,12 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                 )
             )}
 
-            <div className="flex flex-col gap-1">
-                {currentLayout.default.map((row, i) => (
-                    <div key={i}>{renderRow(row, currentLayout.shift[i])}</div>
-                ))}
+            <div ref={fitRef} className="w-full min-w-0 overflow-hidden" data-fitted-keyboard style={{ height: naturalHeight * scale }}>
+                <div className="flex flex-col gap-1 origin-top-left" style={{ width: naturalWidth, transform: `scale(${scale})` }}>
+                    {currentLayout.default.map((row, i) => (
+                        <div key={i}>{renderRow(row, currentLayout.shift[i])}</div>
+                    ))}
+                </div>
             </div>
         </div>
     );

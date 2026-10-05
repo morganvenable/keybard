@@ -6,13 +6,14 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { DragItem } from "@/contexts/DragContext";
-import { vialService } from "@/services/vial.service";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 
 import EditorKey from "./EditorKey";
-import { ComboEntry, ComboOptions } from "@/types/vial.types";
+import { ComboEntry } from "@/types/vial.types";
 
 const ComboEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
@@ -39,33 +40,6 @@ const ComboEditor: FC = () => {
             selectComboKey(itemToEdit, initialEditorSlot ?? 0);
         }
     }, [itemToEdit, selectComboKey, initialEditorSlot]);
-
-    useEffect(() => {
-        if (!keyboard?.combos || itemToEdit === null) return;
-        const combo = keyboard.combos[itemToEdit];
-        if (!combo) return;
-        const isEmpty =
-            !combo.keys?.some((k) => k && k !== "KC_NO") &&
-            (!combo.output || combo.output === "KC_NO");
-        const isEnabled = (combo.options & ComboOptions.ENABLED) !== 0;
-        if (!isEmpty || isEnabled) return;
-
-        const updatedCombos = [...keyboard.combos];
-        updatedCombos[itemToEdit] = {
-            ...combo,
-            options: combo.options | ComboOptions.ENABLED,
-        };
-        const updatedKeyboard = { ...keyboard, combos: updatedCombos };
-        setKeyboard(updatedKeyboard);
-        (async () => {
-            try {
-                await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to enable combo by default:", err);
-            }
-        })();
-    }, [keyboard, itemToEdit, setKeyboard]);
 
     const handleDrop = async (slot: number, item: DragItem) => {
         if (!keyboard?.combos || itemToEdit === null) return;
@@ -99,12 +73,7 @@ const ComboEditor: FC = () => {
             }
             const updatedKeyboard = { ...keyboard, combos };
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update combo swap:", err);
-            }
+            await persistBinding(updatedKeyboard, "combo", itemToEdit);
         } else {
             // Standard assignment (replace)
             const combos = [...keyboard.combos];
@@ -121,12 +90,7 @@ const ComboEditor: FC = () => {
             }
             const updatedKeyboard = { ...keyboard, combos };
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateCombo(updatedKeyboard, itemToEdit);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update combo assignment:", err);
-            }
+            await persistBinding(updatedKeyboard, "combo", itemToEdit);
         }
     };
 
@@ -146,12 +110,7 @@ const ComboEditor: FC = () => {
         }
         const updatedKeyboard = { ...keyboard, combos };
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateCombo(updatedKeyboard, itemToEdit);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update combo key:", err);
-        }
+        await persistBinding(updatedKeyboard, "combo", itemToEdit);
     };
 
     const renderComboKey = (keycode: string, slot: number) => {
@@ -193,7 +152,7 @@ const ComboEditor: FC = () => {
     // Horizontal layout: 2x2 grid of input keys + arrow + output
     if (isHorizontal) {
         return (
-            <div className="flex flex-row items-center gap-6 px-6 py-3">
+            <div className="flex flex-row flex-wrap items-center gap-4 pl-8 pr-2 py-3">
                 <div className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 mb-1">Input Keys</span>
                     <div className="grid grid-cols-2 gap-2">
@@ -217,7 +176,7 @@ const ComboEditor: FC = () => {
     // ==========================================
 
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
+        <div className="flex flex-col gap-8 py-6 pl-10 pb-20">
             <div className="flex flex-col gap-3">
                 <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3].map((slotIdx) => (

@@ -1,3 +1,4 @@
+import { LabelService } from "./label.service";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
 import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
@@ -139,10 +140,13 @@ export class SvilService {
 
         // Get keymap for all layers
         await this.getKeyMap(kbinfo);
+        // getKeyMap establishes the layer count needed to accept stored labels.
+        await new LabelService(this.usb).loadLayerNames(kbinfo);
         await this.macro.get(kbinfo);
         await this.tapdance.get(kbinfo);
         await this.combo.get(kbinfo);
         await this.override.get(kbinfo);
+        await new LabelService(this.usb).loadBindingNames(kbinfo);
 
         // Load Svil-specific features based on feature flags
         // Alt Repeat Keys don't have a flag - check entry count from definition

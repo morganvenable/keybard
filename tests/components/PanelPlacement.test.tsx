@@ -1,0 +1,67 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import SecondarySidebar from '../../src/layout/SecondarySidebar/SecondarySidebar';
+const state = vi.hoisted(() => ({ activePanel: 'settings', state: 'expanded', itemToEdit: null as number | null }));
+vi.mock('@/components/ui/sidebar', () => ({ useSidebar: () => ({state: 'collapsed'}) }));
+vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ ...state, handleCloseDetails: vi.fn(), setItemToEdit: vi.fn() }) }));
+vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({keyboard: null}) }));
+vi.mock('../../src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer', () => ({default: () => {
+ const [draft, setDraft] = useState('');
+ return <input aria-label="Binding draft" value={draft} onChange={event => setDraft(event.target.value)} />;
+}}));
+vi.mock('../../src/layout/SecondarySidebar/components/EditorSidePanel', () => ({default: () => null}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/SettingsPanel', () => ({default: () => {
+ const [draft, setDraft] = useState('');
+ return <input aria-label="Board name draft" value={draft} onChange={event => setDraft(event.target.value)} />;
+}}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/AltRepeatPanel', () => ({default: () => <p>AltRepeatPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/BasicKeyboards', () => ({default: () => <p>BasicKeyboards</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/CombosPanel', () => ({default: () => <p>CombosPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/DynamicMenuPanel', () => ({default: () => <p>DynamicMenuPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/FragmentsPanel', () => ({default: () => <p>FragmentsPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/LayoutsPanel', () => ({default: () => <p>LayoutsPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/LeadersPanel', () => ({default: () => <p>LeadersPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/LayersPanel', () => ({default: () => <p>LayersPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/MacrosPanel', () => ({default: () => <p>MacrosPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/OverridesPanel', () => ({default: () => <p>OverridesPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/PointingPanel', () => ({default: () => <p>PointingPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/OneShotComposerPanel', () => ({default: () => <p>OneShotComposerPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/QmkKeysPanel', () => ({default: () => <p>QmkKeysPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/MousePanel', () => ({default: () => <p>MousePanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/QMKSettingsPanel', () => ({default: () => <p>QMKSettingsPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/ScanLabPanel', () => ({default: () => <p>ScanLabPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/TapdancePanel', () => ({default: () => <p>TapdancePanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/AboutPanel', () => ({default: () => <p>AboutPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/QuickStartPanel', () => ({default: () => <p>QuickStartPanel</p>}));
+vi.mock('../../src/layout/SecondarySidebar/Panels/SpecialKeysPanel/SpecialKeysPanel', () => ({default: () => <p>SpecialKeysPanel/SpecialKeysPanel</p>}));
+describe('shared panel placement', () => {
+ it('keeps the binding editor draft mounted across placement changes', () => {
+  state.activePanel = 'macros';
+  state.itemToEdit = 0;
+  const view = render(<SecondarySidebar />);
+  fireEvent.change(screen.getByLabelText('Binding draft'), {target: {value: 'Unfinished name'}});
+  view.rerender(<SecondarySidebar bottom />);
+  expect(screen.getByLabelText('Binding draft')).toHaveValue('Unfinished name');
+  view.rerender(<SecondarySidebar />);
+  expect(screen.getByLabelText('Binding draft')).toHaveValue('Unfinished name');
+  state.itemToEdit = null;
+ });
+ it('retains local draft when switching between sidebar and bottom', () => {
+  state.activePanel = 'settings';
+  const view = render(<SecondarySidebar />);
+  fireEvent.change(screen.getByLabelText('Board name draft'), {target: {value: 'My board'}});
+  view.rerender(<SecondarySidebar bottom />);
+  expect(screen.getByLabelText('Board name draft')).toHaveValue('My board');
+  view.rerender(<SecondarySidebar />);
+  expect(screen.getByLabelText('Board name draft')).toHaveValue('My board');
+ });
+ it.each(['quickstart', 'about', 'fragments', 'scanlab'])('provides real %s content in either placement', panel => {
+  state.activePanel = panel;
+  const view = render(<SecondarySidebar />);
+  const expected = {quickstart: 'QuickStartPanel', about: 'AboutPanel', fragments: 'FragmentsPanel', scanlab: 'ScanLabPanel'}[panel];
+  expect(screen.getByText(expected!)).toBeVisible();
+  view.rerender(<SecondarySidebar bottom />);
+  expect(screen.getByText(expected!)).toBeVisible();
+ });
+});

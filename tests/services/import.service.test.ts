@@ -15,6 +15,7 @@ describe('ImportService', () => {
     let mockQueue: ReturnType<typeof vi.fn>;
     let mockServices: {
         vialService: {
+            saveSvil: ReturnType<typeof vi.fn>;
             updateKey: ReturnType<typeof vi.fn>;
             updateMacros: ReturnType<typeof vi.fn>;
             updateCombo: ReturnType<typeof vi.fn>;
@@ -37,6 +38,7 @@ describe('ImportService', () => {
         // Create mock services
         mockServices = {
             vialService: {
+                saveSvil: vi.fn().mockResolvedValue(undefined),
                 updateKey: vi.fn().mockResolvedValue(undefined),
                 updateMacros: vi.fn().mockResolvedValue(undefined),
                 updateCombo: vi.fn().mockResolvedValue(undefined),
@@ -49,6 +51,26 @@ describe('ImportService', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+    });
+
+    it('stages the persistent save after all imported writes without executing before Apply', async () => {
+        const currentKb = createTestKeyboardInfo({ rows: 1, cols: 1, layers: 1, keymap: [[4]] });
+        const imported = { ...currentKb, keymap: [[5]] };
+        const staged: Array<{ cb: () => Promise<void>; key: string }> = [];
+        await service.syncWithKeyboard(imported, currentKb, async (_desc, cb, metadata) => { staged.push({ cb, key: metadata?.writeKey ?? '' }); }, mockServices);
+        expect(mockServices.vialService.updateKey).not.toHaveBeenCalled();
+        expect(mockServices.vialService.saveSvil).not.toHaveBeenCalled();
+        expect(staged.map(write => write.key)).toEqual(['key:0:0:0', 'save-svil']);
+        for (const write of staged) await write.cb();
+        expect(mockServices.vialService.saveSvil).toHaveBeenCalledTimes(1);
+        expect(mockServices.vialService.saveSvil.mock.invocationCallOrder[0]).toBeGreaterThan(mockServices.vialService.updateKey.mock.invocationCallOrder[0]);
+    });
+
+    it('propagates a refused persistent save so it remains retryable', async () => {
+        const currentKb = createTestKeyboardInfo({ rows: 1, cols: 1, layers: 1, keymap: [[4]] });
+        const imported = { ...currentKb, keymap: [[5]] };
+        mockServices.vialService.saveSvil.mockRejectedValue(new Error('Flash save failed'));
+        await expect(service.syncWithKeyboard(imported, currentKb, mockQueue, mockServices)).rejects.toThrow('Flash save failed');
     });
 
     describe('syncWithKeyboard()', () => {
@@ -202,7 +224,7 @@ describe('ImportService', () => {
                 expect(mockQueue).toHaveBeenCalledWith(
                     'Update All Macros',
                     expect.any(Function),
-                    { type: 'macro' }
+                    { type: 'macro', writeKey: 'macros' }
                 );
                 expect(mockServices.vialService.updateMacros).toHaveBeenCalledWith(newKb);
             });
@@ -261,7 +283,7 @@ describe('ImportService', () => {
                 expect(mockQueue).toHaveBeenCalledWith(
                     'Update Combo 0',
                     expect.any(Function),
-                    { type: 'combo', comboId: 0 }
+                    { type: 'combo', comboId: 0, writeKey: 'combo:0' }
                 );
             });
         });
@@ -293,7 +315,7 @@ describe('ImportService', () => {
                 expect(mockQueue).toHaveBeenCalledWith(
                     'Update Tapdance 0',
                     expect.any(Function),
-                    { type: 'tapdance', tapdanceId: 0 }
+                    { type: 'tapdance', tapdanceId: 0, writeKey: 'tapdance:0' }
                 );
             });
         });
@@ -325,7 +347,7 @@ describe('ImportService', () => {
                 expect(mockQueue).toHaveBeenCalledWith(
                     'Update Key Override 0',
                     expect.any(Function),
-                    { type: 'override' }
+                    { type: 'override', writeKey: 'override:0' }
                 );
             });
         });
@@ -353,7 +375,7 @@ describe('ImportService', () => {
                 expect(mockQueue).toHaveBeenCalledWith(
                     'Update QMK Setting 0',
                     expect.any(Function),
-                    { type: 'key' }
+                    { type: 'key', writeKey: 'setting:0' }
                 );
             });
         });

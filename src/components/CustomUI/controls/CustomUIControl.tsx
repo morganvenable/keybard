@@ -3,6 +3,7 @@ import { ToggleControl } from "./ToggleControl";
 import { RangeControl } from "./RangeControl";
 import { DropdownControl } from "./DropdownControl";
 import { ButtonControl } from "./ButtonControl";
+import { ScanRateControl } from "./ScanRateControl";
 
 interface CustomUIControlProps {
     item: CustomUIMenuItem;
@@ -53,6 +54,9 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
             );
 
         case 'range':
+            if (valueKey === 'id_scan_period_us') {
+                return <ScanRateControl item={item} value={currentValue} onChange={handleChange} compact={compact} />;
+            }
             return (
                 <RangeControl
                     item={item}

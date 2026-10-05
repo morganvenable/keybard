@@ -114,7 +114,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     };
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
             <div className="flex flex-col gap-1">
                 <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
                     Mouse Buttons
@@ -131,14 +131,14 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                     Modifiers
                 </span>
                 {compact ? (
-                    // Compact Horizontal Layout (Grid)
-                    <div className="grid grid-cols-2 gap-0.5">
+                    // Compact modifier choices wrap with the available panel width.
+                    <div className="flex flex-wrap gap-1">
                         <Button
                             type="button"
                             variant={activeModifiers.length === 0 ? "default" : "secondary"}
                             size="sm"
                             className={cn(
-                                "col-span-2 rounded-md px-2 py-0.5 h-6 transition-all text-[10px] font-medium border-none w-full",
+                                "rounded-md px-2 py-0.5 h-6 transition-all text-[10px] font-medium border-none",
                                 activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                             )}
                             onClick={handleClearModifiers}
@@ -155,7 +155,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                                     variant={isActive ? "default" : "secondary"}
                                     size="sm"
                                     className={cn(
-                                        "rounded-md px-0.5 py-0.5 h-6 transition-all text-[8px] font-medium border-none",
+                                        "rounded-md px-2 py-0.5 h-6 transition-all text-[11px] font-medium border-none",
                                         isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                     )}
                                     onClick={() => handleModifierToggle(modifier)}

@@ -1,3 +1,4 @@
+import { writeLayerClipboard } from "@/utils/layer-clipboard";
 /**
  * Layer Library Context
  * Manages state for browsing individual layers in the Explore panel
@@ -113,24 +114,11 @@ export const LayerLibraryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Copy a layer to clipboard
     const copyLayer = useCallback((layer: LayerEntry, showDialog = false) => {
         setLayerClipboard({
-            layer,
+            layer: structuredClone(layer),
             copiedAt: Date.now(),
         });
 
-        // Write to system clipboard for persistence (used by contextual menu paste)
-        if (layer.keymap) {
-            try {
-                const clipboardData = {
-                    keymap: layer.keymap,
-                    layerColor: layer.layerColor,
-                    ledColor: layer.ledColor,
-                    _type: "layer"
-                };
-                navigator.clipboard.writeText(JSON.stringify(clipboardData));
-            } catch (e) {
-                console.warn("Failed to write to system clipboard:", e);
-            }
-        }
+        void writeLayerClipboard(layer).catch(error => console.error("Could not copy layer", error));
 
         if (showDialog) {
             setIsPasteDialogOpen(true);
