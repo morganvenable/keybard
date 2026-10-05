@@ -88,7 +88,7 @@ def overlay_control_icon(kind):
     painter.scale(2, 2)
     painter.setPen(QPen(QColor('#eeeeee'), 1.3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
     if kind == 'move':
-        for x1, y1, x2, y2 in ((8,2,8,14), (2,8,14,8), (5.5,4.5,8,2), (8,2,10.5,4.5), (5.5,11.5,8,14), (8,14,10.5,11.5), (4.5,5.5,2,8), (2,8,4.5,10.5), (11.5,5.5,14,8), (14,8,11.5,10.5)):
+        for x1, y1, x2, y2 in ((8,1,8,15), (1,8,15,8), (6.4,2.6,8,1), (8,1,9.6,2.6), (6.4,13.4,8,15), (8,15,9.6,13.4), (2.6,6.4,1,8), (1,8,2.6,9.6), (13.4,6.4,15,8), (15,8,13.4,9.6)):
             painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
     else:
         painter.setPen(Qt.NoPen); painter.setBrush(QColor('#eeeeee'))
@@ -104,7 +104,7 @@ class DragHandle(QToolButton):
         self.surface = surface
         self.offset = None
         self.setIcon(overlay_control_icon('move'))
-        self.setIconSize(QSize(16, 16))
+        self.setIconSize(QSize(20, 20))
         self.setToolTip('Drag overlay')
         self.setAccessibleName('Drag overlay')
         self.setCursor(Qt.SizeAllCursor)
@@ -173,7 +173,7 @@ class Host(QObject):
         self.bridge.command.connect(self.command)
         self.server = make_server(state, assets, self.bridge.command.emit, port)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        self.url = f'http://127.0.0.1:{self.server.server_port}/#trainer'
+        self.url = f'http://127.0.0.1:{self.server.server_port}/'
         self.surface = Surface(self.server.server_port)
         self.published_layout = -1
         self.published_state = None
@@ -391,7 +391,7 @@ def main():
     lock = QLockFile(str(folder / 'host.lock')); lock.setStaleLockTime(0)
     if not lock.tryLock(0):
         from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(f'http://127.0.0.1:{args.port}/#trainer')); return
+        QDesktopServices.openUrl(QUrl(f'http://127.0.0.1:{args.port}/')); return
     if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
     state = HostState(args.settings or folder / 'preferences.json')
     host = Host(app, args.assets, state, args.port)

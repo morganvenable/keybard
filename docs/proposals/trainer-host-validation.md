@@ -25,13 +25,11 @@ The existing editor and Trainer remain mounted during panel switches. Trainer re
 
 Regression checks cover landing content in host mode and Trainer session preservation. Browser validation clicked all 15 existing sidebar destinations and returned to Trainer, both with an editor layout loaded and through the direct host entry without one. No uncaught JavaScript errors or unexpected landing navigation occurred. Responsive checks at 1024×768, 760×650, and 480×700 found no horizontal Trainer overflow.
 
-## Host landing connection
+## Connection flow correction
 
-The existing Connect Keyboard button and remembered-device list now use a host connection adapter on the host-served origin. They load a fresh layout from the selected board, or explicitly connect the chosen enumerated device and await its layout. Browser-only WebHID behavior is unchanged. Host snapshots remain read-only: they do not mark the USB transport connected or enable device writes. Optional tap-dance definitions can be absent without crashing the editor.
+Removed the host snapshot connection adapter: it incorrectly returned success while leaving isConnected false. VialContext, ConnectKeyboard, and MainScreen now match origin/main e7e9f3d exactly. A #trainer URL no longer bypasses the connection screen; it selects the panel only after a layout has loaded. The companion opens the root URL, and Trainer remains an ordinary left-panel option.
 
-Verified the attached main board reports 16 layers and that its actual snapshot loads through Connect Keyboard and opens Trainer with 52 keys. Adapter tests cover selected-board reuse, enumeration, ambiguous selection, switching boards, unreachable hosts, and omitted tap-dance metadata.
-
-Native Windows Qt WebEngine then exercised the actual server (no API mocks): Connect Keyboard loaded the live main-board snapshot, and clicking Trainer rendered 52 keys for `52 1BTU Right`. Production build and all 430 tests passed.
+The Sval transport already supports concurrent client IDs. On Windows, a second read-only HID client loaded all 16 main-board layers and performed 100 layer queries while the companion remained valid. Queries averaged 3.0 ms, maximum 4.7 ms. This validates concurrent HID clients, not a browser chooser interaction. Regression tests confirm host-served pages use the original USB transport and report isConnected true, and a Trainer hash cannot bypass the landing connection flow. Production build and all 427 web tests pass.
 
 ## Simplified Trainer controls
 

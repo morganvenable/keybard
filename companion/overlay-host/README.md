@@ -8,11 +8,11 @@ Run `Start-Windows.cmd`. First launch downloads a separate, pinned Python/Qt run
 
 The tray offers Open Keybard, Show overlay, Drag to reposition, Place at bottom, Reload layout, and Quit. Closing the browser keeps the host and overlay running. Quit through the tray to stop it. A second launch opens the existing control page instead of starting another device worker.
 
-Open **http://127.0.0.1:5178/#trainer**. Pick the intended board when multiple devices are attached. Successful connections remember serial and definition UID; reconnect never substitutes an unrelated board. The host reads geometry, all keymap layers, and labels. Automatic defaults are used only when firmware advertises support; older firmware retains a manual default selector. Held-key highlighting is opt-in, performs read-only matrix queries, and may miss short taps.
+Open **http://127.0.0.1:5178/** in a WebHID-capable browser and use Keybard’s normal Connect Keyboard flow. Then select Trainer below Layouts. Pick the intended overlay board in Trainer when multiple devices are attached. Successful connections remember serial and definition UID; reconnect never substitutes an unrelated board. The host reads geometry, all keymap layers, and labels. Automatic defaults are used only when firmware advertises support; older firmware retains a manual default selector. Held-key highlighting is opt-in, performs read-only matrix queries, and may miss short taps.
 
 Dragging starts on and stays on until you explicitly enable Click through keyboard in the Overlay tab or the overlay menu. The small grip/menu beside the overlay stays clickable in either mode; drag the grip to reposition it, or use its menu to hide the overlay and open Keybard. Restore a hidden overlay from the tray or Keybard. Colors, opacity, outline, halo, hands, scale, and transition timing are saved on this computer and apply to the native overlay. Recall/familiar-key masking is transient; when the web controls disappear its lease expires and the desktop returns to reference mode. Offline/imported previews do not replace the board's live layout.
 
-**Current boundary:** the host owns the board connection; the hosted page blocks a competing direct WebHID connection. Editing through the host is not implemented. Disconnect the host before editing in ordinary Keybard, then reconnect/reload the host. The browser-only Keybard development server remains available independently.
+Keybard retains its original WebHID connection and editor transport. The companion is a separate read-only client using the firmware’s multi-client protocol. The browser does not substitute an offline snapshot for a connection. Reload the companion layout after changing the device keymap.
 
 No keyboard writes, flashing, app-context layer switching, or key logging. Desktop controls communicate only with this host's loopback server. POST operations require its token, exact local Origin/Host, bounded JSON, command allowlisting, and revision checks for persistent configuration.
 
@@ -37,4 +37,4 @@ npm test
 PYTHONPATH=companion/overlay-host python3 -m unittest discover -s companion/overlay-host/tests -v
 ```
 
-The read-only reader and worker are carried from Sval Trainer commit `7bfef64` into `keybard_host/device` unchanged, with protocol/definition regression coverage. They are deliberately isolated from the existing context companion's write-capable protocol. Native window movement, focus/click-through, fullscreen, and hardware layer/held-key transitions still need interactive host acceptance.
+The read-only reader and worker originated in Sval Trainer commit `7bfef64`; the companion polling loop now targets an 8 ms cycle, with protocol/definition regression coverage. They are deliberately isolated from the existing context companion's write-capable protocol. Native window movement, focus/click-through, fullscreen, and hardware layer/held-key transitions still need interactive host acceptance.

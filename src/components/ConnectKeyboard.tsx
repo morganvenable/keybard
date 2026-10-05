@@ -1,4 +1,3 @@
-import type { ConnectableKeyboard } from "@/features/trainer/hostConnection";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
 
@@ -8,7 +7,7 @@ import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
     const { isConnected, connect, connectDevice, disconnect, loadKeyboard, loadFromFile } = useVial();
-    const [knownDevices, setKnownDevices] = useState<ConnectableKeyboard[]>([]);
+    const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +62,7 @@ const ConnectKeyboard = () => {
         return () => { cancelled = true; };
     }, [isConnected]);
 
-    const handleConnectDevice = async (device: ConnectableKeyboard) => {
+    const handleConnectDevice = async (device: HIDDevice) => {
         setLoading(true);
         setError(null);
         try {
@@ -207,7 +206,7 @@ const ConnectKeyboard = () => {
                                     <span className="text-[11px] text-muted-foreground text-center">or reconnect without the chooser</span>
                                     {knownDevices.map((device) => (
                                         <button
-                                            key={"hostId" in device ? device.hostId : `${device.vendorId}:${device.productId}:${device.productName}`}
+                                            key={`${device.vendorId}:${device.productId}:${device.productName}`}
                                             onClick={() => handleConnectDevice(device)}
                                             className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 hover:bg-white px-5 py-1.5 rounded-full w-full"
                                             data-testid="known-device"

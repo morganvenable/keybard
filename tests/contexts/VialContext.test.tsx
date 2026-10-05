@@ -48,6 +48,20 @@ describe('VialContext - File Loading', () => {
     <VialProvider>{children}</VialProvider>
   );
 
+  it('uses the real USB connection even on a host-served page', async () => {
+    document.documentElement.dataset.keybardHost = 'true';
+    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(vialService.init).mockResolvedValue(undefined);
+    vi.mocked(vialService.load).mockResolvedValue({ rows: 10, cols: 6, keymap: [Array(60).fill(4)] });
+    const { result } = renderHook(() => useVial(), { wrapper });
+    try {
+      await act(async () => { await result.current.connect(); });
+      expect(usbInstance.open).toHaveBeenCalledTimes(1);
+      expect(result.current.isConnected).toBe(true);
+      expect(vialService.load).toHaveBeenCalled();
+    } finally { delete document.documentElement.dataset.keybardHost; }
+  });
+
   it('loadFromFile successfully loads file and updates keyboard state', async () => {
     const mockKeyboardInfo: KeyboardInfo = {
       rows: 6,
