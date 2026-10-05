@@ -16,3 +16,9 @@ Implemented a native Qt/Python tray host for this first runnable increment, reta
 Not established by these checks: physical layer/held-key transitions under typing load, interactive click-through/focus acceptance, native mouse dragging across mixed-DPI monitors for this webview implementation, fullscreen behavior, Ubuntu desktop compositor behavior, or macOS support. Browser screenshots are not evidence for native input pass-through. The underlying reader's prior tests cover protocol behavior but do not replace these host acceptance checks.
 
 Current limits: desktop editing through the host is not implemented, and old-firmware defaults remain manual. Recall practice is controlled from the web page and reverts to reference after its short heartbeat expires. Installed runtime download is relatively large because this preview includes Qt WebEngine. The test ZIP is unsigned and bootstraps pinned native dependencies on first run.
+
+## Shared Keybard workspace follow-up
+
+Trainer now renders inside the editor's existing SidebarProvider, PanelsProvider, and layout providers, using the real AppSidebar with its selected-item indicator. The separate logo/back-button header is removed. Navigation between Trainer and the editor retains the loaded Vial layout and panel context. Sidebar icons have accessible names when collapsed, and a navigation trigger is available on mobile.
+
+Validated the production build, all 422 Vitest tests, and browser navigation from Trainer to the QWERTY editor and back twice with the loaded snapshot retained. Browser checks also verified 1024×768, 760×650, and 480×700 without horizontal overflow, recall practice, and the simulated-host configuration/stale-state/independent-renderer checks. This changes web controls only; the native overlay remains keyboard-only.

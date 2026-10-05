@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, GraduationCap, Monitor, Upload, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { Check, GraduationCap, Monitor, Upload, Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import KeybardLogo from '@/components/icons/KeybardLogo';
 import { useVial } from '@/contexts/VialContext';
 import { fileService } from '@/services/file.service';
 import { getKeyLabel } from '@/utils/layers';
@@ -15,7 +14,7 @@ import { useHost } from './host';
 import { surfaceKeys } from './useSurfaceKeys';
 
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
-export default function TrainerPage({ onBack }: { onBack: () => void }) {
+export default function TrainerPage() {
     const host = useHost();
     const [live, setLive] = useState(true);
     const [hostDirty, setHostDirty] = useState(false);
@@ -104,9 +103,9 @@ export default function TrainerPage({ onBack }: { onBack: () => void }) {
         } catch (e) { if (generation === importGeneration.current) setError(e instanceof Error ? e.message : 'Could not read this layout.'); }
     }
     return <div className="trainer-page">
-        <header className="trainer-header"><Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to keyboard"><ArrowLeft /></Button><KeybardLogo className="h-7 w-auto" /><span className="trainer-header-divider" /><GraduationCap size={19} className="text-kb-green" /><strong>Trainer</strong><span className="trainer-source-status">{host.state ? 'Keybard Host connected' : isConnected ? 'Keyboard connected · snapshot preview' : 'Offline preview'}</span></header>
+        <header className="trainer-header"><GraduationCap size={19} className="text-kb-green" /><h1>Trainer</h1><span className="trainer-source-status">{host.state ? 'Keybard Host connected' : isConnected ? 'Keyboard connected · snapshot preview' : 'Offline preview'}</span></header>
         <main className="trainer-main">
-            <div className="trainer-title"><div><h1>Learn your layout.</h1><p>A quiet reference for the movements you’re learning.</p></div><Button variant="outline" onClick={() => setVisible(v => !v)}>{visible ? <EyeOff /> : <Eye />} {visible ? 'Hide preview' : 'Show preview'}</Button></div>
+            <div className="trainer-title"><div><h2>Overlay & practice</h2><p>A quiet reference for the movements you’re learning.</p></div><Button variant="outline" onClick={() => setVisible(v => !v)}>{visible ? <EyeOff /> : <Eye />} {visible ? 'Hide preview' : 'Show preview'}</Button></div>
             <div className="trainer-workspace"><section className="trainer-stage">
                 {host.state && <div className="trainer-host-section"><div className="trainer-host-toolbar"><select aria-label="Host keyboard" value={host.state.selectedDevice || ''} onChange={e => { setLive(true); void host.command({ op: 'connect', id: e.target.value }); }}><option value="" disabled>Select a Svalboard…</option>{host.state.devices.map(d => <option key={d.id} value={d.id}>{d.name} · {d.serial || d.id}</option>)}</select><Button variant="outline" onClick={() => void host.command({ op: 'show', value: !host.state!.visible })}>{host.state.visible ? 'Hide overlay' : 'Show overlay'}</Button><Button variant="outline" onClick={() => void host.command({ op: 'arrange', value: !host.state!.arrange })}>{host.state.arrange ? 'Finish arranging' : 'Arrange'}</Button></div><p className="trainer-note" role="status" title={host.state.status}>{host.state.status}</p></div>}
                 {host.error && <p role="alert" className="trainer-error">{host.error}</p>}

@@ -1,4 +1,8 @@
 import * as React from "react";
+import TrainerPage from "@/features/trainer/TrainerPage";
+import ConnectKeyboard from "@/components/ConnectKeyboard";
+import { useNavigation } from "@/App";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
@@ -52,7 +56,8 @@ import {
     type LayerSceneState,
 } from "./layer-scene";
 
-const EditorLayout = () => {
+const EditorLayout = ({ trainer = false }: { trainer?: boolean }) => {
+    const { keyboard } = useVial();
     const { assignKeycodeTo } = useKeyBinding();
 
     const handleUnhandledDrop = React.useCallback((item: DragItem, event: MouseEvent) => {
@@ -74,7 +79,7 @@ const EditorLayout = () => {
                 <LayoutSettingsProvider>
                     <LayerProvider>
                         <DragProvider onUnhandledDrop={handleUnhandledDrop}>
-                            <EditorLayoutInner />
+                            {trainer ? <TrainerWorkspace /> : keyboard ? <EditorLayoutInner /> : <ConnectWorkspace />}
                             <DragOverlay />
                         </DragProvider>
                     </LayerProvider>
@@ -83,6 +88,23 @@ const EditorLayout = () => {
         </SidebarProvider>
     );
 };
+
+// Both workspaces retain the same navigation and editor providers when switching.
+function TrainerWorkspace() {
+    const primary = useSidebar("primary-nav", { defaultOpen: false });
+    return <div className="trainer-shell">
+        <AppSidebar />
+        <div className="trainer-shell-content" style={{ marginLeft: primary.isMobile ? 0 : primary.state === "collapsed" ? "var(--sidebar-width-icon)" : "var(--sidebar-width-base)" }}>
+            {primary.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
+            <TrainerPage />
+        </div>
+    </div>;
+}
+
+function ConnectWorkspace() {
+    const { navigateTo } = useNavigation();
+    return <ConnectKeyboard onOpenTrainer={() => navigateTo("trainer")} />;
+}
 
 const EditorLayoutInner = () => {
     type ViewInstance = {

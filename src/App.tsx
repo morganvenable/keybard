@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
-import TrainerPage from "./features/trainer/TrainerPage";
 import DeployBadge from "./components/DeployBadge";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
@@ -81,9 +80,9 @@ function AppContent() {
 
     return (
         <>
-            {currentPage === "main" ? (
+            {currentPage === "main" || currentPage === "trainer" ? (
                 <>
-                    <MainScreen />
+                    <MainScreen trainer={currentPage === "trainer"} />
                     <PrintableKeymapWrapper />
                 </>
             ) : currentPage === "explore" ? (
@@ -98,7 +97,7 @@ function AppContent() {
                         <ProofSheetPage onBack={goBack} />
                     </DragProvider>
                 </LayoutSettingsProvider>
-            ) : currentPage === "trainer" ? <TrainerPage onBack={goBack} /> : null}
+            ) : null}
         </>
     );
 }

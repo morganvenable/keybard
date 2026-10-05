@@ -130,7 +130,7 @@ const SidebarNavItem = ({
                 (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
             )}
         >
-            <button type="button" onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
+            <button type="button" aria-label={item.title} onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
                 <div className={cn(getIconGutterWidth(isCollapsed), "h-full flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                     <item.icon className="h-5 w-5 shrink-0" />
                 </div>
@@ -145,14 +145,14 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
-    const { navigateTo } = useNavigation();
+    const { navigateTo, currentPage } = useNavigation();
     const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
         setItemToEdit,
         setActivePanel,
         openDetails,
-        activePanel,
+        activePanel: editorPanel,
         panelToGoBack,
         alternativeHeader,
         setPanelToGoBack,
@@ -162,6 +162,7 @@ const AppSidebar = () => {
         setOpen,
     } = usePanels();
 
+    const activePanel = currentPage === "trainer" ? "trainer" : editorPanel;
     const { keyboard } = useVial();
 
 
@@ -169,6 +170,7 @@ const AppSidebar = () => {
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
             if (item.url === "trainer") { navigateTo("trainer"); return; }
+            if (currentPage === "trainer") navigateTo("main");
             if (item.url === "matrixtester") {
                 if (activePanel === "matrixtester") {
                     setActivePanel(null);
@@ -191,7 +193,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [navigateTo, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [navigateTo, currentPage, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 
@@ -281,6 +283,7 @@ const AppSidebar = () => {
                                 <button
                                     type="button"
                                     className={cn("flex w-full items-center", getIconJustify(isCollapsed))}
+                                    aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
                                     onClick={() => toggleSidebar()}
                                 >
                                     <div className={cn(getIconGutterWidth(isCollapsed), "h-8 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
