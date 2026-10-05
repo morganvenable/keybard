@@ -10,7 +10,7 @@ import time
 
 from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile
 from PySide6.QtGui import QAction, QColor, QIcon
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from .device.protocol import candidates
@@ -29,6 +29,16 @@ class LocalPage(QWebEnginePage):
 
 
 class Surface(QWebEngineView):
+    geometry_changed = Signal()
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        self.geometry_changed.emit()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.geometry_changed.emit()
+
     def __init__(self, port):
         super().__init__()
         self.host_port = port
@@ -61,6 +71,65 @@ class Surface(QWebEngineView):
         self.show()
 
 
+class DragHandle(QToolButton):
+    def __init__(self, surface, parent):
+        super().__init__(parent)
+        self.surface = surface
+        self.offset = None
+        self.setText('⠿')
+        self.setToolTip('Drag overlay')
+        self.setAccessibleName('Drag overlay')
+        self.setCursor(Qt.SizeAllCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if self.surface.windowHandle() and self.surface.windowHandle().startSystemMove():
+                self.offset = None
+            else:
+                self.offset = event.globalPosition().toPoint() - self.surface.pos()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self.offset is not None and event.buttons() & Qt.LeftButton:
+            self.surface.move(event.globalPosition().toPoint() - self.offset)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self.offset = None
+        event.accept()
+
+
+class OverlayControls(QWidget):
+    """A separate input window keeps the handle usable when the keyboard passes clicks through."""
+    def __init__(self, surface, hide, open_controls, set_click_through):
+        super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus)
+        self.surface = surface
+        self.setWindowTitle('Keybard · Overlay controls')
+        self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setStyleSheet('QToolButton {color:#eee;background:#303436;border:1px solid #666;border-radius:5px;font-size:16px;} QToolButton:hover {background:#505456;}')
+        layout = QHBoxLayout(self); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(2)
+        self.handle = DragHandle(surface, self)
+        self.more = QToolButton(self); self.more.setText('⋯'); self.more.setToolTip('Overlay controls'); self.more.setAccessibleName('Overlay controls')
+        self.more.setPopupMode(QToolButton.InstantPopup)
+        menu = QMenu(self.more)
+        menu.addAction('Hide overlay', hide)
+        menu.addAction('Open Keybard', open_controls)
+        self.click_through = menu.addAction('Click through keyboard'); self.click_through.setCheckable(True)
+        self.click_through.triggered.connect(set_click_through)
+        self.more.setMenu(menu)
+        for button in (self.handle, self.more):
+            button.setFixedSize(28, 24); layout.addWidget(button)
+        self.setFixedSize(58, 24)
+        surface.geometry_changed.connect(self.reposition)
+        self.reposition()
+
+    def reposition(self):
+        screen = self.surface.screen() or QApplication.primaryScreen()
+        area = screen.availableGeometry()
+        self.move(max(area.left(), min(self.surface.x() + self.surface.width() - self.width(), area.right() - self.width() + 1)), max(area.top(), self.surface.y() - self.height() - 4))
+
+
 class Host(QObject):
     def __init__(self, app, assets, state, port):
         super().__init__()
@@ -81,6 +150,10 @@ class Host(QObject):
         self.surface.show()
         self.surface.set_arrange(True)
         self.place()
+        self.controls = OverlayControls(self.surface,
+            lambda: self.command(dict(op='show', value=False)), self.open_controls,
+            lambda value: self.command(dict(op='arrange', value=not value)))
+        self.controls.show()
         icon = QIcon(str(Path(__file__).parent / 'assets' / 'svalboard.png'))
         app.setWindowIcon(icon); self.surface.setWindowIcon(icon)
         self.tray = QSystemTrayIcon(icon, self)
@@ -90,7 +163,7 @@ class Host(QObject):
         self.show_action = QAction('Show overlay', menu, checkable=True, checked=True)
         self.show_action.triggered.connect(lambda value: self.command(dict(op='show', value=value)))
         menu.addAction(self.show_action)
-        self.arrange_action = QAction('Arrange overlay', menu, checkable=True, checked=True)
+        self.arrange_action = QAction('Drag to reposition', menu, checkable=True, checked=True)
         self.arrange_action.triggered.connect(lambda value: self.command(dict(op='arrange', value=value)))
         menu.addAction(self.arrange_action)
         menu.addAction('Place at bottom', self.place)
@@ -227,9 +300,9 @@ class Host(QObject):
             with self.state.lock: self.state.pressed = []
             self.size_surface()
         elif op == 'show':
-            self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value'])
+            self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value']); self.controls.setVisible(value['value'])
         elif op == 'arrange':
-            self.state.arrange = value['value']; self.surface.set_arrange(value['value']); self.surface.setVisible(self.state.visible); self.arrange_action.setChecked(value['value'])
+            self.state.arrange = value['value']; self.surface.set_arrange(value['value']); self.surface.setVisible(self.state.visible); self.arrange_action.setChecked(value['value']); self.controls.click_through.setChecked(not value['value']); self.controls.reposition()
         elif op == 'place': self.place()
         elif op == 'practice':
             with self.state.lock:
@@ -246,7 +319,7 @@ class Host(QObject):
         self.scan_timer.stop(); self.timer.stop()
         if self.worker:
             self.worker.stop(); self.worker.wait(5000)
-        self.server.shutdown(); self.server.server_close(); self.surface.close(); self.tray.hide()
+        self.server.shutdown(); self.server.server_close(); self.controls.close(); self.surface.close(); self.tray.hide()
 
 
 def main():

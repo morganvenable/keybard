@@ -32,3 +32,9 @@ The existing Connect Keyboard button and remembered-device list now use a host c
 Verified the attached main board reports 16 layers and that its actual snapshot loads through Connect Keyboard and opens Trainer with 52 keys. Adapter tests cover selected-board reuse, enumeration, ambiguous selection, switching boards, unreachable hosts, and omitted tap-dance metadata.
 
 Native Windows Qt WebEngine then exercised the actual server (no API mocks): Connect Keyboard loaded the live main-board snapshot, and clicking Trainer rendered 52 keys for `52 1BTU Right`. Production build and all 430 tests passed.
+
+## Simplified Trainer controls
+
+Removed Hide preview, decorative headings/subtitles, routine host status, saved confirmations, raw layer masks, and nonzero-layer dots. Trainer is below Layouts. Dragging remains the default; Click through keyboard is an explicit opt-in. A separate 58×24 native grip/menu window remains interactive while the keyboard window passes input through. Its menu hides the overlay, opens Keybard, or toggles click-through. Hiding also hides the grip; restore from Keybard or the tray.
+
+Build and all 430 web tests pass. All 30 companion tests pass on Windows, including three new native control tests; Ubuntu passes 27 with the three Qt WebEngine tests skipped because that runtime is unavailable there. Restarted the updated Windows companion and confirmed its remembered main board reconnects with dragging enabled. Physical mixed-DPI and compositor interaction still require manual acceptance.

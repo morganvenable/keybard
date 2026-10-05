@@ -23,7 +23,6 @@ export function OverlaySurface({ keys, appearance: a, changed, held, effect, dur
                     textAnchor="middle" fontSize={line.length > 5 ? 8 : 12} fontWeight="600"
                     textLength={line.length > 6 ? Math.max(15, k.w * 40 - 9) : undefined} lengthAdjust="spacingAndGlyphs"
                     fill={a.legend} fillOpacity={a.legendAlpha / 100} stroke={a.halo ? haloColor(a.legend) : 'none'} strokeOpacity={a.legendAlpha / 100} strokeWidth="2" paintOrder="stroke fill">{line}</text>)}
-                {k.layer > 0 && <circle cx={k.w * 40 - 8} cy={k.h * 40 - 8} r="1.5" fill={a.changed} fillOpacity={a.legendAlpha / 100} />}
             </g>;
         })}
     </svg>;

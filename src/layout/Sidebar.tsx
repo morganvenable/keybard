@@ -81,8 +81,8 @@ const featureSidebarItems: SidebarItem[] = [
 ];
 
 const layoutSidebarItems: SidebarItem[] = [
-    { title: "Trainer", url: "trainer", icon: GraduationCapIcon },
     { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
+    { title: "Trainer", url: "trainer", icon: GraduationCapIcon },
 ];
 
 const footerItems: SidebarItem[] = [
