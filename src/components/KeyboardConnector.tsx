@@ -1,32 +1,16 @@
 import "./KeyboardConnector.css";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 import { useVial } from "../contexts/VialContext";
 import { Keyboard } from "./Keyboard";
 import { Button } from "./ui/button";
 
 const KeyboardConnector: React.FC = () => {
-    const { keyboard, isConnected, isWebHIDSupported, loadedFrom, connect, disconnect, loadKeyboard, loadFromFile } = useVial();
+    const { keyboard, isConnected, isWebHIDSupported, loadedFrom, connect, disconnect, loadFromFile } = useVial();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (!isConnected) {
-            return;
-        }
-        setLoading(true);
-        (async () => {
-            await loadKeyboard();
-            setLoading(false);
-        })();
-        return () => {
-            if (loading) {
-                setLoading(false);
-            }
-        };
-    }, [isConnected]);
 
     const handleConnect = async () => {
         setLoading(true);
@@ -119,7 +103,7 @@ const KeyboardConnector: React.FC = () => {
                         <Button onClick={() => fileInputRef.current?.click()} disabled={loading}>
                             {loading ? "Loading..." : "Load File"}
                         </Button>
-                        <input ref={fileInputRef} type="file" accept=".svil,.viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
+                        <input ref={fileInputRef} type="file" accept=".svil,.viable,.vil,.json" style={{ display: "none" }} onChange={handleLoadFile} />
                     </div>
                 </>
             )}

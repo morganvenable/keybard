@@ -4,6 +4,9 @@ import type { ComponentProps, ReactNode } from "react";
 import KeyboardViewInstance from "../../src/layout/KeyboardViewInstance";
 import { LEGACY_FORWARD_ENTRY_MS, getLayerScenePose } from "../../src/layout/layer-scene";
 
+const clipboard = vi.hoisted(() => ({copy: vi.fn(), paste: vi.fn()}));
+vi.mock('@/hooks/useLayerClipboardActions', () => ({useLayerClipboardActions: () => clipboard}));
+
 const mockLayoutSettings = vi.hoisted(() => ({
   is3DMode: false,
   keyVariant: "default",
@@ -78,7 +81,7 @@ vi.mock("@/components/ui/context-menu", () => ({
   ContextMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
   ContextMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
   ContextMenuContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  ContextMenuItem: ({ children }: { children: ReactNode }) => <>{children}</>,
+  ContextMenuItem: ({ children, onSelect }: { children: ReactNode; onSelect: () => void }) => <button onClick={onSelect}>{children}</button>,
   ContextMenuSeparator: () => null,
 }));
 
@@ -147,6 +150,14 @@ describe("KeyboardViewInstance layer drop surface", () => {
       onLayerDrop,
     };
   };
+
+  it("copies and pastes the right-clicked tab rather than the selected layer", () => {
+    renderComponent({hideLayerTabs: false});
+    fireEvent.click(screen.getAllByRole('button', {name: 'Copy Layer'})[0]);
+    fireEvent.click(screen.getAllByRole('button', {name: 'Paste Layer'})[0]);
+    expect(clipboard.copy).toHaveBeenCalledWith(0);
+    expect(clipboard.paste).toHaveBeenCalledWith(0);
+  });
 
   it("keeps the layer-wide drop surface inert when a layer drag is not active", () => {
     const { surface } = renderComponent({ isLayerDragActive: false });

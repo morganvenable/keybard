@@ -29,6 +29,65 @@ export class ClientIdRejectedError extends Error {
   }
 }
 
+// Sval protocol version 2 widened table indices (tap dance, combo, key override,
+// alt-repeat key, leader, label) from one byte to two, for 256-entry tables.
+export const SVIL_PROTO_WIDE_INDEX = 2;
+
+/** Whether a keyboard speaking this Sval protocol version takes 2-byte table indices. */
+export function svilHasWideIndex(version: number | undefined): boolean {
+  return (version ?? 1) >= SVIL_PROTO_WIDE_INDEX;
+}
+
+/**
+ * Index bytes for a Sval table GET/SET request.
+ * v1: [index]; v2+: [index lo][index hi]
+ */
+export function svilIndexArgs(version: number | undefined, index: number): number[] {
+  if (svilHasWideIndex(version)) return LE16(index);
+  // A v1 index is one byte; a larger one would wrap and address the wrong entry
+  if (index > 0xff) throw new RangeError(`Sval v1 index out of range: ${index}`);
+  return [index];
+}
+
+/**
+ * Offset of the entry within a Sval table GET response (wrapper and 0xDF stripped).
+ * v1: [cmd_echo][index][entry...] -> 2; v2+: [cmd_echo][index lo][index hi][entry...] -> 3
+ */
+export function svilEntryOffset(version: number | undefined): number {
+  return svilHasWideIndex(version) ? 3 : 2;
+}
+
+// Sval protocol version 3 added MACRO_BUFFER_* (32-bit offsets), since the macro buffer
+// outgrew the 16-bit offsets of VIA's macro commands, and TABLE_SCAN.
+export const SVIL_PROTO_MACRO_BUFFER = 3;
+export const SVIL_PROTO_TABLE_SCAN = 3;
+
+/** Whether a keyboard speaking this Sval protocol version has TABLE_SCAN (also v3). */
+export function svilHasTableScan(version: number | undefined): boolean {
+  return (version ?? 1) >= SVIL_PROTO_TABLE_SCAN;
+}
+
+/** Whether a keyboard speaking this Sval protocol version has the MACRO_BUFFER_* commands. */
+export function svilHasMacroBuffer(version: number | undefined): boolean {
+  return (version ?? 1) >= SVIL_PROTO_MACRO_BUFFER;
+}
+
+/** The keyboard answered a Sval write with a nonzero status (e.g. index out of range). */
+export class SvilCommandRefusedError extends Error {
+  constructor(public readonly cmd: number, public readonly status: number) {
+    super(`Keyboard refused Sval command 0x${cmd.toString(16)} (status ${status})`);
+    this.name = "SvilCommandRefusedError";
+  }
+}
+
+/**
+ * Check the status of a Sval write response: [cmd_echo][status], 0 = ok.
+ * Throws SvilCommandRefusedError otherwise.
+ */
+export function checkSvilStatus(cmd: number, resp: Uint8Array): void {
+  if (resp[1] !== 0) throw new SvilCommandRefusedError(cmd, resp[1]);
+}
+
 // Generate cryptographically random nonce
 function generateNonce(): Uint8Array {
   const nonce = new Uint8Array(NONCE_SIZE);
@@ -95,6 +154,19 @@ export class SvilUSB {
   static readonly CMD_SVIL_FRAGMENT_GET_HARDWARE = 0x18;
   static readonly CMD_SVIL_FRAGMENT_GET_SELECTIONS = 0x19;
   static readonly CMD_SVIL_FRAGMENT_SET_SELECTIONS = 0x1a;
+  static readonly CMD_SVIL_LABEL_GET = 0x1b;
+  static readonly CMD_SVIL_LABEL_SET = 0x1c;
+  static readonly CMD_SVIL_LABEL_CLEAR = 0x1d;
+  static readonly CMD_SVIL_MACRO_BUFFER_SIZE = 0x1e;
+  static readonly CMD_SVIL_MACRO_BUFFER_GET = 0x1f;
+  static readonly CMD_SVIL_MACRO_BUFFER_SET = 0x20;
+  static readonly CMD_SVIL_TABLE_SCAN = 0x21;
+
+  // Label types for CMD_SVIL_LABEL_*; every label is a fixed 16-byte, null-padded UTF-8 field
+  static readonly SVIL_LABEL_TYPE_LAYER = 0;
+  static readonly SVIL_LABEL_TYPE_TAP_DANCE = 1;
+  static readonly SVIL_LABEL_TYPE_MACRO = 2;
+  static readonly SVIL_LABEL_SIZE = 16;
 
   // Svalboard-specific constants
   static readonly SVAL_GET_LEFT_DPI = 0x00;
@@ -122,6 +194,10 @@ export class SvilUSB {
   private clientIdExpiry: number = 0;
   private renewalTimer?: ReturnType<typeof setTimeout>;
   private bootstrapPromise?: Promise<void>; // Prevent concurrent bootstraps
+
+  // Sval protocol version of the connected keyboard, from CMD_SVIL_GET_INFO
+  // (set while connecting). Assume version 1 until the keyboard says otherwise.
+  public svilProtocolVersion: number = 1;
 
   public onDisconnect?: () => void;
 
@@ -345,6 +421,7 @@ export class SvilUSB {
     }
     this.clientId = 0;
     this.clientIdExpiry = 0;
+    this.svilProtocolVersion = 1;
 
     if (this.device) {
       if (this.handleEvent) {
@@ -832,7 +909,7 @@ export class SvilUSB {
   ): Promise<(Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[]> {
     const entries: (Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[] = [];
     for (let i = 0; i < count; i++) {
-      const data = await this.sendSvil(getCmd, [i], options);
+      const data = await this.sendSvil(getCmd, svilIndexArgs(this.svilProtocolVersion, i), options);
       entries.push(data);
     }
     return entries;
@@ -944,3 +1021,57 @@ export const usbInstance = new SvilUSB();
 
 // Backward compatibility alias
 export { SvilUSB as VialUSB };
+
+/** A Sval table: its TABLE_SCAN id, per-index GET command and entry size in bytes. */
+export interface SvilTable {
+  scanId: number;
+  getCmd: number;
+  entrySize: number;
+}
+
+export const SVIL_TABLE_TAP_DANCE: SvilTable = { scanId: 0, getCmd: SvilUSB.CMD_SVIL_TAP_DANCE_GET, entrySize: 10 };
+export const SVIL_TABLE_COMBO: SvilTable = { scanId: 1, getCmd: SvilUSB.CMD_SVIL_COMBO_GET, entrySize: 12 };
+export const SVIL_TABLE_KEY_OVERRIDE: SvilTable = { scanId: 2, getCmd: SvilUSB.CMD_SVIL_KEY_OVERRIDE_GET, entrySize: 12 };
+export const SVIL_TABLE_ALT_REPEAT_KEY: SvilTable = { scanId: 3, getCmd: SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET, entrySize: 6 };
+export const SVIL_TABLE_LEADER: SvilTable = { scanId: 4, getCmd: SvilUSB.CMD_SVIL_LEADER_GET, entrySize: 14 };
+
+/**
+ * Read a whole Sval table as raw entries, one entrySize-byte array per index.
+ *
+ * v3+: TABLE_SCAN returns the next entry in use at or after a start index.
+ *   Request:  [table][start lo][start hi]
+ *   Response: [cmd_echo][table][found][index lo][index hi][entry...]
+ *   Scan from index + 1 until found = 0. Entries never returned are unused and
+ *   read as all zero (even if, say, a tap dance kept a nonzero term).
+ * Older firmware: one GET per index (see svilIndexArgs / svilEntryOffset).
+ */
+export async function readSvilTable(usb: SvilUSB, table: SvilTable, count: number): Promise<Uint8Array[]> {
+  const proto = usb.svilProtocolVersion;
+  const entries: Uint8Array[] = [];
+  for (let i = 0; i < count; i++) entries.push(new Uint8Array(table.entrySize));
+
+  if (svilHasTableScan(proto)) {
+    let start = 0;
+    while (start < count) {
+      const data = await usb.sendSvil(
+        SvilUSB.CMD_SVIL_TABLE_SCAN,
+        [table.scanId, ...LE16(start)],
+        { uint8: true }
+      ) as Uint8Array;
+
+      if (!data[2]) break; // found = 0: nothing else in use
+      const index = data[3] | (data[4] << 8);
+      if (index < start || index >= count) break; // Never loop on a keyboard that answers backwards
+      entries[index].set(data.subarray(5, 5 + table.entrySize));
+      start = index + 1;
+    }
+    return entries;
+  }
+
+  const o = svilEntryOffset(proto);
+  for (let i = 0; i < count; i++) {
+    const data = await usb.sendSvil(table.getCmd, svilIndexArgs(proto, i), { uint8: true }) as Uint8Array;
+    entries[i].set(data.subarray(o, o + table.entrySize));
+  }
+  return entries;
+}

@@ -5,16 +5,17 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useDebounce } from "@uidotdev/usehooks";
+import { isEditorInput } from "@/utils/editor-input";
 import { TapdanceEntry } from "@/types/vial.types";
 import { DragItem } from "@/contexts/DragContext";
-import { vialService } from "@/services/vial.service";
+import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { isTapdanceKeycode } from "@/utils/keys";
 
 import EditorKey from "./EditorKey";
 
 const TapdanceEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
+    const persistBinding = useBindingChanges();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { keyVariant, layoutMode } = useLayoutSettings();
     const currTapDance: TapdanceEntry | undefined = keyboard?.tapdances?.[itemToEdit!];
@@ -26,7 +27,7 @@ const TapdanceEditor: FC = () => {
     const effectiveVariant = isHorizontal ? "medium" : keyVariant;
     const keySizeClass = effectiveVariant === 'small' ? 'w-[30px] h-[30px]' : effectiveVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
     const gapClass = isHorizontal ? 'gap-6' : (effectiveVariant === 'small' ? 'gap-3' : effectiveVariant === 'medium' ? 'gap-4' : 'gap-6');
-    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 pb-20 pt-4' : effectiveVariant === 'medium' ? 'pl-14 pb-20 pt-6' : 'pl-[84px] pb-20 pt-8');
+    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 pb-20 pt-4' : effectiveVariant === 'medium' ? 'pl-10 pb-20 pt-6' : 'pl-10 pb-20 pt-8');
     const labelClass = effectiveVariant === 'small' ? 'text-xs' : effectiveVariant === 'medium' ? 'text-sm' : 'text-sm';
 
     const isSlotSelected = (slot: string) => {
@@ -34,13 +35,13 @@ const TapdanceEditor: FC = () => {
     };
 
     const [tapMs, setTapMs] = useState(200);
-    const debouncedTapMs = useDebounce(tapMs, 300);
+
 
     useEffect(() => {
         if (currTapDance) {
             setTapMs(currTapDance.tapping_term);
         }
-    }, [itemToEdit]); // Use itemToEdit instead of currTapDance to avoid infinite loop
+    }, [itemToEdit, currTapDance?.tapping_term]);
 
     const keys = {
         tap: currTapDance?.tap ?? "KC_NO",
@@ -62,6 +63,10 @@ const TapdanceEditor: FC = () => {
     }, [itemToEdit, selectTapdanceKey, initialEditorSlot]);
 
     const updateTapMs = async (ms: number) => {
+        if (!Number.isFinite(ms)) return;
+        ms = Math.max(0, Math.min(32767, Math.round(ms)));
+        setTapMs(ms);
+        if (ms === currTapDance?.tapping_term) return;
         if (keyboard?.tapdances && itemToEdit !== null) {
             const tapdances = [...keyboard.tapdances];
             if (tapdances[itemToEdit]) {
@@ -72,17 +77,10 @@ const TapdanceEditor: FC = () => {
             }
             const updatedKeyboard = { ...keyboard, tapdances };
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update tapdance tapping term:", err);
-            }
+            await persistBinding(updatedKeyboard, "tapdance", itemToEdit);
         }
     };
-    useEffect(() => {
-        updateTapMs(debouncedTapMs);
-    }, [debouncedTapMs]);
+
 
     const updateKeyAssignment = async (slot: string, keycode: string) => {
         if (!keyboard?.tapdances || itemToEdit === null) return;
@@ -103,18 +101,14 @@ const TapdanceEditor: FC = () => {
         }
         const updatedKeyboard = { ...keyboard, tapdances };
         setKeyboard(updatedKeyboard);
-        try {
-            await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update tapdance key:", err);
-        }
+        await persistBinding(updatedKeyboard, "tapdance", itemToEdit);
     };
 
     // Handle Delete/Backspace for selected key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Delete" || e.key === "Backspace") {
+            if (!e.defaultPrevented && !isEditorInput(e.target) && (e.key === "Delete" || e.key === "Backspace")) {
+                e.preventDefault();
                 if (selectedTarget?.type === "tapdance" && selectedTarget.tapdanceId === itemToEdit && selectedTarget.tapdanceSlot) {
                     updateKeyAssignment(selectedTarget.tapdanceSlot, "KC_NO");
                 }
@@ -146,12 +140,7 @@ const TapdanceEditor: FC = () => {
             }
             const updatedKeyboard = { ...keyboard, tapdances };
             setKeyboard(updatedKeyboard);
-            try {
-                await vialService.updateTapdance(updatedKeyboard, itemToEdit);
-                await vialService.saveSvil();
-            } catch (err) {
-                console.error("Failed to update tapdance swap:", err);
-            }
+            await persistBinding(updatedKeyboard, "tapdance", itemToEdit);
         } else {
             updateKeyAssignment(slot, item.keycode);
         }
@@ -228,7 +217,7 @@ const TapdanceEditor: FC = () => {
     // Horizontal layout: 2x2 quad of keys + ms input
     if (isHorizontal) {
         return (
-            <div className="flex flex-row items-center gap-10 px-8 py-3">
+            <div className="flex flex-row flex-wrap items-center gap-6 pl-8 pr-2 py-3">
                 {/* 2x2 grid of tap dance keys */}
                 <div className="grid grid-cols-2 gap-5">
                     {renderTapdanceKey("Tap", keys.tap, "tap")}
@@ -243,7 +232,7 @@ const TapdanceEditor: FC = () => {
                     <Input
                         value={tapMs || 0}
                         type="number"
-                        onChange={(e) => setTapMs(e.target.valueAsNumber || 0)}
+                        onChange={(e) => void updateTapMs(e.target.valueAsNumber)}
                         min={0}
                         step={25}
                         className="w-20 h-10 bg-white text-center text-base px-2"
@@ -266,7 +255,7 @@ const TapdanceEditor: FC = () => {
                 <Input
                     value={tapMs}
                     type="number"
-                    onChange={(e) => setTapMs(e.target.valueAsNumber)}
+                    onChange={(e) => void updateTapMs(e.target.valueAsNumber)}
                     min={0}
                     step={25}
                     className="w-32 bg-white"

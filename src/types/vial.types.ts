@@ -354,6 +354,7 @@ export type CustomUIControlType = 'toggle' | 'range' | 'dropdown' | 'color' | 'k
  */
 export interface CustomUIMenuItem {
     label?: string;                              // Display label for section or control
+    description?: string;                        // Short app-provided hover help
     type?: CustomUIControlType;                  // Control type (only for leaf nodes)
     options?: number[] | string[];               // [min, max] for range, or string[] for dropdown
     content?: (string | number)[] | CustomUIMenuItem[];  // Value ref [key, channel, id] or nested items

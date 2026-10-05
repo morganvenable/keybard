@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { VialProvider, useVial } from '../../src/contexts/VialContext';
 import type { KeyboardInfo } from '../../src/types/vial.types';
 
@@ -15,6 +15,7 @@ vi.mock('../../src/services/vial.service', () => ({
     init: vi.fn(),
     load: vi.fn(),
     updateKey: vi.fn(),
+    getActiveLayerIndex: vi.fn().mockResolvedValue(0),
   },
   VialService: {
     isWebHIDSupported: vi.fn(() => true),
@@ -30,14 +31,15 @@ vi.mock('../../src/services/qmk.service', () => ({
 vi.mock('../../src/services/usb.service', () => ({
   usbInstance: {
     open: vi.fn(),
-    close: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
     getDeviceName: vi.fn(),
+    getAllLayerColors: vi.fn().mockResolvedValue([]),
   },
 }));
 
 import { fileService } from '../../src/services/file.service';
 import { usbInstance } from '../../src/services/usb.service';
-import { vialService } from '../../src/services/vial.service';
+import { VialService, vialService } from '../../src/services/vial.service';
 
 describe('VialContext - File Loading', () => {
   beforeEach(() => {
@@ -219,7 +221,7 @@ describe('VialContext - File Loading', () => {
     expect(result.current.loadedFrom).toBe('test.kbi');
   });
 
-  it('disconnect clears loadedFrom', async () => {
+  it('disconnect retains draft source identity', async () => {
     // First connect a device
     const mockDeviceInfo: KeyboardInfo = {
       rows: 5,
@@ -249,6 +251,111 @@ describe('VialContext - File Loading', () => {
       await result.current.disconnect();
     });
 
-    expect(result.current.loadedFrom).toBeNull();
+    expect(result.current.loadedFrom).toBe('Svalboard');
+    expect(result.current.connectionState).toBe('offline');
   });
+  it('does not borrow capabilities from a previously loaded target and closes USB', async () => {
+    vi.mocked(fileService.loadFile).mockResolvedValueOnce({rows: 1, cols: 1, name: 'old', macros_size: 999})
+      .mockResolvedValueOnce({rows: 2, cols: 2});
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'old.svil')); });
+    const firstSession = result.current.connectionSessionId;
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'new.svil')); });
+    expect(result.current.keyboard?.name).toBeUndefined();
+    expect(result.current.keyboard?.macros_size).toBeUndefined();
+    expect(usbInstance.close).toHaveBeenCalledTimes(2);
+    expect(result.current.connectionSessionId).toBeGreaterThan(firstSession);
+  });
+
+  it('preserves a dirty draft when target change is cancelled', async () => {
+    vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
+    act(() => result.current.setKeyboard(kb => ({...kb!, name: 'edited'})));
+    await act(async () => { await result.current.connect(); });
+    expect(usbInstance.open).not.toHaveBeenCalled();
+    expect(result.current.keyboard?.name).toBe('edited');
+    confirm.mockRestore();
+  });
+
+  it('normalizes string file failures and preserves current target', async () => {
+    vi.mocked(fileService.loadFile).mockRejectedValue('Empty file');
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await expect(result.current.loadFromFile(new File([''], 'empty.svil'))).rejects.toThrow('Empty file');
+    expect(usbInstance.close).not.toHaveBeenCalled();
+    expect(result.current.connectionSessionId).toBe(0);
+  });
+
+  it('does not mark unrelated edits saved when acknowledging an earlier snapshot', async () => {
+    vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
+    const confirmed = result.current.getKeyboardSnapshot()!;
+    act(() => result.current.setKeyboard(kb => ({...kb!, name: 'newer edit'})));
+    act(() => result.current.markAsSaved(confirmed));
+    expect(result.current.hasUnsavedChanges).toBe(true);
+  });
+
+  it('loads offline files in browsers without WebHID', async () => {
+    vi.mocked(VialService.isWebHIDSupported).mockReturnValue(false);
+    vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'offline.svil')); });
+    expect(result.current.keyboard).not.toBeNull();
+    expect(usbInstance.close).not.toHaveBeenCalled();
+    vi.mocked(VialService.isWebHIDSupported).mockReturnValue(true);
+  });
+
+  it('loads once automatically and exposes failures without a writable connection', async () => {
+    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(vialService.load).mockRejectedValueOnce(new Error('Definition read failed'));
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    await waitFor(() => expect(result.current.connectionState).toBe('error'));
+    expect(result.current.connectionError).toBe('Definition read failed');
+    expect(result.current.isConnected).toBe(false);
+    expect(vialService.load).toHaveBeenCalledTimes(1);
+    expect(usbInstance.close).toHaveBeenCalled();
+  });
+
+  it('waits for the previous write guard before opening another transport', async () => {
+    vi.mocked(usbInstance.open).mockResolvedValue(false);
+    const { result } = renderHook(() => useVial(), { wrapper });
+    let finish!: (release: (discard?: boolean) => void) => void;
+    const release = vi.fn();
+    result.current.registerTargetChangeGuard(() => new Promise(resolve => { finish = resolve; }));
+    let connecting!: Promise<boolean>;
+    act(() => { connecting = result.current.connect(); });
+    expect(usbInstance.open).not.toHaveBeenCalled();
+    await act(async () => { finish(release); await connecting; });
+    expect(usbInstance.open).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledWith(false);
+  });
+
+  it('discards old queued callbacks only after successfully switching to an offline file', async () => {
+    vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
+    const release = vi.fn();
+    const { result } = renderHook(() => useVial(), { wrapper });
+    result.current.registerTargetChangeGuard(async () => release);
+    await act(async () => { await result.current.loadFromFile(new File(['{}'], 'offline.svil')); });
+    expect(release).toHaveBeenCalledWith(true);
+  });
+
+  it('serializes maintenance with queued writes and preserves pending callbacks', async () => {
+    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(vialService.load).mockResolvedValue({rows: 1, cols: 1});
+    const { result } = renderHook(() => useVial(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    const release = vi.fn();
+    let finish!: (release: (discard?: boolean) => void) => void;
+    result.current.registerTargetChangeGuard(() => new Promise(resolve => { finish = resolve; }));
+    const operation = vi.fn().mockResolvedValue('saved');
+    let maintenance!: Promise<unknown>;
+    act(() => { maintenance = result.current.runDeviceMaintenance(operation); });
+    expect(operation).not.toHaveBeenCalled();
+    await act(async () => { finish(release); expect(await maintenance).toBe('saved'); });
+    expect(release).toHaveBeenCalledWith(false);
+  });
+
 });

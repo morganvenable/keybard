@@ -28,23 +28,23 @@ const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus
 
     return (
         <div className="relative w-full">
-            <div className="flex flex-row justify-start items-center w-full peer">
+            <div className="flex flex-row flex-wrap gap-2 justify-start items-center w-full peer">
                 {type === "text" ? (
                     <Textarea
                         ref={textareaRef}
                         value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
-                        className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
+                        className="bg-white text-black border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
                     />
                 ) : (
                     <Input
                         ref={inputRef}
                         value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
-                        className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
+                        className="bg-white text-black border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
                     />
                 )}
-                <div className="flex flex-row items-center ml-5">
+                <div className="flex flex-row items-center">
                     {type && <div className="font-medium text-gray-600">{type === "delay" ? "Delay (ms)" : type.charAt(0).toUpperCase() + type.slice(1)}</div>}
                 </div>
             </div>

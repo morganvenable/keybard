@@ -1,3 +1,5 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
+import { useChanges } from "@/contexts/ChangesContext";
 import React, { useState, useEffect } from "react";
 import { Plus, ArrowRightFromLine } from "lucide-react";
 
@@ -21,6 +23,8 @@ import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBl
 
 const CombosPanel: React.FC = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
+    const { queue } = useChanges();
+    const persistBinding = useBindingChanges();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -79,8 +83,10 @@ const CombosPanel: React.FC = () => {
                 settings: { ...keyboard.settings, [COMBO_TIMEOUT_QSID]: clamped }
             };
             setKeyboard(updated);
-            await qmkService.push(updated, COMBO_TIMEOUT_QSID);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${COMBO_TIMEOUT_QSID}`, async () => {
+                await qmkService.push(updated, COMBO_TIMEOUT_QSID);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${COMBO_TIMEOUT_QSID}` });
         } catch (err) {
             console.error("Failed to update combo timeout:", err);
         } finally {
@@ -121,12 +127,7 @@ const CombosPanel: React.FC = () => {
         const updatedKeyboard = { ...keyboard, combos: updatedCombos };
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateCombo(updatedKeyboard, index);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to toggle combo enabled:", err);
-        }
+        await persistBinding(updatedKeyboard, "combo", index);
     };
 
     const isKeyAssigned = (content: KeyContent | undefined) => {
@@ -172,7 +173,7 @@ const CombosPanel: React.FC = () => {
     // Horizontal grid layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start pt-2">
+            <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {combos.map((comboEntry, i) => {
                     const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
 
@@ -248,8 +249,8 @@ const CombosPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     A chording type solution for adding custom actions. It lets you hit multiple keys at once and produce a different effect. For instance, hitting A and B within the combo term would hit ESC instead, or have it perform even more complex tasks.
                 </DescriptionBlock>

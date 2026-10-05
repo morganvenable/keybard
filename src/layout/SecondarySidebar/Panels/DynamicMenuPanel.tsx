@@ -1,69 +1,38 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { selectPointingMenu, type PointingMenuSection } from "@/utils/pointing-menu";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { CustomUIRenderer } from "@/components/CustomUI";
 import { customValueService } from "@/services/custom-value.service";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useVial } from "@/contexts/VialContext";
 import type { CustomUIMenuItem } from "@/types/vial.types";
 
-/**
- * A custom-value SET (0x07) only updates the device's runtime value; it must be
- * followed by a SAVE (0x09) to persist to EEPROM, or the change is lost on the
- * next power cycle. We debounce the save per channel so dragging a slider (which
- * emits many onChange events) results in a single EEPROM write on settle rather
- * than one per tick.
- */
-const CUSTOM_VALUE_SAVE_DEBOUNCE_MS = 600;
-
 interface DynamicMenuPanelProps {
     menuIndex: number;
     /** When true, renders controls in a horizontal flow layout (for BottomPanel) */
     horizontal?: boolean;
+    /** Let the containing panel own scrolling when this menu is embedded. */
+    embedded?: boolean;
+    section?: PointingMenuSection;
 }
 
 /**
  * Dynamic panel that renders a VIA3 custom UI menu
  * Seeds values from kbinfo.custom_values (loaded at connect time),
- * then refreshes from USB if connected for latest state.
+ * and keeps manual drafts visible until Apply or Discard.
  * On value change, updates both the keyboard and kbinfo.custom_values.
  */
-const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false }) => {
-    const { keyboard, isConnected } = useVial();
+const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false, embedded = false, section = "all" }) => {
+    const { keyboard, setKeyboard, isConnected } = useVial();
     const { queue } = useChanges();
     const [values, setValues] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Pending debounced EEPROM saves, keyed by channel.
-    const saveTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-
     // Get the menu for this panel
     const menu = keyboard?.menus?.[menuIndex];
-
-    // Debounced persist of a channel's custom values to EEPROM.
-    const scheduleSave = useCallback((channel: number) => {
-        const timers = saveTimersRef.current;
-        const existing = timers.get(channel);
-        if (existing) clearTimeout(existing);
-        timers.set(channel, setTimeout(() => {
-            timers.delete(channel);
-            customValueService.save(channel).catch(err =>
-                console.error(`Failed to persist custom values (channel ${channel}):`, err));
-        }, CUSTOM_VALUE_SAVE_DEBOUNCE_MS));
-    }, []);
-
-    // Flush any pending saves immediately (e.g. on unmount) so a change made
-    // right before the panel closes still reaches EEPROM.
-    useEffect(() => {
-        const timers = saveTimersRef.current;
-        return () => {
-            for (const [channel, timer] of timers) {
-                clearTimeout(timer);
-                customValueService.save(channel).catch(err =>
-                    console.error(`Failed to persist custom values (channel ${channel}):`, err));
-            }
-            timers.clear();
-        };
-    }, []);
+    const displayItems = useMemo(() => selectPointingMenu(
+        (menu?.content ?? []) as CustomUIMenuItem[], section,
+    ), [menu, section]);
 
     // Load values when panel opens or keyboard connects
     useEffect(() => {
@@ -81,11 +50,6 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
                     customValueService.populateCacheFromEntries(keyboard.custom_values);
                 }
 
-                // If connected: fetch fresh values from USB for latest state
-                if (isConnected) {
-                    await customValueService.loadMenuValues([menu]);
-                }
-
                 setValues(customValueService.getCache());
             } catch (err) {
                 console.error("Failed to load custom values:", err);
@@ -98,63 +62,37 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
         loadValues();
     }, [menu, isConnected, keyboard?.custom_values]);
 
-    // Handle value changes - update USB, cache, and kbinfo.custom_values
+    // Draft and device writes share the same queue; persistence completes before
+    // the queue acknowledges success. Reopening the panel preserves manual drafts.
     const handleValueChange = useCallback(async (key: string, value: number) => {
-        if (!menu || !isConnected) return;
-
-        // Optimistically update local state so UI reflects change immediately
+        if (!menu || !isConnected || !keyboard) return;
+        const found = customValueService.extractAllItemsWithRefs([menu]).find(({ ref }) => ref.key === key);
+        if (!found) { setError(`Unknown setting: ${key}`); return; }
+        const width = customValueService.getByteWidth(found.item);
         setValues(prev => new Map(prev).set(key, value));
+        setKeyboard(current => {
+            if (!current) return current;
+            const entries = [...(current.custom_values ?? [])];
+            const index = entries.findIndex(entry => entry.key === key);
+            const entry = { key, channel: found.ref.channel, valueId: found.ref.valueId, data: customValueService.intToBytes(value, width) };
+            if (index >= 0) entries[index] = { ...entries[index], ...entry };
+            else entries.push(entry);
+            return { ...current, custom_values: entries };
+        });
+        await queue(`Setting ${key}`, async () => {
+            await customValueService.setValue(key, value, [menu]);
+            await customValueService.save(found.ref.channel);
+        }, { type: "custom_ui", writeKey: `custom:${key}` });
+    }, [menu, isConnected, queue, keyboard, setKeyboard]);
 
-        await queue(
-            `custom_ui_${key}`,
-            async () => {
-                try {
-                    await customValueService.setValue(key, value, [menu]);
-
-                    // Persist to EEPROM so the change survives a power cycle.
-                    // A SET alone only updates the runtime value. Debounced per
-                    // channel so slider drags don't thrash the flash.
-                    const itemsWithRefs = customValueService.extractAllItemsWithRefs([menu]);
-                    const found = itemsWithRefs.find(({ ref }) => ref.key === key);
-                    if (found) scheduleSave(found.ref.channel);
-
-                    // Update kbinfo.custom_values so export stays current
-                    if (keyboard?.custom_values) {
-                        const entry = keyboard.custom_values.find(e => e.key === key);
-                        if (entry) {
-                            const width = found ? customValueService.getByteWidth(found.item) : entry.data.length;
-                            entry.data = customValueService.intToBytes(value, width);
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Failed to set ${key}:`, err);
-                }
-            },
-            { type: "custom_ui" as any }
-        );
-    }, [menu, isConnected, queue, keyboard, scheduleSave]);
-
-    // Handle button clicks (special actions)
     const handleButtonClick = useCallback(async (key: string) => {
-        if (!menu || !isConnected) return;
-
-        // For buttons, we typically send a value of 1 to trigger the action
-        try {
-            await customValueService.setValue(key, 1, [menu]);
-
-            // Persist to EEPROM (debounced per channel), same as value changes.
-            const itemsWithRefs = customValueService.extractAllItemsWithRefs([menu]);
-            const found = itemsWithRefs.find(({ ref }) => ref.key === key);
-            if (found) scheduleSave(found.ref.channel);
-        } catch (err) {
-            console.error(`Failed to execute ${key}:`, err);
-        }
-    }, [menu, isConnected, scheduleSave]);
+        await handleValueChange(key, 1);
+    }, [handleValueChange]);
 
     // No menu found
     if (!menu) {
         return (
-            <section className="h-full flex flex-col items-center justify-center p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col items-center justify-center p-4`}>
                 <p className="text-muted-foreground">Menu not found</p>
             </section>
         );
@@ -163,7 +101,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Not connected
     if (!isConnected) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-muted-foreground">Connect to a keyboard to view settings</p>
             </section>
@@ -173,7 +111,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Loading
     if (loading) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-muted-foreground">Loading settings...</p>
             </section>
@@ -183,7 +121,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Error
     if (error) {
         return (
-            <section className="h-full flex flex-col p-4">
+            <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
                 <p className="text-red-500">{error}</p>
             </section>
@@ -195,9 +133,9 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     // Vertical mode: title on top, controls stacked below
     if (horizontal) {
         return (
-            <section className="h-full overflow-auto px-2 py-1">
+            <section className={embedded ? "px-2 py-1" : "px-2 py-1"}>
                 <CustomUIRenderer
-                    items={menu.content as CustomUIMenuItem[]}
+                    items={displayItems}
                     values={values}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}
@@ -209,10 +147,10 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     }
 
     return (
-        <section className="h-full flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto pb-4">
+        <section className={embedded ? "" : "flex flex-col"}>
+            <div className={embedded ? "pb-4" : "pb-4"}>
                 <CustomUIRenderer
-                    items={menu.content as CustomUIMenuItem[]}
+                    items={displayItems}
                     values={values}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}

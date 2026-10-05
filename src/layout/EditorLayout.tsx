@@ -1,14 +1,16 @@
+import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
+import { isEditorInput } from "@/utils/editor-input";
 import * as React from "react";
 import TrainerPage from "@/features/trainer/TrainerPage";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
-import { DragProvider, useDrag, DragItem } from "@/contexts/DragContext";
+import { DragProvider, useDrag } from "@/contexts/DragContext";
 import { DragOverlay } from "@/components/DragOverlay";
-import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
-import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
-import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/BindingEditorContainer";
+import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH, getDetailPanelHeight } from "./SecondarySidebar/SecondarySidebar";
+import { BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
+
 
 
 import { useVial } from "@/contexts/VialContext";
@@ -18,7 +20,6 @@ import KeyboardViewInstance from "./KeyboardViewInstance";
 import LayersPlusIcon from "@/components/icons/LayersPlusIcon";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import AppSidebar from "./Sidebar";
-import { usbInstance } from "@/services/usb.service";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
 import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
@@ -31,14 +32,13 @@ import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { THUMB_OFFSET_U, MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useChanges } from "@/hooks/useChanges";
 // import { PanelBottom, PanelRight, X } from "lucide-react";
-import { X } from "lucide-react";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
-import EditorSidePanel, { PickerMode } from "./SecondarySidebar/components/EditorSidePanel";
+
 import { InfoPanelWidget } from "@/components/InfoPanelWidget";
 import { EditorControls } from "./EditorControls";
 import { getBackdropLayerFromElements } from "@/utils/layer-drop-target";
@@ -55,27 +55,12 @@ import {
 } from "./layer-scene";
 
 const EditorLayout = () => {
-    const { assignKeycodeTo } = useKeyBinding();
-
-    const handleUnhandledDrop = React.useCallback((item: DragItem, event: MouseEvent) => {
-        if (item.row !== undefined && item.col !== undefined && item.layer !== undefined) {
-            const targetKeycode = event.altKey ? "KC_TRNS" : "KC_NO";
-            console.log(`Unhandled drop for keyboard key, assigning ${targetKeycode}`, item);
-            assignKeycodeTo({
-                type: "keyboard",
-                row: item.row,
-                col: item.col,
-                layer: item.layer
-            }, targetKeycode);
-        }
-    }, [assignKeycodeTo]);
-
     return (
         <SidebarProvider defaultOpen={false}>
             <PanelsProvider>
                 <LayoutSettingsProvider>
                     <LayerProvider>
-                        <DragProvider onUnhandledDrop={handleUnhandledDrop}>
+                        <DragProvider>
                             <EditorLayoutInner />
                             <DragOverlay />
                         </DragProvider>
@@ -92,15 +77,12 @@ const EditorLayoutInner = () => {
         selectedLayer: number;
     };
 
-    const { keyboard, setKeyboard, updateKey, isConnected /*, resetToOriginal*/ } = useVial();
+    const { keyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
     const {
         keyVariant,
         layoutMode,
-        setSecondarySidebarOpen,
-        setPrimarySidebarExpanded,
-        registerPrimarySidebarControl,
         setMeasuredDimensions,
         is3DMode,
         fingerClusterSqueeze,
@@ -961,7 +943,8 @@ const EditorLayoutInner = () => {
         if (!container) return;
 
         const measureSpace = () => {
-            const containerWidth = container.clientWidth;
+            const canvas = viewsScrollRef.current;
+            const containerWidth = canvas?.clientWidth ?? container.clientWidth;
             const height = container.clientHeight;
 
             // Track container height for dynamic spacing
@@ -970,7 +953,7 @@ const EditorLayoutInner = () => {
             // Report measured dimensions to context for auto-sizing
             setMeasuredDimensions({
                 containerWidth,
-                containerHeight: height,
+                containerHeight: canvas?.clientHeight ?? height,
                 keyboardWidths,
                 keyboardHeights,
                 rawKeyboardWidths,
@@ -983,18 +966,20 @@ const EditorLayoutInner = () => {
         // Set up ResizeObserver for dynamic updates
         const resizeObserver = new ResizeObserver(measureSpace);
         resizeObserver.observe(container);
+        if (viewsScrollRef.current) resizeObserver.observe(viewsScrollRef.current);
 
         return () => resizeObserver.disconnect();
     }, [keyboardWidths, keyboardHeights, rawKeyboardWidths, setMeasuredDimensions]);
 
 
-    const { queue } = useChanges();
+    const { apply: applyClipboardLayer, clipboardError, clearClipboardError } = useLayerClipboardActions();
+    const [layerPasteError, setLayerPasteError] = React.useState<string | null>(null);
 
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Check for Ctrl+V (or Cmd+V on Mac)
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            if (!e.defaultPrevented && !e.repeat && !isEditorInput(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 // Only handle if we have a layer in clipboard
                 if (layerClipboard) {
                     e.preventDefault();
@@ -1012,87 +997,12 @@ const EditorLayoutInner = () => {
         return svalService.getLayerName(keyboard, layerIndex);
     }, [keyboard]);
 
-    const applyLayerToTarget = React.useCallback((sourceLayer: LayerEntry, targetLayer: number) => {
-        if (!keyboard || !keyboard.keymap) return;
-
-        const sourceKeymap = sourceLayer.keymap;
-        const sourceLayerColor = sourceLayer.layerColor;
-        const sourceLedColor = sourceLayer.ledColor;
-        const targetLayerKeymap = keyboard.keymap[targetLayer] || [];
-        const cols = keyboard.cols || MATRIX_COLS;
-
-        // Create ONE copy and batch all changes to avoid React state batching issues
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        if (!updatedKeyboard.keymap[targetLayer]) {
-            updatedKeyboard.keymap[targetLayer] = [];
-        }
-
-        // Copy cosmetic layer color if the source layer has one
-        if (sourceLayerColor) {
-            if (!updatedKeyboard.cosmetic) {
-                updatedKeyboard.cosmetic = {};
-            }
-            if (!updatedKeyboard.cosmetic.layer_colors) {
-                updatedKeyboard.cosmetic.layer_colors = {};
-            }
-            updatedKeyboard.cosmetic.layer_colors[targetLayer] = sourceLayerColor;
-        }
-
-        // Copy LED hardware color if the source layer has one
-        if (sourceLedColor) {
-            if (!updatedKeyboard.layer_colors) {
-                updatedKeyboard.layer_colors = [];
-            }
-            // Ensure array is long enough
-            while (updatedKeyboard.layer_colors.length <= targetLayer) {
-                updatedKeyboard.layer_colors.push({ hue: 0, sat: 0, val: 0 });
-            }
-            updatedKeyboard.layer_colors[targetLayer] = { ...sourceLedColor };
-
-            // Update hardware if connected
-            if (isConnected) {
-                try {
-                    usbInstance.setLayerColor(targetLayer, sourceLedColor.hue, sourceLedColor.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color in applyLayerToTarget:", e);
-                }
-            }
-        }
-
-        // Collect all changes and apply to the single copy
-        for (let i = 0; i < targetLayerKeymap.length && i < sourceKeymap.length; i++) {
-            const row = Math.floor(i / cols);
-            const col = i % cols;
-            const newValue = sourceKeymap[i];
-            const currentValue = targetLayerKeymap[i];
-            const matrixPos = row * cols + col;
-
-            if (newValue !== currentValue) {
-                // Apply to the single copy
-                updatedKeyboard.keymap[targetLayer][matrixPos] = newValue;
-
-                // Queue change for push to device
-                const changeDesc = `key_${targetLayer}_${row}_${col}`;
-                queue(
-                    changeDesc,
-                    async () => {
-                        await updateKey(targetLayer, row, col, newValue);
-                    },
-                    {
-                        type: "key",
-                        layer: targetLayer,
-                        row,
-                        col,
-                        keycode: newValue,
-                        previousValue: currentValue,
-                    }
-                );
-            }
-        }
-
-        // Update state ONCE with all changes
-        setKeyboard(updatedKeyboard);
-    }, [keyboard, queue, updateKey, setKeyboard]);
+    const applyLayerToTarget = (sourceLayer: LayerEntry, targetLayer: number) => {
+        clearClipboardError();
+        setLayerPasteError(null);
+        try { applyClipboardLayer(sourceLayer, targetLayer); }
+        catch (error) { setLayerPasteError(error instanceof Error ? error.message : "Could not paste the layer."); }
+    };
 
     // Handler for when clipboard paste is confirmed
     const handlePasteConfirm = React.useCallback(() => {
@@ -1172,34 +1082,21 @@ const EditorLayoutInner = () => {
 
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    const { isMobile, state, activePanel, itemToEdit, setItemToEdit, handleCloseEditor } = usePanels();
-
+    const { isMobile, state, activePanel, itemToEdit } = usePanels();
     const isTrainer = activePanel === "trainer";
     const [trainerVisited, setTrainerVisited] = React.useState(isTrainer);
-    React.useEffect(() => { if (isTrainer) setTrainerVisited(true); }, [isTrainer]);
+    React.useEffect(() => { if (isTrainer) { setTrainerVisited(true); clearSelection(); } }, [isTrainer, clearSelection]);
 
     // Editor overlay state for bottom bar mode
-    const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
-    const [isClosingEditor, setIsClosingEditor] = React.useState(false);
+
+
 
     // Check if we should show the editor overlay in bottom bar mode
     const showEditorOverlay = layoutMode === "bottombar" && itemToEdit !== null &&
         ["tapdances", "combos", "macros", "overrides", "altrepeat", "leaders"].includes(activePanel || "");
 
-    // Reset picker mode when editor closes
-    React.useEffect(() => {
-        if (!showEditorOverlay) {
-            const timeout = setTimeout(() => setPickerMode("keyboard"), 500);
-            return () => clearTimeout(timeout);
-        }
-    }, [showEditorOverlay]);
-
     const [showInfoPanel, setShowInfoPanel] = React.useState(false);
     const [gitBranchLabel, setGitBranchLabel] = React.useState<string>(__GIT_BRANCH__);
-
-    React.useEffect(() => {
-        if (itemToEdit === null) setIsClosingEditor(false);
-    }, [itemToEdit]);
 
     React.useEffect(() => {
         if (!import.meta.env.DEV) return;
@@ -1228,67 +1125,14 @@ const EditorLayoutInner = () => {
     const showDetailsSidebar = !isTrainer && useSidebarLayout && !isMobile && state === "expanded";
     const showBottomPanel = !isTrainer && useBottomLayout && state === "expanded";
 
-    // Notify context when a panel is selected (wants to be shown)
-    // This is independent of layout mode - used to calculate if sidebar mode CAN work
+    const [isConstrainedViewport, setIsConstrainedViewport] = React.useState(() => window.innerWidth < 1100);
     React.useEffect(() => {
-        // A panel is "open" if user has selected one, regardless of current layout mode
-        const panelIsSelected = state === "expanded";
-        setSecondarySidebarOpen(panelIsSelected);
-    }, [state, setSecondarySidebarOpen]);
+        const update = () => setIsConstrainedViewport(window.innerWidth < 1100);
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
-    // Track the previous sidebar state to detect user-initiated toggles
-    const prevSidebarStateRef = React.useRef<string | undefined>(undefined);
-    const autoToggleInProgressRef = React.useRef(false);
-
-    React.useEffect(() => {
-        if (primarySidebar?.state) {
-            const prevState = prevSidebarStateRef.current;
-            const newState = primarySidebar.state;
-            const stateChanged = prevState !== newState;
-            prevSidebarStateRef.current = newState;
-
-            // Detect if this is a manual toggle (state changed but not by auto-layout)
-            const isManualToggle = stateChanged && prevState !== undefined && !autoToggleInProgressRef.current;
-
-            // Always sync the expanded state to context (not just on change)
-            // This ensures the ref stays in sync even if initial state differs
-            setPrimarySidebarExpanded(newState === "expanded", isManualToggle);
-        }
-    }, [primarySidebar?.state, setPrimarySidebarExpanded]);
-
-    // Register callbacks for auto-layout to collapse/expand the sidebar
-    // Use refs to avoid recreating the callbacks
-    const collapseSidebarRef = React.useRef(() => {
-        autoToggleInProgressRef.current = true;
-        primarySidebar.setOpen(false);
-        // Reset flag after state change propagates
-        setTimeout(() => { autoToggleInProgressRef.current = false; }, 50);
-    });
-    const expandSidebarRef = React.useRef(() => {
-        autoToggleInProgressRef.current = true;
-        primarySidebar.setOpen(true);
-        // Reset flag after state change propagates
-        setTimeout(() => { autoToggleInProgressRef.current = false; }, 50);
-    });
-    collapseSidebarRef.current = () => {
-        autoToggleInProgressRef.current = true;
-        primarySidebar.setOpen(false);
-        setTimeout(() => { autoToggleInProgressRef.current = false; }, 50);
-    };
-    expandSidebarRef.current = () => {
-        autoToggleInProgressRef.current = true;
-        primarySidebar.setOpen(true);
-        setTimeout(() => { autoToggleInProgressRef.current = false; }, 50);
-    };
-
-    React.useEffect(() => {
-        registerPrimarySidebarControl(
-            () => collapseSidebarRef.current(),
-            () => expandSidebarRef.current()
-        );
-    }, [registerPrimarySidebarControl]);
-
-    const contentOffset = showDetailsSidebar
+    const contentOffset = showDetailsSidebar && !isConstrainedViewport
         ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH} + 6px)`
         : primaryOffset ?? undefined;
 
@@ -1346,31 +1190,37 @@ const EditorLayoutInner = () => {
         return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, available));
     }, [showBottomPanel, containerHeight, keyboardHeights, keyVariant, dynamicTopPadding]);
 
+    const bottomPanelHeight = getDetailPanelHeight(activePanel, dynamicBottomPanelHeight);
+
     const contentStyle = React.useMemo<React.CSSProperties>(
         () => ({
             marginLeft: contentOffset,
             transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1), padding-bottom 300ms ease-in-out",
             willChange: "margin-left, padding-bottom",
             // Add bottom padding when bottom panel is shown
-            paddingBottom: showBottomPanel ? dynamicBottomPanelHeight : 0,
+            paddingBottom: showBottomPanel ? bottomPanelHeight : 0,
         }),
-        [contentOffset, showBottomPanel, dynamicBottomPanelHeight]
+        [contentOffset, showBottomPanel, bottomPanelHeight]
     );
 
     return (
-        <div className={cn("flex flex-1 h-screen max-w-screen p-0", !isTrainer && "min-w-[850px]", showDetailsSidebar && "bg-white")}>
+        <div className={cn("flex flex-1 h-dvh w-full min-w-0 overflow-hidden p-0", showDetailsSidebar && "bg-white")}>
+            {(layerPasteError || clipboardError) && <div role="alert" className="fixed top-2 right-2 z-[100] rounded border bg-white p-3 text-sm text-red-700">
+                {layerPasteError || clipboardError}
+                <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
+            </div>}
             <AppSidebar />
             {(trainerVisited || isTrainer) && <div hidden={!isTrainer} className="trainer-shell-content" style={{ marginLeft: primaryOffset }}>
                 {primarySidebar.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
                 <TrainerPage active={isTrainer} />
             </div>}
             <div className={isTrainer ? "hidden" : "contents"}>
-            {/* Render SecondarySidebar only in sidebar mode */}
-            {useSidebarLayout && <SecondarySidebar />}
+            {/* Keep the panel mounted when its placement changes. */}
+            <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />
             <div
                 ref={contentContainerRef}
                 className={cn(
-                    "relative flex-1 px-4 h-screen max-h-screen flex flex-col max-w-full w-full overflow-hidden bg-kb-gray border-none",
+                    "relative flex-1 min-w-0 px-2 sm:px-4 h-dvh max-h-dvh flex flex-col max-w-full overflow-hidden bg-kb-gray border-none",
                     isDraggingLayer && "ring-4 ring-inset ring-blue-400 ring-opacity-50"
                 )}
                 style={contentStyle}
@@ -1393,10 +1243,13 @@ const EditorLayoutInner = () => {
 
                 <div
                     className={cn(
-                        "flex-1 overflow-y-auto flex flex-col items-center max-w-full relative",
+                        "keyboard-canvas-scroll flex-1 min-h-0 min-w-0 overflow-auto overscroll-contain flex flex-col items-start max-w-full relative pb-16",
                         isMultiLayersActive && !isScene3D && "pt-11"
                     )}
                     ref={viewsScrollRef}
+                    role="region"
+                    aria-label="Keyboard canvas"
+                    tabIndex={0}
                 >
                     {threeDTopScrollReservePx > 0 && (
                         <div
@@ -1433,12 +1286,12 @@ const EditorLayoutInner = () => {
 
                                 return (
                                     <div
-                                        className="relative w-full flex flex-col items-center"
-                                        style={isScene3D ? {
+                                        className="relative w-full shrink-0 flex flex-col items-center"
+                                        style={{ minWidth: rawKeyboardWidths[keyVariant] - 2 * fingerClusterSqueeze * currentUnitSize, ...(isScene3D ? {
                                             perspective: "1200px",
                                             transformStyle: "preserve-3d",
                                             paddingBottom: isOverviewSceneActive ? `${totalViewShiftY + 50}px` : undefined,
-                                        } : undefined}
+                                        } : {}) }}
                                     >
                                         {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
                                         {isScene3D && isOverviewSceneActive && (
@@ -1594,54 +1447,9 @@ const EditorLayoutInner = () => {
                         </div>
                     )}
 
-                    {/* Editor overlay for bottom bar mode - picker tabs + editor */}
-                    {useBottomLayout && (
-                        <div
-                            className={cn(
-                                "absolute inset-x-0 bottom-0 z-[60] transition-all duration-300 ease-in-out flex items-end justify-center gap-0 max-h-full",
-                                showEditorOverlay ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                            )}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Picker selector tabs - vertical on the left */}
-                            <div className="flex-shrink-0 bg-white border-r border-gray-200 shadow-lg self-stretch">
-                                <EditorSidePanel
-                                    activeTab={pickerMode}
-                                    onTabChange={setPickerMode}
-                                    showMacros={activePanel !== "macros"}
-                                />
-                            </div>
-
-                            {/* Editor Panel - minimum height matches picker, can grow for content */}
-                            <div className={cn(
-                                "bg-kb-gray-medium flex-shrink-0 shadow-[8px_0_24px_rgba(0,0,0,0.15),-2px_0_8px_rgba(0,0,0,0.1)] min-h-[280px] max-h-full overflow-auto self-stretch",
-                                activePanel === "overrides" ? "w-[700px]" : "w-[500px]"
-                            )}>
-                                {itemToEdit !== null && (
-                                    <div className="relative">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsClosingEditor(true);
-                                                setTimeout(() => {
-                                                    handleCloseEditor();
-                                                    setItemToEdit(null);
-                                                }, 100);
-                                            }}
-                                            className="absolute top-4 right-4 p-1 rounded hover:bg-black/10 transition-colors z-10"
-                                        >
-                                            <X className="h-5 w-5 text-gray-500" />
-                                        </button>
-                                        <BindingEditorContainer shouldClose={isClosingEditor} inline />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
                     {/* Controls - bottom left corner for bottom bar mode (same style as sidebar mode) */}
                     {useBottomLayout && !showEditorOverlay && (
-                        <div className="absolute bottom-4 left-4 z-10">
+                        <div className="fixed right-4 z-10 max-w-[calc(100vw-5rem)]" style={{ bottom: showBottomPanel ? `calc(${typeof bottomPanelHeight === "number" ? `${bottomPanelHeight}px` : bottomPanelHeight} + 16px)` : 16 }}>
                             <EditorControls
                                 showInfoPanel={showInfoPanel}
                                 setShowInfoPanel={setShowInfoPanel}
@@ -1660,7 +1468,7 @@ const EditorLayoutInner = () => {
                                 </div>
                             )}
 
-                            <div className="absolute bottom-9 right-[37px] flex flex-col items-end gap-1 pointer-events-none">
+                            <div className="absolute bottom-4 right-2 max-w-[calc(100%-4rem)] flex flex-col items-end gap-1 pointer-events-none">
                                 <div className="pointer-events-auto">
                                     <EditorControls
                                         showInfoPanel={showInfoPanel}
@@ -1678,8 +1486,6 @@ const EditorLayoutInner = () => {
                     )
                 }
             </div >
-            {/* Render BottomPanel at root level so it spans full width */}
-            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} height={dynamicBottomPanelHeight} />}
 
             {/* Picked Key Info Panel Display (Floating near bottom left button) */}
             {

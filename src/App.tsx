@@ -37,8 +37,8 @@ export const useNavigation = () => {
 
 // Wrapper to connect VialContext's markAsSaved to ChangesProvider
 const ChangesProviderWithVial = ({ children }: { children: ReactNode }) => {
-    const { markAsSaved } = useVial();
-    return <ChangesProvider onPush={markAsSaved}>{children}</ChangesProvider>;
+    const { markAsSaved, getKeyboardSnapshot, isConnected, connectionSessionId, registerTargetChangeGuard } = useVial();
+    return <ChangesProvider captureSave={() => { const snapshot = getKeyboardSnapshot(); return () => { if (snapshot) markAsSaved(snapshot); }; }} canWrite={isConnected} sessionKey={connectionSessionId} registerTargetChangeGuard={registerTargetChangeGuard}>{children}</ChangesProvider>;
 };
 
 const NavigationProvider = ({ children }: { children: ReactNode }) => {

@@ -1,4 +1,5 @@
 import React from "react";
+import { Plus } from "lucide-react";
 import { Key } from "@/components/Key";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -88,10 +89,14 @@ const TapdancePanel: React.FC = () => {
         );
     };
 
+    const emptyIndex = tapdances.findIndex(td =>
+        [td?.tap, td?.hold, td?.taphold, td?.doubletap].every(key => !key || key === "KC_NO")
+    );
+
     // Horizontal grid layout for bottom panel
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 h-full items-start pt-2">
+            <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {tapdances.map((tdEntry, i) => {
                     const td = tdEntry || ({} as any);
                     const states = [
@@ -157,6 +162,16 @@ const TapdancePanel: React.FC = () => {
                         </div>
                     );
                 })}
+                {emptyIndex >= 0 && (
+                    <button
+                        type="button"
+                        title="Add new tap dance"
+                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        onClick={() => handleEdit(emptyIndex)}
+                    >
+                        <Plus className="w-6 h-6 text-gray-400" />
+                    </button>
+                )}
                 {tapdances.filter(td => {
                     const states = [td?.tap, td?.hold, td?.taphold, td?.doubletap];
                     return states.some(k => k && k !== "KC_NO");
@@ -171,8 +186,8 @@ const TapdancePanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <div className="space-y-3 pt-0 pb-8 relative h-full max-h-full flex flex-col">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <div className="space-y-3 pt-0 pb-8 relative flex flex-col">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Allows a single key to perform multiple, different actions based on the number of times it is tapped in sequence (e.g., tap once for 'A', twice for 'B', or hold for a modifier).
                 </DescriptionBlock>

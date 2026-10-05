@@ -27,7 +27,7 @@ const fakeDevice = (productName: string, productId: number, collections: Array<[
 }) as unknown as HIDDevice;
 
 describe('listPermittedDevices', () => {
-    it('keeps one entry per keyboard whose interface matches a filter', async () => {
+    it('preserves distinct identical keyboards whose interfaces match', async () => {
         const hid = navigator.hid as unknown as { getDevices: ReturnType<typeof vi.fn> };
         hid.getDevices.mockResolvedValue([
             fakeDevice('Svalboard ScanLab', 0x4044, [[0xff31, 0x74]]),   // console interface: no
@@ -37,7 +37,7 @@ describe('listPermittedDevices', () => {
             fakeDevice('lightly', 0x4049, [[0xff61, 0x62]]),             // duplicate interface entry
         ]);
         const devices = await listPermittedDevices();
-        expect(devices.map((d) => d.productName)).toEqual(['Svalboard ScanLab', 'lightly']);
+        expect(devices.map((d) => d.productName)).toEqual(['Svalboard ScanLab', 'lightly', 'lightly']);
     });
 });
 
@@ -45,6 +45,7 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vial.isConnected = false;
+        vial.isWebHIDSupported = true;
     });
 
     it('lists permitted keyboards and opens one without the chooser', async () => {
@@ -66,6 +67,26 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         await waitFor(() => expect((navigator.hid as unknown as { getDevices: ReturnType<typeof vi.fn> }).getDevices).toHaveBeenCalled());
         expect(screen.queryByTestId('known-devices')).not.toBeInTheDocument();
     });
+    it('explains unsupported connections while still allowing offline files and demo', async () => {
+        vial.isWebHIDSupported = false;
+        render(<ConnectKeyboard />);
+        expect(screen.getByText('Browser Not Supported')).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: 'Connect Keyboard'})).toBeDisabled();
+        expect(screen.getByRole('button', {name: 'Load File'})).toBeEnabled();
+        expect(screen.getByRole('button', {name: 'QWERTY Example'})).toBeEnabled();
+        await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
+    });
+
+    it('shows file errors as alerts without reconnecting on click', async () => {
+        vial.loadFromFile.mockRejectedValueOnce('Empty file');
+        const {container} = render(<ConnectKeyboard />);
+        fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File([''], 'empty.svil')]}});
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Empty file');
+        fireEvent.click(alert);
+        expect(vial.connect).not.toHaveBeenCalled();
+    });
+
 });
 
 // The host must not add launchers or connection-policy copy to Keybard's landing page.

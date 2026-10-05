@@ -63,8 +63,11 @@ const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange, showMac
                         <Tooltip key={i.panel}>
                             <TooltipTrigger asChild>
                                 <button
+                                    type="button"
+                                    aria-label={i.title}
+                                    aria-pressed={activeTab === i.panel}
                                     className={cn(
-                                        "cursor-pointer transition-colors px-3 py-2 rounded-md flex items-center gap-2",
+                                        "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors px-3 py-2 rounded-md flex items-center gap-2",
                                         activeTab === i.panel
                                             ? "bg-black text-white"
                                             : "text-gray-500 hover:text-slate-900 hover:bg-gray-100"
@@ -98,10 +101,13 @@ const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange, showMac
                 {visibleIcons.map((i) => (
                     <Tooltip key={i.panel}>
                         <TooltipTrigger asChild>
-                            <div
+                            <button
+                                type="button"
+                                aria-label={i.title}
+                                aria-pressed={activeTab === i.panel}
                                 key={i.panel}
                                 className={cn(
-                                    "cursor-pointer transition-colors px-2 py-3 h-10 w-10 items-center justify-center flex",
+                                    "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors px-2 py-3 h-10 w-10 items-center justify-center flex",
                                     activeTab === i.panel ? "text-slate-900" : "text-gray-400 hover:text-slate-900"
                                 )}
                                 onClick={() => {
@@ -111,7 +117,7 @@ const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange, showMac
                                 }}
                             >
                                 {i.icon}
-                            </div>
+                            </button>
                         </TooltipTrigger>
                         <TooltipContent side="right">
                             {i.title}

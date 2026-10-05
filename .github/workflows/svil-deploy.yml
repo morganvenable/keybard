@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'morganvenable/keybard-ng' && github.ref == 'refs/heads/viable-protocol-migration'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

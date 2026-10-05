@@ -1,6 +1,6 @@
 # Trainer/host implementation validation — 2026-10-05
 
-Branch: `feat/trainer-workspace`, based on Keybard `origin/main` e7e9f3d plus the isolated architecture/mockup commits. Existing Sval Trainer and context companion implementations were not modified.
+Branch: `feat/trainer-workspace`, now based on production `svalboard/keybard` main `28aa05a`. The initial integration incorrectly used the obsolete fork main `e7e9f3d`; the production migration below supersedes that base. Existing Sval Trainer and context companion implementations were not modified.
 
 Implemented a native Qt/Python tray host for this first runnable increment, retaining the proven read-only reader/worker from Sval Trainer. This is an implementation choice for rapid native validation; the long-term framework choice in the architecture proposal remains open. All keyboard rendering is React/SVG shared by Keybard and the resident webview.
 
@@ -42,3 +42,11 @@ Build and all 430 web tests pass. All 30 companion tests pass on Windows, includ
 Measured the original Windows overlay polling at approximately 94 ms per HTTP cycle (about 3 ms request duration), in addition to the worker's 40 ms post-read pause. Native overlays now receive changed snapshots directly through their local Qt webview, with idle heartbeats and an initial HTTP snapshot for bootstrapping/recovery. Ordinary browser previews retain their prior polling cadence. Device polling targets an 8 ms cycle including read time; slow device replies can extend it.
 
 A temporary Windows native surface received 15 synthetic layer transitions, without any device writes. Delivery through two animation-frame callbacks averaged 17.7 ms (4.1–32.9 ms); only one initial HTTP state request occurred. This measures the local renderer path, not physical key-to-photon latency. The real host was restarted and reconnected to the main board. Regression tests cover direct native updates and layout caching without recurring native HTTP polling, immediate publishing of changed states, and idle heartbeat throttling.
+
+## Production base correction
+
+Merged current production `svalboard/keybard` main `28aa05a`, retaining its Sval v2/v3 support, connection-state handling, current panel layouts, and stationary sidebar icons. VialContext, the protocol service, landing component, and MainScreen match production exactly. Removed the obsolete firmware guard and redirect tests inherited from the old fork. Trainer remains below Layouts with its existing state preservation and native renderer.
+
+Production build and all 611 tests pass. Browser validation loaded the example through the standard landing page and exercised all 15 sidebar destinations, returning to Trainer with its practice state retained and no uncaught errors.
+
+Deprecated the old fork main by archiving `e7e9f3d` at `archive/main-before-production-alignment-20261005`. GitHub prohibits force-pushes, so replacement commit `7b51ee5` merges both histories with a tree exactly matching production `28aa05a`; the atomic, exact-tip-checked push preserved branch protections. Trainer work remains isolated on its feature branch.

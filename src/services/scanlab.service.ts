@@ -1,3 +1,4 @@
+import { developerSettingsCopy } from "@/utils/developer-settings-copy";
 // Scan Lab service: drives the firmware's matrix-timing characterization engine.
 // Wire format: sval-qmk keyboards/svalboard/docs/scan-lab.md
 import { SvilUSB, usbInstance } from "./usb.service";
@@ -25,11 +26,11 @@ export const DEEP_CLOCK_CHOICES_MHZ = [48, 24, 12] as const;
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */
 export type IdleFeature = "pointerRest" | "rgbDim" | "cpuSleep" | "lowClock" | "longNap";
 export const IDLE_FEATURES: ReadonlyArray<{ key: IdleFeature; id: number; cacheKey: string; label: string; hint: string }> = [
-    { key: "pointerRest", id: ID_IDLE_POINTER_REST, cacheKey: "id_idle_pointer_rest", label: "Trackball rest mode", hint: "The sensor drops to its own rest modes when the ball is still (≈21 → 3 → 0.06 mA) and wakes itself on motion." },
-    { key: "rgbDim", id: ID_IDLE_RGB_DIM, cacheKey: "id_idle_rgb_dim", label: "Dim RGB when idle", hint: "Quarter brightness in light idle, off in deep idle, restored on the first input." },
-    { key: "cpuSleep", id: ID_IDLE_CPU_SLEEP, cacheKey: "id_idle_cpu_sleep", label: "Sleep between scans", hint: "The core parks in WFI until the next frame is due instead of spinning. Needs a frame period." },
-    { key: "lowClock", id: ID_IDLE_LOW_CLOCK, cacheKey: "id_idle_low_clock", label: "Low clock in deep idle", hint: "Deep idle lowers the system clock (48 or 24 MHz from the USB PLL, or the 12 MHz crystal) and powers the system PLL down; the first input restores 125 MHz. USB keeps its own 48 MHz PLL." },
-    { key: "longNap", id: ID_IDLE_LONG_NAP, cacheKey: "id_idle_long_nap", label: "Long naps in deep idle", hint: "Deep idle wakes the core every 20 ms (4 ms on the other half) instead of every 1 ms; the sensor only reports every 100–500 ms in rest anyway." },
+    { key: "pointerRest", id: ID_IDLE_POINTER_REST, cacheKey: "id_idle_pointer_rest", label: developerSettingsCopy.id_idle_pointer_rest.label, hint: developerSettingsCopy.id_idle_pointer_rest.description },
+    { key: "rgbDim", id: ID_IDLE_RGB_DIM, cacheKey: "id_idle_rgb_dim", label: developerSettingsCopy.id_idle_rgb_dim.label, hint: developerSettingsCopy.id_idle_rgb_dim.description },
+    { key: "cpuSleep", id: ID_IDLE_CPU_SLEEP, cacheKey: "id_idle_cpu_sleep", label: developerSettingsCopy.id_idle_cpu_sleep.label, hint: developerSettingsCopy.id_idle_cpu_sleep.description },
+    { key: "lowClock", id: ID_IDLE_LOW_CLOCK, cacheKey: "id_idle_low_clock", label: developerSettingsCopy.id_idle_low_clock.label, hint: developerSettingsCopy.id_idle_low_clock.description },
+    { key: "longNap", id: ID_IDLE_LONG_NAP, cacheKey: "id_idle_long_nap", label: developerSettingsCopy.id_idle_long_nap.label, hint: developerSettingsCopy.id_idle_long_nap.description },
 ];
 /**
  * Firmware overhead per row beyond pre-wait: row switching, the six pin reads
@@ -94,7 +95,7 @@ export interface ScanLabStatus {
 const WIRE_CAP = 0xffff;
 
 export type IdleStage = 0 | 1 | 2; // active, light idle, deep idle
-export const IDLE_STAGE_NAMES = ["active", "light idle", "deep idle"] as const;
+export const IDLE_STAGE_NAMES = ["active", "idle", "deep idle"] as const;
 
 export interface IdleSettings {
     idleAfterMs: number;   // light idle timeout, ms (0 = never)
@@ -106,11 +107,11 @@ export interface IdleSettings {
 /** Starting points for the idle fields; every value stays editable. */
 export const IDLE_PRESETS: ReadonlyArray<{ name: string; hint: string } & IdleSettings> = [
     { name: "No idle", hint: "full rate always", idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 0, deepPeriodMs: 0 },
-    { name: "Light", hint: "100 ms wake-up after 2 s", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
-    { name: "Deep", hint: "100 ms after 2 s, 1 s after 10 min", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
+    { name: "Idle", hint: "100 ms wake-up after 2 s", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
+    { name: "Deep idle", hint: "100 ms after 2 s, 1 s after 10 min", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
 ];
 
-export const SENSOR_MODE_NAMES = ["run", "rest 1", "rest 2", "rest 3"] as const;
+export const SENSOR_MODE_NAMES = ["active", "power saving 1", "power saving 2", "power saving 3"] as const;
 
 /** Idle power diagnostics (op 0x12): what the sensor, the RGB and the quiet timers are actually doing. */
 export interface ScanLabIdle {

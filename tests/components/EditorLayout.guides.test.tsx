@@ -1,3 +1,4 @@
+vi.mock("@/hooks/useLayerClipboardActions", () => ({ useLayerClipboardActions: () => ({apply: vi.fn(), clearClipboardError: vi.fn()}) }));
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createContext, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,6 +92,10 @@ vi.mock("@/contexts/VialContext", () => ({
   }),
 }));
 
+vi.mock("@/contexts/SettingsContext", () => ({
+  useSettings: () => ({ getSetting: () => false }),
+}));
+
 vi.mock("@/contexts/KeyBindingContext", () => ({
   useKeyBinding: () => ({
     assignKeycodeTo: vi.fn(),
@@ -122,6 +127,7 @@ vi.mock("../../src/layout/Sidebar", () => ({
 vi.mock("../../src/layout/SecondarySidebar/SecondarySidebar", () => ({
   default: () => null,
   DETAIL_SIDEBAR_WIDTH: "360px",
+  getDetailPanelHeight: (_panel: unknown, height: number) => height,
 }));
 
 vi.mock("../../src/layout/BottomPanel", () => ({

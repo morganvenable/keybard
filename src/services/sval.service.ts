@@ -85,6 +85,11 @@ export class SvalService {
      * Set default cosmetic layer names if not present
      */
     setupCosmeticLayerNames(kbinfo: KeyboardInfo): void {
+        if ((kbinfo.svil_proto ?? 1) >= 2) {
+            kbinfo.cosmetic ??= {};
+            kbinfo.cosmetic.layer ??= {};
+            return;
+        }
         if (!kbinfo.cosmetic) {
             kbinfo.cosmetic = {
                 layer: {
@@ -106,11 +111,12 @@ export class SvalService {
 
     /**
      * Get the display name for a layer
-     * Note: Custom layer names are disabled until Sval-QMK supports them.
-     * Layer 15 is always "Mouse".
+     * Prefer the custom name, with a fallback for unnamed layers.
      */
-    getLayerName(_kbinfo: KeyboardInfo, layerIndex: number): string {
-        if (layerIndex === 15) {
+    getLayerName(kbinfo: KeyboardInfo, layerIndex: number): string {
+        const name = this.getLayerCosmetic(kbinfo, layerIndex);
+        if (name) return name;
+        if (layerIndex === 15 && (kbinfo.svil_proto ?? 1) < 2) {
             return "Mouse";
         }
         return `Layer ${layerIndex}`;
@@ -122,11 +128,12 @@ export class SvalService {
 
     /**
      * Get the short display name for a layer (used in tabs)
-     * Note: Custom layer names are disabled until Sval-QMK supports them.
-     * Layer 15 is always "mouse".
+     * Prefer the custom name, with a fallback for unnamed layers.
      */
-    getLayerNameNoLabel(_kbinfo: KeyboardInfo, layerIndex: number): string {
-        if (layerIndex === 15) {
+    getLayerNameNoLabel(kbinfo: KeyboardInfo, layerIndex: number): string {
+        const name = this.getLayerCosmetic(kbinfo, layerIndex);
+        if (name) return name;
+        if (layerIndex === 15 && (kbinfo.svil_proto ?? 1) < 2) {
             return "mouse";
         }
         return `${layerIndex}`;

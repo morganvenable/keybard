@@ -152,13 +152,13 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
     }
 
     return (
-        <section className="flex h-full max-h-full flex-col space-y-3 pt-0">
+        <section className="flex flex-col space-y-3 pt-0">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Mouse Keys</span>
                 </div>
             )}
-            <div className="scrollbar-thin flex flex-grow flex-col overflow-auto">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Emulate a mouse using your keyboard. You can move the pointer at different speeds, press 5 buttons and scroll in 8 directions.
                 </DescriptionBlock>

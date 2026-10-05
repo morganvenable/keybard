@@ -1,0 +1,53 @@
+name: Deploy Keybard (keybard.svalboard.com)
+
+# Production: svalboard/keybard main, served by GitHub Pages at the custom
+# domain keybard.svalboard.com (set in the repository's Pages settings; a
+# keybard CNAME on svalboard.com points at svalboard.github.io). Built for the
+# domain's root with --mode svalboard (.env.svalboard).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: svalboard-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'svalboard/keybard'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:svalboard
+        env:
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.sha }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    # Pages replaces the whole site: deploy only from this repository's main.
+    if: github.repository == 'svalboard/keybard' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
