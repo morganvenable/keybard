@@ -16,7 +16,7 @@ export const SETTINGS: SettingDefinition[] = [
     {
         name: "typing-binds-key",
         label: "Typing Binds a Key",
-        description: "Use your physical keyboard to assign selected keys. You can also hold down a modifier key or combinations of modifier keys when you press a key.",
+        description: "Select a key, then type to assign it. You can include held modifiers.",
         defaultValue: true,
         type: "boolean",
     },
@@ -92,7 +92,7 @@ export const SETTINGS: SettingDefinition[] = [
     {
         name: "scan-lab",
         label: "Scan Lab...",
-        description: "Measure matrix scan timing and apply pre/post-wait (diagnostics)",
+        description: "Measure key scanning and test sensor timing.",
         type: "action",
         action: "open-scan-lab",
     },
@@ -170,7 +170,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "scan-lab", "print"],
+        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "print"],
     },
     {
         name: "fragments",
@@ -182,7 +182,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "developer",
         label: "Developer",
         icon: FileJson,
-        settings: ["key-proof-sheet"],
+        settings: ["scan-lab", "key-proof-sheet"],
     },
 ];
 

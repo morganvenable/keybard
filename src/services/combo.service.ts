@@ -1,6 +1,6 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { SvilUSB } from "./usb.service";
+import { SVIL_TABLE_COMBO, SvilUSB, checkSvilStatus, readSvilTable, svilIndexArgs } from "./usb.service";
 
 export class ComboService {
     constructor(private usb: SvilUSB) { }
@@ -11,26 +11,23 @@ export class ComboService {
 
         kbinfo.combos = [];
 
-        // Use Svil protocol: direct combo get command
+        // Use Svil protocol: scan (v3+) or per-index get
+        const entries = await readSvilTable(this.usb, SVIL_TABLE_COMBO, combo_count);
         for (let i = 0; i < combo_count; i++) {
-            const data = await this.usb.sendSvil(
-                SvilUSB.CMD_SVIL_COMBO_GET,
-                [i],
-                { uint8: true }
-            ) as Uint8Array;
+            const data = entries[i];
 
-            // Response: [cmd_echo][index][key0:2][key1:2][key2:2][key3:2][output:2][custom_combo_term:2]
+            // Entry: [key0:2][key1:2][key2:2][key3:2][output:2][custom_combo_term:2]
             const dv = new DataView(data.buffer);
             kbinfo.combos.push({
                 cmbid: i,
                 keys: [
+                    keyService.stringify(dv.getUint16(0, true)),
                     keyService.stringify(dv.getUint16(2, true)),
                     keyService.stringify(dv.getUint16(4, true)),
                     keyService.stringify(dv.getUint16(6, true)),
-                    keyService.stringify(dv.getUint16(8, true)),
                 ].map(k => k === "KC_NO" ? "KC_NO" : k),
-                output: keyService.stringify(dv.getUint16(10, true)),
-                options: dv.getUint16(12, true),
+                output: keyService.stringify(dv.getUint16(8, true)),
+                options: dv.getUint16(10, true),
             });
         }
     }
@@ -44,15 +41,17 @@ export class ComboService {
         while (keys.length < 4) keys.push("KC_NO");
 
         // Use Svil protocol: direct combo set command
-        await this.usb.sendSvil(SvilUSB.CMD_SVIL_COMBO_SET, [
-            cmbid,
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_COMBO_SET, [
+            ...svilIndexArgs(this.usb.svilProtocolVersion, cmbid),
             ...this.LE16(keyService.parse(keys[0])),
             ...this.LE16(keyService.parse(keys[1])),
             ...this.LE16(keyService.parse(keys[2])),
             ...this.LE16(keyService.parse(keys[3])),
             ...this.LE16(keyService.parse(combo.output)),
             ...this.LE16(combo.options ?? 0),
-        ], {});
+        ], { uint8: true }) as Uint8Array;
+        // Response: [cmd_echo][status], nonzero = refused (e.g. index out of range)
+        checkSvilStatus(SvilUSB.CMD_SVIL_COMBO_SET, resp);
     }
 
     private LE16(val: number): [number, number] {

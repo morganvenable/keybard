@@ -1,3 +1,5 @@
+import EditingTargetStatus from "@/components/EditingTargetStatus";
+import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
@@ -80,13 +82,14 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     isAllTransparencyActive,
     onToggleAllTransparency
 }) => {
-    const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting, activeLayerIndex } = useVial();
-    const { queue, commit, getPendingCount, clearAll } = useChanges();
-    const { getSetting, updateSetting } = useSettings();
+    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex, loadedFrom } = useVial();
+    const editingTarget = `${isConnected ? "Editing keyboard" : "Offline draft"}: ${loadedFrom || keyboard?.name || "Layout"}${isConnected ? "" : ". Export to keep edits."}`;
+    const { undo, undoLabel, commit, getPendingCount, getPendingChanges, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
+    const { updateSetting } = useSettings();
     const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
     const { activePanel, setActivePanel, setOpen, setItemToEdit, setPanelToGoBack } = usePanels();
 
-    const liveUpdating = getSetting("live-updating") === true;
+    const liveUpdating = isInstant;
     const selectedLayer = _selectedLayer;
     const transparentKeyGlyph = KEYMAP["KC_TRNS"]?.str || "▽";
 
@@ -98,76 +101,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const [exportFormat, setExportFormat] = useState<"svil" | "vil">("svil");
     const [includeMacros, setIncludeMacros] = useState(true);
 
-    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsImporting(true);
-        // Double-yield to guarantee React paints the spinner before heavy work
-        await new Promise<void>(resolve =>
-            requestAnimationFrame(() => setTimeout(resolve, 0))
-        );
-
-        try {
-            const newKbInfo = await fileService.uploadFile(file);
-            if (newKbInfo) {
-                // Start sync if connected
-                if (keyboard && isConnected) {
-                    const { importService } = await import('@/services/import.service');
-                    const { vialService } = await import('@/services/vial.service');
-
-                    await importService.syncWithKeyboard(
-                        newKbInfo,
-                        keyboard,
-                        queue,
-                        { vialService }
-                    );
-
-                    // Merge fragment definitions and state from connected keyboard
-                    if (keyboard.fragments) {
-                        newKbInfo.fragments = keyboard.fragments;
-                    }
-                    if (keyboard.composition) {
-                        newKbInfo.composition = keyboard.composition;
-                    }
-                    // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                    const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                        if (!obj) return new Map();
-                        if (obj instanceof Map) return obj;
-                        return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                    };
-
-                    if (keyboard.fragmentState) {
-                        const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                        newKbInfo.fragmentState = {
-                            hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                            eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                            userSelections: importedUserSelections,
-                        };
-                    }
-
-                    // Recompose layout with fragment selections
-                    const fragmentComposer = vialService.getFragmentComposer();
-                    if (fragmentComposer.hasFragments(newKbInfo)) {
-                        const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                        if (Object.keys(composedLayout).length > 0) {
-                            newKbInfo.keylayout = composedLayout;
-                        }
-                    }
-                }
-
-                setKeyboard(newKbInfo);
-            }
-        } catch (err) {
-            console.error("Upload failed", err);
-        } finally {
-            setIsImporting(false);
-        }
-        // Reset input so same file can be selected again
-        if (event.target) {
-            event.target.value = '';
-        }
-    };
+    const { handleFileImport, importReview, setFileError } = useLayoutImport();
 
     const handleExport = async () => {
         if (!keyboard) {
@@ -184,7 +118,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
             }
             setIsExportOpen(false);
         } catch (err) {
-            console.error("Export failed", err);
+            setFileError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -193,7 +127,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const [, setContainerWidth] = useState(0);
 
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    const [isHovered, setIsHovered] = useState(false);
+    const [toolbarPinned, setToolbarPinned] = useState(false);
     const [ignoreHover, setIgnoreHover] = useState(false);
     const [isOverviewActive, setIsOverviewActive] = useState(false);
     const overviewSnapshotRef = useRef<OverviewStateSnapshot | null>(null);
@@ -216,9 +150,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // When vertically constrained, go into hover-only mode
+    // Short windows use an explicit toolbar disclosure.
     const isVerticallyConstrained = windowHeight < 550;
-    const showFullBar = !isVerticallyConstrained || isHovered;
+    const showFullBar = !isVerticallyConstrained || toolbarPinned;
 
     const getDisplayOrderForState = (
         nextShowAllLayers: boolean,
@@ -349,13 +283,16 @@ const LayerSelector: FC<LayerSelectorProps> = ({
         return (
             <button
                 key={`layer-tab-${i}`}
+                type="button"
+                aria-label={`Layer ${i}: ${layerShortName}`}
+                aria-pressed={isActive}
                 onClick={handleSelectLayer(i)}
                 onDoubleClick={(e) => {
                     e.stopPropagation();
                     onToggleLayerOn(i);
                 }}
                 className={cn(
-                    "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
+                    "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 whitespace-nowrap",
                     isActive
                         ? "bg-gray-800 text-white shadow-md scale-105"
                         : "bg-transparent text-gray-600 hover:bg-gray-200"
@@ -372,8 +309,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const visibleLayerIds = allLayerIds.filter(shouldRenderLayerTab);
     const displayOrder = isLayerOrderReversed ? [...visibleLayerIds].reverse() : visibleLayerIds;
 
-    // Single clean render - horizontal bar of layer tabs (single line, no wrap, no scroll)
-    // When vertically constrained: hover-only mode with collapsed hint bar
+    // Keep toolbar and layer rows compact; constrained rows can scroll.
+    // When vertically constrained: explicit disclosure keeps controls reachable.
     return (
         <div
             ref={containerRef}
@@ -382,22 +319,30 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                 showFullBar ? "pt-[22px]" : "pt-0"
             )}
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Collapsed hint bar - shown when vertically constrained and not hovered */}
-            {isVerticallyConstrained && !isHovered && (
-                <div className="flex items-center justify-center text-gray-300 cursor-pointer h-3">
+            <EditingTargetStatus />
+            {importReview}
+            {/* Collapsed toolbar disclosure for short windows */}
+            {!showFullBar && (
+                <button type="button" aria-label="Show editor controls" title="Show editor controls" aria-expanded={false}
+                    className="flex w-full items-center justify-center text-gray-500 hover:text-black cursor-pointer h-5 focus-visible:outline-2"
+                    onClick={() => setToolbarPinned(true)}>
                     <ChevronDown className="h-3 w-3" />
-                </div>
+                </button>
             )}
 
-            {/* Full layer tabs - shown when not constrained or when hovered */}
+            {/* Full toolbar - shown normally or explicitly expanded */}
             {showFullBar && (
                 <div className="flex flex-col w-full bg-transparent">
                     <div className="relative w-full bg-transparent">
                         {/* Top Row: Connect/Import/Export + Live Controls + Tab Icon + Tabs */}
-                        <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent">
+                        <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
+
+                            {isVerticallyConstrained && <button type="button" aria-label="Hide editor controls" title="Hide editor controls"
+                                className="rounded p-1 text-gray-500 hover:bg-gray-200 focus-visible:outline-2"
+                                onClick={() => { setToolbarPinned(false); }}>
+                                <ChevronDown className="h-3 w-3 rotate-180" />
+                            </button>}
 
                             {/* File Input (Hidden) */}
                             <input
@@ -421,7 +366,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="format" className="text-right">Format</Label>
                                             <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "svil" | "vil")}>
-                                                <SelectTrigger className="col-span-3">
+                                                <SelectTrigger aria-label="Export format" className="col-span-3">
                                                     <SelectValue placeholder="Select format" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -451,23 +396,37 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); connect(); }}
                                     className="flex items-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full mr-2"
-                                    title="Click to Connect"
+                                    title={`${editingTarget} Click to connect.`}
                                 >
                                     <Unplug className="h-4 w-4 text-gray-200" />
                                     <span className="select-none">Connect</span>
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1" title={editingTarget}>
 
+                                    {saveError && (
+                                        <div role="alert" className="max-w-xs text-xs text-red-700">
+                                            <span>Not saved: {saveError}. Pending edits are retained. Retry before discarding; some writes may already have succeeded. </span>
+                                            <button disabled={isSaving} onClick={() => void commit()} className="underline font-semibold">Retry</button>
+                                        </div>
+                                    )}
+                                    {getPendingCount() > 0 && (
+                                        <details className="relative text-xs">
+                                            <summary className="cursor-pointer">Pending ({getPendingCount()})</summary>
+                                            <ul className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded border bg-white p-3 shadow-lg">
+                                                {getPendingChanges().map(change => <li key={change.writeKey || change.desc} className="py-1">{change.desc}</li>)}
+                                            </ul>
+                                        </details>
+                                    )}
                                     {/* Mode Switch Button (Zap) - Only show when NOT live updating (to switch TO live) */}
                                     {!liveUpdating && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <button
-                                                    onClick={(e) => {
+                                                    disabled={isSaving}
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        commit();
-                                                        updateSetting("live-updating", true);
+                                                        if (await setInstant(true)) updateSetting("live-updating", true);
                                                     }}
                                                     className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100"
                                                     aria-label="Switch to Live Updating"
@@ -489,6 +448,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
+                                                            void setInstant(false);
                                                             updateSetting("live-updating", false);
                                                         }}
                                                         className="p-2 rounded-full transition-all cursor-pointer bg-black hover:bg-gray-800"
@@ -506,7 +466,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 disabled={true}
                                                 className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-black border border-transparent cursor-default"
                                             >
-                                                <span className="select-none">Live Updating</span>
+                                                <span className="select-none">{isSaving ? "Saving…" : saveError ? "Changes not saved" : "Live Updating"}</span>
                                             </button>
                                         </>
                                     ) : (
@@ -518,7 +478,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 commit();
                                             }}
                                             onMouseLeave={() => setIgnoreHover(false)}
-                                            disabled={getPendingCount() === 0}
+                                            disabled={isSaving || getPendingCount() === 0}
                                             className={cn(
                                                 "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
                                                 // Disabled state
@@ -538,9 +498,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             )}
                                         >
                                             <span className="select-none">
-                                                {getPendingCount() > 0
-                                                    ? `Update ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
-                                                    : 'Update Changes'}
+                                                {isSaving ? "Saving…" : getPendingCount() > 0
+                                                    ? `Apply ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
+                                                    : 'No pending changes'}
                                             </span>
                                         </button>
                                     )}
@@ -551,12 +511,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (getPendingCount() > 0) {
+                                                        if (getPendingCount() > 0 && !saveError && window.confirm("Discard all pending edits in this draft? Changes already applied to the keyboard are not undone.")) {
                                                             clearAll();
                                                             resetToOriginal();
                                                         }
                                                     }}
-                                                    disabled={getPendingCount() === 0}
+                                                    disabled={isSaving || !!saveError || getPendingCount() === 0}
+                                                    aria-label="Discard pending edits"
                                                     className={cn(
                                                         "p-2 rounded-full transition-all text-black ml-0",
                                                         getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"
@@ -566,13 +527,14 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                Revert
+                                                Discard pending edits
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
                                 </div>
                             )}
 
+                            {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={`Undo ${undoLabel}`}>Undo</button>}
                             {/* Divider */}
                             <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
@@ -667,6 +629,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isMultiLayersActive}
                                             aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
                                         >
                                             <LayoutMultiLayersIcon className={cn(
@@ -695,6 +658,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={is3DMode}
                                             aria-label={is3DMode ? "Exit 3D View" : "3D View"}
                                         >
                                             <BoxIcon className={cn(
@@ -723,7 +687,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
-                                            aria-label="Hide Thumbs"
+                                            aria-pressed={isThumb3DOffsetActive}
+                                            aria-label={isThumb3DOffsetActive ? "Show Thumbs" : "Hide Thumbs"}
                                         >
                                             <ThumbGrid3x2Icon className={cn(
                                                 "h-5 w-5",
@@ -751,6 +716,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isAllTransparencyActive}
                                             aria-label={isAllTransparencyActive ? "Show All Transparent Keys" : "Hide All Transparent Keys"}
                                         >
                                             <span className={cn(
@@ -780,6 +746,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     ? "bg-black hover:bg-gray-800"
                                                     : "hover:bg-gray-200"
                                             )}
+                                            aria-pressed={isOverviewActive}
                                             aria-label={isOverviewActive ? "Disable Overview" : "Overview"}
                                         >
                                             <TelescopeIcon className={cn(
@@ -814,7 +781,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
 
                         {/* Layer Tabs Row - fixed position in 3D and/or multi-layer mode */}
                         {(isMultiLayersActive || is3DMode) && (
-                            <div className="absolute left-0 right-0 top-full z-30 flex items-center gap-2 pl-5 pb-2 whitespace-nowrap bg-transparent pointer-events-auto">
+                            <div className="absolute left-0 right-0 top-full z-30 flex items-center gap-2 pl-5 pb-2 whitespace-nowrap bg-transparent pointer-events-auto overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
                                 <div className="flex items-center gap-1">
                                     <Tooltip delayDuration={500}>
                                         <TooltipTrigger asChild>
@@ -831,6 +798,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                         ? "text-gray-400 cursor-not-allowed opacity-30"
                                                         : "text-black hover:bg-gray-200"
                                                 )}
+                                            aria-pressed={showAllLayers}
                                             aria-label={showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
                                         >
                                             {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}

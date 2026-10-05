@@ -43,12 +43,14 @@ const writeSidebarCookie = (name: string, value: boolean) => {
 };
 
 type SidebarEntry = {
+    narrowOpen?: boolean;
     open: boolean;
     defaultOpen: boolean;
     openMobile: boolean;
 };
 
 type SidebarContextValue = {
+    isNarrow: boolean;
     isMobile: boolean;
     sidebars: Record<string, SidebarEntry>;
     registerSidebar: (name: string, options?: { defaultOpen?: boolean }) => void;
@@ -75,7 +77,9 @@ function useSidebar(name = "default", options?: { defaultOpen?: boolean }) {
     }, [name, registerSidebar, unregisterSidebar, defaultOpen]);
 
     const entry = sidebars[name];
-    const open = entry?.open ?? defaultOpen ?? true;
+    const open = name === "primary-nav" && context.isNarrow
+        ? entry?.narrowOpen ?? false
+        : entry?.open ?? defaultOpen ?? true;
     const openMobile = entry?.openMobile ?? false;
     const state: "expanded" | "collapsed" = open ? "expanded" : "collapsed";
 
@@ -96,6 +100,12 @@ function useSidebar(name = "default", options?: { defaultOpen?: boolean }) {
 
 function SidebarProvider({ defaultOpen = true, className, style, children, ...props }: React.ComponentProps<"div"> & { defaultOpen?: boolean }) {
     const isMobile = useIsMobile();
+    const [isNarrow, setIsNarrow] = React.useState(() => window.innerWidth < 900);
+    React.useEffect(() => {
+        const update = () => setIsNarrow(window.innerWidth < 900);
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
     const [sidebars, setSidebars] = React.useState<Record<string, SidebarEntry>>({});
     const defaultTargetRef = React.useRef<string | null>(null);
     const registrationsRef = React.useRef<Map<string, number>>(new Map());
@@ -162,22 +172,24 @@ function SidebarProvider({ defaultOpen = true, className, style, children, ...pr
                 return prev;
             }
 
-            const nextOpen = typeof value === "function" ? value(existing.open) : value;
-            if (nextOpen === existing.open) {
+            const useNarrowState = name === "primary-nav" && isNarrow;
+            const currentOpen = useNarrowState ? existing.narrowOpen ?? false : existing.open;
+            const nextOpen = typeof value === "function" ? value(currentOpen) : value;
+            if (nextOpen === currentOpen) {
                 return prev;
             }
 
-            writeSidebarCookie(name, nextOpen);
+            if (!useNarrowState) writeSidebarCookie(name, nextOpen);
 
             return {
                 ...prev,
                 [name]: {
                     ...existing,
-                    open: nextOpen,
+                    ...(useNarrowState ? { narrowOpen: nextOpen } : { open: nextOpen }),
                 },
             };
         });
-    }, []);
+    }, [isNarrow]);
 
     const setOpenMobile = React.useCallback((name: string, value: boolean | ((value: boolean) => boolean)) => {
         setSidebars((prev) => {
@@ -234,6 +246,7 @@ function SidebarProvider({ defaultOpen = true, className, style, children, ...pr
     const contextValue = React.useMemo<SidebarContextValue>(
         () => ({
             isMobile,
+            isNarrow,
             sidebars,
             registerSidebar,
             unregisterSidebar,
@@ -241,7 +254,7 @@ function SidebarProvider({ defaultOpen = true, className, style, children, ...pr
             setOpenMobile,
             toggleSidebar: toggleSidebarByName,
         }),
-        [isMobile, sidebars, registerSidebar, unregisterSidebar, setOpen, setOpenMobile, toggleSidebarByName]
+        [isMobile, isNarrow, sidebars, registerSidebar, unregisterSidebar, setOpen, setOpenMobile, toggleSidebarByName]
     );
 
     return (

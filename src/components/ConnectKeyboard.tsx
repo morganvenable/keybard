@@ -6,29 +6,13 @@ import KeybardLogo from "@/components/icons/KeybardLogo";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
-    const { isConnected, connect, connectDevice, disconnect, loadKeyboard, loadFromFile } = useVial();
+    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError } = useVial();
     const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const connectButtonRef = useRef<HTMLButtonElement>(null);
-
-    useEffect(() => {
-        if (!isConnected) {
-            return;
-        }
-        setLoading(true);
-        (async () => {
-            await loadKeyboard();
-            setLoading(false);
-        })();
-        return () => {
-            if (loading) {
-                setLoading(false);
-            }
-        };
-    }, [isConnected]);
 
     useEffect(() => {
         if (!isConnected && !loading && connectButtonRef.current) {
@@ -40,10 +24,7 @@ const ConnectKeyboard = () => {
         setLoading(true);
         setError(null);
         try {
-            const success = await connect();
-            if (!success) {
-                setError("Failed to connect to keyboard");
-            }
+            await connect();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error occurred");
         } finally {
@@ -66,10 +47,7 @@ const ConnectKeyboard = () => {
         setLoading(true);
         setError(null);
         try {
-            const success = await connectDevice(device);
-            if (!success) {
-                setError(`Failed to open ${device.productName || "keyboard"}`);
-            }
+            await connectDevice(device);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error occurred");
         } finally {
@@ -110,6 +88,8 @@ const ConnectKeyboard = () => {
                 } else {
                     setError(err.message);
                 }
+            } else {
+                setError(String(err));
             }
         } finally {
             setLoading(false);
@@ -130,7 +110,7 @@ const ConnectKeyboard = () => {
             // Generate a proper filename from the URL or name
             const filename = demoLayoutUrl.split('/').pop()?.split('?')[0] || "sval-default.svil";
             const file = new File([blob], filename, { type: "application/octet-stream" });
-            await loadFromFile(file);
+            await loadFromFile(file, "demo");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load demo");
         } finally {
@@ -167,7 +147,7 @@ const ConnectKeyboard = () => {
                 </div>
             </div>
             <div className="p-10 max-w-xl mx-auto rounded-md border-dashed border-1 border-gray-300">
-                {false ? (
+                {!isWebHIDSupported && (
                     <div className="browser-not-supported">
                         <h2>Browser Not Supported</h2>
                         <p className="error-message">⚠️ Your browser does not support WebHID API, which is required for connecting to your keyboard.</p>
@@ -180,22 +160,22 @@ const ConnectKeyboard = () => {
                         </ul>
                         <p>Note: Firefox and Safari do not currently support WebHID.</p>
                     </div>
-                ) : (
+                )}
                     <>
                         <div className="flex flex-col gap-2 w-50 mx-auto">
                             {!isConnected || (loading && !isDisconnecting) ? (
                                 <button
                                     ref={connectButtonRef}
                                     onClick={handleConnect}
-                                    disabled={loading}
+                                    disabled={!isWebHIDSupported || loading || connectionState === "loading"}
                                     className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
                                 >
-                                    {loading ? <><PlugZap className="h-4 w-4" /><span>Connecting...</span></> : <><Unplug className="h-4 w-4" /><span>Connect Keyboard</span></>}
+                                    {loading || connectionState === "loading" ? <><PlugZap className="h-4 w-4" /><span>Connecting...</span></> : <><Unplug className="h-4 w-4" /><span>Connect Keyboard</span></>}
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleDisconnect}
-                                    disabled={loading}
+                                    disabled={loading || connectionState === "loading"}
                                     className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
                                 >
                                     {loading ? "Disconnecting..." : "Disconnect"}
@@ -204,9 +184,9 @@ const ConnectKeyboard = () => {
                             {!isConnected && !loading && knownDevices.length > 0 && (
                                 <div className="flex flex-col gap-1" data-testid="known-devices">
                                     <span className="text-[11px] text-muted-foreground text-center">or reconnect without the chooser</span>
-                                    {knownDevices.map((device) => (
+                                    {knownDevices.map((device, index) => (
                                         <button
-                                            key={`${device.vendorId}:${device.productId}:${device.productName}`}
+                                            key={`${device.vendorId}:${device.productId}:${index}`}
                                             onClick={() => handleConnectDevice(device)}
                                             className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 hover:bg-white px-5 py-1.5 rounded-full w-full"
                                             data-testid="known-device"
@@ -222,15 +202,15 @@ const ConnectKeyboard = () => {
                                     <p className="text-sm font-bold text-center text-gray-700 my-1">or</p>
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        disabled={loading}
+                                        disabled={loading || connectionState === "loading"}
                                         className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full w-full"
                                     >
                                         {loading ? "Loading..." : "Load File"}
                                     </button>
-                                    <input ref={fileInputRef} type="file" accept=".svil,.viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
+                                    <input ref={fileInputRef} type="file" accept=".svil,.viable,.vil,.json" style={{ display: "none" }} onChange={handleLoadFile} />
                                     <button
                                         onClick={handleLoadDemo}
-                                        disabled={loading}
+                                        disabled={loading || connectionState === "loading"}
                                         className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray text-black hover:bg-kb-gray-medium px-5 py-1.5 rounded-full w-full border border-gray-300"
                                     >
                                         {loading ? "Loading..." : "QWERTY Example"}
@@ -239,17 +219,14 @@ const ConnectKeyboard = () => {
                             )}
                         </div>
                     </>
-                )}
 
-                {error && (
+                {(error || connectionError) && (
                     <div
-                        onClick={handleConnect}
-                        className="mt-8 flex flex-row items-center justify-center gap-2 text-kb-red cursor-pointer hover:opacity-80 transition-opacity"
-                        role="button"
-                        title="Click to retry connection"
+                        className="mt-8 flex flex-row items-center justify-center gap-2 text-kb-red"
+                        role="alert"
                     >
                         <AlertTriangle className="w-5 h-5" />
-                        <p className="font-medium">{error}</p>
+                        <p className="font-medium">{error || connectionError}</p>
                     </div>
                 )}
             </div>

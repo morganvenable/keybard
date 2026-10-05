@@ -1,14 +1,19 @@
-import { PendingChange, changesUtils } from "@/services/changes.service";
-import React, { ReactNode, createContext, useCallback, useContext, useState, useEffect } from "react";
+import { PendingChange, changesUtils, ChangeQueue } from "@/services/changes.service";
+import React, { ReactNode, createContext, useCallback, useContext, useState, useEffect, useRef } from "react";
 import { useSettings } from "@/contexts/SettingsContext";
 
 interface ChangesContextType {
+    registerUndo: (label: string, callback: () => Promise<void> | void) => void;
+    undo: () => Promise<void>;
+    undoLabel: string | null;
     todo: Record<string, PendingChange>;
     isInstant: boolean;
-    setInstant: (instant: boolean) => void;
+    setInstant: (instant: boolean) => Promise<boolean>;
+    isSaving: boolean;
+    error: string | null;
     queue: (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => Promise<void>;
     clear: (desc: string) => void;
-    commit: () => Promise<void>;
+    commit: () => Promise<boolean>;
     clearAll: () => void;
     // Helper functions
     getPendingChanges: () => PendingChange[];
@@ -24,56 +29,89 @@ const ChangesContext = createContext<ChangesContextType | undefined>(undefined);
 interface ChangesProviderProps {
     children: ReactNode;
     onPush?: () => void;
+    captureSave?: () => (() => void);
+    canWrite?: boolean;
+    sessionKey?: string | number;
+    registerTargetChangeGuard?: (guard: () => Promise<(discardPending?: boolean) => void>) => (() => void);
 }
 
-export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPush }) => {
-    const [todo, setTodo] = useState<Record<string, PendingChange>>({});
-    const [isInstant, setInstant] = useState(true);
-
-    const { getSetting } = useSettings();
-
-    // Sync isInstant with the live-updating setting from SettingsContext
-    useEffect(() => {
-        const liveUpdating = getSetting("live-updating") === true;
-        setInstant(liveUpdating);
-    }, [getSetting]);
-
-    const queue = useCallback(
-        async (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => {
-            const change = await changesUtils.processChange(desc, cb, metadata || {}, isInstant);
-
-            if (change) {
-                // Only add to queue if not instant
-                setTodo((prev) => ({
-                    ...prev,
-                    [desc]: change,
-                }));
-            } else if (isInstant) {
-                // Instant push succeeded, mark state as saved
-                onPush?.();
-            }
-        },
-        [isInstant, onPush]
-    );
-
-    const clear = useCallback((desc: string) => {
-        setTodo((prev) => {
-            const newTodo = { ...prev };
-            delete newTodo[desc];
-            return newTodo;
-        });
+export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPush, captureSave, canWrite = true, sessionKey, registerTargetChangeGuard }) => {
+    const [, render] = useState(0);
+    const [undoLabel, setUndoLabel] = useState<string | null>(null);
+    const undoRef = useRef<(() => Promise<void> | void) | null>(null);
+    const undoing = useRef(false);
+    const registerUndo = useCallback((label: string, callback: () => Promise<void> | void) => {
+        if (undoing.current) return;
+        undoRef.current = callback;
+        setUndoLabel(label);
     }, []);
+    const writable = useRef(canWrite);
+    writable.current = canWrite;
+    const onPushRef = useRef(onPush);
+    onPushRef.current = onPush;
+    const captureRef = useRef(captureSave);
+    captureRef.current = captureSave;
+    const engineRef = useRef<ChangeQueue | null>(null);
+    if (!engineRef.current) engineRef.current = new ChangeQueue(() => render(n => n + 1), () => writable.current, () => captureRef.current?.() || (() => onPushRef.current?.()));
+    const engine = engineRef.current;
+    const { getSetting, updateSetting } = useSettings();
+    const [isInstant, setInstantState] = useState(getSetting("live-updating") === true);
+    const instantRef = useRef(isInstant);
+    const sessionRef = useRef(sessionKey);
+    useEffect(() => {
+        if (sessionRef.current !== sessionKey) {
+            sessionRef.current = sessionKey;
+            engine.reset();
+            undoRef.current = null;
+            setUndoLabel(null);
+        }
+    }, [sessionKey, engine]);
 
     const commit = useCallback(async () => {
-        await changesUtils.commitChanges(todo);
-        setTodo({}); // Clear all changes after commit
-        onPush?.(); // Mark state as saved after push
-    }, [todo, onPush]);
+        return engine.commit();
+    }, [engine]);
+    const setInstant = useCallback(async (instant: boolean) => {
+        if (instant && !instantRef.current && !(await commit())) return false;
+        instantRef.current = instant;
+        setInstantState(instant);
+        return true;
+    }, [commit]);
+    useEffect(() => {
+        const requested = getSetting("live-updating") === true;
+        if (requested !== instantRef.current) {
+            void setInstant(requested).then(ok => { if (!ok) updateSetting("live-updating", false); });
+        }
+    }, [getSetting, setInstant, updateSetting]);
 
-    const clearAll = useCallback(() => {
-        setTodo({});
-    }, []);
-
+    const queue = useCallback(async (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => {
+        // Offline drafts never retain callbacks capable of writing to a later board.
+        if (!writable.current) return;
+        engine.add(desc, cb, metadata);
+        if (instantRef.current && !metadata?.deferCommit) await commit();
+    }, [engine, commit]);
+    const clear = useCallback((desc: string) => engine.clear(desc), [engine]);
+    const clearAll = useCallback(() => { if (!engine.isSaving) { engine.reset(); undoRef.current = null; setUndoLabel(null); } }, [engine]);
+    useEffect(() => registerTargetChangeGuard?.(async () => {
+        const release = await engine.suspendAndDrain();
+        return (discardPending = false) => {
+            if (discardPending) { undoRef.current = null; setUndoLabel(null); }
+            release(discardPending);
+        };
+    }), [engine, registerTargetChangeGuard]);
+    const undo = useCallback(async () => {
+        if (!undoRef.current || engine.isSaving || undoing.current) return;
+        const callback = undoRef.current;
+        undoing.current = true;
+        try {
+            await callback();
+            undoRef.current = null;
+            setUndoLabel(null);
+        } catch (error) {
+            engine.error = error instanceof Error ? error.message : String(error);
+            render(n => n + 1);
+        } finally { undoing.current = false; }
+    }, [engine]);
+    const todo = engine.pending;
     // Helper functions using the current todo state
     const getPendingChanges = useCallback(() => Object.values(todo), [todo]);
     const getPendingCount = useCallback(() => Object.keys(todo).length, [todo]);
@@ -84,6 +122,9 @@ export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPu
 
     const value: ChangesContextType = {
         todo,
+        registerUndo, undo, undoLabel,
+        isSaving: engine.isSaving,
+        error: engine.error,
         isInstant,
         setInstant,
         queue,

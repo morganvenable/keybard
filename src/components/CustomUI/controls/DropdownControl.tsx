@@ -19,7 +19,7 @@ export const DropdownControl: React.FC<DropdownControlProps> = ({ item, value, o
                 "flex flex-row items-center justify-between gap-2",
                 compact ? "py-0.5" : "p-3 panel-layer-item"
             )}>
-                <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
+                <span title={item.description} className={compact ? "text-xs" : "text-md"}>{item.label}</span>
                 <span className="text-muted-foreground text-xs">No options</span>
             </div>
         );
@@ -33,12 +33,12 @@ export const DropdownControl: React.FC<DropdownControlProps> = ({ item, value, o
             "flex flex-row items-center justify-between gap-2",
             compact ? "py-0.5" : "p-2 panel-layer-item"
         )}>
-            <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
+            <span title={item.description} className={compact ? "text-xs" : "text-md"}>{item.label}</span>
             <Select
                 value={String(safeValue)}
                 onValueChange={(val) => onChange(parseInt(val))}
             >
-                <SelectTrigger className={compact ? "w-24 h-7 text-xs" : "w-40"}>
+                <SelectTrigger aria-label={item.label} aria-description={item.description} className={compact ? "w-24 h-7 text-xs" : "w-40"}>
                     <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>

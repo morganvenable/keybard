@@ -1,3 +1,4 @@
+import { useLayerNames } from "@/hooks/useLayerNames";
 import React, { useState, useRef, useEffect } from "react";
 import { EllipsisVertical } from "lucide-react";
 import Settings2Icon from "@/components/icons/Settings2Icon";
@@ -22,7 +23,7 @@ import { KEYMAP } from "@/constants/keygen";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import CustomColorDialog from "@/components/CustomColorDialog";
 import { PublishLayerDialog } from "@/components/PublishLayerDialog";
-import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
+import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 
 interface LayerNameBadgeProps {
     selectedLayer: number;
@@ -50,8 +51,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     defaultLayerIndex = 0,
     trailingAction,
 }) => {
+    const { renameLayer, nameError } = useLayerNames();
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
-    const { copyLayer } = useLayoutLibrary();
+    const { copy, paste, clipboardError } = useLayerClipboardActions();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
@@ -60,6 +62,15 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
+    const colorButtonRef = useRef<HTMLButtonElement>(null);
+    const renameButtonRef = useRef<HTMLButtonElement>(null);
+    const cancelRename = useRef(false);
+    const savingRename = useRef(false);
+    const restoreRenameFocus = () => requestAnimationFrame(() => renameButtonRef.current?.focus());
+
+    useEffect(() => {
+        if (isColorPickerOpen) pickerRef.current?.querySelector<HTMLButtonElement>("[data-color-choice]")?.focus();
+    }, [isColorPickerOpen]);
 
     // Close picker when clicking outside
     useEffect(() => {
@@ -104,26 +115,34 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     const handleStartEditing = () => {
         const currentName = svalService.getLayerName(keyboard, selectedLayer);
+        cancelRename.current = false;
         setEditValue(currentName);
         setIsEditing(true);
         setTimeout(() => inputRef.current?.focus(), 0);
     };
 
-    const handleSave = () => {
-        if (editValue.trim() && keyboard) {
-            const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
-            if (!cosmetic.layer) cosmetic.layer = {};
-            cosmetic.layer[selectedLayer.toString()] = editValue.trim();
-            setKeyboard({ ...keyboard, cosmetic });
-        }
-        setIsEditing(false);
+    const handleSave = async (restoreFocus = false) => {
+        if (cancelRename.current || savingRename.current) return;
+        savingRename.current = true;
+        try {
+            if (await renameLayer(selectedLayer, editValue)) {
+                setIsEditing(false);
+                if (restoreFocus) restoreRenameFocus();
+            }
+        } finally { savingRename.current = false; }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
-            handleSave();
+            e.preventDefault();
+            e.stopPropagation();
+            void handleSave(true);
         } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            cancelRename.current = true;
             setIsEditing(false);
+            restoreRenameFocus();
         }
     };
 
@@ -140,14 +159,11 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             setKeyboard({ ...keyboard, cosmetic, layer_colors: updatedLayerColors });
 
             if (isConnected) {
-                try {
-                    await usbInstance.setLayerColor(selectedLayer, hsv.hue, hsv.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color:", e);
-                }
+                await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, hsv.hue, hsv.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
             }
         }
         setIsColorPickerOpen(false);
+        colorButtonRef.current?.focus();
     };
 
     const handleSetCustomColor = async (
@@ -169,119 +185,14 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             setKeyboard({ ...keyboard, cosmetic, layer_colors: updatedLayerColors });
 
             if (isConnected) {
-                try {
-                    await usbInstance.setLayerColor(selectedLayer, ledHsv.hue, ledHsv.sat);
-                } catch (e) {
-                    console.error("Failed to set hardware layer color:", e);
-                }
+                await queue(`Layer ${selectedLayer} LED color`, async () => { await usbInstance.setLayerColor(selectedLayer, ledHsv.hue, ledHsv.sat); }, { type: "setting", writeKey: `layer-color:${selectedLayer}` });
             }
         }
     };
 
     // Layer Actions
-    const handleCopyLayer = () => {
-        if (!keyboard?.keymap) return;
-        const layerData = keyboard.keymap[selectedLayer];
-        
-        // Use the centralized copy logic
-        copyLayer({
-            id: `current-${selectedLayer}`,
-            name: svalService.getLayerName(keyboard, selectedLayer),
-            description: `Current layer ${selectedLayer}`,
-            author: "Local User",
-            tags: [],
-            keyboardType: "svalboard",
-            keyCount: layerData.length,
-            keymap: layerData,
-            layerColor: keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        }, false); // Don't show the "Now/Later" dialog for contextual menu copy
-    };
-
-    const handlePasteLayer = async () => {
-        if (!keyboard || !keyboard.keymap) return;
-        try {
-            const text = await navigator.clipboard.readText();
-            if (!text || !text.trim()) return;
-            
-            const clipboardData = JSON.parse(text);
-            let keymap: number[] | null = null;
-            let layerColor: string | undefined = undefined;
-            let ledColor: { hue: number; sat: number; val: number } | undefined = undefined;
-
-            if (Array.isArray(clipboardData)) {
-                keymap = clipboardData;
-            } else if (clipboardData && typeof clipboardData === 'object' && clipboardData._type === 'layer') {
-                keymap = clipboardData.keymap;
-                layerColor = clipboardData.layerColor;
-                ledColor = clipboardData.ledColor;
-            }
-
-            if (keymap && Array.isArray(keymap)) {
-                if (keymap.length === 0) return;
-                const matrixCols = keyboard.cols || MATRIX_COLS;
-                const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                let hasChanges = false;
-
-                // 1. Paste keymap
-                for (let r = 0; r < keyboard.rows; r++) {
-                    for (let c = 0; c < keyboard.cols; c++) {
-                        const idx = r * matrixCols + c;
-                        if (idx < keymap.length) {
-                            const newValue = keymap[idx];
-                            const currentValue = currentLayerKeymap[idx];
-                            if (newValue !== currentValue) {
-                                hasChanges = true;
-                                updatedKeyboard.keymap[selectedLayer][idx] = newValue;
-                                const row = r;
-                                const col = c;
-                                const previousValue = currentValue;
-                                queue(
-                                    `key_${selectedLayer}_${row}_${col}`,
-                                    async () => updateKey(selectedLayer, row, col, newValue),
-                                    { type: "key", layer: selectedLayer, row, col, keycode: newValue, previousValue }
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // 2. Paste layer color (UI)
-                if (layerColor) {
-                    if (!updatedKeyboard.cosmetic) updatedKeyboard.cosmetic = {};
-                    if (!updatedKeyboard.cosmetic.layer_colors) updatedKeyboard.cosmetic.layer_colors = {};
-                    updatedKeyboard.cosmetic.layer_colors[selectedLayer.toString()] = layerColor;
-                    hasChanges = true;
-                }
-
-                // 3. Paste LED color (Hardware HSV)
-                if (ledColor) {
-                    if (!updatedKeyboard.layer_colors) updatedKeyboard.layer_colors = [];
-                    // Ensure array is long enough
-                    while (updatedKeyboard.layer_colors.length <= selectedLayer) {
-                        updatedKeyboard.layer_colors.push({ hue: 0, sat: 0, val: 0 });
-                    }
-                    updatedKeyboard.layer_colors[selectedLayer] = { ...ledColor };
-                    hasChanges = true;
-
-                    // Update hardware if connected
-                    if (isConnected) {
-                        try {
-                            await usbInstance.setLayerColor(selectedLayer, ledColor.hue, ledColor.sat);
-                        } catch (e) {
-                            console.error("Failed to set hardware layer color during paste:", e);
-                        }
-                    }
-                }
-
-                if (hasChanges) setKeyboard(updatedKeyboard);
-            }
-        } catch (e) {
-            console.error("Failed to paste layer:", e);
-        }
-    };
+    const handleCopyLayer = () => copy(selectedLayer);
+    const handlePasteLayer = () => { void paste(selectedLayer); };
 
     const batchWipeKeys = (targetKeycode: number, filterFn: (currentValue: number) => boolean) => {
         if (!keyboard || !keyboard.keymap) return;
@@ -303,7 +214,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     queue(
                         `key_${selectedLayer}_${row}_${col}`,
                         async () => updateKey(selectedLayer, row, col, targetKeycode),
-                        { type: "key", layer: selectedLayer, row, col, keycode: targetKeycode, previousValue }
+                        { type: "key", writeKey: `key:${selectedLayer}:${row}:${col}`, layer: selectedLayer, row, col, keycode: targetKeycode, previousValue }
                     );
                 }
             }
@@ -347,6 +258,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     return (
         <>
+            {clipboardError && <p role="alert" className="text-sm text-red-700">{clipboardError}</p>}
+            {nameError && <div role="alert" className="text-red-600">{nameError}</div>}
             <div
                 className={cn(
                     "group/layer-badge flex items-center gap-2 z-50 transition-[margin] duration-150",
@@ -358,31 +271,42 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 <div
                     className="relative"
                     ref={pickerRef}
+                    onKeyDown={(e) => {
+                        if (e.key === "Escape" && isColorPickerOpen) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsColorPickerOpen(false);
+                            colorButtonRef.current?.focus();
+                        }
+                    }}
+                    onBlur={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsColorPickerOpen(false);
+                    }}
                 >
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
                                 type="button"
+                                ref={colorButtonRef}
+                                aria-label={`Change color for layer ${selectedLayer}`}
+                                aria-expanded={isColorPickerOpen}
                                 className={cn(
-                                    "relative w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center",
+                                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 relative w-7 h-7 shrink-0 p-0 border-0 rounded-full cursor-pointer transition-transform hover:scale-110",
                                     isColorPickerOpen && "z-30"
                                 )}
-                                style={showStatusRing ? { border: `2px solid ${displayColorHex}` } : undefined}
                                 onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     onToggleLayerOn?.(selectedLayer);
                                 }}
                                 onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
                             >
-                                <span
-                                    className="w-[18px] h-[18px] rounded-full shadow-sm"
-                                    style={useInsetDotStyle
-                                        ? {
-                                            backgroundColor: "transparent",
-                                            boxShadow: `inset 0 0 0 6px ${displayColorHex}`,
-                                        }
-                                        : { backgroundColor: displayColorHex }}
-                                />
+                                <svg viewBox="0 0 28 28" className="absolute inset-0 block h-full w-full" aria-hidden="true">
+                                    {showStatusRing && <circle cx="14" cy="14" r="13" fill="none" stroke={displayColorHex} strokeWidth="2" />}
+                                    <circle cx="14" cy="14" r={useInsetDotStyle ? 6 : 9}
+                                        fill={useInsetDotStyle ? "none" : displayColorHex}
+                                        stroke={useInsetDotStyle ? displayColorHex : "none"}
+                                        strokeWidth={useInsetDotStyle ? 6 : 0} />
+                                </svg>
                                 {isColorPickerOpen && (
                                     <span className="absolute -inset-[3px] rounded-full border-2 border-black pointer-events-none z-20" />
                                 )}
@@ -396,8 +320,12 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             {allColors.map((color) => (
                                 <button
                                     key={color.name}
+                                    type="button"
+                                    data-color-choice
+                                    aria-label={color.name}
+                                    aria-pressed={currentLayerColorName === color.name}
                                     className={cn(
-                                        "w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
+                                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
                                         currentLayerColorName === color.name ? "border-black" : "border-transparent"
                                     )}
                                     style={{ backgroundColor: color.hex }}
@@ -406,7 +334,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             ))}
                             {/* Custom color button - always available, hardware write only happens when connected */}
                             <button
-                                className="w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
+                                type="button"
+                                aria-label="Custom layer color"
+                                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
                                 onClick={() => {
                                     setIsColorPickerOpen(false);
                                     setIsCustomColorOpen(true);
@@ -422,29 +352,33 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 {isEditing ? (
                     <Input
                         ref={inputRef}
+                        aria-label={`Rename layer ${selectedLayer}`}
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleSave}
+                        onBlur={() => void handleSave()}
                         onKeyDown={handleKeyDown}
                         className="h-6 py-0 px-2 text-xs font-bold border border-black rounded w-24 bg-white"
                         autoFocus
                     />
                 ) : (
-                    <span
+                    <button
+                        type="button"
+                        ref={renameButtonRef}
+                        aria-label={`Rename layer ${selectedLayer}: ${svalService.getLayerName(keyboard, selectedLayer)}`}
                         className={cn(
-                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 rounded text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
                         )}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >
                         {svalService.getLayerName(keyboard, selectedLayer)}
-                    </span>
+                    </button>
                 )}
 
                 {/* Layer Actions Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
+                        <button type="button" aria-label={`Actions for layer ${selectedLayer}`} className="focus-visible:ring-2 focus-visible:ring-black hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
                             <EllipsisVertical size={16} strokeWidth={1.5} />
                         </button>
                     </DropdownMenuTrigger>
@@ -502,6 +436,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
             <CustomColorDialog
                 open={isCustomColorOpen}
                 onOpenChange={setIsCustomColorOpen}
+                onCloseAutoFocus={(event) => { event.preventDefault(); colorButtonRef.current?.focus(); }}
                 // LED Color (Hardware)
                 initialLedHue={keyboard.layer_colors?.[selectedLayer]?.hue ?? 85}
                 initialLedSat={keyboard.layer_colors?.[selectedLayer]?.sat ?? 255}

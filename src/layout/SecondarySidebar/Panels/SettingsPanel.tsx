@@ -14,27 +14,32 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useChanges } from "@/contexts/ChangesContext";
-import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useNavigation } from "@/App";
 import { cn } from "@/lib/utils";
-import { customValueService } from "@/services/custom-value.service";
+import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { fileService } from "@/services/file.service";
 import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
+import BoardIdentitySection from "./BoardIdentitySection";
 import FragmentsPanel from "./FragmentsPanel";
+import DynamicMenuPanel from "./DynamicMenuPanel";
+import { selectPointingMenu } from "@/utils/pointing-menu";
+import type { CustomUIMenuItem } from "@/types/vial.types";
 
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
-    const { keyboard, setKeyboard, isConnected, setIsImporting } = useVial();
+    const { keyboard } = useVial();
     const { setActivePanel } = usePanels();
-    const { layoutMode } = useLayoutSettings();
     const { navigateTo } = useNavigation();
 
-    const isHorizontal = layoutMode === "bottombar";
+    const pointingMenuIndex = keyboard?.menus?.findIndex(menu => menu.label?.toLowerCase().includes("pointing")) ?? -1;
+    const hasDeveloperControls = pointingMenuIndex >= 0 && selectPointingMenu(
+        (keyboard?.menus?.[pointingMenuIndex]?.content ?? []) as CustomUIMenuItem[], "developer",
+    ).length > 0;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Export Dialog State
@@ -45,122 +50,13 @@ const SettingsPanel = () => {
     // Print Dialog State
     const [isPrintOpen, setIsPrintOpen] = useState(false);
 
-    const { queue } = useChanges();
-
-    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsImporting(true);
-        // Double-yield to guarantee React paints the spinner before heavy work
-        await new Promise<void>(resolve =>
-            requestAnimationFrame(() => setTimeout(resolve, 0))
-        );
-
-        try {
-            const newKbInfo = await fileService.uploadFile(file);
-            if (newKbInfo) {
-                // Start sync if connected
-                if (keyboard && isConnected) {
-                    const { importService } = await import('@/services/import.service');
-                    const { vialService } = await import('@/services/vial.service');
-
-                    await importService.syncWithKeyboard(
-                        newKbInfo,
-                        keyboard,
-                        queue,
-                        { vialService }
-                    );
-
-                    // Merge hardware-specific properties from connected keyboard
-                    // These come from the keyboard definition and aren't in save files
-                    if (keyboard.menus) newKbInfo.menus = keyboard.menus;
-                    if (keyboard.payload) newKbInfo.payload = keyboard.payload;
-                    if (keyboard.cosmetic) {
-                        // Preserve layer names from connected keyboard, but allow file to override colors
-                        newKbInfo.cosmetic = {
-                            ...keyboard.cosmetic,
-                            ...(newKbInfo.cosmetic || {}),
-                            layer: keyboard.cosmetic.layer || newKbInfo.cosmetic?.layer,
-                        };
-                    }
-                    // Preserve hardware counts from connected keyboard
-                    newKbInfo.combo_count = keyboard.combo_count;
-                    newKbInfo.key_override_count = keyboard.key_override_count;
-                    newKbInfo.macro_count = keyboard.macro_count;
-                    newKbInfo.tapdance_count = keyboard.tapdance_count;
-                    newKbInfo.alt_repeat_key_count = keyboard.alt_repeat_key_count;
-                    newKbInfo.leader_count = keyboard.leader_count;
-                    // Preserve hardware dimensions
-                    newKbInfo.rows = keyboard.rows;
-                    newKbInfo.cols = keyboard.cols;
-                    newKbInfo.layers = keyboard.layers;
-
-                    // Merge fragment definitions and state from connected keyboard
-                    if (keyboard.fragments) {
-                        newKbInfo.fragments = keyboard.fragments;
-                    }
-                    if (keyboard.composition) {
-                        newKbInfo.composition = keyboard.composition;
-                    }
-                    // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                    // Ensure Maps are actual Maps (they may have been serialized to plain objects)
-                    const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                        if (!obj) return new Map();
-                        if (obj instanceof Map) return obj;
-                        // Convert plain object to Map
-                        return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                    };
-
-                    if (keyboard.fragmentState) {
-                        const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                        newKbInfo.fragmentState = {
-                            hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                            eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                            userSelections: importedUserSelections,
-                        };
-                    }
-
-                    // Recompose layout with fragment selections
-                    const fragmentComposer = vialService.getFragmentComposer();
-                    if (fragmentComposer.hasFragments(newKbInfo)) {
-                        const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                        if (Object.keys(composedLayout).length > 0) {
-                            newKbInfo.keylayout = composedLayout;
-                            console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
-                        }
-                    }
-
-                    // Preserve keylayout from connected keyboard if not set by fragments or file
-                    if (!newKbInfo.keylayout && keyboard.keylayout) {
-                        newKbInfo.keylayout = keyboard.keylayout;
-                    }
-
-                    // Refresh custom_values: after import sync wrote values to USB,
-                    // re-read all custom values so the UI reflects the actual keyboard state
-                    if (newKbInfo.menus) {
-                        try {
-                            newKbInfo.custom_values = await customValueService.loadAllMenuValues(newKbInfo.menus);
-                            console.log("Custom values refreshed after import:", newKbInfo.custom_values.length, "entries");
-                        } catch (err) {
-                            console.warn("Failed to refresh custom values after import:", err);
-                        }
-                    }
-                }
-
-                setKeyboard(newKbInfo);
-                console.log("Import successful", newKbInfo);
-            }
-        } catch (err) {
-            console.error("Upload failed", err);
-        } finally {
-            setIsImporting(false);
-        }
-        // Reset input so same file can be selected again
-        if (event.target) {
-            event.target.value = '';
-        }
+    const { setInstant } = useChanges();
+    const updateBooleanSetting = async (name: string, checked: boolean) => {
+        if (name === 'live-updating' && !await setInstant(checked)) return;
+        updateSetting(name, checked);
     };
+
+    const { handleFileImport, importReview, fileError, setFileError } = useLayoutImport();
 
     const handleExport = async () => {
         if (!keyboard) {
@@ -177,7 +73,7 @@ const SettingsPanel = () => {
             }
             setIsExportOpen(false);
         } catch (err) {
-            console.error("Export failed", err);
+            setFileError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -201,178 +97,9 @@ const SettingsPanel = () => {
         setIsPrintOpen(false);
     };
 
-    // Key settings to show in horizontal mode
-    const horizontalSettings = ["live-updating", "typing-binds-key", "international-keyboards"];
-
-    // Horizontal layout for bottom panel
-    if (isHorizontal) {
-        return (
-            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
-                {/* Hidden file input for import */}
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept=".svil,.viable,.vil,.json"
-                    onChange={handleFileImport}
-                />
-
-                {/* Export Dialog */}
-                <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Export Configuration</DialogTitle>
-                            <DialogDescription>
-                                Choose the format to save your keyboard configuration.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col gap-4 py-4">
-                            <div className="flex flex-col gap-2">
-                                <Label>Format</Label>
-                                <Select value={exportFormat} onValueChange={(v: "svil" | "vil") => setExportFormat(v)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select format" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="svil">Svalboard (.svil) - Native Format</SelectItem>
-                                        <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch id="include-macros-h" checked={includeMacros} onCheckedChange={(c: boolean) => setIncludeMacros(c)} />
-                                <label
-                                    htmlFor="include-macros-h"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    Include Macros
-                                </label>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="button" onClick={handleExport}>
-                                Export
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Print Dialog */}
-                <Dialog open={isPrintOpen} onOpenChange={setIsPrintOpen}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Print Keyboard Layout</DialogTitle>
-                            <DialogDescription>
-                                Print all layers that contain configured keys.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col gap-4 py-4">
-                            {keyboard && (
-                                <div className="text-sm text-muted-foreground">
-                                    <p><strong>Keyboard:</strong> {keyboard.cosmetic?.name || keyboard.name || 'Unknown'}</p>
-                                    <p><strong>Non-empty layers:</strong> {printService.getNonEmptyLayers(keyboard).length} of {keyboard.keymap?.length || 0}</p>
-                                </div>
-                            )}
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="secondary" onClick={() => setIsPrintOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="button" onClick={handlePrint}>
-                                Print
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Quick settings */}
-                {horizontalSettings.map((settingName) => {
-                    const setting = settingsDefinitions.find((s) => s.name === settingName);
-                    if (!setting) return null;
-
-                    if (setting.type === "boolean") {
-                        if (setting.name === "typing-binds-key") {
-                            return (
-                                <div key={setting.name} className="flex flex-col gap-1 min-w-[120px]">
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
-                                    <OnOffToggle
-                                        value={getSetting(setting.name, setting.defaultValue) as boolean}
-                                        onToggle={(checked) => updateSetting(setting.name, checked)}
-                                    />
-                                </div>
-                            );
-                        }
-                        return (
-                            <div key={setting.name} className="flex flex-col gap-1 min-w-[80px]">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
-                                <Switch
-                                    checked={getSetting(setting.name, setting.defaultValue) as boolean}
-                                    onCheckedChange={(checked) => updateSetting(setting.name, checked)}
-                                />
-                            </div>
-                        );
-                    }
-
-                    if (setting.type === "select") {
-                        return (
-                            <div key={setting.name} className="flex flex-col gap-1 min-w-[100px]">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
-                                <select
-                                    value={getSetting(setting.name, setting.defaultValue) as string}
-                                    onChange={(e) => updateSetting(setting.name, e.target.value)}
-                                    className="h-7 px-2 text-xs rounded-md cursor-pointer border"
-                                >
-                                    {setting.items?.map((item) => (
-                                        <option key={item.value} value={item.value}>
-                                            {item.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        );
-                    }
-
-                    return null;
-                })}
-
-                {/* Quick actions */}
-                <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Actions</span>
-                    <div className="flex flex-row gap-1">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2"
-                            onClick={() => setIsPrintOpen(true)}
-                        >
-                            Print
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Developer tools */}
-                <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Developer</span>
-                    <div className="flex flex-row gap-1">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2"
-                            onClick={() => navigateTo("proof-sheet")}
-                        >
-                            Proof Sheet
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col w-full mx-auto py-4">
+        <section className="space-y-3 flex flex-col w-full mx-auto py-4">
+            {importReview}
             {/* Hidden file input for import */}
             <input
                 type="file"
@@ -388,14 +115,14 @@ const SettingsPanel = () => {
                     <DialogHeader>
                         <DialogTitle>Export Configuration</DialogTitle>
                         <DialogDescription>
-                            Choose the format to save your keyboard configuration.
+                            Choose the format to save your keyboard configuration. Native .svil preserves Sval features and names. Legacy .vil omits Sval-specific settings, names, colors, and hardware selections.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-4 py-4">
                         <div className="flex flex-col gap-2">
                             <Label>Format</Label>
                             <Select value={exportFormat} onValueChange={(v: "svil" | "vil") => setExportFormat(v)}>
-                                <SelectTrigger>
+                                <SelectTrigger aria-label="Export format">
                                     <SelectValue placeholder="Select format" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -414,6 +141,7 @@ const SettingsPanel = () => {
                             </label>
                         </div>
                     </div>
+                    {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
                     <DialogFooter>
                         <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
                             Cancel
@@ -455,7 +183,9 @@ const SettingsPanel = () => {
 
             <div className="flex flex-row gap-2 justify-stretch align-stretch mb-3 w-full px-4">
                 {settingsCategories.map((category) => (
-                    <div
+                    <button
+                        type="button"
+                        aria-pressed={activeCategory === category.name}
                         key={category.name}
                         onClick={() => setActiveCategory(category.name)}
                         className={cn(
@@ -465,14 +195,18 @@ const SettingsPanel = () => {
                     >
                         {category.icon && <category.icon className="h-4 w-4" />}
                         <span className="text-xs font-medium text-center break-words">{category.label}</span>
-                    </div>
+                    </button>
                 ))}
             </div>
-            <div className=" flex flex-col overflow-hidden flex-grow gap-2">
+            <div className=" flex flex-col gap-2">
                 {activeCategory === "fragments" ? (
                     <FragmentsPanel />
                 ) : (
-                    <div className="flex flex-col overflow-auto px-4 gap-2 h-full scrollbar-thin">
+                    <div className="flex flex-col px-1 gap-2">
+                        {activeCategory === "general" && <BoardIdentitySection />}
+                        {activeCategory === "developer" && hasDeveloperControls && (
+                            <DynamicMenuPanel menuIndex={pointingMenuIndex} section="developer" embedded />
+                        )}
                         {settingsCategories
                             .find((cat) => cat.name === activeCategory)
                             ?.settings.map((se) => {
@@ -482,30 +216,34 @@ const SettingsPanel = () => {
                                 if (setting.type === "boolean") {
                                     if (setting.name === "typing-binds-key") {
                                         return (
-                                            <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
-                                                <div className="flex flex-col items-start gap-3">
+                                            <div className="flex flex-row flex-wrap items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                                <div className="flex flex-col items-start gap-3 flex-1 basis-44 min-w-0">
                                                     <span className="text-md text-left">{setting.label}</span>
                                                     <span className="text-xs text-muted-foreground">{setting.description}</span>
                                                 </div>
                                                 <OnOffToggle
+                                                    label={setting.label}
+                                                    description={setting.description}
                                                     value={getSetting(setting.name, setting.defaultValue) as boolean}
                                                     onToggle={(checked) => {
-                                                        updateSetting(setting.name, checked);
+                                                        void updateBooleanSetting(setting.name, checked);
                                                     }}
                                                 />
                                             </div>
                                         );
                                     }
                                     return (
-                                        <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
-                                            <div className="flex flex-col items-start gap-3">
+                                        <div className="flex flex-row flex-wrap items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                            <div className="flex flex-col items-start gap-3 flex-1 basis-44 min-w-0">
                                                 <span className="text-md text-left">{setting.label}</span>
                                                 <span className="text-xs text-muted-foreground">{setting.description}</span>
                                             </div>
                                             <Switch
+                                                aria-label={setting.label}
+                                                aria-description={setting.description}
                                                 checked={getSetting(setting.name, setting.defaultValue) as boolean}
                                                 onCheckedChange={(checked) => {
-                                                    updateSetting(setting.name, checked);
+                                                    void updateBooleanSetting(setting.name, checked);
                                                 }}
                                             />
                                         </div>
@@ -513,17 +251,19 @@ const SettingsPanel = () => {
                                 }
                                 if (setting.type === "select") {
                                     return (
-                                        <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
-                                            <div className="flex flex-col items-start gap-3">
+                                        <div className="flex flex-row flex-wrap items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                            <div className="flex flex-col items-start gap-3 flex-1 basis-44 min-w-0">
                                                 <div className="text-md text-left">{setting.label}</div>
                                                 {setting.description && setting.description !== "" && <span className="text-xs text-muted-foreground">{setting.description}</span>}
                                             </div>
                                             <select
+                                                aria-label={setting.label}
+                                                aria-description={setting.description}
                                                 value={getSetting(setting.name, setting.defaultValue) as string}
                                                 onChange={(e) => {
                                                     updateSetting(setting.name, e.target.value);
                                                 }}
-                                                className=" h-8 px-3 font-bold rounded-md pr-3 cursor-pointer active:border-none focus:border-none"
+                                                className="max-w-full h-8 px-3 font-bold rounded-md pr-3 cursor-pointer active:border-none focus:border-none"
                                             >
                                                 {setting.items?.map((item) => (
                                                     <option key={item.value} value={item.value}>
@@ -536,8 +276,11 @@ const SettingsPanel = () => {
                                 }
                                 if (setting.type === "action") {
                                     return (
-                                        <div
-                                            className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
+                                        <button
+                                            type="button"
+                                            aria-label={setting.label}
+                                            aria-description={setting.description}
+                                            className="flex flex-row items-center text-left justify-between p-3 gap-3 panel-layer-item group/item cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md"
                                             key={setting.name}
                                             onClick={() => {
                                                 console.log(`Action ${setting.action} triggered`);
@@ -560,8 +303,8 @@ const SettingsPanel = () => {
                                                 <span className="text-md text-left">{setting.label}</span>
                                                 {setting.description ? <span className="text-xs text-muted-foreground">{setting.description}</span> : undefined}
                                             </div>
-                                            <span className="text-xs text-muted-foreground">&rsaquo;</span>
-                                        </div>
+                                            <span aria-hidden="true" className="text-xs text-muted-foreground">&rsaquo;</span>
+                                        </button>
                                     );
                                 }
                                 if (setting.type === "slider") {
@@ -571,6 +314,8 @@ const SettingsPanel = () => {
                                             <span className="text-xs text-muted-foreground">{setting.description}</span>
                                             <div className="flex flex-row items-center justify-between">
                                                 <Slider
+                                                    aria-label={setting.label}
+                                                    aria-description={setting.description}
                                                     value={[getSetting(setting.name, setting.defaultValue) as number]}
                                                     onValueChange={(values) => updateSetting(setting.name, values[0])}
                                                     min={setting.min}
@@ -580,6 +325,8 @@ const SettingsPanel = () => {
                                                     className="flex-grow"
                                                 />
                                                 <Input
+                                                    aria-label={setting.label}
+                                                    aria-description={setting.description}
                                                     type="number"
                                                     value={getSetting(setting.name, setting.defaultValue) as number}
                                                     onChange={(e) => updateSetting(setting.name, parseInt(e.target.value) || 0)}

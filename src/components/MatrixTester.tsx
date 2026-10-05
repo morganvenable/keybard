@@ -76,7 +76,7 @@ export const MatrixTester: FC = () => {
     // Matrix polling effect
     useEffect(() => {
         pollingRef.current = true;
-        let timeoutId: number | undefined;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
         const poll = async (): Promise<void> => {
             if (!pollingRef.current) return;

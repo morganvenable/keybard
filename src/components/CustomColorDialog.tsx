@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -30,6 +31,7 @@ interface CustomColorDialogProps {
         ledHsv: { hue: number; sat: number; val: number }
     ) => void;
     layerName?: string;
+    onCloseAutoFocus?: (event: Event) => void;
 }
 
 type ColorTarget = 'display' | 'led';
@@ -42,6 +44,7 @@ type ColorTarget = 'display' | 'led';
 const CustomColorDialog = ({
     open,
     onOpenChange,
+    onCloseAutoFocus,
     initialLedHue = 85,
     initialLedSat = 255,
     initialLedVal = 200,
@@ -68,6 +71,8 @@ const CustomColorDialog = ({
     const [isEditingHex, setIsEditingHex] = useState(false);
     const [hexInput, setHexInput] = useState('');
     const hexInputRef = useRef<HTMLInputElement>(null);
+    const hexButtonRef = useRef<HTMLButtonElement>(null);
+    const cancelHex = useRef(false);
 
     // Reset to initial values when dialog opens
     useEffect(() => {
@@ -120,12 +125,14 @@ const CustomColorDialog = ({
 
     // Handle hex input
     const startEditingHex = () => {
+        cancelHex.current = false;
         setHexInput(activeColor);
         setIsEditingHex(true);
         setTimeout(() => hexInputRef.current?.select(), 0);
     };
 
     const applyHexInput = () => {
+        if (cancelHex.current) return;
         setIsEditingHex(false);
         let hex = hexInput.trim();
         if (!hex.startsWith('#')) hex = '#' + hex;
@@ -144,10 +151,12 @@ const CustomColorDialog = ({
     };
 
     const handleHexKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            applyHexInput();
-        } else if (e.key === 'Escape') {
-            setIsEditingHex(false);
+        if (e.key === 'Enter' || e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.key === 'Enter') applyHexInput();
+            else { cancelHex.current = true; setIsEditingHex(false); }
+            requestAnimationFrame(() => hexButtonRef.current?.focus());
         }
     };
 
@@ -164,19 +173,30 @@ const CustomColorDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-[400px]" onCloseAutoFocus={onCloseAutoFocus}
+                onEscapeKeyDown={(event) => {
+                    if (isEditingHex) {
+                        event.preventDefault();
+                        cancelHex.current = true;
+                        setIsEditingHex(false);
+                        requestAnimationFrame(() => hexButtonRef.current?.focus());
+                    }
+                }}>
                 <DialogHeader>
                     <DialogTitle>
                         {layerName ? `Colors for ${layerName}` : "Colors"}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">Choose a key or LED color, then adjust its hue, saturation, and brightness.</DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
                     {/* Color Preview Section */}
                     <div className="flex items-center justify-start gap-8">
                         {/* Display Color Key Shape */}
-                        <div
-                            className="flex items-center gap-3 cursor-pointer group"
+                        <button
+                            type="button"
+                            aria-pressed={activeTarget === 'display'}
+                            className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                             onClick={() => setActiveTarget('display')}
                         >
                             <div
@@ -197,11 +217,13 @@ const CustomColorDialog = ({
                             )}>
                                 Key color
                             </span>
-                        </div>
+                        </button>
 
                         {/* LED Color Circle */}
-                        <div
-                            className="flex items-center gap-3 cursor-pointer group"
+                        <button
+                            type="button"
+                            aria-pressed={activeTarget === 'led'}
+                            className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                             onClick={() => setActiveTarget('led')}
                         >
                             <div
@@ -222,7 +244,7 @@ const CustomColorDialog = ({
                             )}>
                                 LED color
                             </span>
-                        </div>
+                        </button>
                     </div>
 
                     {/* Hue Slider */}
@@ -237,6 +259,7 @@ const CustomColorDialog = ({
                         >
                             <Slider
                                 id="hue"
+                                aria-label="Hue"
                                 min={0}
                                 max={255}
                                 step={1}
@@ -264,6 +287,7 @@ const CustomColorDialog = ({
                         >
                             <Slider
                                 id="sat"
+                                aria-label="Saturation"
                                 min={0}
                                 max={255}
                                 step={1}
@@ -291,6 +315,7 @@ const CustomColorDialog = ({
                         >
                             <Slider
                                 id="val"
+                                aria-label="Brightness"
                                 min={0}
                                 max={255}
                                 step={1}
@@ -308,6 +333,7 @@ const CustomColorDialog = ({
                             {isEditingHex ? (
                                 <Input
                                     ref={hexInputRef}
+                                    aria-label="Hex color"
                                     value={hexInput}
                                     onChange={(e) => setHexInput(e.target.value)}
                                     onBlur={applyHexInput}
@@ -318,6 +344,9 @@ const CustomColorDialog = ({
                                 />
                             ) : (
                                 <button
+                                    type="button"
+                                    ref={hexButtonRef}
+                                    aria-label={`Edit hex color ${activeColor.toUpperCase()}`}
                                     onClick={startEditingHex}
                                     className="text-sm text-foreground hover:underline cursor-pointer font-mono text-left"
                                 >

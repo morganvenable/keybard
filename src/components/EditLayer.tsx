@@ -1,5 +1,6 @@
+import { useLayerNames } from "@/hooks/useLayerNames";
 import { DialogClose, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useRef } from "react";
 
 import { useVial } from "@/contexts/VialContext";
 import { layerColors } from "@/utils/colors";
@@ -13,6 +14,8 @@ interface Props {
 }
 
 const EditLayer: FC<Props> = ({ layer }) => {
+    const { renameLayer, nameError } = useLayerNames();
+    const closeRef = useRef<HTMLButtonElement>(null);
     const { keyboard, setKeyboard } = useVial();
     const currentName = keyboard ? svalService.getLayerName(keyboard, layer) : "";
     const currentColor = keyboard?.cosmetic?.layer_colors?.[layer.toString()] || "green";
@@ -28,31 +31,23 @@ const EditLayer: FC<Props> = ({ layer }) => {
     useEffect(() => {
         setSelectedColor(currentColor);
     }, [currentColor]);
-    const handleSubmit = () => {
-        if (keyboard) {
-            // Deep clone cosmetic to avoid shared reference issues
-            const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
-
-            if (!cosmetic.layer) cosmetic.layer = {};
-            if (!cosmetic.layer_colors) cosmetic.layer_colors = {};
-
-            if (name !== undefined) {
-                cosmetic.layer[layer.toString()] = name;
-            }
-
-            if (selectedColor) {
-                cosmetic.layer_colors[layer.toString()] = selectedColor;
-            }
-
-            setKeyboard({
-                ...keyboard,
-                cosmetic
-            });
+    const handleSubmit = async () => {
+        if (!await renameLayer(layer, name)) return;
+        if (selectedColor) {
+            setKeyboard(current => current ? {
+                ...current,
+                cosmetic: {
+                    ...current.cosmetic,
+                    layer_colors: { ...current.cosmetic?.layer_colors, [layer.toString()]: selectedColor },
+                },
+            } : current);
         }
+        closeRef.current?.click();
     };
     return (
         <DialogContent>
             <DialogHeader></DialogHeader>
+            {nameError && <p role="alert" className="text-red-600">{nameError}</p>}
             <div className="grid gap-4">
                 <Label htmlFor="name-1">Layer {layer} Name</Label>
                 <Input id="name-1" name="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -73,11 +68,9 @@ const EditLayer: FC<Props> = ({ layer }) => {
             </div>
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button ref={closeRef} variant="outline">Cancel</Button>
                 </DialogClose>
-                <DialogClose asChild>
-                    <Button onClick={() => handleSubmit()}>Save</Button>
-                </DialogClose>
+                <Button onClick={() => void handleSubmit()}>Save</Button>
             </DialogFooter>
         </DialogContent>
     );

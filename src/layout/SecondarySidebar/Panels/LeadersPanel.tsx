@@ -1,3 +1,5 @@
+import { useBindingChanges } from "@/hooks/useBindingChanges";
+import { useChanges } from "@/contexts/ChangesContext";
 import React, { useState, useEffect } from "react";
 import { ArrowRight, Plus, ArrowRightFromLine } from "lucide-react";
 
@@ -20,6 +22,8 @@ import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBl
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
+    const { queue } = useChanges();
+    const persistBinding = useBindingChanges();
     const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -65,8 +69,10 @@ const LeadersPanel: React.FC = () => {
                 settings: { ...keyboard.settings, [LEADER_TIMEOUT_QSID]: clamped }
             };
             setKeyboard(updated);
-            await qmkService.push(updated, LEADER_TIMEOUT_QSID);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${LEADER_TIMEOUT_QSID}`, async () => {
+                await qmkService.push(updated, LEADER_TIMEOUT_QSID);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${LEADER_TIMEOUT_QSID}` });
         } catch (err) {
             console.error("Failed to update leader timeout:", err);
         } finally {
@@ -83,8 +89,10 @@ const LeadersPanel: React.FC = () => {
                 settings: { ...keyboard.settings, [LEADER_PER_KEY_QSID]: checked ? 1 : 0 }
             };
             setKeyboard(updated);
-            await qmkService.push(updated, LEADER_PER_KEY_QSID);
-            await vialService.saveSvil();
+            await queue(`QMK setting ${LEADER_PER_KEY_QSID}`, async () => {
+                await qmkService.push(updated, LEADER_PER_KEY_QSID);
+                await vialService.saveSvil();
+            }, { writeKey: `qmk:${LEADER_PER_KEY_QSID}` });
         } catch (err) {
             console.error("Failed to update per-key timing:", err);
         } finally {
@@ -145,12 +153,7 @@ const LeadersPanel: React.FC = () => {
         };
         setKeyboard(updatedKeyboard);
 
-        try {
-            await vialService.updateLeader(updatedKeyboard, index);
-            await vialService.saveSvil();
-        } catch (err) {
-            console.error("Failed to update leader:", err);
-        }
+        await persistBinding(updatedKeyboard, "leader", index);
     };
 
 
@@ -278,8 +281,8 @@ const LeadersPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <section className="space-y-3 flex flex-col pt-0">
+            <div className="flex flex-col">
                 <DescriptionBlock>
                     Leader sequences trigger an output when you press a specific sequence of keys after the Leader key. Click on a key slot to assign a keycode.
                 </DescriptionBlock>

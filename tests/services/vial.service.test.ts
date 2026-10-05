@@ -1,3 +1,4 @@
+import { LabelService } from "../../src/services/label.service";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SvilService } from '../../src/services/vial.service';
 import { SvilUSB } from '../../src/services/usb.service';
@@ -67,8 +68,8 @@ describe('SvilService', () => {
       if (cmd === SvilUSB.CMD_VIA_GET_LAYER_COUNT && options?.uint8 && options?.index === 1) {
         return Promise.resolve(2);
       }
-      if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8 && options?.index === 1) {
-        return Promise.resolve(0);
+      if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8) {
+        return Promise.resolve(new Uint8Array([SvilUSB.CMD_VIA_MACRO_GET_COUNT, 0, 0]));
       }
       if (cmd === SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE && options?.unpack === 'B>H' && options?.index === 1) {
         return Promise.resolve(0);
@@ -136,21 +137,6 @@ describe('SvilService', () => {
   });
 
   describe('getKeyboardInfo', () => {
-    it('stops initialization before feature reads or writes for renamed firmware', async () => {
-      vi.mocked(LZMA.decompressFile).mockImplementationOnce((_input: any, output: any) => {
-        const payload = { ...defaultPayload, sval: defaultPayload.viable };
-        for (const byte of new TextEncoder().encode(JSON.stringify(payload))) output.writeByte(byte);
-      });
-      const kbinfo = createTestKeyboardInfo();
-      const features = vi.spyOn(svilService, 'getFeatures');
-      const keymap = vi.spyOn(svilService, 'getKeyMap');
-      await expect(svilService.load(kbinfo)).rejects.toMatchObject({ name: 'SvalPreviewRequiredError' });
-      expect(features).not.toHaveBeenCalled();
-      expect(keymap).not.toHaveBeenCalled();
-      expect(keyService.generateAllKeycodes).not.toHaveBeenCalled();
-      expect(mockUSB.pushViaBuffer).not.toHaveBeenCalled();
-    });
-
     it('should retrieve protocol, id, and matrix from svil definition', async () => {
       const kbinfo = createTestKeyboardInfo();
 
@@ -158,17 +144,19 @@ describe('SvilService', () => {
 
       expect(kbinfo.via_proto).toBe(0x0c);
       expect(kbinfo.svil_proto).toBe(6);
+      // Kept on the connection so table requests pick the v1 or v2 format
+      expect(mockUSB.svilProtocolVersion).toBe(6);
       expect(kbinfo.kbid).toBe('1234567890abcdef');
       expect(kbinfo.rows).toBe(2);
       expect(kbinfo.cols).toBe(3);
       expect(kbinfo.name).toBe('Test Keyboard');
     });
 
-    it('should populate optional payload fields when present', async () => {
+    it.each(['sval', 'viable'])('should populate optional payload fields from %s definitions', async (namespace) => {
       const kbinfo = createTestKeyboardInfo();
       const payload = {
         ...defaultPayload,
-        viable: {
+        [namespace]: {
           tap_dance: 2,
           combo: 3,
           key_override: 4,
@@ -235,8 +223,9 @@ describe('SvilService', () => {
       const kbinfo = createTestKeyboardInfo();
 
       mockUSB.send.mockImplementation((cmd: number, _args: number[], options?: any) => {
-        if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8 && options?.index === 1) {
-          return Promise.resolve(2);
+        if (cmd === SvilUSB.CMD_VIA_MACRO_GET_COUNT && options?.uint8) {
+          // Older firmware: count in one byte, high byte left zero
+          return Promise.resolve(new Uint8Array([SvilUSB.CMD_VIA_MACRO_GET_COUNT, 2, 0]));
         }
         if (cmd === SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE && options?.unpack === 'B>H' && options?.index === 1) {
           return Promise.resolve(256);
@@ -295,6 +284,22 @@ describe('SvilService', () => {
       expect(kbinfo.kbid).toBe('1234567890abcdef');
       expect(kbinfo.keymap).toHaveLength(2);
       expect(keyService.generateAllKeycodes).toHaveBeenCalledWith(kbinfo);
+    });
+
+    it('restores board labels on a fresh connection before any layer count is known', async () => {
+      // VialContext starts every connection with dimensions only, not a saved layout.
+      const kbinfo = createTestKeyboardInfo({ layers: undefined, cosmetic: undefined });
+      const labels = vi.spyOn(LabelService.prototype, 'getAll').mockResolvedValueOnce(
+        new Map([[0, 'Work'], [1, 'Symbols']]),
+      );
+      try {
+        await svilService.load(kbinfo);
+        expect(kbinfo.layers).toBe(2);
+        expect(labels).toHaveBeenCalledWith(SvilUSB.SVIL_LABEL_TYPE_LAYER, 2);
+        expect(kbinfo.cosmetic?.layer).toMatchObject({ '0': 'Work', '1': 'Symbols' });
+      } finally {
+        labels.mockRestore();
+      }
     });
 
     it('should propagate load errors', async () => {
@@ -599,12 +604,12 @@ describe('SvilService', () => {
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET,
         [0, 4, 0, 5, 0, 3, 128],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_LEADER_SET,
         [0, 4, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0x34, 0x12],
-        {}
+        { uint8: true }
       );
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ONE_SHOT_SET,

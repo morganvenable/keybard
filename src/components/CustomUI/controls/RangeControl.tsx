@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import type { CustomUIMenuItem } from "@/types/vial.types";
@@ -16,15 +17,27 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
     const max = options?.[1] ?? 255;
     const step = options?.[2] ?? 1;
 
+    const [draft, setDraft] = useState(String(value));
+    useEffect(() => { setDraft(String(value)); }, [value]);
+    const commit = (raw: string) => {
+        if (!raw.trim() || !Number.isFinite(Number(raw))) { setDraft(String(value)); return; }
+        const next = Math.max(min, Math.min(max, Math.round(Number(raw) / step) * step));
+        setDraft(String(next));
+        if (next !== value) onChange(next);
+    };
+
     if (compact) {
         // Compact: label on top, slider + input inline below
         return (
             <div className="flex flex-col gap-0.5 py-0.5">
-                <span className="text-xs">{item.label}</span>
+                <span title={item.description} className="text-xs">{item.label}</span>
                 <div className="flex flex-row items-center gap-1.5">
                     <Slider
-                        value={[value]}
-                        onValueChange={(values) => onChange(values[0])}
+                        aria-label={item.label}
+                        aria-description={item.description}
+                        value={[Number(draft) || min]}
+                        onValueChange={(values) => setDraft(String(values[0]))}
+                        onValueCommit={(values) => commit(String(values[0]))}
                         min={min}
                         max={max}
                         step={step}
@@ -32,8 +45,15 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
                     />
                     <Input
                         type="number"
-                        value={value}
-                        onChange={(e) => onChange(parseInt(e.target.value) || min)}
+                        aria-label={item.label}
+                        aria-description={item.description}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onBlur={(e) => commit(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Escape") { e.currentTarget.value = String(value); setDraft(String(value)); e.currentTarget.blur(); }
+                            if (e.key === "Enter") e.currentTarget.blur();
+                        }}
                         className="w-14 h-6 text-xs text-right px-1"
                         min={min}
                         max={max}
@@ -45,11 +65,14 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
 
     return (
         <div className="flex flex-col gap-2 p-2 panel-layer-item">
-            <span className="text-md">{item.label}</span>
+            <span title={item.description} className="text-md">{item.label}</span>
             <div className="flex flex-row items-center gap-3">
                 <Slider
-                    value={[value]}
-                    onValueChange={(values) => onChange(values[0])}
+                        aria-label={item.label}
+                        aria-description={item.description}
+                    value={[Number(draft) || min]}
+                    onValueChange={(values) => setDraft(String(values[0]))}
+                        onValueCommit={(values) => commit(String(values[0]))}
                     min={min}
                     max={max}
                     step={step}
@@ -57,8 +80,15 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
                 />
                 <Input
                     type="number"
-                    value={value}
-                    onChange={(e) => onChange(parseInt(e.target.value) || min)}
+                        aria-label={item.label}
+                        aria-description={item.description}
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                        onBlur={(e) => commit(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Escape") { e.currentTarget.value = String(value); setDraft(String(value)); e.currentTarget.blur(); }
+                            if (e.key === "Enter") e.currentTarget.blur();
+                        }}
                     className="w-20 text-right"
                     min={min}
                     max={max}

@@ -69,8 +69,8 @@ export class KeyService {
     }
 
     // Add 'type' and 'idx' to everything we can customize
-    // 127 max macros
-    for (let i = 0; i < 127; i++) {
+    // 256 max macros (M0-M127 at QK_MACRO 0x7700, M128-M255 at 0x7680)
+    for (let i = 0; i < 256; i++) {
       KEYMAP['M' + i].type = 'macro';
       KEYMAP['M' + i].idx = i;
     }
@@ -90,8 +90,8 @@ export class KeyService {
     // Assign types to other special keys
     KEYMAP['QK_ALT_REPEAT_KEY'].type = 'altrepeat';
 
-    // 255 tap dances
-    for (let i = 0; i < 255; i++) {
+    // 256 tap dances
+    for (let i = 0; i < 256; i++) {
       const key = `TD(${i})`;
       KEYMAP[key].type = 'tapdance';
       KEYMAP[key].idx = i;

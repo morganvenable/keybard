@@ -5,8 +5,8 @@ on:
   # Runs only on pushes to main when Vite source files change.
   # Pushes to other branches must NOT auto-deploy: GitHub Pages serves a
   # single URL, so without this restriction any branch push would race
-  # with main and overwrite production. Other branches can still ship
-  # via workflow_dispatch when explicitly desired.
+  # with main and overwrite production. The job also checks main so a manual
+  # dispatch of a preview branch cannot publish to the production site.
   push:
     branches:
       - main
@@ -35,8 +35,8 @@ concurrency:
 jobs:
   # Build and deploy job
   build-and-deploy:
-    # Only run if repository owner is NOT 'svalboard'
-    if: github.repository_owner != 'svalboard'
+    # Production deployment is restricted to the production repository and branch.
+    if: github.repository == 'morganvenable/keybard-ng' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

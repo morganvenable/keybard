@@ -32,10 +32,9 @@ const DIVIDER_HEIGHT_PX = 17; // 1px + 2*8px (my-2)
 const FLEX_GAP_PX = 16; // Gap-4
 const DIVIDER_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
 
-// Icon layout helpers - keep icons at the same position regardless of collapsed state
-const getIconGutterWidth = (isCollapsed: boolean) => isCollapsed ? "w-full" : "w-[43px]";
-const getIconPadding = (isCollapsed: boolean) => (isCollapsed ? "pl-0" : "pl-[11px]");
-const getIconJustify = (isCollapsed: boolean) => isCollapsed ? "justify-center" : "justify-start";
+// Keep the icon rail fixed while the surrounding sidebar animates its width.
+// Subtract the container borders so icons stay centered in the collapsed rail.
+const ICON_GUTTER_CLASSES = "w-[calc(var(--sidebar-width-icon)-2px)] flex items-center justify-center shrink-0";
 
 export type SidebarItem = {
     title: string;
@@ -128,8 +127,8 @@ const SidebarNavItem = ({
                 (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
             )}
         >
-            <button type="button" onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
-                <div className={cn(getIconGutterWidth(isCollapsed), "h-full flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
+            <button type="button" aria-label={item.title} aria-pressed={isActive} onClick={() => onClick(item)} className="flex w-full items-center justify-start">
+                <div className={cn(ICON_GUTTER_CLASSES, "h-full")}>
                     <item.icon className="h-5 w-5 shrink-0" />
                 </div>
                 <span className={cn("truncate", isCollapsed && "hidden")}>
@@ -143,7 +142,7 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
-    const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
+    const { state, toggleSidebar, setOpen: setNavigationOpen } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
         setItemToEdit,
@@ -165,6 +164,9 @@ const AppSidebar = () => {
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
+            // Labels can be expanded to choose a destination; return the narrow
+            // viewport to its icon rail so the chosen panel remains usable.
+            if (window.innerWidth < 900) setNavigationOpen(false);
             if (item.url === "matrixtester") {
                 if (activePanel === "matrixtester") {
                     setActivePanel(null);
@@ -187,7 +189,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [setNavigationOpen, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 
@@ -276,10 +278,12 @@ const AppSidebar = () => {
                             >
                                 <button
                                     type="button"
-                                    className={cn("flex w-full items-center", getIconJustify(isCollapsed))}
+                                    className="flex w-full items-center justify-start"
+                                    aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+                                    aria-expanded={!isCollapsed}
                                     onClick={() => toggleSidebar()}
                                 >
-                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-8 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
+                                    <div className={cn(ICON_GUTTER_CLASSES, "h-8")}>
                                         <Logo className="!w-6 !h-6 !min-w-6 !min-h-6" />
                                     </div>
                                     <KeybardLogo className={cn("shrink-0 !h-[32px] !w-auto", isCollapsed && "hidden")} />

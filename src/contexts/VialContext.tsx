@@ -1,5 +1,3 @@
-import { SvalPreviewRequiredError } from "../services/firmware-compatibility";
-import { SvalCompatibilityNotice } from "../components/SvalCompatibilityNotice";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { VialService, vialService } from "../services/vial.service";
 import { svalService } from "../services/sval.service";
@@ -17,7 +15,14 @@ interface VialContextType {
     setKeyboard: React.Dispatch<React.SetStateAction<KeyboardInfo | null>>;
     originalKeyboard: KeyboardInfo | null;
     resetToOriginal: () => void;
-    markAsSaved: () => void;
+    markAsSaved: (confirmed?: KeyboardInfo | null) => void;
+    getKeyboardSnapshot: () => KeyboardInfo | null;
+    connectionSessionId: number;
+    connectionState: "idle" | "connecting" | "loading" | "connected" | "offline" | "error";
+    connectionError: string | null;
+    isChangingTarget: boolean;
+    runDeviceMaintenance: <T>(operation: () => Promise<T>) => Promise<T>;
+    registerTargetChangeGuard: (guard: () => Promise<(discardPending?: boolean) => void>) => () => void;
     hasUnsavedChanges: boolean;
     isConnected: boolean;
     isWebHIDSupported: boolean;
@@ -29,12 +34,14 @@ interface VialContextType {
     connectDevice: (device: HIDDevice) => Promise<boolean>;
     disconnect: () => Promise<void>;
     loadKeyboard: () => Promise<void>;
-    loadFromFile: (file: File) => Promise<void>;
+    loadFromFile: (file: File, source?: "file" | "demo") => Promise<boolean>;
     updateKey: (layer: number, row: number, col: number, keymask: number) => Promise<void>;
     pollMatrix: () => Promise<boolean[][]>;
     lastHeartbeat: number;
     activeLayerIndex: number | null;
 }
+
+const serializeDraft = (value: unknown) => JSON.stringify(value, (_key, item) => item instanceof Map ? { __map: [...item.entries()] } : item);
 
 const VialContext = createContext<VialContextType | undefined>(undefined);
 
@@ -57,22 +64,35 @@ export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_
         (f.productId === undefined || d.productId === f.productId) &&
         (f.usagePage === undefined || c.usagePage === f.usagePage) &&
         (f.usage === undefined || c.usage === f.usage)));
-    const seen = new Set<string>();
-    return devices.filter((d) => {
-        if (!matches(d)) return false;
-        const key = `${d.vendorId}:${d.productId}:${d.productName}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+    return devices.filter(matches);
 }
 
 export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [compatibilityNotice, setCompatibilityNotice] = useState(false);
-    const [releaseFailed, setReleaseFailed] = useState(false);
-    const [keyboard, setKeyboard] = useState<KeyboardInfo | null>(null);
+    const [keyboard, setKeyboardState] = useState<KeyboardInfo | null>(null);
     const [originalKeyboard, setOriginalKeyboard] = useState<KeyboardInfo | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [connectionState, setConnectionState] = useState<VialContextType["connectionState"]>("idle");
+    const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [connectionSessionId, setConnectionSessionId] = useState(0);
+    const sessionRef = useRef(0);
+    const targetChangeGuard = useRef<(() => Promise<(discardPending?: boolean) => void>) | null>(null);
+    const targetChanging = useRef(false);
+    const [isChangingTarget, setIsChangingTarget] = useState(false);
+    const registerTargetChangeGuard = useCallback((guard: () => Promise<(discardPending?: boolean) => void>) => {
+        targetChangeGuard.current = guard;
+        return () => { if (targetChangeGuard.current === guard) targetChangeGuard.current = null; };
+    }, []);
+    const beginTargetChange = useCallback(async () => {
+        if (targetChanging.current) throw new Error("Another connection change is still in progress.");
+        targetChanging.current = true;
+        setIsChangingTarget(true);
+        try {
+            const release = await targetChangeGuard.current?.();
+            // Finish protocol reads on the old transport before another device can open.
+            await inFlightLoadRef.current?.catch(() => undefined);
+            return (discardPending = false) => { release?.(discardPending); targetChanging.current = false; setIsChangingTarget(false); };
+        } catch (error) { targetChanging.current = false; setIsChangingTarget(false); throw error; }
+    }, []);
     const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [lastHeartbeat, setLastHeartbeat] = useState<number>(0);
@@ -88,60 +108,93 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // undefined or partial. Dedupe so callers share a single load.
     const inFlightLoadRef = useRef<Promise<void> | null>(null);
 
-    // Keeps loadFromFile able to read the latest keyboard state without
-    // re-binding the callback (which would trigger downstream re-renders
-    // every keystroke). Used to merge device-derived structural fields
-    // (custom_keycodes, payload, etc.) into file-loaded keymaps.
     const keyboardRef = useRef<KeyboardInfo | null>(null);
-    useEffect(() => {
-        keyboardRef.current = keyboard;
-        console.log("keyboard changed", keyboard);
-    }, [keyboard]);
+    const setKeyboard = useCallback<React.Dispatch<React.SetStateAction<KeyboardInfo | null>>>((update) => {
+        const next = typeof update === "function" ? update(keyboardRef.current) : update;
+        keyboardRef.current = next;
+        setKeyboardState(next);
+    }, []);
+    const originalRef = useRef(originalKeyboard);
+    originalRef.current = originalKeyboard;
+    const confirmTargetChange = useCallback(() => {
+        const dirty = keyboardRef.current && originalRef.current &&
+            serializeDraft(keyboardRef.current) !== serializeDraft(originalRef.current);
+        return !dirty || window.confirm("You have unsaved edits. Discard them and change the editing target?");
+    }, []);
+    const nextSession = useCallback(() => {
+        sessionRef.current += 1;
+        setConnectionSessionId(sessionRef.current);
+    }, []);
 
     const afterOpen = useCallback((success: boolean) => {
         if (success) {
-            setCompatibilityNotice(false);
+            nextSession();
             setKeyboard(null);
             setOriginalKeyboard(null);
-            keyboardRef.current = null;
+            setConnectionState("loading");
             usbInstance.onDisconnect = () => {
                 console.log("Disconnect detected via listener");
+                sessionRef.current += 1; // invalidate an interrupted load, retain the draft and queue
                 setIsConnected(false);
+                setConnectionState("offline");
+                setConnectionError("Keyboard disconnected. Your local edits are retained; export a backup before reconnecting if needed.");
             };
         }
         setIsConnected(success);
-        console.log("connected success:", success);
+        if (!success) setConnectionState(keyboardRef.current ? "offline" : "idle");
         return success;
-    }, []);
+    }, [nextSession]);
 
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
+        if (!confirmTargetChange()) return false;
+        setConnectionError(null);
+        setConnectionState("connecting");
+        let release: ((discardPending?: boolean) => void) | undefined;
+        let changed = false;
         try {
-            return afterOpen(await usbInstance.open(filters || DEFAULT_HID_FILTERS));
+            release = await beginTargetChange();
+            changed = await usbInstance.open(filters || DEFAULT_HID_FILTERS);
+            return afterOpen(changed);
         } catch (error) {
             console.error("Failed to connect to keyboard:", error);
+            const failure = error instanceof Error ? error : new Error(String(error));
+            setConnectionError(failure.message);
+            setConnectionState("error");
             return false;
-        }
-    }, [afterOpen]);
+        } finally { release?.(changed); }
+    }, [afterOpen, confirmTargetChange, beginTargetChange]);
 
     const connectDevice = useCallback(async (device: HIDDevice) => {
+        if (!confirmTargetChange()) return false;
+        setConnectionError(null);
+        setConnectionState("connecting");
+        let release: ((discardPending?: boolean) => void) | undefined;
+        let changed = false;
         try {
-            return afterOpen(await usbInstance.openDevice(device));
+            release = await beginTargetChange();
+            changed = await usbInstance.openDevice(device);
+            return afterOpen(changed);
         } catch (error) {
             console.error("Failed to open permitted keyboard:", error);
+            const failure = error instanceof Error ? error : new Error(String(error));
+            setConnectionError(failure.message);
+            setConnectionState("error");
             return false;
-        }
-    }, [afterOpen]);
+        } finally { release?.(changed); }
+    }, [afterOpen, confirmTargetChange, beginTargetChange]);
 
     const disconnect = useCallback(async () => {
+        const release = await beginTargetChange();
         try {
             await usbInstance.close();
             setIsConnected(false);
-            setLoadedFrom(null);
-            setCompatibilityNotice(false);
+            sessionRef.current += 1;
+            setConnectionState(keyboardRef.current ? "offline" : "idle");
         } catch (error) {
-            console.error("Failed to disconnect:", error);
-        }
-    }, []);
+            setConnectionError(error instanceof Error ? error.message : String(error));
+            throw error;
+        } finally { release(); }
+    }, [beginTargetChange]);
 
     const loadKeyboard = useCallback(async () => {
         if (!isConnected) {
@@ -155,6 +208,8 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return inFlightLoadRef.current;
         }
 
+        const session = sessionRef.current;
+        setConnectionState("loading");
         const loadPromise = (async () => {
             try {
                 const kbinfo: KeyboardInfo = {
@@ -216,39 +271,29 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 }
 
+                if (session !== sessionRef.current) return;
                 setKeyboard(loadedInfo);
+                setConnectionState("connected");
+                setConnectionError(null);
                 // Store original state for revert functionality
-                setOriginalKeyboard(JSON.parse(JSON.stringify(loadedInfo)));
+                setOriginalKeyboard(structuredClone(loadedInfo));
                 // Set loadedFrom to device product name
                 const deviceName = usbInstance.getDeviceName();
                 setLoadedFrom(deviceName || loadedInfo.kbid || "Connected Device");
             } catch (error) {
-                if (error instanceof SvalPreviewRequiredError) {
-                    setIsConnected(false);
-                    setKeyboard(null);
-                    setOriginalKeyboard(null);
-                    keyboardRef.current = null;
-                    setLoadedFrom(null);
-                    setActiveLayerIndex(null);
-                    let failedToRelease = false;
-                    try {
-                        await usbInstance.close();
-                    } catch (closeError) {
-                        failedToRelease = true;
-                        console.warn("Could not release keyboard connection:", closeError);
-                    }
-                    setReleaseFailed(failedToRelease);
-                    setCompatibilityNotice(true);
-                    return;
+                if (session === sessionRef.current) {
+                    setConnectionError(error instanceof Error ? error.message : String(error));
+                    setConnectionState("error");
+                    try { await usbInstance.close(); } catch (closeError) { console.error("Failed to close connection after load error", closeError); }
                 }
-                console.error("Failed to load keyboard:", error);
                 throw error;
             }
         })();
         inFlightLoadRef.current = loadPromise;
-        // Handle both outcomes without creating an unhandled rejected promise.
-        const clearLoad = () => { inFlightLoadRef.current = null; };
-        loadPromise.then(clearLoad, clearLoad);
+        const clearLoad = () => {
+            if (inFlightLoadRef.current === loadPromise) inFlightLoadRef.current = null;
+        };
+        void loadPromise.then(clearLoad, clearLoad);
         return loadPromise;
     }, [isConnected]);
 
@@ -261,47 +306,44 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [isConnected, loadKeyboard]);
 
-    const loadFromFile = useCallback(async (file: File) => {
+    const loadFromFile = useCallback(async (file: File, source: "file" | "demo" = "file") => {
+        let release: ((discardPending?: boolean) => void) | undefined;
+        let changed = false;
         try {
             const kbinfo = await fileService.loadFile(file);
 
-            // .svil / .vil files only carry user-editable data (keymap,
-            // macros, combos, etc.). Device-derived structural fields come
-            // from the keyboard payload at connect time and are not in the
-            // file format. If a board is currently connected, merge those
-            // fields in so things like SV_* mouse keys (read from
-            // custom_keycodes) keep showing up after a file load instead of
-            // disappearing until the user reconnects.
-            const deviceState = keyboardRef.current;
-            if (deviceState) {
-                if (deviceState.custom_keycodes) kbinfo.custom_keycodes = deviceState.custom_keycodes;
-                if (deviceState.payload) kbinfo.payload = deviceState.payload;
-                if (deviceState.name && !kbinfo.name) kbinfo.name = deviceState.name;
-                if (deviceState.feature_flags !== undefined && kbinfo.feature_flags === undefined) {
-                    kbinfo.feature_flags = deviceState.feature_flags;
-                }
-                if (deviceState.macros_size !== undefined && kbinfo.macros_size === undefined) {
-                    kbinfo.macros_size = deviceState.macros_size;
-                }
-                if (!kbinfo.menus && deviceState.menus) kbinfo.menus = deviceState.menus;
-                if (!kbinfo.fragments && deviceState.fragments) kbinfo.fragments = deviceState.fragments;
-                if (!kbinfo.composition && deviceState.composition) kbinfo.composition = deviceState.composition;
-                if (!kbinfo.keylayout && deviceState.keylayout) kbinfo.keylayout = deviceState.keylayout;
-            }
-
+            // Offline files own their metadata. Never borrow capabilities or layout
+            // structure from a previously connected, possibly unrelated board.
+            if (!confirmTargetChange()) return false;
+            release = await beginTargetChange();
             svalService.setupCosmeticLayerNames(kbinfo);
             keyService.generateAllKeycodes(kbinfo);
+            if (VialService.isWebHIDSupported()) await usbInstance.close();
+            nextSession();
+            changed = true;
+            setConnectionError(null);
+            setConnectionState("offline");
             setKeyboard(kbinfo);
             // Store original state for revert functionality
-            setOriginalKeyboard(JSON.parse(JSON.stringify(kbinfo)));
-            const filePath = file.name;
+            setOriginalKeyboard(structuredClone(kbinfo));
+            const filePath = source === "demo" ? "QWERTY example (demo)" : file.name;
             setLoadedFrom(filePath);
             setIsConnected(false);
+            return true;
         } catch (error) {
-            console.error("Failed to load file:", error);
-            throw error;
-        }
-    }, []);
+            throw error instanceof Error ? error : new Error(String(error));
+        } finally { release?.(changed); }
+    }, [confirmTargetChange, nextSession, beginTargetChange]);
+
+    const runDeviceMaintenance = useCallback(async <T,>(operation: () => Promise<T>): Promise<T> => {
+        if (!isConnected || connectionState !== "connected") throw new Error("Connect a keyboard before performing maintenance.");
+        const session = sessionRef.current;
+        const release = await beginTargetChange();
+        try {
+            if (session !== sessionRef.current) throw new Error("The keyboard disconnected before maintenance could start.");
+            return await operation();
+        } finally { release(); }
+    }, [isConnected, connectionState, beginTargetChange]);
 
     // Note: Auto-restore from localStorage was removed to ensure users always
     // see the "Connect or Load a File" page on refresh. Users should explicitly
@@ -309,12 +351,12 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updateKey = useCallback(
         async (layer: number, row: number, col: number, keymask: number) => {
-            if (!isConnected) {
-                throw new Error("USB device not connected");
+            if (!isConnected || connectionState !== "connected") {
+                throw new Error("Keyboard is not ready for changes");
             }
             await vialService.updateKey(layer, row, col, keymask);
         },
-        [isConnected]
+        [isConnected, connectionState]
     );
 
     const pollMatrix = useCallback(async () => {
@@ -361,22 +403,28 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Reset keyboard to original state (used by revert)
     const resetToOriginal = useCallback(() => {
         if (originalKeyboard) {
-            setKeyboard(JSON.parse(JSON.stringify(originalKeyboard)));
+            setKeyboard(structuredClone(originalKeyboard));
         }
     }, [originalKeyboard]);
 
     // Mark current state as saved (called after push/commit)
-    const markAsSaved = useCallback(() => {
-        if (keyboard) {
-            setOriginalKeyboard(JSON.parse(JSON.stringify(keyboard)));
-        }
-    }, [keyboard]);
+    const getKeyboardSnapshot = useCallback(() => keyboardRef.current ? structuredClone(keyboardRef.current) : null, []);
+    const markAsSaved = useCallback((confirmed?: KeyboardInfo | null) => {
+        if (confirmed) setOriginalKeyboard(structuredClone(confirmed));
+    }, []);
 
     // Detect if there are unsaved changes by comparing current to original
     const hasUnsavedChanges = React.useMemo(() => {
         if (!keyboard || !originalKeyboard) return false;
-        return JSON.stringify(keyboard) !== JSON.stringify(originalKeyboard);
+        return serializeDraft(keyboard) !== serializeDraft(originalKeyboard);
     }, [keyboard, originalKeyboard]);
+
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+        const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+        window.addEventListener("beforeunload", warn);
+        return () => window.removeEventListener("beforeunload", warn);
+    }, [hasUnsavedChanges]);
 
     const value: VialContextType = {
         keyboard,
@@ -384,8 +432,15 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         originalKeyboard,
         resetToOriginal,
         markAsSaved,
+        getKeyboardSnapshot,
+        connectionState,
+        connectionError,
+        connectionSessionId,
+        registerTargetChangeGuard,
+        isChangingTarget,
+        runDeviceMaintenance,
         hasUnsavedChanges,
-        isConnected,
+        isConnected: isConnected && connectionState === "connected",
         isWebHIDSupported,
         isImporting,
         setIsImporting,
@@ -401,11 +456,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeLayerIndex,
     };
 
-    return <VialContext.Provider value={value}>
-        {compatibilityNotice ? (
-            <SvalCompatibilityNotice releaseFailed={releaseFailed} onDisconnect={() => { void disconnect(); }} />
-        ) : children}
-    </VialContext.Provider>;
+    return <VialContext.Provider value={value}>{children}</VialContext.Provider>;
 };
 
 export const useVial = (): VialContextType => {

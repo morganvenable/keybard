@@ -1,0 +1,31 @@
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import type { KeyboardInfo } from '../../src/types/vial.types';
+import { useBindingNames } from '../../src/hooks/useBindingNames';
+const state = vi.hoisted(() => ({keyboard: null as KeyboardInfo|null, isConnected:true,setKeyboard:vi.fn(),queue:vi.fn(),sendSvil:vi.fn()}));
+vi.mock('@/contexts/VialContext',()=>({useVial:()=>state}));
+vi.mock('@/contexts/ChangesContext',()=>({useChanges:()=>({queue:state.queue})}));
+vi.mock('@/services/usb.service',async original=>({...await original<typeof import('../../src/services/usb.service')>(),usbInstance:{svilProtocolVersion:3,sendSvil:state.sendSvil}}));
+beforeEach(()=>{vi.clearAllMocks();state.keyboard={svil_proto:3,macro_count:4,tapdance_count:4};state.isConnected=true;state.setKeyboard.mockImplementation(fn=>state.keyboard=fn(state.keyboard));state.queue.mockResolvedValue(undefined);state.sendSvil.mockResolvedValue(Uint8Array.of(0x1c,0));});
+describe('binding name draft persistence',()=>{
+    it('stages name and blank clearing under stable write keys',async()=>{
+        const {result}=renderHook(()=>useBindingNames());
+        await act(async()=>{await result.current.renameBinding('macro',2,'Email')});
+        expect(state.keyboard?.cosmetic?.macros?.['2']).toBe('Email');
+        expect(state.queue.mock.calls[0][2].writeKey).toBe('label:macro:2');
+        expect(state.sendSvil).not.toHaveBeenCalled();
+        await state.queue.mock.calls[0][1]();expect(state.sendSvil).toHaveBeenCalledTimes(1);
+        await act(async()=>{await result.current.renameBinding('macro',2,'')});
+        expect(state.keyboard?.cosmetic?.macros).toEqual({});
+    });
+    it('rejects unsupported board labels without creating a false saved-looking name',async()=>{
+        state.keyboard!.svil_proto=1;const {result}=renderHook(()=>useBindingNames());
+        await act(async()=>{expect(await result.current.renameBinding('tapdance',0,'Tap')).toBe(false)});
+        expect(result.current.nameError).toContain('firmware');expect(state.queue).not.toHaveBeenCalled();expect(state.keyboard?.cosmetic).toBeUndefined();
+    });
+    it('keeps offline names exportable without queuing device writes',async()=>{
+        state.isConnected=false;const {result}=renderHook(()=>useBindingNames());
+        await act(async()=>{await result.current.renameBinding('tapdance',0,'Tap')});
+        expect(state.keyboard?.cosmetic?.tapdances?.['0']).toBe('Tap');expect(state.queue).not.toHaveBeenCalled();
+    });
+});

@@ -1,18 +1,23 @@
 import { KeyboardInfo } from "../types/vial.types";
 import { PendingChange } from "./changes.service";
 import { customValueService } from "./custom-value.service";
+import { LabelService } from "./label.service";
+import { usbInstance } from "./usb.service";
 import { keyService } from "./key.service";
 
 export class ImportService {
     async syncWithKeyboard(
         newKb: KeyboardInfo,
         currentKb: KeyboardInfo,
-        queue: (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => Promise<void>,
+        enqueue: (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => Promise<void>,
         services: any
     ): Promise<void> {
         if (!currentKb) return;
 
-        console.log("Syncing imported keyboard...", newKb);
+        // Build the complete write set before executing anything. Live mode then sees
+        // one batch, so a partial import cannot be acknowledged as fully saved.
+        const writes: Array<{ desc: string; cb: () => Promise<void>; metadata?: Partial<PendingChange> }> = [];
+        const queue = async (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => { writes.push({ desc, cb, metadata }); };
 
         // Copy hardware properties from connected keyboard (these are not in save files)
         // macros_size is required for the macro buffer allocation
@@ -43,6 +48,7 @@ export class ImportService {
                                     await services.vialService.updateKey(l, r, c, newVal);
                                 },
                                 {
+                                    writeKey: `key:${l}:${r}:${c}`,
                                     type: "key",
                                     layer: l,
                                     row: r,
@@ -64,7 +70,7 @@ export class ImportService {
                 async () => {
                     await services.vialService.updateMacros(newKb);
                 },
-                { type: "macro" }
+                { type: "macro", writeKey: "macros" }
             );
         }
 
@@ -82,7 +88,7 @@ export class ImportService {
                         async () => {
                             await services.vialService.updateCombo(newKb, idx);
                         },
-                        { type: "combo", comboId: idx }
+                        { type: "combo", comboId: idx, writeKey: `combo:${idx}` }
                     );
                 }
             }
@@ -102,7 +108,7 @@ export class ImportService {
                         async () => {
                             await services.vialService.updateTapdance(newKb, idx);
                         },
-                        { type: "tapdance", tapdanceId: idx }
+                        { type: "tapdance", tapdanceId: idx, writeKey: `tapdance:${idx}` }
                     );
                 }
             }
@@ -122,8 +128,20 @@ export class ImportService {
                         async () => {
                             await services.vialService.updateKeyoverride(newKb, idx);
                         },
-                        { type: "override" }
+                        { type: "override", writeKey: `override:${idx}` }
                     );
+                }
+            }
+        }
+
+        const labels = services.labelService ?? new LabelService(usbInstance);
+        if ((currentKb.svil_proto ?? 0) >= 2) {
+            for (const [field, kind, count] of [["layer", "layer", currentKb.layers], ["macros", "macro", currentKb.macro_count], ["tapdances", "tapdance", currentKb.tapdance_count]] as const) {
+                if (!newKb.cosmetic?.[field]) continue;
+                for (let index = 0; index < (count ?? 0); index++) {
+                    const name = newKb.cosmetic[field]?.[index] ?? "";
+                    if (name === (currentKb.cosmetic?.[field]?.[index] ?? "")) continue;
+                    await queue(`Rename ${kind} ${index}`, () => labels.saveName(currentKb, kind, index, name), { type: "key", writeKey: `label:${kind}:${index}` });
                 }
             }
         }
@@ -141,7 +159,7 @@ export class ImportService {
                         async () => {
                             await services.vialService.updateQMKSetting(newKb, qsid);
                         },
-                        { type: "key" }
+                        { type: "key", writeKey: `setting:${qsid}` }
                     );
                 }
             }
@@ -185,7 +203,7 @@ export class ImportService {
                     async () => {
                         await customValueService.setRaw(ref.channel, ref.valueId, dataBytes);
                     },
-                    { type: "custom_ui" as any }
+                    { type: "custom_ui" as any, writeKey: `custom:${entry.key}` }
                 );
 
                 channelsToSave.add(ref.channel);
@@ -198,10 +216,14 @@ export class ImportService {
                     async () => {
                         await customValueService.save(channel);
                     },
-                    { type: "custom_ui" as any }
+                    { type: "custom_ui" as any, writeKey: `custom-save:${channel}` }
                 );
             }
         }
+        if (writes.length) {
+            await queue("Save imported configuration", () => services.vialService.saveSvil(), { type: "key", writeKey: "save-svil" });
+        }
+        await Promise.all(writes.map(write => enqueue(write.desc, write.cb, write.metadata)));
     }
 }
 
