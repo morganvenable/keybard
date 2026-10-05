@@ -6,7 +6,7 @@ import secrets
 from threading import RLock
 from pathlib import Path
 
-DEFAULTS = dict(appearance=dict(fill='#14202b', fillAlpha=75, outline='#51606a', outlineAlpha=100,
+DEFAULTS = dict(layoutId='us', appearance=dict(fill='#14202b', fillAlpha=75, outline='#51606a', outlineAlpha=100,
     legend='#f0f5f7', legendAlpha=100, width=1, halo=False, changed='#8ce4d3', pressed='#ffd27a'),
     effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=False, manualDefault=1)
 
@@ -30,6 +30,9 @@ def validate_config(value):
         elif key in ('duration', 'scale', 'manualDefault'):
             lo, hi = dict(duration=(50, 750), scale=(50, 150), manualDefault=(0, 0xffffffff))[key]
             if type(val) is not int or not lo <= val <= hi: raise ValueError('Invalid numeric preference')
+            result[key] = val
+        elif key == 'layoutId':
+            if not isinstance(val, str) or not re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', val): raise ValueError('Invalid keyboard language')
             result[key] = val
         elif key == 'highlightPressed':
             if type(val) is not bool: raise ValueError('Invalid matrix preference')

@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useVial } from '@/contexts/VialContext';
 import { fileService } from '@/services/file.service';
-import { getKeyLabel } from '@/utils/layers';
+import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import type { KeyboardInfo } from '@/types/vial.types';
 import example from '@/default-layouts/sval-default.svil?raw';
-import { DEFAULTS, PRESETS, STORAGE_KEY, geometry, preferences, resolveBinding, type Appearance, type Preferences } from './core';
+import { DEFAULTS, PRESETS, STORAGE_KEY, preferences, type Appearance, type Preferences } from './core';
 import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import './trainer.css';
 import { useHost } from './host';
@@ -16,6 +16,7 @@ import { surfaceKeys } from './useSurfaceKeys';
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
 export default function TrainerPage({ active = true }: { active?: boolean }) {
     const host = useHost();
+    const { internationalLayout } = useLayoutSettings();
     const [live, setLive] = useState(true);
     const [hostDirty, setHostDirty] = useState(false);
     const { keyboard, originalKeyboard, hasUnsavedChanges } = useVial();
@@ -52,19 +53,20 @@ export default function TrainerPage({ active = true }: { active?: boolean }) {
         }, 160);
         return () => clearTimeout(timer);
     }, [prefs, hostDirty, host.busy, host.configure]);
+    useEffect(() => {
+        if (!host.state || host.state.config.layoutId === internationalLayout) return;
+        setPrefs(p => ({ ...p, layoutId: internationalLayout }));
+        setHostDirty(true);
+    }, [internationalLayout, host.state?.session]);
     const keys = useMemo<SurfaceKey[]>(() => {
         if (following) {
             if (!host.state?.board || !host.state.valid) return [];
-            try { return surfaceKeys(host.state.board, host.state.active, host.state.default ?? host.state.config.manualDefault, prefs.hands); }
+            try { return surfaceKeys(host.state.board, host.state.active, host.state.default ?? host.state.config.manualDefault, prefs.hands, internationalLayout); }
             catch { return []; }
         }
-        if (!board.keymap?.length) return [];
-        return geometry(board).filter(k => prefs.hands === 'Both' || k.hand === prefs.hands).map(k => {
-            const binding = resolveBinding(board.keymap!, k.id, 1 << Math.min(layer, board.keymap!.length - 1), 1 << Math.min(base, board.keymap!.length - 1));
-            const label = binding.code === 0 ? '—' : getKeyLabel(board, binding.code).label;
-            return { ...k, ...binding, label };
-        });
-    }, [board, layer, base, prefs.hands, following, host.state?.valid, host.state?.active, host.state?.default, host.state?.config.manualDefault]);
+        return surfaceKeys(board, 1 << Math.min(layer, (board.keymap?.length || 1) - 1),
+            1 << Math.min(base, (board.keymap?.length || 1) - 1), prefs.hands, internationalLayout);
+    }, [board, layer, base, prefs.hands, internationalLayout, following, host.state?.valid, host.state?.active, host.state?.default, host.state?.config.manualDefault]);
     const previous = useRef<SurfaceKey[]>([]);
     useEffect(() => {
         const before = new Map(previous.current.map(k => [k.id, `${k.code}:${k.layer}`]));

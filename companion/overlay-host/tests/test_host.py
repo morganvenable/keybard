@@ -23,3 +23,9 @@ class StateTests(unittest.TestCase):
         state.board = {'keymap': [[4]]}; state.layout_revision = 9
         self.assertIsNone(state.snapshot(9)['board'])
         self.assertEqual(state.snapshot(8)['board']['keymap'], [[4]])
+
+    def test_language_defaults_and_validation(self):
+        self.assertEqual(validate_config({})['layoutId'], 'us')
+        self.assertEqual(validate_config({'layoutId': 'uk'})['layoutId'], 'uk')
+        for value in (None, 1, '', 'x' * 33, '<script>'):
+            with self.assertRaises(ValueError): validate_config({'layoutId': value})

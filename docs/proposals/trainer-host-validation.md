@@ -50,3 +50,9 @@ Merged current production `svalboard/keybard` main `28aa05a`, retaining its Sval
 Production build and all 611 tests pass. Browser validation loaded the example through the standard landing page and exercised all 15 sidebar destinations, returning to Trainer with its practice state retained and no uncaught errors.
 
 Deprecated the old fork main by archiving `e7e9f3d` at `archive/main-before-production-alignment-20261005`. GitHub prohibits force-pushes, so replacement commit `7b51ee5` merges both histories with a tree exactly matching production `28aa05a`; the atomic, exact-tip-checked push preserved branch protections. Trainer work remains isolated on its feature branch.
+
+## Shared key-label formatting
+
+Extracted the keyboard's text/shift/modifier display rules into `src/utils/key-display.ts`, consumed by both Key and Trainer. Native, live-browser, and offline previews now use this formatter instead of prioritizing the companion's plain-text labels. Device-only tap-dance/custom-key metadata remains a fallback where definitions are unavailable. The selected international keyboard layout is carried in host preferences so the native view uses the same symbol mapping.
+
+All 622 web tests and 32 native Windows tests pass; production build passes. Verified the actual main-board layout in a temporary Windows native renderer: layer 0 includes `:` and layer 3 includes `!`. Synthetic view-layer selection did not write to the board. Restarted the installed companion with the new formatter and confirmed remembered-board reconnect.

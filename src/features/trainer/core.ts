@@ -1,3 +1,4 @@
+import { LAYOUTS } from '@/components/Keyboards/layouts';
 import type { KeyboardInfo } from '@/types/vial.types';
 import { SVALBOARD_LAYOUT } from '@/constants/svalboard-layout';
 
@@ -14,8 +15,8 @@ PRESETS.Subtle = { ...PRESETS.Dark, fillAlpha: 22, outlineAlpha: 40, legendAlpha
 PRESETS['Outline only'] = { ...PRESETS.Dark, fillAlpha: 0, outline: '#dce5ec', outlineAlpha: 86, halo: true };
 PRESETS.Light = { ...PRESETS.Dark, fill: '#f3f5f7', fillAlpha: 88, outline: '#56616b', legend: '#15202b' };
 PRESETS['High contrast'] = { ...PRESETS.Dark, fill: '#000000', fillAlpha: 95, outline: '#ffffff', width: 2, halo: true };
-export interface Preferences { appearance: Appearance; effect: 'Off' | 'Quick flash' | 'Short fade'; duration: number; scale: number; hands: 'Both' | 'Left' | 'Right' }
-export const DEFAULTS: Preferences = { appearance: { ...PRESETS['Outline only'] }, effect: 'Short fade', duration: 150, scale: 100, hands: 'Both' };
+export interface Preferences { layoutId: string; appearance: Appearance; effect: 'Off' | 'Quick flash' | 'Short fade'; duration: number; scale: number; hands: 'Both' | 'Left' | 'Right' }
+export const DEFAULTS: Preferences = { layoutId: 'us', appearance: { ...PRESETS['Outline only'] }, effect: 'Short fade', duration: 150, scale: 100, hands: 'Both' };
 export const STORAGE_KEY = 'keybard.trainer.v1';
 export function preferences(value: unknown): Preferences {
     const result = { ...DEFAULTS, appearance: { ...DEFAULTS.appearance } };
@@ -29,6 +30,7 @@ export function preferences(value: unknown): Preferences {
             if (typeof colors[name] === 'number' && Number.isFinite(colors[name])) result.appearance[name] = Math.max(0, Math.min(name === 'width' ? 4 : 100, colors[name] as number));
         if (typeof colors.halo === 'boolean') result.appearance.halo = colors.halo;
     }
+    if (typeof data.layoutId === 'string' && Object.prototype.hasOwnProperty.call(LAYOUTS, data.layoutId)) result.layoutId = data.layoutId;
     if (['Off', 'Quick flash', 'Short fade'].includes(data.effect as string)) result.effect = data.effect as Preferences['effect'];
     if (['Both', 'Left', 'Right'].includes(data.hands as string)) result.hands = data.hands as Preferences['hands'];
     for (const key of ['duration', 'scale'] as const) if (typeof data[key] === 'number' && Number.isFinite(data[key]))

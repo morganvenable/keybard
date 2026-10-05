@@ -9,9 +9,9 @@ export default function HostOverlay() {
     const previous = useRef<SurfaceKey[]>([]);
     const keys = useMemo(() => {
         if (!state?.valid || !state.board) return [];
-        try { return surfaceKeys(state.board, state.active, state.default ?? state.config.manualDefault, state.config.hands); }
+        try { return surfaceKeys(state.board, state.active, state.default ?? state.config.manualDefault, state.config.hands, state.config.layoutId); }
         catch { return []; }
-    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands]);
+    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands, state?.config.layoutId]);
     useEffect(() => {
         document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
         document.body.style.margin = '0'; document.body.style.overflow = 'hidden';
