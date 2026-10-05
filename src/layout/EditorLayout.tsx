@@ -941,7 +941,8 @@ const EditorLayoutInner = () => {
         if (!container) return;
 
         const measureSpace = () => {
-            const containerWidth = container.clientWidth;
+            const canvas = viewsScrollRef.current;
+            const containerWidth = canvas?.clientWidth ?? container.clientWidth;
             const height = container.clientHeight;
 
             // Track container height for dynamic spacing
@@ -950,7 +951,7 @@ const EditorLayoutInner = () => {
             // Report measured dimensions to context for auto-sizing
             setMeasuredDimensions({
                 containerWidth,
-                containerHeight: height,
+                containerHeight: canvas?.clientHeight ?? height,
                 keyboardWidths,
                 keyboardHeights,
                 rawKeyboardWidths,
@@ -963,6 +964,7 @@ const EditorLayoutInner = () => {
         // Set up ResizeObserver for dynamic updates
         const resizeObserver = new ResizeObserver(measureSpace);
         resizeObserver.observe(container);
+        if (viewsScrollRef.current) resizeObserver.observe(viewsScrollRef.current);
 
         return () => resizeObserver.disconnect();
     }, [keyboardWidths, keyboardHeights, rawKeyboardWidths, setMeasuredDimensions]);
@@ -1275,7 +1277,7 @@ const EditorLayoutInner = () => {
                                 return (
                                     <div
                                         className="relative w-full shrink-0 flex flex-col items-center"
-                                        style={{ minWidth: rawKeyboardWidths[keyVariant], ...(isScene3D ? {
+                                        style={{ minWidth: rawKeyboardWidths[keyVariant] - 2 * fingerClusterSqueeze * currentUnitSize, ...(isScene3D ? {
                                             perspective: "1200px",
                                             transformStyle: "preserve-3d",
                                             paddingBottom: isOverviewSceneActive ? `${totalViewShiftY + 50}px` : undefined,

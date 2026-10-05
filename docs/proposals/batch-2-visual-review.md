@@ -8,7 +8,7 @@ The first review missed the Layer Keys bottom layout and populated Layouts previ
 | --- | --- | --- |
 | Layer Keys | A vertical type selector and full-width legend pushed the keys below the panel. | Horizontal wrapping selector; keys immediately below; compact explanation follows the keys. Sidebar types also wrap. |
 | Layouts | Oversized preview children scaled around their centers and clipped the board. The bottom layout also used awkward vertical group labels and omitted ordinary controls. | Measure the preview viewport, scale from the top-left, and use a responsive card grid with shared search, group headings, and actions. Whole-board thumbnails fit their cards. |
-| Standard Keys | Bottom layout duplicated Function Keys and stacked modifiers in a tall column. Narrow diagrams squeezed labels. | Remove the duplicate; wrap groups; use compact modifier controls. Physical keyboard diagrams pan horizontally when needed instead of shrinking their keys. |
+| Standard Keys | Bottom layout duplicated Function Keys and stacked modifiers in a tall column. Narrow diagrams squeezed labels. | Remove the duplicate; wrap groups; use compact modifier controls. The Standard Keys keyboard scales to the available column width without a horizontal scrollbar. |
 | Pointing key groups | Compact groups retained a tall column composition. | Wrap groups across the available width. |
 | Binding lists | Several bottom card lists extended as one unbroken row. | Wrap cards in the available panel width. |
 | Binding editors | Fixed-width combo/override forms and rigid rows overflowed constrained editors. | Fluid containers and wrapping fields, tabs, modifiers, and layer grids. Text fields fit their available width. |

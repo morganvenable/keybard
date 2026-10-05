@@ -182,9 +182,9 @@ Implementation notes for local review:
 The first visual pass missed bottom Layer Keys composition and populated Layouts previews. The subsequent [visual review and corrections](batch-2-visual-review.md) records the broader rendered checks, fixes, and remaining acceptance gaps.
 
 - The spacious canvas remains intentional. Sidebar and bottom placement remain user choices; Auto uses sidebar at desktop widths and bottom below 900px, rather than switching when opening a panel. Narrow navigation has its own compact state, preserving the desktop preference.
-- The canvas pans independently. Auto sizing stops at Medium; explicit Small remains available. Constrained toolbar rows can scroll without adding a permanent status row.
+- The canvas pans independently. Auto sizing uses the measured canvas and can select Small when a panel reduces the available space. Constrained toolbar rows can scroll without adding a permanent status row.
 - A shared panel registry and persistent shell provide the same Settings, hardware, help, and diagnostic destinations. Taller bottom settings/help panels reserve their actual height from the canvas.
-- Ordinary panels use one shell scrollbar. Key palettes and binding editors are separate bounded work areas; wide keyboards and complex editors may pan horizontally. Macro content no longer adds a nested vertical scrollbar.
+- Ordinary panels use one shell scrollbar. Key palettes and binding editors are separate bounded work areas; the Standard Keys keyboard fits the panel width; complex editors may pan horizontally. Macro content no longer adds a nested vertical scrollbar.
 - Panel and binding drafts remain mounted when placement changes. Hidden picker content is inert, and open/close focus is managed.
 - Labels, semantic states, rename/color controls, firmware settings, and picker navigation support optional keyboard access. No new board-selection navigation scheme or implicit recording was introduced.
 

@@ -553,7 +553,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             {!hideLayerTabs && !isOverviewSceneActive && !show3DScene && (
                 <div
-                    className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap pointer-events-auto"
+                    className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap pointer-events-auto overflow-x-auto overscroll-x-contain [&>*]:shrink-0"
                     style={isPrimary && multiLayerHeaderOffset > 0 ? { marginTop: -multiLayerHeaderOffset } : undefined}
                 >
                     <div className="flex items-center gap-1">

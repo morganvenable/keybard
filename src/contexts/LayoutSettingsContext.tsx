@@ -108,7 +108,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             const fitsAt = (size: KeyVariant) =>
                 containerWidth >= widths[size] && containerHeight >= heights[size];
 
-            let bestSize: KeyVariant = "medium";
+            let bestSize: KeyVariant = "small";
             if (fitsAt("default")) {
                 bestSize = "default";
             } else if (fitsAt("medium")) {

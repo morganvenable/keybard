@@ -346,13 +346,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                     </div>
                 </div>
 
-                {/* QWERTY keyboard - main content, no language selector here */}
-                <div className="min-w-0 max-w-full">
-                    <div className="max-w-full overflow-x-auto">
-                        <div className="w-max min-w-full">
-                            <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
-                        </div>
-                    </div>
+                {/* Fit the complete keyboard to the available panel column. */}
+                <div className="w-[520px] max-w-full min-w-0">
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
                 </div>
 
                 {/* Blank/Transparent keys */}
@@ -470,11 +466,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         ))}
                     </select>
                 </div>
-                <div className="max-w-full overflow-x-auto">
-                    <div className="w-max min-w-full">
-                        <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
-                    </div>
-                </div>
+                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector disableTooltip={true} />
             </div>
 
             <section className="flex flex-col gap-2">

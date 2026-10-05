@@ -18,7 +18,22 @@ describe('responsive editor placement', () => {
       keyboardWidths: { default: 1400, medium: 1000, small: 700 },
       keyboardHeights: { default: 700, medium: 500, small: 300 } }));
     expect(result.current.layoutMode).toBe('sidebar');
-    expect(result.current.keyVariant).toBe('medium');
+    expect(result.current.keyVariant).toBe('small');
+  });
+
+  it('refits the board when a panel reduces the canvas, and restores its size on close', () => {
+    resize(1600);
+    const { result } = renderHook(useLayoutSettings, { wrapper: LayoutSettingsProvider });
+    const dimensions = { containerWidth: 1500, containerHeight: 850,
+      keyboardWidths: { default: 1400, medium: 1050, small: 700 },
+      keyboardHeights: { default: 700, medium: 500, small: 300 } };
+    act(() => result.current.setMeasuredDimensions(dimensions));
+    expect(result.current.keyVariant).toBe('default');
+    act(() => result.current.setMeasuredDimensions({...dimensions, containerWidth: 1000}));
+    expect(result.current.keyVariant).toBe('small');
+    expect(result.current.layoutMode).toBe('sidebar');
+    act(() => result.current.setMeasuredDimensions(dimensions));
+    expect(result.current.keyVariant).toBe('default');
   });
 
   it('uses bottom placement in narrow auto mode but preserves explicit choices', () => {
