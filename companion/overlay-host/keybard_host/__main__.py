@@ -1,0 +1,272 @@
+"""Tray-only host; all overlay pixels and controls belong to Keybard's web build."""
+import argparse
+import hashlib
+import os
+from pathlib import Path
+import secrets
+import sys
+import threading
+import time
+
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile
+from PySide6.QtGui import QAction, QColor, QIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
+from .device.protocol import candidates
+from .device.worker import DeviceWorker
+from .state import HostState, serialize_profile
+from .server import make_server
+
+
+class Bridge(QObject):
+    command = Signal(object)
+
+
+class LocalPage(QWebEnginePage):
+    def acceptNavigationRequest(self, url, kind, main):
+        return url.scheme() in ('http', 'about') and (url.scheme() == 'about' or (url.host() == '127.0.0.1' and url.port() == self.parent().host_port))
+
+
+class Surface(QWebEngineView):
+    def __init__(self, port):
+        super().__init__()
+        self.host_port = port
+        self.setWindowTitle('Keybard · Overlay')
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.setStyleSheet('background:transparent')
+        page = LocalPage(self)
+        self.setPage(page)
+        page.setBackgroundColor(QColor(Qt.transparent))
+        page.settings().setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, True)
+        self.resize(1050, 330)
+        self.setUrl(QUrl(f'http://127.0.0.1:{port}/?hostOverlay=1'))
+        self.arranging = True
+        self.drag_origin = None
+
+    def mousePressEvent(self, event):
+        if self.arranging and event.button() == Qt.LeftButton:
+            if self.windowHandle() and self.windowHandle().startSystemMove(): return
+        super().mousePressEvent(event)
+
+    def set_arrange(self, value):
+        self.arranging = value
+        # A transparent child webview leaves drag events to the native surface.
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        self.setWindowFlag(Qt.WindowTransparentForInput, not value)
+        for child in self.findChildren(QObject):
+            if hasattr(child, 'setAttribute'): child.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.show()
+
+
+class Host(QObject):
+    def __init__(self, app, assets, state, port):
+        super().__init__()
+        self.app, self.state = app, state
+        self.worker = None
+        self.last_state = self.last_press = 0
+        self.generation = 0
+        self.profile_ready = False
+        self.auto_connect = True
+        self.devices = {}
+        self.selected = None
+        self.bridge = Bridge()
+        self.bridge.command.connect(self.command)
+        self.server = make_server(state, assets, self.bridge.command.emit, port)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f'http://127.0.0.1:{self.server.server_port}/#trainer'
+        self.surface = Surface(self.server.server_port)
+        self.surface.show()
+        self.surface.set_arrange(True)
+        self.place()
+        icon = QIcon(str(Path(__file__).parent / 'assets' / 'svalboard.png'))
+        app.setWindowIcon(icon); self.surface.setWindowIcon(icon)
+        self.tray = QSystemTrayIcon(icon, self)
+        menu = QMenu()
+        self.status_action = menu.addAction('Keybard Host · waiting for board'); self.status_action.setEnabled(False)
+        menu.addSeparator(); menu.addAction('Open Keybard', self.open_controls)
+        self.show_action = QAction('Show overlay', menu, checkable=True, checked=True)
+        self.show_action.triggered.connect(lambda value: self.command(dict(op='show', value=value)))
+        menu.addAction(self.show_action)
+        self.arrange_action = QAction('Arrange overlay', menu, checkable=True, checked=True)
+        self.arrange_action.triggered.connect(lambda value: self.command(dict(op='arrange', value=value)))
+        menu.addAction(self.arrange_action)
+        menu.addAction('Place at bottom', self.place)
+        menu.addSeparator(); menu.addAction('Reload board layout', lambda: self.command(dict(op='reload')))
+        menu.addAction('Quit host', app.quit)
+        self.tray.setContextMenu(menu); self.tray.setToolTip('Keybard Host')
+        self.tray.activated.connect(lambda reason: self.open_controls() if reason == QSystemTrayIcon.DoubleClick else None)
+        self.tray.show()
+        self.timer = QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(100)
+        self.scan_timer = QTimer(self); self.scan_timer.timeout.connect(self.scan); self.scan_timer.start(2500)
+        QTimer.singleShot(0, self.scan)
+        self.surface.windowHandle().screenChanged.connect(lambda screen: QTimer.singleShot(0, self.size_surface))
+        app.aboutToQuit.connect(self.shutdown)
+
+    def open_controls(self):
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(self.url))
+
+    def size_surface(self):
+        screen = self.surface.screen() or self.app.primaryScreen()
+        area = screen.availableGeometry()
+        width = min(int(1050 * self.state.config['scale'] / 100), area.width() - 32)
+        board = self.state.board
+        layout = list(board['keylayout'].values()) if board else []
+        hands = self.state.config['hands']
+        if hands != 'Both': layout = [k for k in layout if (k['row'] < 5) == (hands == 'Left')]
+        if layout:
+            ratio = (max(k['y'] + k['h'] for k in layout) - min(k['y'] for k in layout) + .2) / (max(k['x'] + k['w'] for k in layout) - min(k['x'] for k in layout) + .2)
+        else: ratio = .3
+        height = int(width * ratio)
+        if height > area.height() - 40:
+            height = area.height() - 40; width = int(height / ratio)
+        self.surface.setFixedSize(max(100, width), max(80, height))
+
+    def place(self):
+        self.size_surface()
+        area = (self.surface.screen() or self.app.primaryScreen()).availableGeometry()
+        self.surface.move(area.x() + (area.width() - self.surface.width()) // 2, area.bottom() - self.surface.height() - 25)
+
+    def scan(self):
+        import hid
+        try:
+            devices = candidates(hid)
+            self.devices = {hashlib.sha256(d['path']).hexdigest()[:20]: d for d in devices}
+            with self.state.lock:
+                self.state.devices = [dict(id=key, name=d.get('product_string') or 'Svalboard', serial=d.get('serial_number') or '') for key, d in self.devices.items()]
+            if self.worker is None and self.auto_connect:
+                remembered = self.state.remembered
+                matches = [key for key, d in self.devices.items() if remembered and remembered.get('serial') and d.get('serial_number') == remembered['serial']]
+                if remembered and len(matches) == 1: self.connect(matches[0], remembered.get('uid'))
+                elif not remembered and len(self.devices) == 1: self.connect(next(iter(self.devices)))
+        except (OSError, ValueError) as e:
+            with self.state.lock: self.state.status = f'Could not enumerate boards: {e}'
+
+    def connect(self, key, uid=None):
+        if key not in self.devices: return
+        if not self.disconnect(): return
+        self.selected = self.devices[key]
+        self.state.selected_device = key
+        self.worker = DeviceWorker(self.selected, int(uid) if uid else None)
+        self.generation = self.worker.set_press_tracking(self.state.config['highlightPressed'])
+        self.worker.profile.connect(self.profile)
+        self.worker.state.connect(self.layers)
+        self.worker.pressed.connect(self.pressed)
+        self.worker.status.connect(self.status)
+        self.worker.start()
+
+    def disconnect(self):
+        if self.worker:
+            self.worker.stop()
+            if not self.worker.wait(1600): return False
+            self.worker.deleteLater(); self.worker = None
+        self.profile_ready = False
+        with self.state.lock:
+            self.state.valid = False; self.state.pressed = []; self.state.board = None; self.state.selected_device = None
+            self.state.layout_revision += 1; self.state.session = secrets.token_hex(12)
+            self.state.default = None; self.state.active = 0; self.state.matrix_available = None
+        return True
+
+    def profile(self, profile):
+        if self.sender() is not self.worker: return
+        with self.state.lock:
+            self.state.board = serialize_profile(profile); self.state.layout_revision += 1
+            self.state.board['name'] = self.selected.get('product_string') or profile.name
+            serial = self.selected.get('serial_number')
+            if serial:
+                self.state.remembered = dict(serial=serial, uid=str(profile.uid))
+                try: self.state.save()
+                except OSError: pass
+        self.profile_ready = True
+        self.size_surface()
+
+    def layers(self, snapshot):
+        if self.sender() is not self.worker or not self.profile_ready: return
+        self.last_state = time.monotonic()
+        with self.state.lock:
+            self.state.active, self.state.default = snapshot.active, snapshot.default
+            mask = snapshot.active | (snapshot.default if snapshot.default is not None else self.state.config['manualDefault'])
+            self.state.valid = not (mask >> len(self.state.board['keymap']))
+            if not self.state.valid: self.state.status = 'Board refers to an unknown layer; reload the layout'
+
+    def pressed(self, snapshot):
+        if self.sender() is not self.worker: return
+        generation, positions, sampled_at = snapshot
+        if generation != self.generation or not self.state.config['highlightPressed']: return
+        with self.state.lock:
+            self.state.matrix_available = positions is not None
+            self.state.pressed = [row * 6 + col for row, col in positions] if positions is not None and self.state.valid and time.monotonic() - sampled_at <= .5 else []
+        self.last_press = sampled_at
+
+    def status(self, status):
+        if self.sender() is not self.worker: return
+        with self.state.lock:
+            self.state.status = status
+            if not status.startswith('Connected'):
+                self.state.valid = False; self.state.pressed = []
+                if status.startswith(('Connecting', 'Disconnected', 'Stopped')):
+                    self.profile_ready = False; self.state.default = None
+
+    def tick(self):
+        with self.state.lock:
+            if time.monotonic() - self.last_state > .6:
+                self.state.valid = False; self.state.pressed = []
+            if time.monotonic() - self.last_press > .5: self.state.pressed = []
+            if time.monotonic() - self.state.practice_at > 2.5:
+                self.state.practice_hidden = []; self.state.practice_target = None
+        self.status_action.setText(self.state.status[:65])
+
+    def command(self, value):
+        op = value['op']
+        if op == 'configure':
+            if self.worker:
+                self.generation = self.worker.set_press_tracking(self.state.config['highlightPressed'])
+            with self.state.lock: self.state.pressed = []
+            self.size_surface()
+        elif op == 'show':
+            self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value'])
+        elif op == 'arrange':
+            self.state.arrange = value['value']; self.surface.set_arrange(value['value']); self.surface.setVisible(self.state.visible); self.arrange_action.setChecked(value['value'])
+        elif op == 'place': self.place()
+        elif op == 'practice':
+            with self.state.lock:
+                self.state.practice_hidden = value['hidden']; self.state.practice_target = value['target']; self.state.practice_at = time.monotonic()
+        elif op == 'scan': self.scan()
+        elif op == 'connect': self.auto_connect = True; self.connect(value['id'])
+        elif op == 'disconnect':
+            self.auto_connect = False
+            if self.disconnect(): self.state.status = 'Disconnected by user'
+        elif op == 'reload' and self.worker:
+            self.state.valid = False; self.profile_ready = False; self.worker.reload()
+
+    def shutdown(self):
+        self.scan_timer.stop(); self.timer.stop()
+        if self.worker:
+            self.worker.stop(); self.worker.wait(5000)
+        self.server.shutdown(); self.server.server_close(); self.surface.close(); self.tray.hide()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--port', type=int, default=5178)
+    parser.add_argument('--no-open', action='store_true')
+    parser.add_argument('--assets', type=Path, default=Path(__file__).resolve().parent.parent / 'web')
+    parser.add_argument('--settings', type=Path)
+    args = parser.parse_args()
+    app = QApplication(sys.argv[:1]); app.setApplicationName('Keybard Host'); app.setQuitOnLastWindowClosed(False)
+    folder = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
+    folder.mkdir(parents=True, exist_ok=True)
+    lock = QLockFile(str(folder / 'host.lock')); lock.setStaleLockTime(0)
+    if not lock.tryLock(0):
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(f'http://127.0.0.1:{args.port}/#trainer')); return
+    if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
+    state = HostState(args.settings or folder / 'preferences.json')
+    host = Host(app, args.assets, state, args.port)
+    if not args.no_open: host.open_controls()
+    sys.exit(app.exec())
+
+if __name__ == '__main__': main()

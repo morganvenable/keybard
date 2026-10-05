@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
+import TrainerPage from "./features/trainer/TrainerPage";
 import DeployBadge from "./components/DeployBadge";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
@@ -17,7 +18,7 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { VialProvider, useVial } from "./contexts/VialContext";
 
 // Simple page navigation context
-type Page = "main" | "explore" | "proof-sheet";
+type Page = "main" | "explore" | "proof-sheet" | "trainer";
 
 interface NavigationContextType {
     currentPage: Page;
@@ -42,14 +43,16 @@ const ChangesProviderWithVial = ({ children }: { children: ReactNode }) => {
 };
 
 const NavigationProvider = ({ children }: { children: ReactNode }) => {
-    const [currentPage, setCurrentPage] = useState<Page>("main");
+    const [currentPage, setCurrentPage] = useState<Page>(() => window.location.hash === "#trainer" ? "trainer" : "main");
 
     const navigateTo = useCallback((page: Page) => {
         setCurrentPage(page);
+        window.history.replaceState(null, "", page === "trainer" ? "#trainer" : window.location.pathname + window.location.search);
     }, []);
 
     const goBack = useCallback(() => {
         setCurrentPage("main");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }, []);
 
     return (
@@ -95,7 +98,7 @@ function AppContent() {
                         <ProofSheetPage onBack={goBack} />
                     </DragProvider>
                 </LayoutSettingsProvider>
-            ) : null}
+            ) : currentPage === "trainer" ? <TrainerPage onBack={goBack} /> : null}
         </>
     );
 }

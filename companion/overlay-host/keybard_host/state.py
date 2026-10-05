@@ -1,0 +1,108 @@
+"""Validated, local host state. Trainer clients cannot emit HID commands."""
+import copy
+import json
+import re
+import secrets
+from threading import RLock
+from pathlib import Path
+
+DEFAULTS = dict(appearance=dict(fill='#14202b', fillAlpha=75, outline='#51606a', outlineAlpha=100,
+    legend='#f0f5f7', legendAlpha=100, width=1, halo=False, changed='#8ce4d3', pressed='#ffd27a'),
+    effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=False, manualDefault=1)
+
+
+def validate_config(value):
+    if not isinstance(value, dict) or set(value) - set(DEFAULTS):
+        raise ValueError('Unknown host configuration fields')
+    result = copy.deepcopy(DEFAULTS)
+    for key, val in value.items():
+        if key == 'appearance':
+            if not isinstance(val, dict) or set(val) - set(DEFAULTS['appearance']):
+                raise ValueError('Invalid appearance')
+            for name, color in val.items():
+                if name in ('fill', 'outline', 'legend', 'changed', 'pressed'):
+                    if not isinstance(color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', color): raise ValueError('Invalid color')
+                elif name == 'halo':
+                    if type(color) is not bool: raise ValueError('Invalid halo')
+                elif type(color) not in (float, int) or not 0 <= color <= (4 if name == 'width' else 100):
+                    raise ValueError('Invalid opacity/width')
+                result['appearance'][name] = color
+        elif key in ('duration', 'scale', 'manualDefault'):
+            lo, hi = dict(duration=(50, 750), scale=(50, 150), manualDefault=(0, 0xffffffff))[key]
+            if type(val) is not int or not lo <= val <= hi: raise ValueError('Invalid numeric preference')
+            result[key] = val
+        elif key == 'highlightPressed':
+            if type(val) is not bool: raise ValueError('Invalid matrix preference')
+            result[key] = val
+        elif val not in dict(effect=('Off', 'Quick flash', 'Short fade'), hands=('Both', 'Left', 'Right'))[key]:
+            raise ValueError('Invalid option')
+        else:
+            result[key] = val
+    return result
+
+
+class HostState:
+    def __init__(self, path):
+        self.lock = RLock()
+        self.path = Path(path)
+        self.token = secrets.token_urlsafe(32)
+        self.config = copy.deepcopy(DEFAULTS)
+        self.remembered = None
+        self.revision = 0
+        self.layout_revision = 0
+        self.board = None
+        self.status = 'Waiting for a Svalboard'
+        self.devices = []
+        self.selected_device = None
+        self.active = 0
+        self.default = None
+        self.valid = False
+        self.pressed = []
+        self.matrix_available = None
+        self.practice_hidden = []
+        self.practice_target = None
+        self.practice_at = 0
+        self.visible = True
+        self.arrange = True
+        self.session = secrets.token_hex(12)
+        try:
+            saved = json.loads(self.path.read_text())
+            self.config = validate_config(saved.get('config', {}))
+            self.remembered = saved.get('remembered')
+        except (OSError, ValueError, TypeError, KeyError):
+            pass
+
+    def save(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.path.with_suffix('.tmp')
+        temporary.write_text(json.dumps(dict(config=self.config, remembered=self.remembered)))
+        temporary.replace(self.path)
+
+    def configure(self, config, revision):
+        checked = validate_config(config)
+        with self.lock:
+            if type(revision) is not int or revision != self.revision: raise RuntimeError('Configuration changed; refresh and try again')
+            old = self.config
+            self.config = checked
+            try: self.save()
+            except OSError:
+                self.config = old
+                raise
+            self.revision += 1
+            return self.revision
+
+    def snapshot(self, known_layout=None):
+        with self.lock:
+            return copy.deepcopy(dict(apiVersion=1, config=self.config, revision=self.revision,
+                layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
+                status=self.status, devices=self.devices, selectedDevice=self.selected_device, active=self.active, default=self.default, valid=self.valid,
+                practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, arrange=self.arrange, session=self.session))
+
+
+def serialize_profile(profile):
+    # String UIDs retain all 64 bits across JSON/JavaScript.
+    return dict(name=profile.name, uid=str(profile.uid), fingerprint=profile.fingerprint, rows=10, cols=6,
+        keymap=[[code for row in layer for code in row] for layer in profile.layers],
+        keylayout={str(k.row * 6 + k.col): dict(row=k.row, col=k.col, x=k.x, y=k.y, w=1, h=1) for k in profile.keys},
+        cosmetic=dict(layer={str(i): profile.layer_name(i) for i in range(len(profile.layers))}),
+        trainerLabels={str(code): profile.label(code) for layer in profile.layers for row in layer for code in row})

@@ -5,7 +5,7 @@ import { useVial, listPermittedDevices } from "@/contexts/VialContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
-const ConnectKeyboard = () => {
+const ConnectKeyboard = ({ onOpenTrainer = () => { window.location.hash = "trainer"; } }: { onOpenTrainer?: () => void }) => {
     const { isConnected, connect, connectDevice, disconnect, loadKeyboard, loadFromFile } = useVial();
     const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
@@ -166,6 +166,7 @@ const ConnectKeyboard = () => {
                     <KeybardLogo className="!h-[32px] !w-auto" />
                 </div>
             </div>
+            {document.documentElement.dataset.keybardHost === "true" && <div className="text-center text-sm text-gray-600 p-4">Keybard Host owns the board connection. <button className="text-kb-green cursor-pointer" onClick={onOpenTrainer}>Open Trainer</button><p>Device editing remains in your regular Keybard session; disconnect the host first.</p></div>}
             <div className="p-10 max-w-xl mx-auto rounded-md border-dashed border-1 border-gray-300">
                 {false ? (
                     <div className="browser-not-supported">
@@ -235,6 +236,7 @@ const ConnectKeyboard = () => {
                                     >
                                         {loading ? "Loading..." : "QWERTY Example"}
                                     </button>
+                                    <button className="text-sm text-kb-green cursor-pointer py-2" onClick={onOpenTrainer}>Explore Trainer</button>
                                 </>
                             )}
                         </div>

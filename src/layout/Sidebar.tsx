@@ -1,4 +1,5 @@
 import { HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Settings } from "lucide-react";
+import { useNavigation } from "@/App";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -81,6 +82,7 @@ const featureSidebarItems: SidebarItem[] = [
 ];
 
 const layoutSidebarItems: SidebarItem[] = [
+    { title: "Trainer", url: "trainer", icon: GraduationCapIcon },
     { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
 ];
 
@@ -143,6 +145,7 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
+    const { navigateTo } = useNavigation();
     const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
@@ -165,6 +168,7 @@ const AppSidebar = () => {
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
+            if (item.url === "trainer") { navigateTo("trainer"); return; }
             if (item.url === "matrixtester") {
                 if (activePanel === "matrixtester") {
                     setActivePanel(null);
@@ -187,7 +191,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [navigateTo, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 

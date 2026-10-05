@@ -1,0 +1,6 @@
+.runtime/
+.downloads/
+.venv/
+__pycache__/
+web/
+*.log

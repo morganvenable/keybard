@@ -50,6 +50,7 @@ export const DEFAULT_HID_FILTERS: HIDDeviceFilter[] = [
  * entry per physical device.
  */
 export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_HID_FILTERS): Promise<HIDDevice[]> {
+    if (typeof document !== "undefined" && document.documentElement.dataset.keybardHost === "true") return [];
     if (typeof navigator === "undefined" || !navigator.hid?.getDevices) return [];
     const devices = await navigator.hid.getDevices();
     const matches = (d: HIDDevice) => d.collections.some((c) => filters.some((f) =>
@@ -115,6 +116,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
+        if (document.documentElement.dataset.keybardHost === "true") return false;
         try {
             return afterOpen(await usbInstance.open(filters || DEFAULT_HID_FILTERS));
         } catch (error) {
@@ -124,6 +126,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [afterOpen]);
 
     const connectDevice = useCallback(async (device: HIDDevice) => {
+        if (document.documentElement.dataset.keybardHost === "true") return false;
         try {
             return afterOpen(await usbInstance.openDevice(device));
         } catch (error) {

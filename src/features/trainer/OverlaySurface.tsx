@@ -1,0 +1,30 @@
+import type { Appearance, Preferences } from './core';
+import { haloColor } from './core';
+export interface SurfaceKey { id: number; x: number; y: number; w: number; h: number; label: string; code: number; layer: number; hand: string }
+interface Props { keys: SurfaceKey[]; appearance: Appearance; changed: Set<number>; held: Set<number>; effect: Preferences['effect']; duration: number; hidden: Set<number>; target?: number; onSelect?: (id: number) => void }
+export function OverlaySurface({ keys, appearance: a, changed, held, effect, duration, hidden, target, onSelect }: Props) {
+    if (!keys.length) return <p>No physical keys in this layout.</p>;
+    const minX = Math.min(...keys.map(k => k.x)), minY = Math.min(...keys.map(k => k.y));
+    const width = Math.max(...keys.map(k => k.x + k.w)) - minX;
+    const height = Math.max(...keys.map(k => k.y + k.h)) - minY;
+    return <svg role="img" aria-label="Trainer keyboard preview" viewBox={`-4 -4 ${width * 40 + 8} ${height * 40 + 8}`}>
+        {keys.map(k => {
+            const isHeld = held.has(k.id), isChanged = changed.has(k.id) && effect !== 'Off';
+            const label = hidden.has(k.id) ? '·' : k.label;
+            const lines = label.split('\n').slice(0, 3);
+            return <g key={k.id} transform={`translate(${(k.x - minX) * 40} ${(k.y - minY) * 40})`} onClick={() => onSelect?.(k.id)}>
+                <title>{`${k.hand} · ${k.label.split('\n').join(' / ')} · layer ${k.layer}`}</title>
+                <rect width={k.w * 40 - 3} height={k.h * 40 - 3} rx="6" fill={a.fill} fillOpacity={a.fillAlpha / 100}
+                    stroke={isHeld ? a.pressed : target === k.id ? a.changed : a.outline} strokeWidth={a.width} strokeOpacity={a.outlineAlpha / 100} />
+                {isChanged && <rect className={effect === 'Short fade' ? 'trainer-fade' : ''} style={{ animationDuration: `${duration}ms` }} width={k.w * 40 - 3} height={k.h * 40 - 3} rx="6"
+                    fill={a.changed} fillOpacity={a.fillAlpha / 200} stroke={a.changed} strokeOpacity={a.outlineAlpha / 100} strokeWidth={a.width ? a.width + 1 : 0} />}
+                {isHeld && <rect width={k.w * 40 - 3} height={k.h * 40 - 3} rx="6" fill={a.pressed} fillOpacity={a.fillAlpha / 200} />}
+                {lines.map((line, i) => <text key={i} x={(k.w * 40 - 3) / 2} y={(k.h * 40 - 3) / 2 + 4 + (i - (lines.length - 1) / 2) * 11}
+                    textAnchor="middle" fontSize={line.length > 5 ? 8 : 12} fontWeight="600"
+                    textLength={line.length > 6 ? Math.max(15, k.w * 40 - 9) : undefined} lengthAdjust="spacingAndGlyphs"
+                    fill={a.legend} fillOpacity={a.legendAlpha / 100} stroke={a.halo ? haloColor(a.legend) : 'none'} strokeOpacity={a.legendAlpha / 100} strokeWidth="2" paintOrder="stroke fill">{line}</text>)}
+                {k.layer > 0 && <circle cx={k.w * 40 - 8} cy={k.h * 40 - 8} r="1.5" fill={a.changed} fillOpacity={a.legendAlpha / 100} />}
+            </g>;
+        })}
+    </svg>;
+}
