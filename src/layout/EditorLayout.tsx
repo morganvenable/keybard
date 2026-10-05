@@ -1,7 +1,5 @@
 import * as React from "react";
 import TrainerPage from "@/features/trainer/TrainerPage";
-import ConnectKeyboard from "@/components/ConnectKeyboard";
-import { useNavigation } from "@/App";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -56,8 +54,7 @@ import {
     type LayerSceneState,
 } from "./layer-scene";
 
-const EditorLayout = ({ trainer = false }: { trainer?: boolean }) => {
-    const { keyboard } = useVial();
+const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
 
     const handleUnhandledDrop = React.useCallback((item: DragItem, event: MouseEvent) => {
@@ -79,7 +76,7 @@ const EditorLayout = ({ trainer = false }: { trainer?: boolean }) => {
                 <LayoutSettingsProvider>
                     <LayerProvider>
                         <DragProvider onUnhandledDrop={handleUnhandledDrop}>
-                            {trainer ? <TrainerWorkspace /> : keyboard ? <EditorLayoutInner /> : <ConnectWorkspace />}
+                            <EditorLayoutInner />
                             <DragOverlay />
                         </DragProvider>
                     </LayerProvider>
@@ -88,23 +85,6 @@ const EditorLayout = ({ trainer = false }: { trainer?: boolean }) => {
         </SidebarProvider>
     );
 };
-
-// Both workspaces retain the same navigation and editor providers when switching.
-function TrainerWorkspace() {
-    const primary = useSidebar("primary-nav", { defaultOpen: false });
-    return <div className="trainer-shell">
-        <AppSidebar />
-        <div className="trainer-shell-content" style={{ marginLeft: primary.isMobile ? 0 : primary.state === "collapsed" ? "var(--sidebar-width-icon)" : "var(--sidebar-width-base)" }}>
-            {primary.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
-            <TrainerPage />
-        </div>
-    </div>;
-}
-
-function ConnectWorkspace() {
-    const { navigateTo } = useNavigation();
-    return <ConnectKeyboard onOpenTrainer={() => navigateTo("trainer")} />;
-}
 
 const EditorLayoutInner = () => {
     type ViewInstance = {
@@ -1194,6 +1174,10 @@ const EditorLayoutInner = () => {
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
     const { isMobile, state, activePanel, itemToEdit, setItemToEdit, handleCloseEditor } = usePanels();
 
+    const isTrainer = activePanel === "trainer";
+    const [trainerVisited, setTrainerVisited] = React.useState(isTrainer);
+    React.useEffect(() => { if (isTrainer) setTrainerVisited(true); }, [isTrainer]);
+
     // Editor overlay state for bottom bar mode
     const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
     const [isClosingEditor, setIsClosingEditor] = React.useState(false);
@@ -1241,8 +1225,8 @@ const EditorLayoutInner = () => {
 
     // In sidebar mode: show detail sidebar on right
     // In bottom bar mode: no detail sidebar, use bottom panel instead
-    const showDetailsSidebar = useSidebarLayout && !isMobile && state === "expanded";
-    const showBottomPanel = useBottomLayout && state === "expanded";
+    const showDetailsSidebar = !isTrainer && useSidebarLayout && !isMobile && state === "expanded";
+    const showBottomPanel = !isTrainer && useBottomLayout && state === "expanded";
 
     // Notify context when a panel is selected (wants to be shown)
     // This is independent of layout mode - used to calculate if sidebar mode CAN work
@@ -1374,8 +1358,13 @@ const EditorLayoutInner = () => {
     );
 
     return (
-        <div className={cn("flex flex-1 h-screen max-w-screen min-w-[850px] p-0", showDetailsSidebar && "bg-white")}>
+        <div className={cn("flex flex-1 h-screen max-w-screen p-0", !isTrainer && "min-w-[850px]", showDetailsSidebar && "bg-white")}>
             <AppSidebar />
+            {(trainerVisited || isTrainer) && <div hidden={!isTrainer} className="trainer-shell-content" style={{ marginLeft: primaryOffset }}>
+                {primarySidebar.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
+                <TrainerPage active={isTrainer} />
+            </div>}
+            <div className={isTrainer ? "hidden" : "contents"}>
             {/* Render SecondarySidebar only in sidebar mode */}
             {useSidebarLayout && <SecondarySidebar />}
             <div
@@ -1752,6 +1741,7 @@ const EditorLayoutInner = () => {
                 onConfirm={handleDragReplaceConfirm}
                 onCancel={handleDragReplaceCancel}
             />
+            </div>
         </div >
     );
 };

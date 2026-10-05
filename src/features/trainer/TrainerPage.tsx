@@ -14,7 +14,7 @@ import { useHost } from './host';
 import { surfaceKeys } from './useSurfaceKeys';
 
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
-export default function TrainerPage() {
+export default function TrainerPage({ active = true }: { active?: boolean }) {
     const host = useHost();
     const [live, setLive] = useState(true);
     const [hostDirty, setHostDirty] = useState(false);
@@ -83,11 +83,11 @@ export default function TrainerPage() {
     const practiceHidden = following ? [...hidden].sort((a, b) => a - b).join(',') : '';
     const practiceTarget = following && recall && revealed ? target?.id ?? null : null;
     useEffect(() => {
-        if (!host.state) return;
+        if (!host.state || !active) return;
         const publish = () => void host.command({ op: 'practice', hidden: practiceHidden ? practiceHidden.split(',').map(Number) : [], target: practiceTarget });
         publish(); const timer = setInterval(publish, 1000);
         return () => { clearInterval(timer); void host.command({ op: 'practice', hidden: [], target: null }); };
-    }, [practiceHidden, practiceTarget, host.command, !!host.state]);
+    }, [practiceHidden, practiceTarget, host.command, !!host.state, active]);
     const chosen = keys.find(k => k.id === selected);
     const appearance = prefs.appearance;
     const preset = Object.entries(PRESETS).find(([, a]) => JSON.stringify(a) === JSON.stringify(appearance))?.[0] || 'Custom';

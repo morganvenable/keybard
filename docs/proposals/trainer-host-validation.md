@@ -17,8 +17,10 @@ Not established by these checks: physical layer/held-key transitions under typin
 
 Current limits: desktop editing through the host is not implemented, and old-firmware defaults remain manual. Recall practice is controlled from the web page and reverts to reference after its short heartbeat expires. Installed runtime download is relatively large because this preview includes Qt WebEngine. The test ZIP is unsigned and bootstraps pinned native dependencies on first run.
 
-## Shared Keybard workspace follow-up
+## Panel integration correction
 
-Trainer now renders inside the editor's existing SidebarProvider, PanelsProvider, and layout providers, using the real AppSidebar with its selected-item indicator. The separate logo/back-button header is removed. Navigation between Trainer and the editor retains the loaded Vial layout and panel context. Sidebar icons have accessible names when collapsed, and a navigation trigger is available on mobile.
+Trainer is a single left-navigation option backed by the existing PanelsContext, like Matrix Tester. It does not have an App navigation route. ConnectKeyboard is restored exactly to origin/main, without Trainer links, host notices, or editing instructions. The native host's direct /#trainer entry initializes the panel; normal landing-page behavior is unchanged.
 
-Validated the production build, all 422 Vitest tests, and browser navigation from Trainer to the QWERTY editor and back twice with the loaded snapshot retained. Browser checks also verified 1024×768, 760×650, and 480×700 without horizontal overflow, recall practice, and the simulated-host configuration/stale-state/independent-renderer checks. This changes web controls only; the native overlay remains keyboard-only.
+The existing editor and Trainer remain mounted during panel switches. Trainer retains its tab, imported preview, and practice state; its practice heartbeat stops while inactive. Other sidebar selections use their original panel behavior and never navigate to the connection screen. The keyboard-only native overlay is unchanged.
+
+Regression checks cover landing content in host mode and Trainer session preservation. Browser validation clicked all 15 existing sidebar destinations and returned to Trainer, both with an editor layout loaded and through the direct host entry without one. No uncaught JavaScript errors or unexpected landing navigation occurred. Responsive checks at 1024×768, 760×650, and 480×700 found no horizontal Trainer overflow.

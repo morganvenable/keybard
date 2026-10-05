@@ -19,7 +19,7 @@ const mockLayoutSettings = vi.hoisted(() => ({
 const mockPanels = vi.hoisted(() => ({
   isMobile: false,
   state: "collapsed",
-  activePanel: null,
+  activePanel: null as string | null,
   itemToEdit: null,
   setItemToEdit: vi.fn(),
   handleCloseEditor: vi.fn(),
@@ -29,6 +29,14 @@ const mockLayer = vi.hoisted(() => ({
   selectedLayer: 0,
   setSelectedLayer: vi.fn(),
 }));
+
+vi.mock("@/features/trainer/TrainerPage", async () => {
+  const { useState } = await import("react");
+  return { default: ({ active }: { active: boolean }) => {
+    const [attempts, setAttempts] = useState(0);
+    return <button data-testid="trainer-session" data-active={active} onClick={() => setAttempts(n => n + 1)}>{attempts}</button>;
+  } };
+});
 
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -194,6 +202,7 @@ describe("EditorLayout 3D guide sequencing", () => {
   const queuedRafs: FrameRequestCallback[] = [];
 
   beforeEach(() => {
+    mockPanels.activePanel = null;
     vi.useFakeTimers();
     vi.stubGlobal("__GIT_BRANCH__", "test");
     vi.stubGlobal("ResizeObserver", class {
@@ -227,6 +236,21 @@ describe("EditorLayout 3D guide sequencing", () => {
       callbacks.forEach((cb) => cb(0));
     });
   };
+
+  it("retains the Trainer session when selecting another sidebar panel", () => {
+    mockPanels.activePanel = "trainer";
+    const { rerender } = render(<EditorLayout />);
+    fireEvent.click(screen.getByTestId("trainer-session"));
+    expect(screen.getByTestId("trainer-session")).toHaveTextContent("1");
+    mockPanels.activePanel = "keyboard";
+    rerender(<EditorLayout />);
+    expect(screen.getByTestId("trainer-session")).not.toBeVisible();
+    expect(screen.getByTestId("trainer-session")).toHaveAttribute("data-active", "false");
+    mockPanels.activePanel = "trainer";
+    rerender(<EditorLayout />);
+    expect(screen.getByTestId("trainer-session")).toBeVisible();
+    expect(screen.getByTestId("trainer-session")).toHaveTextContent("1");
+  });
 
   it("keeps guides hidden during legacy forward entry and only shows them once settled", async () => {
     const { queryByTestId } = render(<EditorLayout />);

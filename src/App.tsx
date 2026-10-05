@@ -17,7 +17,7 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { VialProvider, useVial } from "./contexts/VialContext";
 
 // Simple page navigation context
-type Page = "main" | "explore" | "proof-sheet" | "trainer";
+type Page = "main" | "explore" | "proof-sheet";
 
 interface NavigationContextType {
     currentPage: Page;
@@ -42,16 +42,14 @@ const ChangesProviderWithVial = ({ children }: { children: ReactNode }) => {
 };
 
 const NavigationProvider = ({ children }: { children: ReactNode }) => {
-    const [currentPage, setCurrentPage] = useState<Page>(() => window.location.hash === "#trainer" ? "trainer" : "main");
+    const [currentPage, setCurrentPage] = useState<Page>("main");
 
     const navigateTo = useCallback((page: Page) => {
         setCurrentPage(page);
-        window.history.replaceState(null, "", page === "trainer" ? "#trainer" : window.location.pathname + window.location.search);
     }, []);
 
     const goBack = useCallback(() => {
         setCurrentPage("main");
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }, []);
 
     return (
@@ -80,9 +78,9 @@ function AppContent() {
 
     return (
         <>
-            {currentPage === "main" || currentPage === "trainer" ? (
+            {currentPage === "main" ? (
                 <>
-                    <MainScreen trainer={currentPage === "trainer"} />
+                    <MainScreen />
                     <PrintableKeymapWrapper />
                 </>
             ) : currentPage === "explore" ? (

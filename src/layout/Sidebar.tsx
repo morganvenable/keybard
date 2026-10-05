@@ -1,5 +1,4 @@
 import { HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Settings } from "lucide-react";
-import { useNavigation } from "@/App";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -145,14 +144,13 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
-    const { navigateTo, currentPage } = useNavigation();
     const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
         setItemToEdit,
         setActivePanel,
         openDetails,
-        activePanel: editorPanel,
+        activePanel,
         panelToGoBack,
         alternativeHeader,
         setPanelToGoBack,
@@ -162,22 +160,19 @@ const AppSidebar = () => {
         setOpen,
     } = usePanels();
 
-    const activePanel = currentPage === "trainer" ? "trainer" : editorPanel;
     const { keyboard } = useVial();
 
 
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
-            if (item.url === "trainer") { navigateTo("trainer"); return; }
-            if (currentPage === "trainer") navigateTo("main");
-            if (item.url === "matrixtester") {
-                if (activePanel === "matrixtester") {
+            if (item.url === "matrixtester" || item.url === "trainer") {
+                if (activePanel === item.url) {
                     setActivePanel(null);
                     return;
                 }
                 setOpen(false);
-                setActivePanel("matrixtester");
+                setActivePanel(item.url);
                 setPanelToGoBack(null);
                 setItemToEdit(null);
                 return;
@@ -193,7 +188,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [navigateTo, currentPage, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 
