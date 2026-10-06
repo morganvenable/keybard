@@ -45,8 +45,8 @@
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.015625,
-        "settled": 105.015625
+        "start": 105.03125,
+        "settled": 105.03125
       }
     },
     {
@@ -54,8 +54,8 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 104.6875,
-        "settled": 104.6875
+        "start": 104.703125,
+        "settled": 104.703125
       }
     },
     {
@@ -63,14 +63,14 @@
       "passed": true,
       "detail": {
         "target": "trainer",
-        "start": 104.5625,
-        "settled": 104.5625
+        "start": 104.578125,
+        "settled": 104.578125
       }
     },
     {
       "check": "local assets and links",
       "passed": true,
-      "detail": 24
+      "detail": 27
     },
     {
       "check": "print PDF",
