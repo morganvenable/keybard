@@ -4804,7 +4804,7 @@
     },
     "layer_colors": {
       "0": "orange",
-      "1": "blue"
+      "1": "orange"
     }
   },
   "custom_values": [
@@ -4813,7 +4813,7 @@
       "channel": 0,
       "valueId": 0,
       "data": [
-        85,
+        21,
         255
       ]
     },
