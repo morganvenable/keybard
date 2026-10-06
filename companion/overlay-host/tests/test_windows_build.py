@@ -38,6 +38,15 @@ class SigningSwitchTests(unittest.TestCase):
         self.assertIn('/Skeybard=signtool sign /fd SHA256 /tr http://ts.example /td SHA256 $f', iscc)
         self.assertIn('KeybardHostSetup.exe', calls[3][-1])  # installer signature verified
 
+    def test_quotes_in_the_command_reach_inno_as_q(self):
+        build = load_build(r'"C:\Program Files (x86)\Windows Kits\signtool.exe" sign /fd SHA256 {file}')
+        with mock.patch.object(build.subprocess, 'run') as run, mock.patch.object(build, 'find_iscc', return_value=Path('ISCC.exe')):
+            build.installer(Path('C:/app'), Path('C:/p.html'), '0.1.0')
+        iscc = run.call_args_list[0].args[0]
+        sign_arg = next(a for a in iscc if a.startswith('/Skeybard='))
+        self.assertNotIn('"', sign_arg)  # ISCC fails on escaped quotes
+        self.assertEqual(sign_arg, r'/Skeybard=$qC:\Program Files (x86)\Windows Kits\signtool.exe$q sign /fd SHA256 $f')
+
     def test_command_must_name_the_file(self):
         build = load_build('signtool sign /fd SHA256')
         with self.assertRaises(SystemExit): build.sign(Path('C:/x.exe'))

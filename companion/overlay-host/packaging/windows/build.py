@@ -92,7 +92,9 @@ def installer(app, paranoid, version):
                f'/DParanoidFile={paranoid}', f'/DIconFile={ICON}', f'/DOutputDir={BUILD}']
     if SIGN_COMMAND:
         # Inno Setup signs the installer and the uninstaller it generates; $f is the quoted file.
-        command += ['/DSign', '/Skeybard=' + SIGN_COMMAND.replace('{file}', '$f')]
+        # ISCC can't parse escaped quotes on its command line; Inno's sign-tool syntax
+        # spells a quote as $q (and the quoted file name as $f).
+        command += ['/DSign', '/Skeybard=' + SIGN_COMMAND.replace('"', '$q').replace('{file}', '$f')]
     subprocess.run(command + [str(HERE / 'KeybardHost.iss')], check=True)
     setup = BUILD / 'KeybardHostSetup.exe'
     if SIGN_COMMAND: verify_signature(setup)
