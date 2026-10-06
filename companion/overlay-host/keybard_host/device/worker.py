@@ -2,7 +2,7 @@
 from threading import Event, Lock
 import time
 from PySide6.QtCore import QThread, Signal
-from .protocol import SvalReader, ProtocolError, Cancelled, candidates, DEFAULT_LAYER_STATE_FLAG, UnsupportedCommand
+from .protocol import SvalReader, ProtocolError, Cancelled, candidates, hid_backend, DEFAULT_LAYER_STATE_FLAG, UnsupportedCommand
 
 
 class DeviceWorker(QThread):
@@ -35,7 +35,7 @@ class DeviceWorker(QThread):
 
     def run(self):
         try:
-            import hid
+            hid = hid_backend()
         except ImportError as exc:
             self.status.emit(f"Stopped · HID runtime unavailable: {exc}")
             return

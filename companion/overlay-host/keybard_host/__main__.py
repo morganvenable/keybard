@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineScript
-from .device.protocol import candidates
+from .device.protocol import candidates, hid_backend
 from .device.worker import DeviceWorker
 from .state import HostState, serialize_profile
 from .modifiers import ModifierReader
@@ -269,7 +269,7 @@ class Host(QObject):
         self.surface.move(area.x() + (area.width() - self.surface.width()) // 2, area.bottom() - self.surface.height() - 25)
 
     def scan(self):
-        import hid
+        hid = hid_backend()
         try:
             devices = candidates(hid)
             self.devices = {hashlib.sha256(d['path']).hexdigest()[:20]: d for d in devices}
