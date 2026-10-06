@@ -238,8 +238,6 @@ const TapdancePanel: React.FC = () => {
                             keyboard={keyboard}
                             keycode={keycode}
                             label={i.toString()}
-                            hasCustomName={!!keyboard.cosmetic?.tapdances?.[i.toString()]}
-                            customName={keyboard.cosmetic?.tapdances?.[i.toString()]}
                             keyContents={keyContents}
                             onEdit={handleEdit}
                             onAssignKeycode={assignKeycode}
