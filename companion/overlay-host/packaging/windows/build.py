@@ -43,7 +43,10 @@ def verify_signature(path):
               "if ($s.Status -ne 'Valid') { Write-Error \"$($s.Status): $($s.StatusMessage)\"; exit 1 }; "
               "if (-not $s.TimeStamperCertificate) { Write-Error 'Signature is not timestamped'; exit 1 }; "
               "Write-Output \"signed: $($s.SignerCertificate.Subject)\"")
-    subprocess.run(['powershell.exe', '-NoProfile', '-Command', script], check=True)
+    # Windows PowerShell 5.1 can't load its own modules with PowerShell 7's PSModulePath
+    # (inherited when the build runs under pwsh, as in CI), so let it use its default.
+    env = {k: v for k, v in os.environ.items() if k.upper() != 'PSMODULEPATH'}
+    subprocess.run(['powershell.exe', '-NoProfile', '-Command', script], check=True, env=env)
 
 
 def sign(path):
