@@ -26,7 +26,10 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.raw_keycode_count && file.keycode_version !== boardNumbering) {
         warnings.push(`${file.raw_keycode_count} keycode${file.raw_keycode_count === 1 ? ' is' : 's are'} stored as a number rather than a name, written in ${file.keycode_version ? `QMK keycode numbering ${file.keycode_version}` : 'an unrecorded keycode numbering'}; this keyboard uses ${boardNumbering}. Check ${file.raw_keycode_count === 1 ? 'it' : 'them'} after importing.`);
     }
-    if (file.vial_proto && current.svil_proto) errors.push('This Vial layout needs keycode migration before it can be applied to Sval firmware. Open it offline or use a compatible Sval backup.');
+    const vial = file.vial_import;
+    if (vial?.foreign_custom_keycodes) errors.push(`This Vial layout uses ${vial.foreign_custom_keycodes} custom key${vial.foreign_custom_keycodes === 1 ? '' : 's'} (USER00…) from another keyboard's firmware, which this keyboard cannot interpret.`);
+    if (vial?.unassigned_custom_keycodes) warnings.push(`${vial.unassigned_custom_keycodes} key${vial.unassigned_custom_keycodes === 1 ? ' uses a custom keycode' : 's use custom keycodes'} that Svalboard's Vial firmware left unassigned; ${vial.unassigned_custom_keycodes === 1 ? 'it' : 'they'} did nothing there and will be set to KC_NO.`);
+    if (vial?.svalboard) warnings.push('Vial layout files do not include pointing and hardware settings (DPI, scrolling, automouse, layer colors). Set them again after importing.');
     next.keymap = current.keymap?.map((layer, index) => file.keymap?.[index] ? [...file.keymap[index]] : [...layer]);
     for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count']] as const) {
         const incoming = file[field];
