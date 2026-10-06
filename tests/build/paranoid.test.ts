@@ -30,6 +30,12 @@ describe('Keybard Paranoid lockdown', () => {
             '<style>body{background:url(//x.example/b.png)}</style>', '<meta http-equiv="refresh" content="0;url=https://x.example/">',
             '<a ping="https://x.example/p" href="#">x</a>', '<link rel="prerender" href="data:text/html,">',
             '<link rel="dns-prefetch" href="//x.example">', '<script type="speculationrules">{}</script>',
+            // Round-2 review bypasses:
+            '<meta content="0;url=https://x.example/?a>b" http-equiv="refresh">', '<meta http-equiv="&#114;efresh" content="0;url=https://x.example/">',
+            '<script type="&#115;peculationrules">{"prefetch":[{"urls":["https://x.example/"]}]}</script>', '<div style="background:url(https://x.example/i.png)"></div>',
+            '<style>a{background:u\\72l(https://x.example/e.png)}</style>', '<style>@\\69mport "https://x.example/a.css";</style>',
+            '<svg><a href="#"><set attributeName="href" to="https://x.example/"></set></a></svg>', '<meta http-equiv="link" content="<https://x.example/>; rel=preload">',
+            '<base href="https://x.example/">', '<iframe srcdoc="<img src=https://x.example/>"></iframe>',
         ]) {
             expect(() => lockDown(page(bad))).toThrow(/external resources/);
         }

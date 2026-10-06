@@ -7,9 +7,9 @@ Keybard Paranoid is Keybard as a single HTML file that runs on your own computer
 There are two layers. You need both.
 
 1. **The page cannot fetch or load anything.** The file carries a Content Security Policy that blocks fetches, XHR, WebSockets, beacons, fonts, images, frames, workers, preloads and form posts. Scripts run only if their hashes match. Everything Keybard needs is embedded: code, styles, the Inter font, the icon, the example layout and the layer library. The only connection the policy allows is to the Keybard Host serving the page in paranoid mode.
-2. **The browser cannot reach the network.** A page's policy cannot stop navigations: redirects, prerendering, downloads and new windows can still carry data out. So the launchers open Chrome or Edge in a separate profile behind a dead proxy (`--proxy-server=127.0.0.1:9`). Every request that isn't loopback fails, navigations included. The launchers also keep WebRTC off the network and turn off background browser services. Chromium always bypasses proxies for `127.0.0.1`, so Keybard Host still works.
+2. **The browser cannot reach the network.** A page's policy cannot stop navigations: redirects, prerendering, downloads and new windows can still carry data out. So the launchers open Chrome or Edge in a separate profile behind a dead proxy (`--proxy-server=127.0.0.1:9`). Every request that isn't loopback fails, navigations included. WebRTC is limited to proxied traffic, which means none, and background browser services are off. Chromium always bypasses proxies for loopback, so Keybard Host still works. That also means other services listening on your own machine stay reachable from the page.
 
-Opening the file by double-clicking it gives you layer 1 only. Use the launchers for both.
+Opening the file by double-clicking it, or opening the Host's address in your normal browser, gives you layer 1 only. Extensions installed in a normal profile can also read the page. Use the launchers for both layers.
 
 ## What reads your keyboard, and when
 
@@ -35,13 +35,17 @@ The Trainer works as a preview. For the desktop overlay, use Keybard Host in par
 In paranoid mode the Host:
 - Refuses every website, including keybard.svalboard.com.
 - Refuses to be framed by any page.
-- Serves only a page that carries the paranoid policy.
-- Will not take over from a normal Host that is already running; it tells you to quit that one first.
+- Serves only Keybard Paranoid: it checks the page against the checksum shipped with it and its policy at startup, caches it, and serves nothing else.
+- Binds its port exclusively.
+- Will not take over from a Host it can't confirm is in paranoid mode; it tells you to quit that one first.
+- If a paranoid Host is already running, starting Keybard Host normally opens it in the contained profile too.
 
 ## Limits worth knowing
 
 - **Keep the profile for Keybard only.** Chrome treats every HTML file opened from disk as the same origin. Another local HTML file opened in the contained profile could read Keybard's saved settings and, if permitted, talk to your keyboard. Don't use that profile for anything else.
 - **The firmware answers any page you connect.** Over WebHID, the keyboard's firmware reports its switch matrix to whatever page you've connected it to. Keybard Paranoid only asks while the Matrix Tester is open, but that protection is in the page's code, not in the firmware.
+- **Managed browsers may ignore the proxy.** If your organization sets proxy settings by policy, they override the launchers' flags, and layer 2 may not apply.
+- **Outside apps can be launched with your consent.** A `mailto:` or other app link goes through the operating system, not the browser's network stack, if you approve Chrome's prompt.
 - **The launchers need Chrome or Edge.** WebHID needs a Chromium browser. If neither is installed, the launchers say so and open nothing.
 - **Updates are manual.** Download the new release when one comes out. There is no update check, by design.
 

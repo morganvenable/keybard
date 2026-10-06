@@ -19,9 +19,9 @@ You can also open [local Keybard](http://127.0.0.1:5178/), the copy served by Ke
 
 For a Keybard that cannot reach the network at all:
 
-- **Start-Paranoid.cmd** runs Keybard Host in paranoid mode. It serves Keybard Paranoid, a single-file build of Keybard with a no-network security policy, and accepts no website, keybard.svalboard.com included. It opens Keybard in a separate Chrome or Edge profile behind a dead proxy, so nothing but the local Host is reachable. The Trainer and overlay work as usual.
+- **Start-Paranoid.cmd** runs Keybard Host in paranoid mode. It serves Keybard Paranoid, a single-file build of Keybard with a no-network security policy, and accepts no website, keybard.svalboard.com included. It opens Keybard in a separate Chrome or Edge profile behind a dead proxy, so only services on your own machine are reachable. The Trainer and overlay work as usual.
 - **Open-Paranoid.cmd** opens `keybard-paranoid.html` on its own in the same contained profile, for editing without the Host.
-- Paranoid mode reads the board's active layer and key presses only while you're looking at Keybard. See `docs/paranoid.md` in the source for exactly what is and isn't protected.
+- Keybard Paranoid reads the board's active layer, and the Matrix Tester reads key presses, only while you're looking at Keybard. Keybard Host itself reads the board continuously so the overlay works while you type elsewhere; key presses only if you turn on held-key highlighting. See `docs/paranoid.md` in the source for exactly what is and isn't protected.
 
 ## New in preview 2
 

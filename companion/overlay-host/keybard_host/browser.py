@@ -13,7 +13,7 @@ import subprocess
 # Keep in sync with scripts/Open-Paranoid.ps1.
 CONTAINMENT_FLAGS = (
     '--proxy-server=http://127.0.0.1:9',
-    '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+    '--webrtc-ip-handling-policy=disable_non_proxied_udp',
     '--disable-background-networking',
     '--disable-sync',
     '--disable-component-update',

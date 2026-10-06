@@ -6,8 +6,14 @@ import unittest
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from keybard_host.state import HostState, DEFAULTS
-from keybard_host.server import make_server, is_paranoid_page
+from keybard_host.server import make_server, is_paranoid_page, load_paranoid_page
 from keybard_host.browser import CONTAINMENT_FLAGS, contained_command
+
+import hashlib
+import os
+from keybard_host.server import paranoid_policy_ok as is_paranoid_page_text
+STRICT = "default-src 'none'; script-src 'sha256-AAAA'; style-src 'unsafe-inline'; connect-src 'self' data: blob:; base-uri 'none'; form-action 'none'"
+PARANOID_PAGE = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8" />\n<meta http-equiv="Content-Security-Policy" content="{policy}">\n</head><body></body></html>'
 
 class ServerTests(unittest.TestCase):
     def setUp(self):
@@ -101,15 +107,39 @@ class HardeningTests(ServerTests):
         try:
             with urlopen(f'http://127.0.0.1:{paranoid.server_port}/api/host/bootstrap') as r: self.assertIs(json.load(r)['paranoid'], True)
         finally: paranoid.shutdown(); paranoid.server_close(); thread.join()
-    def test_paranoid_mode_only_serves_a_paranoid_page(self):
-        root = Path(self.temp.name)
-        self.assertFalse(is_paranoid_page(root / 'index.html'))
-        (root / 'p.html').write_text("<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">", encoding='utf-8')
-        self.assertTrue(is_paranoid_page(root / 'p.html'))
+    def test_paranoid_mode_only_serves_a_verified_paranoid_page(self):
+        root = Path(self.temp.name) / 'web-paranoid'; root.mkdir()
+        good = PARANOID_PAGE.format(policy=STRICT)
+        (root / 'index.html').write_bytes(good.encode())
+        self.assertTrue(is_paranoid_page(root / 'index.html'))
+        with self.assertRaises(ValueError): load_paranoid_page(root)  # no checksum file
+        (root / 'SHA256SUMS.txt').write_text(hashlib.sha256(good.encode()).hexdigest() + '  index.html\n', encoding='utf-8')
+        page = load_paranoid_page(root)
+        self.assertIn(b'data-keybard-host="true"', page)
+        for weak in [STRICT.replace("script-src 'sha256-AAAA'", "script-src https:"), STRICT.replace("connect-src 'self'", 'connect-src *'), STRICT.replace("default-src 'none'", "default-src 'self'")]:
+            self.assertFalse(is_paranoid_page_text(PARANOID_PAGE.format(policy=weak)), weak)
+        self.assertFalse(is_paranoid_page_text('<!-- ' + good + ' -->'))
+        (root / 'index.html').write_bytes((good + '<!-- tampered -->').encode())
+        with self.assertRaises(ValueError): load_paranoid_page(root)
+        server = make_server(self.state, root, lambda c: None, 0, set(), True, page)
+        thread = threading.Thread(target=server.serve_forever); thread.start()
+        try:
+            with urlopen(f'http://127.0.0.1:{server.server_port}/?hostOverlay=1') as r: self.assertEqual(r.read(), page)
+            for path in ('/SHA256SUMS.txt', '/other.html', '/assets/x.js'):
+                with self.assertRaises(HTTPError) as error: urlopen(f'http://127.0.0.1:{server.server_port}{path}')
+                self.assertEqual(error.exception.code, 404)
+        finally: server.shutdown(); server.server_close(); thread.join()
+    @unittest.skipUnless(os.name == 'nt', 'Windows-specific port sharing')
+    def test_second_host_cannot_share_the_port(self):
+        with self.assertRaises(OSError): make_server(self.state, Path(self.temp.name), lambda c: None, self.server.server_port)
     def test_contained_browser_blocks_non_loopback_traffic(self):
         command = contained_command('chrome.exe', 'C:/profile dir', 'http://127.0.0.1:5178/')
         self.assertIn('--proxy-server=http://127.0.0.1:9', command)
-        self.assertIn('--force-webrtc-ip-handling-policy=disable_non_proxied_udp', command)
+        self.assertIn('--webrtc-ip-handling-policy=disable_non_proxied_udp', command)
+        # Chrome's switch is --webrtc-ip-handling-policy; a misspelt switch is silently ignored and leaks STUN.
+        self.assertFalse(any('force-webrtc' in f for f in CONTAINMENT_FLAGS))
+        ps1 = (Path(__file__).resolve().parents[1] / 'scripts' / 'Open-Paranoid.ps1').read_text(encoding='utf-8')
+        for flag in CONTAINMENT_FLAGS: self.assertIn(flag, ps1)
         self.assertIn('--user-data-dir=C:/profile dir', command)
         # An explicit bypass list would drop Chromium's implicit loopback bypass and break the host.
         self.assertFalse(any(f.startswith('--proxy-bypass-list') for f in CONTAINMENT_FLAGS))

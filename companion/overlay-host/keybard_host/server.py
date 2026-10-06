@@ -1,5 +1,9 @@
 """Loopback-only static site and narrowly scoped host API."""
+import hashlib
 import hmac
+import os
+import re
+import socket
 import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -8,7 +12,12 @@ from urllib.parse import urlsplit, parse_qs
 
 class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    # On Windows SO_REUSEADDR lets a second process bind the same port; bind exclusively there.
+    allow_reuse_address = os.name != 'nt'
+
+    def server_bind(self):
+        if os.name == 'nt': self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 # Hosted Keybard sites that may use the host API from the browser. They still
@@ -16,13 +25,33 @@ class LocalServer(ThreadingHTTPServer):
 REMOTE_ORIGINS = frozenset({'https://keybard.svalboard.com'})
 
 
+def paranoid_policy_ok(html):
+    """The page's first element after <meta charset> must be the strict Keybard Paranoid policy."""
+    match = re.match(r'\s*<!doctype html>\s*<html[^>]*>\s*<head>\s*<meta charset="utf-8"\s*/?>\s*<meta http-equiv="Content-Security-Policy" content="([^"]+)">', html, re.I)
+    if not match: return False
+    policy = {part.split()[0]: part.split()[1:] for part in (p.strip() for p in match.group(1).split(';')) if part}
+    return (policy.get('default-src') == ["'none'"]
+            and bool(policy.get('script-src')) and all(re.fullmatch(r"'sha256-[A-Za-z0-9+/=]+'", s) for s in policy['script-src'])
+            and set(policy.get('connect-src', [])) <= {"'self'", 'data:', 'blob:'}
+            and policy.get('base-uri') == ["'none'"] and policy.get('form-action') == ["'none'"])
+
+
 def is_paranoid_page(index):
-    """Paranoid mode only serves a Keybard Paranoid build (its no-network policy present)."""
-    text = index.read_text(encoding='utf-8', errors='replace')
-    return 'http-equiv="Content-Security-Policy"' in text and "default-src 'none'" in text
+    return paranoid_policy_ok(index.read_text(encoding='utf-8', errors='replace'))
 
 
-def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, paranoid=False):
+def load_paranoid_page(assets):
+    """Bytes of the Keybard Paranoid page, verified against the shipped checksum and policy."""
+    data = (assets / 'index.html').read_bytes()
+    sums = assets / 'SHA256SUMS.txt'
+    expected = {line.split()[0].lower() for line in sums.read_text(encoding='utf-8').splitlines() if line.strip()} if sums.exists() else set()
+    if hashlib.sha256(data).hexdigest() not in expected: raise ValueError('index.html does not match the SHA256SUMS.txt shipped with it')
+    if not paranoid_policy_ok(data.decode('utf-8', errors='replace')): raise ValueError('index.html is not a Keybard Paranoid build')
+    return data.replace(b'<html lang="en">', b'<html lang="en" data-keybard-host="true">', 1)
+
+
+def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, paranoid=False, page=None):
+    # In paranoid mode `page` is the verified page bytes; nothing else is served.
     remote_origins = frozenset(remote_origins)
 
     class Handler(SimpleHTTPRequestHandler):
@@ -82,6 +111,13 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
                 return self.reply(state.snapshot(revision))
+            if page is not None:
+                if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', str(len(page)))
+                self.end_headers(); self.wfile.write(page); return
             if path.path in ('/', '/index.html'):
                 body = (assets / 'index.html').read_text(encoding='utf-8').replace('<html lang="en">', '<html lang="en" data-keybard-host="true">').encode('utf-8')
                 self.send_response(200)
