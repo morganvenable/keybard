@@ -1,7 +1,7 @@
 {
   "checks": [
     {
-      "check": "responsive/search/diagram/lightbox",
+      "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
         "viewport_width": 360,
@@ -9,7 +9,7 @@
       }
     },
     {
-      "check": "responsive/search/diagram/lightbox",
+      "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
         "viewport_width": 390,
@@ -17,7 +17,7 @@
       }
     },
     {
-      "check": "responsive/search/diagram/lightbox",
+      "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
         "viewport_width": 768,
@@ -25,7 +25,7 @@
       }
     },
     {
-      "check": "responsive/search/diagram/lightbox",
+      "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
         "viewport_width": 1280,
@@ -33,7 +33,7 @@
       }
     },
     {
-      "check": "responsive/search/diagram/lightbox",
+      "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
         "viewport_width": 1600,
@@ -41,12 +41,17 @@
       }
     },
     {
+      "check": "autoplay, persistent pause and reduced motion",
+      "passed": true,
+      "detail": 34
+    },
+    {
       "check": "stable mobile deep link",
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.03125,
-        "settled": 105.03125
+        "start": 104.90625,
+        "settled": 104.90625
       }
     },
     {
@@ -54,8 +59,8 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 104.703125,
-        "settled": 104.703125
+        "start": 104.765625,
+        "settled": 104.765625
       }
     },
     {
@@ -63,14 +68,14 @@
       "passed": true,
       "detail": {
         "target": "trainer",
-        "start": 104.578125,
-        "settled": 104.578125
+        "start": 105.171875,
+        "settled": 105.171875
       }
     },
     {
       "check": "local assets and links",
       "passed": true,
-      "detail": 27
+      "detail": 73
     },
     {
       "check": "print PDF",

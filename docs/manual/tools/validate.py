@@ -21,20 +21,31 @@ with sync_playwright() as p:
   page.locator('#manual-search').fill('zzzznonexistent');assert 'No matching' in page.locator('#search-status').inner_text()
   page.locator('#manual-search').fill('');page.locator('.chapter-nav a[href="#layers"]').click();page.wait_for_timeout(150)
   assert not page.locator('.rail').evaluate('(e)=>e.classList.contains("open")')
-  page.get_by_role('button',name='Activate Layer 1',exact=True).click();assert page.locator('.demo-key span').all_text_contents()==['1','B','—']
-  page.get_by_role('button',name='Base only',exact=True).click();assert page.locator('.demo-key span').all_text_contents()==['A','B','C']
+  assert page.locator('.fallthrough-examples article').count()==2
+  assert page.locator('.typed-result').all_text_contents()==['Press this position → A','Press this position → nothing']
   page.locator('figure .figure-button').first.click();assert page.locator('#image-dialog').is_visible();assert page.locator('#full-image').get_attribute('href')
   page.keyboard.press('Escape');assert not page.locator('#image-dialog').is_visible();assert page.locator('figure .figure-button').first.evaluate('(e)=>document.activeElement===e')
   for control in page.locator('[data-animation]').all():
+   control.scroll_into_view_if_needed();page.wait_for_timeout(180)
    img=control.locator('xpath=ancestor::figure').locator('img')
    assert img.get_attribute('src')==control.get_attribute('data-poster')
    control.click();assert img.get_attribute('src')==control.get_attribute('data-animation')
    control.click();assert img.get_attribute('src')==control.get_attribute('data-poster')
   assert not errors,errors
-  record('responsive/search/diagram/lightbox',{'viewport_width':width,'console_errors':errors})
+  record('responsive/search/layer-explanation/lightbox/playback',{'viewport_width':width,'console_errors':errors})
   if width in [390,1280]:
    page.goto(URL);page.screenshot(path=str(ROOT/f'evidence/manual-{width}.png'))
   page.close()
+ # Ordinary motion: visible recordings autoplay, pause persists after scrolling.
+ page=b.new_page(viewport={'width':1280,'height':900},reduced_motion='no-preference');page.goto(URL)
+ first=page.locator('[data-animation]').first;first.scroll_into_view_if_needed();page.wait_for_timeout(400)
+ assert first.get_attribute('aria-pressed')=='true'
+ first.click();assert first.get_attribute('aria-pressed')=='false'
+ page.locator('#trainer').scroll_into_view_if_needed();page.wait_for_timeout(200)
+ first.scroll_into_view_if_needed();page.wait_for_timeout(200);assert first.get_attribute('aria-pressed')=='false'
+ first.click();assert first.get_attribute('aria-pressed')=='true'
+ page.emulate_media(reduced_motion='reduce');page.wait_for_timeout(200);assert first.get_attribute('aria-pressed')=='false'
+ record('autoplay, persistent pause and reduced motion',page.locator('[data-animation]').count());page.close()
  # Cold deep links must not drift while images load.
  for target in ['settings','files','trainer']:
   page=b.new_page(viewport={'width':390,'height':844},reduced_motion='reduce');page.goto(URL+'#'+target);page.wait_for_timeout(500)

@@ -1,0 +1,8 @@
+{
+  "clip": "print-action",
+  "verifiedResult": "Invoked Print Layers and displayed actual print CSS; native print dialog is outside the web capture",
+  "frames": 17,
+  "durationMs": 6420,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

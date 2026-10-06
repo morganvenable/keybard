@@ -1,0 +1,7 @@
+{
+  "clip": "overlay-layers",
+  "physicalHID": false,
+  "source": "Actual HostOverlay renderer with controlled layer and matrix reports; not a captured desktop or hardware test",
+  "verifiedResult": "Base, symbols and function reports produced distinct resolved legend sets; held-key report then cleared",
+  "frames": 50
+}
