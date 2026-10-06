@@ -28,7 +28,8 @@ with sync_playwright() as p:
   for control in page.locator('[data-animation]').all():
    control.scroll_into_view_if_needed();page.wait_for_timeout(180)
    img=control.locator('xpath=ancestor::figure').locator('img')
-   assert img.get_attribute('src')==control.get_attribute('data-poster')
+   assert img.get_attribute('src')==control.get_attribute('data-animation')
+   control.click();assert img.get_attribute('src')==control.get_attribute('data-poster')
    control.click();assert img.get_attribute('src')==control.get_attribute('data-animation')
    control.click();assert img.get_attribute('src')==control.get_attribute('data-poster')
   assert not errors,errors
@@ -44,8 +45,8 @@ with sync_playwright() as p:
  page.locator('#trainer').scroll_into_view_if_needed();page.wait_for_timeout(200)
  first.scroll_into_view_if_needed();page.wait_for_timeout(200);assert first.get_attribute('aria-pressed')=='false'
  first.click();assert first.get_attribute('aria-pressed')=='true'
- page.emulate_media(reduced_motion='reduce');page.wait_for_timeout(200);assert first.get_attribute('aria-pressed')=='false'
- record('autoplay, persistent pause and reduced motion',page.locator('[data-animation]').count());page.close()
+ page.emulate_media(reduced_motion='reduce');page.wait_for_timeout(200);assert first.get_attribute('aria-pressed')=='true'
+ record('autoplay including reduced motion, persistent pause',page.locator('[data-animation]').count());page.close()
  # Cold deep links must not drift while images load.
  for target in ['settings','files','trainer']:
   page=b.new_page(viewport={'width':390,'height':844},reduced_motion='reduce');page.goto(URL+'#'+target);page.wait_for_timeout(500)
