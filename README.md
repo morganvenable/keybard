@@ -218,3 +218,9 @@ Tests run automatically on:
 ## Documentation
 
 See [VITE_SETUP.md](./VITE_SETUP.md) for detailed setup and development documentation.
+
+## Trainer and native overlay preview
+
+Trainer is available from the left navigation panel, or directly at `/#trainer` when serving with a root base path. It has independent appearance controls, saved presets, a shared SVG keyboard renderer, offline/imported previews, and recall practice. Trainer imports do not replace the editor draft.
+
+The [native Keybard Host](companion/overlay-host/README.md) serves this same web UI and runs its renderer as a transparent tray-managed desktop overlay. It has an isolated Windows runtime and read-only Svalboard device worker. Host mode supports live active/default layers, optional held-key feedback, remembered-board reconnect, and configuration from Keybard. Keybard keeps its standard WebHID connection flow; the native overlay uses a separate read-only client.

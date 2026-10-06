@@ -1,6 +1,8 @@
 import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 import { isEditorInput } from "@/utils/editor-input";
 import * as React from "react";
+import TrainerPage from "@/features/trainer/TrainerPage";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
@@ -1081,6 +1083,9 @@ const EditorLayoutInner = () => {
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
     const { isMobile, state, activePanel, itemToEdit } = usePanels();
+    const isTrainer = activePanel === "trainer";
+    const [trainerVisited, setTrainerVisited] = React.useState(isTrainer);
+    React.useEffect(() => { if (isTrainer) { setTrainerVisited(true); clearSelection(); } }, [isTrainer, clearSelection]);
 
     // Editor overlay state for bottom bar mode
 
@@ -1117,8 +1122,8 @@ const EditorLayoutInner = () => {
 
     // In sidebar mode: show detail sidebar on right
     // In bottom bar mode: no detail sidebar, use bottom panel instead
-    const showDetailsSidebar = useSidebarLayout && !isMobile && state === "expanded";
-    const showBottomPanel = useBottomLayout && state === "expanded";
+    const showDetailsSidebar = !isTrainer && useSidebarLayout && !isMobile && state === "expanded";
+    const showBottomPanel = !isTrainer && useBottomLayout && state === "expanded";
 
     const [isConstrainedViewport, setIsConstrainedViewport] = React.useState(() => window.innerWidth < 1100);
     React.useEffect(() => {
@@ -1205,6 +1210,11 @@ const EditorLayoutInner = () => {
                 <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
             </div>}
             <AppSidebar />
+            {(trainerVisited || isTrainer) && <div hidden={!isTrainer} className="trainer-shell-content" style={{ marginLeft: primaryOffset }}>
+                {primarySidebar.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
+                <TrainerPage active={isTrainer} />
+            </div>}
+            <div className={isTrainer ? "hidden" : "contents"}>
             {/* Keep the panel mounted when its placement changes. */}
             <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />
             <div
@@ -1537,6 +1547,7 @@ const EditorLayoutInner = () => {
                 onConfirm={handleDragReplaceConfirm}
                 onCancel={handleDragReplaceCancel}
             />
+            </div>
         </div >
     );
 };

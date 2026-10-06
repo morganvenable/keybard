@@ -81,6 +81,7 @@ const featureSidebarItems: SidebarItem[] = [
 
 const layoutSidebarItems: SidebarItem[] = [
     { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
+    { title: "Trainer", url: "trainer", icon: GraduationCapIcon },
 ];
 
 const footerItems: SidebarItem[] = [
@@ -167,13 +168,13 @@ const AppSidebar = () => {
             // Labels can be expanded to choose a destination; return the narrow
             // viewport to its icon rail so the chosen panel remains usable.
             if (window.innerWidth < 900) setNavigationOpen(false);
-            if (item.url === "matrixtester") {
-                if (activePanel === "matrixtester") {
+            if (item.url === "matrixtester" || item.url === "trainer") {
+                if (activePanel === item.url) {
                     setActivePanel(null);
                     return;
                 }
                 setOpen(false);
-                setActivePanel("matrixtester");
+                setActivePanel(item.url);
                 setPanelToGoBack(null);
                 setItemToEdit(null);
                 return;

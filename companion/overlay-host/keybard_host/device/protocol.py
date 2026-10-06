@@ -1,0 +1,299 @@
+"""Strictly read-only Sval v2/v3 client with the mandatory client wrapper."""
+from dataclasses import dataclass, replace
+import secrets
+import time
+
+from .board_layout import decode_definition, geometry_from_definition
+from .model import Profile, legend
+
+USAGE_PAGE, USAGE = 0xFF61, 0x62
+REPORT_SIZE = 32
+DEFAULT_LAYER_STATE_FLAG = 1 << 6
+# Protocol -> command -> exact request argument length. No setter is expressible.
+READ_COMMANDS = {
+    0xDF: {0x00: 0, 0x01: 2, 0x0D: 0, 0x0E: 3, 0x16: 0, 0x18: 0, 0x19: 0, 0x1B: 3},
+    0xFE: {0x02: 2, 0x11: 0, 0x12: 3},
+}
+
+
+@dataclass(frozen=True)
+class LayerSnapshot:
+    active: int
+    default: int | None = None  # None means not advertised; zero is a valid mask.
+
+
+class ProtocolError(Exception):
+    pass
+
+
+class ClientExpired(ProtocolError):
+    pass
+
+
+class UnsupportedCommand(ProtocolError):
+    pass
+
+
+class Cancelled(Exception):
+    pass
+
+
+def candidates(hid_module):
+    # Product IDs vary across Svalboards and firmware builds. Match the dedicated
+    # Sval collection, as Keybard does; never probe keyboard or pointer collections.
+    result, seen = [], set()
+    for device in hid_module.enumerate():
+        if device.get("usage_page") != USAGE_PAGE or device.get("usage") != USAGE:
+            continue
+        path = device.get("path")
+        if path is None or path in seen:
+            continue
+        seen.add(path)
+        result.append(device)
+    return result
+
+
+class SvalReader:
+    def __init__(self, device, clock=time.monotonic, cancelled=lambda: False):
+        self.device = device
+        self.clock = clock
+        self.cancelled = cancelled
+        self.client_id = 0
+        self.renew_at = 0
+        self.feature_flags = 0
+        self.load_deadline = None
+
+    def checkpoint(self):
+        if self.cancelled():
+            raise Cancelled()
+        if self.load_deadline is not None and self.clock() > self.load_deadline:
+            raise ProtocolError("Loading the board layout timed out")
+
+    def _exchange(self, request, accept):
+        self.checkpoint()
+        if len(request) > REPORT_SIZE:
+            raise ProtocolError("Oversized request")
+        packet = b"\0" + request.ljust(REPORT_SIZE, b"\0")
+        if self.device.write(packet) != len(packet):
+            raise ProtocolError("Incomplete HID write")
+        deadline = self.clock() + .25
+        while self.clock() < deadline:
+            self.checkpoint()
+            reply = bytes(self.device.read(REPORT_SIZE, 30))
+            if not reply:
+                continue
+            if len(reply) != REPORT_SIZE:
+                raise ProtocolError("Malformed HID report length")
+            result = accept(reply)
+            if result is not None:
+                return result
+        raise ProtocolError("Svalboard response timed out")
+
+    def bootstrap(self):
+        nonce = secrets.token_bytes(20)
+        prefix = b"\xdd\0\0\0\0" + nonce
+
+        def accept(reply):
+            if reply[:25] != prefix:
+                return None
+            client = int.from_bytes(reply[25:29], "little")
+            ttl = int.from_bytes(reply[29:31], "little")
+            if client in (0, 0xFFFFFFFF) or ttl < 66:
+                raise ProtocolError("Invalid Sval client lease")
+            return client, ttl
+
+        self.client_id, ttl = self._exchange(prefix, accept)
+        self.renew_at = self.clock() + min(50, (ttl - 65.536) / 2)
+
+    def _read(self, command, args=b"", protocol=0xDF):
+        allowed = READ_COMMANDS.get(protocol, {})
+        if command not in allowed or len(args) != allowed[command]:
+            raise ValueError("Command or argument length is outside the trainer read allowlist")
+        if protocol == 0xFE and command == 0x02 and args != b"\x03\x00":
+            raise ValueError("Only the read-only switch matrix at row zero is allowed")
+        for attempt in range(2):
+            self.checkpoint()
+            if not self.client_id or self.clock() >= self.renew_at:
+                self.bootstrap()
+            prefix = b"\xdd" + self.client_id.to_bytes(4, "little")
+
+            def accept(reply):
+                if reply[:5] != prefix:
+                    return None
+                if reply[5] == 0xFF:
+                    if reply[6] == 1:
+                        raise ClientExpired("Sval client lease expired")
+                    raise ProtocolError(f"Sval wrapper error {reply[6]}")
+                if reply[5] != protocol:
+                    return None
+                if reply[6] == 0xFF:
+                    raise UnsupportedCommand(f"Board does not support read command {protocol:02X}:{command:02X}")
+                if reply[6] != command:
+                    return None
+                data = reply[7:]
+                echo_length = (3 if protocol == 0xFE and command == 0x12 else
+                               2 if (protocol == 0xDF and command in (0x01, 0x0E)) or (protocol == 0xFE and command == 0x02) else
+                               1 if protocol == 0xDF and command == 0x1B else 0)
+                if data[:echo_length] != args[:echo_length]:
+                    return None
+                return data
+
+            try:
+                return self._exchange(prefix + bytes((protocol, command)) + args, accept)
+            except ClientExpired:
+                self.client_id = 0
+                if attempt:
+                    raise
+        raise ProtocolError("Unable to obtain client lease")
+
+    def info(self):
+        data = self._read(0x00)
+        version = int.from_bytes(data[:4], "little")
+        if version not in (2, 3):
+            raise ProtocolError(f"Sval protocol {version} is not supported")
+        self.feature_flags = data[12]
+        return version, int.from_bytes(data[4:12], "little")
+
+    def layer_state(self):
+        return int.from_bytes(self._read(0x16)[:4], "little")
+
+    def layer_snapshot(self):
+        data = self._read(0x16)
+        default = (int.from_bytes(data[4:8], "little")
+                   if self.feature_flags & DEFAULT_LAYER_STATE_FLAG else None)
+        return LayerSnapshot(int.from_bytes(data[:4], "little"), default)
+
+    def pressed_keys(self):
+        # VIA GET_KEYBOARD_VALUE / SWITCH_MATRIX_STATE, row offset zero.
+        # Svalboard's 10 rows × 6 columns fit in ten bytes after the two echoes.
+        data = self._read(0x02, b"\x03\x00", protocol=0xFE)
+        rows = data[2:12]
+        if any(row & 0xC0 for row in rows):
+            raise ProtocolError("Invalid Svalboard matrix column bits")
+        return frozenset((row, col) for row, bits in enumerate(rows)
+                         for col in range(6) if bits & (1 << col))
+
+    def definition(self):
+        size = int.from_bytes(self._read(0x0D)[:4], "little")
+        if not 1 <= size <= 65536:
+            raise ProtocolError("Board definition exceeds the 16-bit transfer range")
+        payload = bytearray()
+        while len(payload) < size:
+            count = min(22, size - len(payload))
+            args = len(payload).to_bytes(2, "little") + bytes((count,))
+            data = self._read(0x0E, args)
+            if data[2] != count:
+                raise ProtocolError("Truncated board definition chunk")
+            payload.extend(data[3:3 + count])
+        return decode_definition(payload)
+
+    def fragment_state(self, command):
+        if command not in (0x18, 0x19):
+            raise ValueError("Not a fragment read")
+        data = self._read(command)
+        if data[0] > 21:
+            raise ProtocolError("Invalid fragment state count")
+        return tuple(data[1:1 + data[0]])
+
+    def keymap(self):
+        count = self._read(0x11, protocol=0xFE)[0]
+        if not 1 <= count <= 32:
+            raise ProtocolError("Board layer count must be 1–32")
+        size = count * 10 * 6 * 2
+        raw = bytearray()
+        while len(raw) < size:
+            amount = min(22, size - len(raw))
+            args = len(raw).to_bytes(2, "big") + bytes((amount,))
+            data = self._read(0x12, args, protocol=0xFE)
+            raw.extend(data[3:3 + amount])
+        return count, bytes(raw)
+
+    def labels(self, kind, limit):
+        """Read sparse v2/v3 UTF-8 labels, requiring strictly advancing indices."""
+        labels = {}
+        start = 0
+        while start < limit:
+            data = self._read(0x1B, bytes((kind,)) + start.to_bytes(2, "little"))
+            found, index = data[1], int.from_bytes(data[2:4], "little")
+            if found not in (0, 1):
+                raise ProtocolError("Invalid label lookup response")
+            if not found:
+                break
+            if not start <= index < limit:
+                raise ProtocolError("Invalid label lookup index")
+            try:
+                label = data[4:20].split(b"\0", 1)[0].decode("utf-8")
+            except UnicodeError as exc:
+                raise ProtocolError("Invalid UTF-8 board label") from exc
+            labels[index] = "".join(c for c in label if c.isprintable())
+            start = index + 1
+        return labels
+
+    def read_profile(self, uid, progress=lambda message: None):
+        """Publishable only after all reads succeed; no partial layout escapes."""
+        self.load_deadline = self.clock() + 60
+        try:
+            progress("Reading board definition…")
+            definition = self.definition()
+            has_fragments = "fragments" in definition or "fragment_schema_version" in definition
+            hardware = self.fragment_state(0x18) if has_fragments else ()
+            selections = self.fragment_state(0x19) if has_fragments else ()
+            keys = geometry_from_definition(definition, hardware, selections)
+            progress("Reading keymap from board…")
+            previous = self.keymap()
+            for _ in range(3):
+                self.checkpoint()
+                current = self.keymap()
+                if current == previous:
+                    break
+                previous = current
+            else:
+                raise ProtocolError("Keymap changed during loading; finish editing and reload")
+            count, raw = current
+            layers = [[[int.from_bytes(raw[2 * ((layer * 10 + row) * 6 + col):
+                                           2 * ((layer * 10 + row) * 6 + col) + 2], "big")
+                        for col in range(6)] for row in range(10)] for layer in range(count)]
+            name = definition.get("name", "Svalboard")
+            if not isinstance(name, str) or not name or len(name) > 128 or not name.isprintable():
+                name = "Svalboard"
+            profile = Profile.parse({"uid": uid, "layout": layers}, name + " · board")
+            progress("Reading layer and behavior labels…")
+            layer_names = self.labels(0, count)
+            td_names = self.labels(1, 256)
+            macro_names = self.labels(2, 256)
+            code_labels = {}
+            custom = definition.get("customKeycodes", [])
+            if not isinstance(custom, list) or len(custom) > 64:
+                raise ValueError("Invalid custom keycode definitions")
+            for index, item in enumerate(custom):
+                if not isinstance(item, dict):
+                    raise ValueError("Invalid custom keycode definition")
+                label = item.get("shortName") or item.get("name")
+                if not isinstance(label, str) or not 1 <= len(label) <= 128 or any(not c.isprintable() and c != "\n" for c in label):
+                    raise ValueError("Invalid custom keycode label")
+                code_labels[0x7E00 + index] = label
+                if index < 32:
+                    code_labels[0x7E40 + index] = label
+            used_codes = {code for layer in layers for row in layer for code in row}
+            for code in sorted(used_codes):
+                if 0x5700 <= code <= 0x57FF:
+                    index = code - 0x5700
+                    data = self._read(0x01, index.to_bytes(2, "little"))
+                    values = [int.from_bytes(data[i:i + 2], "little") for i in (2, 4, 6, 8)]
+                    # Keep TD references explicit to avoid recursive definitions.
+                    actions = [f"{name}: {legend(value)}" for name, value in zip(
+                        ("tap", "hold", "double", "tap-hold"), values) if value]
+                    title = td_names.get(index, f"TD({index})")
+                    code_labels[code] = title + ("\n" + " / ".join(actions) if actions else "")
+                index = code - 0x7700 if 0x7700 <= code <= 0x777F else code - 0x7680 + 128
+                if (0x7700 <= code <= 0x777F or 0x7680 <= code <= 0x76FF) and index in macro_names:
+                    code_labels[code] = f"Macro {index}\n{macro_names[index]}"
+            # Recheck identity and geometry selection around the transfer.
+            if self.info()[1] != uid:
+                raise ProtocolError("Board identity changed during loading")
+            if has_fragments and (hardware != self.fragment_state(0x18) or selections != self.fragment_state(0x19)):
+                raise ProtocolError("Cluster selection changed during loading; reload")
+            return replace(profile, keys=keys, layer_names=tuple(layer_names.items()),
+                           code_labels=tuple(code_labels.items()), from_board=True)
+        finally:
+            self.load_deadline = None

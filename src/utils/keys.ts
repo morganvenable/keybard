@@ -18,7 +18,7 @@ export function isTapdanceKeycode(keystr: any): boolean {
 
 const describeTapdance = (KBINFO: KeyboardInfo, tdid: number, tapdance?: any): string => {
     if (!tapdance) {
-        tapdance = (KBINFO as any).tapdances[tdid];
+        tapdance = KBINFO.tapdances?.[tdid];
     }
     if (!tapdance) {
         return "";

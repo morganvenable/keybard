@@ -88,3 +88,18 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
     });
 
 });
+
+// The host must not add launchers or connection-policy copy to Keybard's landing page.
+describe('ConnectKeyboard landing content', () => {
+    it('keeps the original landing page in host mode', () => {
+        document.documentElement.dataset.keybardHost = 'true';
+        try {
+            render(<ConnectKeyboard />);
+            expect(screen.queryByText(/trainer/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/Keybard Host|owns the board|device editing/i)).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'QWERTY Example' })).toBeInTheDocument();
+        } finally {
+            delete document.documentElement.dataset.keybardHost;
+        }
+    });
+});

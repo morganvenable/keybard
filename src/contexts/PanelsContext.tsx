@@ -32,7 +32,7 @@ interface PanelsContextType {
 const PanelsContext = createContext<PanelsContextType | undefined>(undefined);
 
 export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [activePanel, setActivePanel] = useState<string | null>(null);
+    const [activePanel, setActivePanel] = useState<string | null>(() => window.location.hash === "#trainer" ? "trainer" : null);
     const [alternativeHeader, setAlternativeHeader] = useState<boolean>(false);
     const [panelToGoBack, setPanelToGoBack] = useState<string | null>(null);
     const [itemToEdit, setItemToEdit] = useState<number | null>(null);
@@ -47,11 +47,11 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const closeDetails = useCallback(() => setOpen(false), [setOpen]);
 
     useEffect(() => {
-        if (activePanel && activePanel !== "matrixtester" && !detailsOpen) {
+        if (activePanel && activePanel !== "matrixtester" && activePanel !== "trainer" && !detailsOpen) {
             openDetails();
         }
 
-        if (!activePanel && detailsOpen) {
+        if ((!activePanel || activePanel === "trainer") && detailsOpen) {
             closeDetails();
         }
     }, [activePanel, detailsOpen, openDetails, closeDetails]);
