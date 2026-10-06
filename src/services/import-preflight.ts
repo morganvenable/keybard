@@ -3,6 +3,7 @@ import { customValueService } from './custom-value.service';
 import { MacroService } from './macro.service';
 import { LabelService } from './label.service';
 import { keyService } from './key.service';
+import { activeKeycodeVersion } from '@/constants/keycode-numbering';
 import { usbInstance } from './usb.service';
 
 export interface ImportReview {
@@ -21,6 +22,10 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
     if ((file.layers ?? 0) > (current.layers ?? 0)) errors.push(`The file has ${file.layers} layers; this keyboard supports ${current.layers}.`);
     if (file.kbid && current.kbid && file.kbid.toLowerCase() !== current.kbid.toLowerCase()) warnings.push('This file identifies a different keyboard. Matching dimensions do not guarantee matching physical key positions.');
+    const boardNumbering = current.keycode_version ?? activeKeycodeVersion();
+    if (file.raw_keycode_count && file.keycode_version !== boardNumbering) {
+        warnings.push(`${file.raw_keycode_count} keycode${file.raw_keycode_count === 1 ? ' is' : 's are'} stored as a number rather than a name, written in ${file.keycode_version ? `QMK keycode numbering ${file.keycode_version}` : 'an unrecorded keycode numbering'}; this keyboard uses ${boardNumbering}. Check ${file.raw_keycode_count === 1 ? 'it' : 'them'} after importing.`);
+    }
     if (file.vial_proto && current.svil_proto) errors.push('This Vial layout needs keycode migration before it can be applied to Sval firmware. Open it offline or use a compatible Sval backup.');
     next.keymap = current.keymap?.map((layer, index) => file.keymap?.[index] ? [...file.keymap[index]] : [...layer]);
     for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count']] as const) {
