@@ -41,7 +41,7 @@
       }
     },
     {
-      "check": "autoplay including reduced motion, persistent pause",
+      "check": "autoplay with either motion preference and no control rows",
       "passed": true,
       "detail": 35
     },
@@ -50,8 +50,8 @@
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.0625,
-        "settled": 105.0625
+        "start": 105.203125,
+        "settled": 105.203125
       }
     },
     {
@@ -59,8 +59,8 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 104.921875,
-        "settled": 104.921875
+        "start": 105.484375,
+        "settled": 105.484375
       }
     },
     {
@@ -68,14 +68,14 @@
       "passed": true,
       "detail": {
         "target": "trainer",
-        "start": 105.328125,
-        "settled": 105.328125
+        "start": 105.375,
+        "settled": 105.375
       }
     },
     {
       "check": "local assets and links",
       "passed": true,
-      "detail": 75
+      "detail": 40
     },
     {
       "check": "print PDF",
