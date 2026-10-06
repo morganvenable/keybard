@@ -106,7 +106,7 @@ export default function TrainerPage({ active = true }: { active?: boolean }) {
     return <div className="trainer-page">
         <header className="trainer-header"><GraduationCap size={19} className="text-kb-green" /><h1>Trainer</h1></header>
         <main className="trainer-main">
-            {!host.state && <HostInstall />}
+            {!host.state && <HostInstall onConnect={host.local ? undefined : host.connect} />}
             <div className="trainer-workspace"><section className="trainer-stage">
                 {host.state && <div className="trainer-host-section"><div className="trainer-host-toolbar"><select aria-label="Host keyboard" value={host.state.selectedDevice || ''} onChange={e => { setLive(true); void host.command({ op: 'connect', id: e.target.value }); }}><option value="" disabled>Select a Svalboard…</option>{host.state.devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><Button variant="outline" onClick={() => void host.command({ op: 'show', value: !host.state!.visible })}>{host.state.visible ? 'Hide overlay' : 'Show overlay'}</Button></div><p className="trainer-error" role="status" hidden={host.state.valid}>{host.state.status}</p></div>}
                 {host.error && <p role="alert" className="trainer-error">{host.error}</p>}

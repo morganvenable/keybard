@@ -9,7 +9,16 @@ A Svalboard desktop learning overlay, configured through Keybard's Trainer panel
 3. The app opens local Keybard in your browser. Use **Connect Keyboard**, then select **Trainer** below **Layouts**. Use Chrome or Edge for WebHID.
 4. Configure the overlay in Trainer. Keybard Host stays in the system tray; closing the browser leaves the overlay running. Use the tray menu to reopen Keybard or quit.
 
-Already running? Open [local Keybard](http://127.0.0.1:5178/). A hosted Keybard page does not automatically access the local companion; its install prompt links to this local control page.
+## Use it from keybard.svalboard.com
+
+With Keybard Host running, open **Trainer** on [keybard.svalboard.com](https://keybard.svalboard.com) and click **Connect to Keybard Host**. If Chrome or Edge asks to let the site access apps and services on this device, allow it. The page then controls the overlay just like the local copy, and reconnects automatically on later visits. The host accepts this site only, and every change still needs the host's per-session token.
+
+You can also open [local Keybard](http://127.0.0.1:5178/), the copy served by Keybard Host itself.
+
+## New in preview 2
+
+- Use Trainer from keybard.svalboard.com, as above.
+- The bundled Keybard includes dark mode: Settings → General → Appearance (System, Light or Dark).
 
 ## Included
 

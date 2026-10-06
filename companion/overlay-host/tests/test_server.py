@@ -34,3 +34,43 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(json.load(r)['revision'], 1)
         with self.assertRaises(HTTPError) as error: self.post({'config': DEFAULTS, 'revision': 0}, path='/api/host/config')
         self.assertEqual(error.exception.code, 409)
+
+
+class RemoteOriginTests(ServerTests):
+    PROD = 'https://keybard.svalboard.com'
+
+    def get(self, path, headers):
+        return urlopen(Request(self.base + path, headers=headers))
+
+    def test_hosted_keybard_reads_state_and_posts_with_token(self):
+        with self.get('/api/host/bootstrap', {'Origin': self.PROD}) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
+            self.assertEqual(json.loads(r.read())['token'], self.state.token)
+        with self.get('/api/host/state?layout=-1', {'Origin': self.PROD}) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
+        with self.post({'op': 'show', 'value': True}, {'X-Keybard-Token': self.state.token, 'Content-Type': 'application/json', 'Origin': self.PROD}) as r:
+            self.assertEqual(r.status, 202); self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
+        self.assertEqual(self.commands, [{'op': 'show', 'value': True}])
+
+    def test_preflight_allows_token_header_for_hosted_keybard_only(self):
+        with urlopen(Request(self.base + '/api/host/command', method='OPTIONS', headers={'Origin': self.PROD, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Private-Network': 'true'})) as r:
+            self.assertEqual(r.status, 204)
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
+            self.assertIn('X-Keybard-Token', r.headers['Access-Control-Allow-Headers'])
+            self.assertEqual(r.headers['Access-Control-Allow-Private-Network'], 'true')
+        with self.assertRaises(HTTPError) as error:
+            urlopen(Request(self.base + '/api/host/command', method='OPTIONS', headers={'Origin': 'https://evil.example', 'Access-Control-Request-Method': 'POST'}))
+        self.assertEqual(error.exception.code, 403)
+
+    def test_hosted_keybard_still_needs_token_and_cannot_load_local_assets(self):
+        with self.assertRaises(HTTPError) as error:
+            self.post({'op': 'show', 'value': True}, {'Content-Type': 'application/json', 'Origin': self.PROD})
+        self.assertEqual(error.exception.code, 403)
+        with self.assertRaises(HTTPError) as error: self.get('/', {'Origin': self.PROD})
+        self.assertEqual(error.exception.code, 403)
+
+    def test_untrusted_origins_and_rebinding_rejected(self):
+        for headers in [{'Origin': 'https://evil.example'}, {'Origin': self.PROD, 'Host': 'evil.example:5178'}]:
+            with self.assertRaises(HTTPError) as error: self.get('/api/host/bootstrap', headers)
+            self.assertEqual(error.exception.code, 403)
+            self.assertIsNone(error.exception.headers['Access-Control-Allow-Origin'])

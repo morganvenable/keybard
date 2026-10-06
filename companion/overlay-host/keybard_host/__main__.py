@@ -18,7 +18,7 @@ from .device.protocol import candidates
 from .device.worker import DeviceWorker
 from .state import HostState, serialize_profile
 from .modifiers import ModifierReader
-from .server import make_server
+from .server import REMOTE_ORIGINS, make_server
 
 
 class Bridge(QObject):
@@ -160,7 +160,7 @@ class OverlayControls(QWidget):
 
 
 class Host(QObject):
-    def __init__(self, app, assets, state, port):
+    def __init__(self, app, assets, state, port, remote_origins=()):
         super().__init__()
         self.app, self.state = app, state
         self.worker = None
@@ -172,7 +172,7 @@ class Host(QObject):
         self.selected = None
         self.bridge = Bridge()
         self.bridge.command.connect(self.command)
-        self.server = make_server(state, assets, self.bridge.command.emit, port)
+        self.server = make_server(state, assets, self.bridge.command.emit, port, REMOTE_ORIGINS | set(remote_origins))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f'http://127.0.0.1:{self.server.server_port}/'
         self.surface = Surface(self.server.server_port)
@@ -396,6 +396,7 @@ def main():
     parser.add_argument('--no-open', action='store_true')
     parser.add_argument('--assets', type=Path, default=Path(__file__).resolve().parent.parent / 'web')
     parser.add_argument('--settings', type=Path)
+    parser.add_argument('--allow-origin', action='append', default=[], help='extra hosted Keybard origin allowed to use the host API (testing)')
     args = parser.parse_args()
     app = QApplication(sys.argv[:1]); app.setApplicationName('Keybard Host'); app.setQuitOnLastWindowClosed(False)
     folder = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
@@ -406,7 +407,7 @@ def main():
         QDesktopServices.openUrl(QUrl(f'http://127.0.0.1:{args.port}/')); return
     if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
     state = HostState(args.settings or folder / 'preferences.json')
-    host = Host(app, args.assets, state, args.port)
+    host = Host(app, args.assets, state, args.port, args.allow_origin)
     if not args.no_open: host.open_controls()
     sys.exit(app.exec())
 

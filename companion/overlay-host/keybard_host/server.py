@@ -11,13 +11,48 @@ class LocalServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def make_server(state, assets, dispatch, port=0):
+# Hosted Keybard sites that may use the host API from the browser. They still
+# need the per-session token for every write, and only the local copy is served.
+REMOTE_ORIGINS = frozenset({'https://keybard.svalboard.com'})
+
+
+def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS):
+    remote_origins = frozenset(remote_origins)
+
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *args): pass
 
+        def local_host(self):
+            # Rejects DNS-rebinding requests addressed to another host name.
+            return self.headers.get('Host') in {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
+
         def origin_ok(self):
-            allowed = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
-            return self.headers.get('Host') in allowed and self.headers.get('Origin', 'http://' + self.headers.get('Host', '')) in {'http://' + h for h in allowed}
+            return self.local_host() and self.headers.get('Origin', 'http://' + self.headers.get('Host', '')) in {f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}'}
+
+        def remote_origin(self):
+            origin = self.headers.get('Origin')
+            return origin if self.local_host() and origin in remote_origins else None
+
+        def api_ok(self):
+            return self.origin_ok() or self.remote_origin() is not None
+
+        def end_headers(self):
+            origin = self.remote_origin()
+            if origin and urlsplit(self.path).path.startswith('/api/host/'):
+                self.send_header('Access-Control-Allow-Origin', origin)
+                self.send_header('Vary', 'Origin')
+            super().end_headers()
+
+        def do_OPTIONS(self):
+            if not self.remote_origin() or not urlsplit(self.path).path.startswith('/api/host/'):
+                return self.reply({'error': 'Local origin required'}, 403)
+            self.send_response(204)
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Keybard-Token')
+            self.send_header('Access-Control-Allow-Private-Network', 'true')
+            self.send_header('Access-Control-Max-Age', '600')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
 
         def reply(self, value, status=200):
             body = json.dumps(value).encode()
@@ -30,8 +65,9 @@ def make_server(state, assets, dispatch, port=0):
             self.wfile.write(body)
 
         def do_GET(self):
-            if not self.origin_ok(): return self.reply({'error': 'Local origin required'}, 403)
             path = urlsplit(self.path)
+            if not (self.api_ok() if path.path.startswith('/api/host/') else self.origin_ok()):
+                return self.reply({'error': 'Local origin required'}, 403)
             if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1))
             if path.path == '/api/host/state':
                 try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
@@ -48,7 +84,7 @@ def make_server(state, assets, dispatch, port=0):
             super().do_GET()
 
         def do_POST(self):
-            if not self.origin_ok() or not hmac.compare_digest(self.headers.get('X-Keybard-Token', ''), state.token):
+            if not self.api_ok() or not hmac.compare_digest(self.headers.get('X-Keybard-Token', ''), state.token):
                 return self.reply({'error': 'Local host authorization required'}, 403)
             try:
                 length = int(self.headers.get('Content-Length', '0'))
