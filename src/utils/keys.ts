@@ -1,6 +1,6 @@
 import { CODEMAP } from "@/constants/keygen";
 import { keyService } from "@/services/key.service";
-import { KeyboardInfo } from "@/types/vial.types";
+import { KeyboardInfo } from "@/types/keyboard.types";
 
 /**
  * True if a keycode refers to a tap dance, e.g. "TD(3)" or its numeric form.

@@ -6,7 +6,7 @@ import { BrushCleaningIcon } from "@/components/icons/BrushCleaning";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "@/constants/svalboard-layout";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 
 // Constants
 const POLL_INTERVAL_MS = 50;
@@ -22,7 +22,7 @@ const createKeyId = (row: number, col: number): string => `${row}-${col}`;
  * Displays a visual representation of key presses and provides history tracking
  */
 export const MatrixTester: FC = () => {
-    const { pollMatrix, keyboard, isConnected } = useVial();
+    const { pollMatrix, keyboard, isConnected } = useKeyboard();
     const { keyVariant } = useLayoutSettings();
 
     const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());

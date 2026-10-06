@@ -1,7 +1,7 @@
 import DynamicMenuPanel from "./DynamicMenuPanel";
 import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
@@ -23,7 +23,7 @@ interface Props {
 }
 
 const PointingPanel = ({ isPicker }: Props) => {
-    const { keyboard, isConnected, connect } = useVial();
+    const { keyboard, isConnected, connect } = useKeyboard();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
 

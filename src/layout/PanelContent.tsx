@@ -20,7 +20,7 @@ import AboutPanel from "./SecondarySidebar/Panels/AboutPanel";
 import QuickStartPanel from "./SecondarySidebar/Panels/QuickStartPanel";
 
 import FragmentsPanel from "./SecondarySidebar/Panels/FragmentsPanel";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuItem[]): string => {
     if (!panel) return "Details";

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { LabelService } from '../../src/services/label.service';
 import { SvilUSB } from '../../src/services/usb.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 function setup() {
     const names = new Map<number, Map<number, string>>();

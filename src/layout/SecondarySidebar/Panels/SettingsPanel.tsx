@@ -16,7 +16,7 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useChanges } from "@/contexts/ChangesContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useNavigation } from "@/App";
 import { cn } from "@/lib/utils";
 import { useLayoutImport } from "@/hooks/useLayoutImport";
@@ -27,12 +27,12 @@ import BoardIdentitySection from "./BoardIdentitySection";
 import FragmentsPanel from "./FragmentsPanel";
 import DynamicMenuPanel from "./DynamicMenuPanel";
 import { selectPointingMenu } from "@/utils/pointing-menu";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { setActivePanel } = usePanels();
     const { navigateTo } = useNavigation();
 

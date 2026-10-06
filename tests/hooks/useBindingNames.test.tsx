@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import { useBindingNames } from '../../src/hooks/useBindingNames';
 const state = vi.hoisted(() => ({keyboard: null as KeyboardInfo|null, isConnected:true,setKeyboard:vi.fn(),queue:vi.fn(),sendSvil:vi.fn()}));
-vi.mock('@/contexts/VialContext',()=>({useVial:()=>state}));
+vi.mock('@/contexts/KeyboardContext',()=>({useKeyboard:()=>state}));
 vi.mock('@/contexts/ChangesContext',()=>({useChanges:()=>({queue:state.queue})}));
 vi.mock('@/services/usb.service',async original=>({...await original<typeof import('../../src/services/usb.service')>(),usbInstance:{svilProtocolVersion:3,sendSvil:state.sendSvil}}));
 beforeEach(()=>{vi.clearAllMocks();state.keyboard={svil_proto:3,macro_count:4,tapdance_count:4};state.isConnected=true;state.setKeyboard.mockImplementation(fn=>state.keyboard=fn(state.keyboard));state.queue.mockResolvedValue(undefined);state.sendSvil.mockResolvedValue(Uint8Array.of(0x1c,0));});

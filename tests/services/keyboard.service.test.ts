@@ -1,6 +1,6 @@
 import { LabelService } from "../../src/services/label.service";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SvilService } from '../../src/services/vial.service';
+import { KeyboardService } from '../../src/services/keyboard.service';
 import { SvilUSB } from '../../src/services/usb.service';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 import { keyService } from '../../src/services/key.service';
@@ -34,8 +34,8 @@ const defaultPayload = {
   }
 };
 
-describe('SvilService', () => {
-  let svilService: SvilService;
+describe('KeyboardService', () => {
+  let keyboardService: KeyboardService;
   let mockUSB: any;
   let definitionBytes: Uint8Array;
 
@@ -126,13 +126,13 @@ describe('SvilService', () => {
       return Promise.resolve(new Uint8Array(size));
     });
 
-    svilService = new SvilService(mockUSB);
+    keyboardService = new KeyboardService(mockUSB);
   });
 
   describe('init', () => {
     it('should initialize without errors', async () => {
       const kbinfo = createTestKeyboardInfo();
-      await expect(svilService.init(kbinfo)).resolves.toBeUndefined();
+      await expect(keyboardService.init(kbinfo)).resolves.toBeUndefined();
     });
   });
 
@@ -140,7 +140,7 @@ describe('SvilService', () => {
     it('should retrieve protocol, id, and matrix from svil definition', async () => {
       const kbinfo = createTestKeyboardInfo();
 
-      await svilService.getKeyboardInfo(kbinfo);
+      await keyboardService.getKeyboardInfo(kbinfo);
 
       expect(kbinfo.via_proto).toBe(0x0c);
       expect(kbinfo.svil_proto).toBe(6);
@@ -175,7 +175,7 @@ describe('SvilService', () => {
         }
       });
 
-      await svilService.getKeyboardInfo(kbinfo);
+      await keyboardService.getKeyboardInfo(kbinfo);
 
       expect(kbinfo.tapdance_count).toBe(2);
       expect(kbinfo.combo_count).toBe(3);
@@ -207,14 +207,14 @@ describe('SvilService', () => {
         return Promise.resolve(new Uint8Array(32));
       });
 
-      await expect(svilService.getKeyboardInfo(kbinfo)).rejects.toThrow('Invalid payload size');
+      await expect(keyboardService.getKeyboardInfo(kbinfo)).rejects.toThrow('Invalid payload size');
     });
 
     it('should handle USB disconnection during info retrieval', async () => {
       const kbinfo = createTestKeyboardInfo();
       mockUSB.send.mockRejectedValue(new Error('USB disconnected'));
 
-      await expect(svilService.getKeyboardInfo(kbinfo)).rejects.toThrow('USB disconnected');
+      await expect(keyboardService.getKeyboardInfo(kbinfo)).rejects.toThrow('USB disconnected');
     });
   });
 
@@ -233,7 +233,7 @@ describe('SvilService', () => {
         return Promise.resolve(new Uint8Array(32));
       });
 
-      await svilService.getFeatures(kbinfo);
+      await keyboardService.getFeatures(kbinfo);
 
       expect(kbinfo.macro_count).toBe(2);
       expect(kbinfo.macros_size).toBe(256);
@@ -244,7 +244,7 @@ describe('SvilService', () => {
     it('should retrieve keymap for all layers', async () => {
       const kbinfo = createTestKeyboardInfo({ rows: 2, cols: 2 });
 
-      await svilService.getKeyMap(kbinfo);
+      await keyboardService.getKeyMap(kbinfo);
 
       expect(kbinfo.keymap).toHaveLength(2);
       expect(kbinfo.keymap?.[0]).toEqual([0, 1, 2, 3]);
@@ -261,14 +261,14 @@ describe('SvilService', () => {
         return Promise.resolve(new Uint8Array(32));
       });
 
-      await expect(svilService.getKeyMap(kbinfo)).rejects.toThrow('Failed to get layer count');
+      await expect(keyboardService.getKeyMap(kbinfo)).rejects.toThrow('Failed to get layer count');
     });
 
     it('should throw error if getViaBuffer does not return an array', async () => {
       const kbinfo = createTestKeyboardInfo({ rows: 2, cols: 2 });
       mockUSB.getViaBuffer.mockResolvedValueOnce(new Uint8Array(8));
 
-      await expect(svilService.getKeyMap(kbinfo)).rejects.toThrow('Expected array of keycodes from getViaBuffer');
+      await expect(keyboardService.getKeyMap(kbinfo)).rejects.toThrow('Expected array of keycodes from getViaBuffer');
     });
   });
 
@@ -276,7 +276,7 @@ describe('SvilService', () => {
     it('should load complete keyboard information', async () => {
       const kbinfo = createTestKeyboardInfo();
 
-      const result = await svilService.load(kbinfo);
+      const result = await keyboardService.load(kbinfo);
 
       expect(result).toBe(kbinfo);
       expect(kbinfo.via_proto).toBe(0x0c);
@@ -287,13 +287,13 @@ describe('SvilService', () => {
     });
 
     it('restores board labels on a fresh connection before any layer count is known', async () => {
-      // VialContext starts every connection with dimensions only, not a saved layout.
+      // KeyboardContext starts every connection with dimensions only, not a saved layout.
       const kbinfo = createTestKeyboardInfo({ layers: undefined, cosmetic: undefined });
       const labels = vi.spyOn(LabelService.prototype, 'getAll').mockResolvedValueOnce(
         new Map([[0, 'Work'], [1, 'Symbols']]),
       );
       try {
-        await svilService.load(kbinfo);
+        await keyboardService.load(kbinfo);
         expect(kbinfo.layers).toBe(2);
         expect(labels).toHaveBeenCalledWith(SvilUSB.SVIL_LABEL_TYPE_LAYER, 2);
         expect(kbinfo.cosmetic?.layer).toMatchObject({ '0': 'Work', '1': 'Symbols' });
@@ -306,7 +306,7 @@ describe('SvilService', () => {
       const kbinfo = createTestKeyboardInfo();
       mockUSB.sendSvil.mockRejectedValue(new Error('Load failed'));
 
-      await expect(svilService.load(kbinfo)).rejects.toThrow('Load failed');
+      await expect(keyboardService.load(kbinfo)).rejects.toThrow('Load failed');
     });
 
     it('loads optional svil features and fragment composition when available', async () => {
@@ -317,7 +317,7 @@ describe('SvilService', () => {
       });
       const composedLayout = { k0: { x: 0, y: 0 } };
 
-      vi.spyOn(svilService, 'getKeyboardInfo').mockImplementationOnce(async (target) => {
+      vi.spyOn(keyboardService, 'getKeyboardInfo').mockImplementationOnce(async (target) => {
         target.rows = 2;
         target.cols = 3;
         target.layers = 2;
@@ -330,14 +330,14 @@ describe('SvilService', () => {
       const pullSpy = vi.spyOn(svalService, 'pull').mockResolvedValueOnce();
       const syncColorsSpy = vi.spyOn(svalService, 'syncCosmeticLayerColors').mockImplementation(() => {});
       const setupNamesSpy = vi.spyOn(svalService, 'setupCosmeticLayerNames').mockImplementation(() => {});
-      const altRepeatSpy = vi.spyOn(svilService, 'getAltRepeatKeys').mockResolvedValueOnce();
-      const leadersSpy = vi.spyOn(svilService, 'getLeaders').mockResolvedValueOnce();
-      const oneShotSpy = vi.spyOn(svilService, 'getOneShot').mockResolvedValueOnce();
-      const fragmentGetSpy = vi.spyOn((svilService as any).fragment, 'get').mockResolvedValueOnce();
-      vi.spyOn((svilService as any).fragment, 'hasFragments').mockReturnValueOnce(true);
-      const composeSpy = vi.spyOn((svilService as any).fragmentComposer, 'composeLayout').mockReturnValueOnce(composedLayout);
+      const altRepeatSpy = vi.spyOn(keyboardService, 'getAltRepeatKeys').mockResolvedValueOnce();
+      const leadersSpy = vi.spyOn(keyboardService, 'getLeaders').mockResolvedValueOnce();
+      const oneShotSpy = vi.spyOn(keyboardService, 'getOneShot').mockResolvedValueOnce();
+      const fragmentGetSpy = vi.spyOn((keyboardService as any).fragment, 'get').mockResolvedValueOnce();
+      vi.spyOn((keyboardService as any).fragment, 'hasFragments').mockReturnValueOnce(true);
+      const composeSpy = vi.spyOn((keyboardService as any).fragmentComposer, 'composeLayout').mockReturnValueOnce(composedLayout);
 
-      const result = await svilService.load(kbinfo);
+      const result = await keyboardService.load(kbinfo);
 
       expect(result).toBe(kbinfo);
       expect(pullSpy).toHaveBeenCalledWith(kbinfo);
@@ -360,13 +360,13 @@ describe('SvilService', () => {
 
       vi.spyOn(svalService, 'check').mockResolvedValueOnce(false);
       vi.spyOn(svalService, 'setupCosmeticLayerNames').mockImplementation(() => {});
-      vi.spyOn(svilService, 'getAltRepeatKeys').mockRejectedValueOnce(new Error('no alt repeat'));
-      vi.spyOn(svilService, 'getLeaders').mockRejectedValueOnce(new Error('no leaders'));
-      vi.spyOn(svilService, 'getOneShot').mockRejectedValueOnce(new Error('no oneshot'));
-      vi.spyOn((svilService as any).fragment, 'hasFragments').mockReturnValueOnce(true);
-      vi.spyOn((svilService as any).fragment, 'get').mockRejectedValueOnce(new Error('no fragments'));
+      vi.spyOn(keyboardService, 'getAltRepeatKeys').mockRejectedValueOnce(new Error('no alt repeat'));
+      vi.spyOn(keyboardService, 'getLeaders').mockRejectedValueOnce(new Error('no leaders'));
+      vi.spyOn(keyboardService, 'getOneShot').mockRejectedValueOnce(new Error('no oneshot'));
+      vi.spyOn((keyboardService as any).fragment, 'hasFragments').mockReturnValueOnce(true);
+      vi.spyOn((keyboardService as any).fragment, 'get').mockRejectedValueOnce(new Error('no fragments'));
 
-      await expect(svilService.load(kbinfo)).resolves.toBe(kbinfo);
+      await expect(keyboardService.load(kbinfo)).resolves.toBe(kbinfo);
     });
 
     it('swallows keylayout deserialization failures', async () => {
@@ -377,14 +377,14 @@ describe('SvilService', () => {
         }
       } as any;
 
-      vi.spyOn(svilService, 'getKeyboardInfo').mockResolvedValueOnce(kbinfo);
+      vi.spyOn(keyboardService, 'getKeyboardInfo').mockResolvedValueOnce(kbinfo);
       vi.spyOn(svalService, 'check').mockResolvedValueOnce(false);
       vi.spyOn(svalService, 'setupCosmeticLayerNames').mockImplementation(() => {});
-      vi.spyOn((svilService as any).kle, 'deserializeToKeylayout').mockImplementationOnce(() => {
+      vi.spyOn((keyboardService as any).kle, 'deserializeToKeylayout').mockImplementationOnce(() => {
         throw new Error('bad kle');
       });
 
-      await expect(svilService.load(kbinfo)).resolves.toBe(kbinfo);
+      await expect(keyboardService.load(kbinfo)).resolves.toBe(kbinfo);
     });
   });
 
@@ -392,7 +392,7 @@ describe('SvilService', () => {
     it('should return matrix state as boolean array', async () => {
       const kbinfo = createTestKeyboardInfo({ rows: 2, cols: 8 });
 
-      const matrix = await svilService.pollMatrix(kbinfo);
+      const matrix = await keyboardService.pollMatrix(kbinfo);
 
       expect(matrix).toHaveLength(2);
       expect(matrix[0]).toEqual([true, false, true, false, false, false, false, false]);
@@ -420,7 +420,7 @@ describe('SvilService', () => {
         return Promise.resolve(response);
       });
 
-      const matrix = await svilService.pollMatrix(kbinfo);
+      const matrix = await keyboardService.pollMatrix(kbinfo);
 
       expect(matrix).toHaveLength(4);
       expect(matrix[0][0]).toBe(true);
@@ -433,7 +433,7 @@ describe('SvilService', () => {
 
       mockUSB.send.mockResolvedValueOnce(new Uint8Array([0x00]));
 
-      const matrix = await svilService.pollMatrix(kbinfo);
+      const matrix = await keyboardService.pollMatrix(kbinfo);
 
       expect(matrix).toEqual([[false, false, false, false, false, false, false, false]]);
     });
@@ -444,7 +444,7 @@ describe('SvilService', () => {
       const kbinfo = createTestKeyboardInfo({ alt_repeat_key_count: 1 });
       mockUSB.sendSvil.mockResolvedValueOnce(new Uint8Array([0x07, 0x00, 0x04, 0x00, 0x05, 0x00, 0x03, 0x80]));
 
-      await svilService.getAltRepeatKeys(kbinfo);
+      await keyboardService.getAltRepeatKeys(kbinfo);
 
       expect(kbinfo.alt_repeat_keys).toEqual([{
         arkid: 0,
@@ -468,7 +468,7 @@ describe('SvilService', () => {
         0x34, 0x12
       ]));
 
-      await svilService.getLeaders(kbinfo);
+      await keyboardService.getLeaders(kbinfo);
 
       expect(kbinfo.leaders).toEqual([{
         ldrid: 0,
@@ -482,7 +482,7 @@ describe('SvilService', () => {
       const kbinfo = createTestKeyboardInfo();
       mockUSB.sendSvil.mockResolvedValueOnce(new Uint8Array([0x09, 0x2c, 0x01, 0x03]));
 
-      await svilService.getOneShot(kbinfo);
+      await keyboardService.getOneShot(kbinfo);
 
       expect(kbinfo.one_shot).toEqual({
         timeout: 300,
@@ -493,8 +493,8 @@ describe('SvilService', () => {
     it('returns early when optional counts are missing', async () => {
       const kbinfo = createTestKeyboardInfo({ alt_repeat_key_count: 0, leader_count: 0 });
 
-      await svilService.getAltRepeatKeys(kbinfo);
-      await svilService.getLeaders(kbinfo);
+      await keyboardService.getAltRepeatKeys(kbinfo);
+      await keyboardService.getLeaders(kbinfo);
 
       expect(kbinfo.alt_repeat_keys).toBeUndefined();
       expect(kbinfo.leaders).toBeUndefined();
@@ -505,25 +505,25 @@ describe('SvilService', () => {
     it('gets layer state mask as unsigned integer', async () => {
       mockUSB.sendSvil.mockResolvedValueOnce(-1);
 
-      await expect(svilService.getLayerStateMask()).resolves.toBe(0xffffffff);
+      await expect(keyboardService.getLayerStateMask()).resolves.toBe(0xffffffff);
     });
 
     it('finds active layer from a bitmask', () => {
-      expect(svilService.getActiveLayerIndexFromMask(0)).toBe(0);
-      expect(svilService.getActiveLayerIndexFromMask(0b00000100)).toBe(2);
-      expect(svilService.getActiveLayerIndexFromMask(0x80000000)).toBe(31);
+      expect(keyboardService.getActiveLayerIndexFromMask(0)).toBe(0);
+      expect(keyboardService.getActiveLayerIndexFromMask(0b00000100)).toBe(2);
+      expect(keyboardService.getActiveLayerIndexFromMask(0x80000000)).toBe(31);
     });
 
     it('gets the active layer index from the keyboard mask', async () => {
-      vi.spyOn(svilService, 'getLayerStateMask').mockResolvedValueOnce(0b1000);
+      vi.spyOn(keyboardService, 'getLayerStateMask').mockResolvedValueOnce(0b1000);
 
-      await expect(svilService.getActiveLayerIndex()).resolves.toBe(3);
+      await expect(keyboardService.getActiveLayerIndex()).resolves.toBe(3);
     });
   });
 
   describe('updateKey', () => {
     it('should update a key at specific position', async () => {
-      await svilService.updateKey(0, 1, 2, 0x0004);
+      await keyboardService.updateKey(0, 1, 2, 0x0004);
 
       expect(mockUSB.send).toHaveBeenCalledWith(
         SvilUSB.CMD_VIA_SET_KEYCODE,
@@ -533,7 +533,7 @@ describe('SvilService', () => {
     });
 
     it('should encode keymask as big endian', async () => {
-      await svilService.updateKey(2, 3, 7, 0x1234);
+      await keyboardService.updateKey(2, 3, 7, 0x1234);
 
       expect(mockUSB.send).toHaveBeenCalledWith(
         SvilUSB.CMD_VIA_SET_KEYCODE,
@@ -545,26 +545,26 @@ describe('SvilService', () => {
     it('should handle USB disconnection during update', async () => {
       mockUSB.send.mockRejectedValue(new Error('USB disconnected'));
 
-      await expect(svilService.updateKey(0, 0, 0, 0x0004)).rejects.toThrow('USB disconnected');
+      await expect(keyboardService.updateKey(0, 0, 0, 0x0004)).rejects.toThrow('USB disconnected');
     });
   });
 
   describe('update helpers', () => {
     it('delegates macro, tapdance, combo, override, qmk, and fragment updates', async () => {
       const kbinfo = createTestKeyboardInfo();
-      const macroPush = vi.spyOn((svilService as any).macro, 'push').mockResolvedValueOnce();
-      const tapdancePush = vi.spyOn((svilService as any).tapdance, 'push').mockResolvedValueOnce();
-      const comboPush = vi.spyOn((svilService as any).combo, 'push').mockResolvedValueOnce();
-      const overridePush = vi.spyOn((svilService as any).override, 'push').mockResolvedValueOnce();
-      const qmkPush = vi.spyOn((svilService as any).qmk, 'push').mockResolvedValueOnce();
-      const fragmentSet = vi.spyOn((svilService as any).fragment, 'setSelection').mockResolvedValueOnce(true);
+      const macroPush = vi.spyOn((keyboardService as any).macro, 'push').mockResolvedValueOnce();
+      const tapdancePush = vi.spyOn((keyboardService as any).tapdance, 'push').mockResolvedValueOnce();
+      const comboPush = vi.spyOn((keyboardService as any).combo, 'push').mockResolvedValueOnce();
+      const overridePush = vi.spyOn((keyboardService as any).override, 'push').mockResolvedValueOnce();
+      const qmkPush = vi.spyOn((keyboardService as any).qmk, 'push').mockResolvedValueOnce();
+      const fragmentSet = vi.spyOn((keyboardService as any).fragment, 'setSelection').mockResolvedValueOnce(true);
 
-      await svilService.updateMacros(kbinfo);
-      await svilService.updateTapdance(kbinfo, 1);
-      await svilService.updateCombo(kbinfo, 2);
-      await svilService.updateKeyoverride(kbinfo, 3);
-      await svilService.updateQMKSetting(kbinfo, 4);
-      await expect(svilService.updateFragmentSelection(kbinfo, 5, 6)).resolves.toBe(true);
+      await keyboardService.updateMacros(kbinfo);
+      await keyboardService.updateTapdance(kbinfo, 1);
+      await keyboardService.updateCombo(kbinfo, 2);
+      await keyboardService.updateKeyoverride(kbinfo, 3);
+      await keyboardService.updateQMKSetting(kbinfo, 4);
+      await expect(keyboardService.updateFragmentSelection(kbinfo, 5, 6)).resolves.toBe(true);
 
       expect(macroPush).toHaveBeenCalledWith(kbinfo);
       expect(tapdancePush).toHaveBeenCalledWith(kbinfo, 1);
@@ -595,11 +595,11 @@ describe('SvilService', () => {
         }
       });
 
-      await svilService.updateAltRepeatKey(kbinfo, 0);
-      await svilService.updateLeader(kbinfo, 0);
-      await svilService.updateOneShot(kbinfo);
-      await svilService.saveSvil();
-      await svilService.resetSvil();
+      await keyboardService.updateAltRepeatKey(kbinfo, 0);
+      await keyboardService.updateLeader(kbinfo, 0);
+      await keyboardService.updateOneShot(kbinfo);
+      await keyboardService.saveSvil();
+      await keyboardService.resetSvil();
 
       expect(mockUSB.sendSvil).toHaveBeenCalledWith(
         SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_SET,
@@ -627,9 +627,9 @@ describe('SvilService', () => {
         one_shot: undefined
       });
 
-      await svilService.updateAltRepeatKey(kbinfo, 0);
-      await svilService.updateLeader(kbinfo, 0);
-      await svilService.updateOneShot(kbinfo);
+      await keyboardService.updateAltRepeatKey(kbinfo, 0);
+      await keyboardService.updateLeader(kbinfo, 0);
+      await keyboardService.updateOneShot(kbinfo);
 
       expect(mockUSB.sendSvil).not.toHaveBeenCalled();
     });
@@ -637,10 +637,10 @@ describe('SvilService', () => {
 
   describe('misc helpers', () => {
     it('exposes fragment services and checks empty layers', () => {
-      expect(svilService.getFragmentService()).toBe((svilService as any).fragment);
-      expect(svilService.getFragmentComposer()).toBe((svilService as any).fragmentComposer);
-      expect(svilService.isLayerEmpty([0, -1, 255])).toBe(true);
-      expect(svilService.isLayerEmpty([0, 4, 255])).toBe(false);
+      expect(keyboardService.getFragmentService()).toBe((keyboardService as any).fragment);
+      expect(keyboardService.getFragmentComposer()).toBe((keyboardService as any).fragmentComposer);
+      expect(keyboardService.isLayerEmpty([0, -1, 255])).toBe(true);
+      expect(keyboardService.isLayerEmpty([0, 4, 255])).toBe(false);
     });
   });
 
@@ -652,7 +652,7 @@ describe('SvilService', () => {
 
       const kbinfo = createTestKeyboardInfo();
 
-      await expect(svilService.getKeyboardInfo(kbinfo)).rejects.toThrow('LZMA decompression failed');
+      await expect(keyboardService.getKeyboardInfo(kbinfo)).rejects.toThrow('LZMA decompression failed');
     });
   });
 });

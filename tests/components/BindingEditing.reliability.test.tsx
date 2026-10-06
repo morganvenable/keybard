@@ -11,12 +11,12 @@ const state = vi.hoisted(() => ({
     panels: { itemToEdit: 0, initialEditorSlot: null, setPanelToGoBack: vi.fn(), setAlternativeHeader: vi.fn() },
     service: { updateMacros: vi.fn(async () => {}), saveSvil: vi.fn(async () => {}), updateCombo: vi.fn(async () => {}), updateKeyoverride: vi.fn(async () => {}) },
 }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: state.board, setKeyboard: state.setKeyboard, getKeyboardSnapshot: () => state.board }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: state.board, setKeyboard: state.setKeyboard, getKeyboardSnapshot: () => state.board }) }));
 vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => state.binding }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => state.panels }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ layoutMode: 'sidebar' }) }));
 vi.mock('@/contexts/SettingsContext', () => ({ useSettings: () => ({ getSetting: () => false, updateSetting: vi.fn() }) }));
-vi.mock('@/services/vial.service', () => ({ vialService: state.service }));
+vi.mock('@/services/keyboard.service', () => ({ keyboardService: state.service }));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/MacroEditorKey', () => ({ default: ({ onDelete }: { onDelete: () => void }) => <button onClick={onDelete}>Delete action</button> }));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/MacroEditorText', () => ({ default: () => <div /> }));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/EditorKey', () => ({ default: () => <div /> }));

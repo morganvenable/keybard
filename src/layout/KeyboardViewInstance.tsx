@@ -8,7 +8,7 @@ import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import SquareArrowLeftIcon from "@/components/icons/SquareArrowLeft";
 import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { cn } from "@/lib/utils";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -95,7 +95,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onLayerDropHover,
     onLayerDrop,
 }) => {
-    const { keyboard, activeLayerIndex, isConnected } = useVial();
+    const { keyboard, activeLayerIndex, isConnected } = useKeyboard();
     const transparentKeyGlyph = KEYMAP["KC_TRNS"]?.str || "▽";
     const { clearSelection } = useKeyBinding();
     const { copy, paste, clipboardError } = useLayerClipboardActions();

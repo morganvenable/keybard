@@ -3,8 +3,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { CustomUIRenderer } from "@/components/CustomUI";
 import { customValueService } from "@/services/custom-value.service";
 import { useChanges } from "@/contexts/ChangesContext";
-import { useVial } from "@/contexts/VialContext";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import { useKeyboard } from "@/contexts/KeyboardContext";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 interface DynamicMenuPanelProps {
     menuIndex: number;
@@ -22,7 +22,7 @@ interface DynamicMenuPanelProps {
  * On value change, updates both the keyboard and kbinfo.custom_values.
  */
 const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false, embedded = false, section = "all" }) => {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, setKeyboard, isConnected } = useKeyboard();
     const { queue } = useChanges();
     const [values, setValues] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);

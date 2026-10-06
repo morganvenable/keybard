@@ -1,4 +1,4 @@
-import { KeyboardInfo } from "../types/vial.types";
+import { KeyboardInfo } from "../types/keyboard.types";
 import { PendingChange } from "./changes.service";
 import { customValueService } from "./custom-value.service";
 import { LabelService } from "./label.service";
@@ -45,7 +45,7 @@ export class ImportService {
                             await queue(
                                 `Update key L${l} R${r} C${c} to ${keyLabel}`,
                                 async () => {
-                                    await services.vialService.updateKey(l, r, c, newVal);
+                                    await services.keyboardService.updateKey(l, r, c, newVal);
                                 },
                                 {
                                     writeKey: `key:${l}:${r}:${c}`,
@@ -68,7 +68,7 @@ export class ImportService {
             await queue(
                 "Update All Macros",
                 async () => {
-                    await services.vialService.updateMacros(newKb);
+                    await services.keyboardService.updateMacros(newKb);
                 },
                 { type: "macro", writeKey: "macros" }
             );
@@ -86,7 +86,7 @@ export class ImportService {
                     await queue(
                         `Update Combo ${idx}`,
                         async () => {
-                            await services.vialService.updateCombo(newKb, idx);
+                            await services.keyboardService.updateCombo(newKb, idx);
                         },
                         { type: "combo", comboId: idx, writeKey: `combo:${idx}` }
                     );
@@ -106,7 +106,7 @@ export class ImportService {
                     await queue(
                         `Update Tapdance ${idx}`,
                         async () => {
-                            await services.vialService.updateTapdance(newKb, idx);
+                            await services.keyboardService.updateTapdance(newKb, idx);
                         },
                         { type: "tapdance", tapdanceId: idx, writeKey: `tapdance:${idx}` }
                     );
@@ -126,7 +126,7 @@ export class ImportService {
                     await queue(
                         `Update Key Override ${idx}`,
                         async () => {
-                            await services.vialService.updateKeyoverride(newKb, idx);
+                            await services.keyboardService.updateKeyoverride(newKb, idx);
                         },
                         { type: "override", writeKey: `override:${idx}` }
                     );
@@ -157,7 +157,7 @@ export class ImportService {
                     await queue(
                         `Update QMK Setting ${qsid}`,
                         async () => {
-                            await services.vialService.updateQMKSetting(newKb, qsid);
+                            await services.keyboardService.updateQMKSetting(newKb, qsid);
                         },
                         { type: "key", writeKey: `setting:${qsid}` }
                     );
@@ -221,7 +221,7 @@ export class ImportService {
             }
         }
         if (writes.length) {
-            await queue("Save imported configuration", () => services.vialService.saveSvil(), { type: "key", writeKey: "save-svil" });
+            await queue("Save imported configuration", () => services.keyboardService.saveSvil(), { type: "key", writeKey: "save-svil" });
         }
         await Promise.all(writes.map(write => enqueue(write.desc, write.cb, write.metadata)));
     }

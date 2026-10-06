@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fileService } from '../../src/services/file.service';
 import { keyService } from '../../src/services/key.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 import { createTestFragments, createFragmentState, FRAGMENT_NAMES, FRAGMENT_IDS } from '../fixtures/fragments.fixture';
 import { generateComplexKeymap } from '../utils/keymap-helpers';

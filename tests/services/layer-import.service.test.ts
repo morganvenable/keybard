@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LayerLibraryService } from '../../src/services/layer-library.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 const IMPORTED_LAYOUTS_KEY = 'keybard-imported-layouts';
 

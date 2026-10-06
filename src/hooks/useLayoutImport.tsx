@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useVial } from '@/contexts/VialContext';
+import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
 import { fileService } from '@/services/file.service';
 import { prepareImport, type ImportReview } from '@/services/import-preflight';
-import type { KeyboardInfo } from '@/types/vial.types';
+import type { KeyboardInfo } from '@/types/keyboard.types';
 
 export function useLayoutImport() {
-    const { keyboard, setKeyboard, isConnected, setIsImporting, loadFromFile } = useVial();
+    const { keyboard, setKeyboard, isConnected, setIsImporting, loadFromFile } = useKeyboard();
     const { queue, todo, isInstant, commit, isSaving } = useChanges();
     const [review, setReview] = useState<{ plan: ImportReview; target: KeyboardInfo | null; connected: boolean; filename: string; file: File } | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
@@ -49,8 +49,8 @@ export function useLayoutImport() {
             } else if (keyboard) {
                 setKeyboard(next);
                 const { importService } = await import('@/services/import.service');
-                const { vialService } = await import('@/services/vial.service');
-                await importService.syncWithKeyboard(next, keyboard, (desc, cb, metadata) => queue(desc, cb, { ...metadata, deferCommit: true }), { vialService });
+                const { keyboardService } = await import('@/services/keyboard.service');
+                await importService.syncWithKeyboard(next, keyboard, (desc, cb, metadata) => queue(desc, cb, { ...metadata, deferCommit: true }), { keyboardService });
                 if (isInstant && !await commit()) throw new Error('Some imported changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.');
             }
             setFileStatus(isConnected ? (isInstant ? 'Import saved to keyboard.' : 'Import staged. Use Apply to save it to the keyboard.') : 'Layout opened offline. No keyboard was changed.');

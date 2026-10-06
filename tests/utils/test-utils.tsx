@@ -1,13 +1,13 @@
 import React from 'react';
 import { render as rtlRender, RenderOptions } from '@testing-library/react';
 import { renderHook as rtlRenderHook, RenderHookOptions } from '@testing-library/react';
-import { VialProvider } from '../../src/contexts/VialContext';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import { KeyboardProvider } from '../../src/contexts/KeyboardContext';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 import { vi } from 'vitest';
 
 // Mock context values
-export interface MockVialContextValue {
+export interface MockKeyboardContextValue {
   keyboard: KeyboardInfo | null;
   isConnected: boolean;
   connect: (filters?: HIDDeviceFilter[]) => Promise<boolean>;
@@ -17,9 +17,9 @@ export interface MockVialContextValue {
 }
 
 // Default mock context value
-export const createMockVialContextValue = (
-  overrides?: Partial<MockVialContextValue>
-): MockVialContextValue => ({
+export const createMockKeyboardContextValue = (
+  overrides?: Partial<MockKeyboardContextValue>
+): MockKeyboardContextValue => ({
   keyboard: null,
   isConnected: false,
   connect: vi.fn().mockResolvedValue(true),
@@ -30,42 +30,42 @@ export const createMockVialContextValue = (
 });
 
 // Mock provider for testing
-export const MockVialProvider: React.FC<{
+export const MockKeyboardProvider: React.FC<{
   children: React.ReactNode;
-  value?: Partial<MockVialContextValue>;
+  value?: Partial<MockKeyboardContextValue>;
 }> = ({ children, value }) => {
-  const mockValue = createMockVialContextValue(value);
+  const mockValue = createMockKeyboardContextValue(value);
 
   // We need to mock the actual context module
-  const VialContext = React.createContext<MockVialContextValue | undefined>(undefined);
+  const KeyboardContext = React.createContext<MockKeyboardContextValue | undefined>(undefined);
 
   return (
-    <VialContext.Provider value={mockValue}>
+    <KeyboardContext.Provider value={mockValue}>
       {children}
-    </VialContext.Provider>
+    </KeyboardContext.Provider>
   );
 };
 
 // Custom render function with providers
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  vialContextValue?: Partial<MockVialContextValue>;
+  keyboardContextValue?: Partial<MockKeyboardContextValue>;
 }
 
 export function render(
   ui: React.ReactElement,
   options?: CustomRenderOptions
 ) {
-  const { vialContextValue, ...renderOptions } = options || {};
+  const { keyboardContextValue, ...renderOptions } = options || {};
 
   const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    if (vialContextValue !== undefined) {
+    if (keyboardContextValue !== undefined) {
       return (
-        <MockVialProvider value={vialContextValue}>
+        <MockKeyboardProvider value={keyboardContextValue}>
           {children}
-        </MockVialProvider>
+        </MockKeyboardProvider>
       );
     }
-    return <VialProvider>{children}</VialProvider>;
+    return <KeyboardProvider>{children}</KeyboardProvider>;
   };
 
   return rtlRender(ui, { wrapper: Wrapper, ...renderOptions });
@@ -73,24 +73,24 @@ export function render(
 
 // Custom renderHook with providers
 interface CustomRenderHookOptions<TProps> extends Omit<RenderHookOptions<TProps>, 'wrapper'> {
-  vialContextValue?: Partial<MockVialContextValue>;
+  keyboardContextValue?: Partial<MockKeyboardContextValue>;
 }
 
 export function renderHook<TResult, TProps = {}>(
   hook: (props: TProps) => TResult,
   options?: CustomRenderHookOptions<TProps>
 ) {
-  const { vialContextValue, ...renderOptions } = options || {};
+  const { keyboardContextValue, ...renderOptions } = options || {};
 
   const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    if (vialContextValue !== undefined) {
+    if (keyboardContextValue !== undefined) {
       return (
-        <MockVialProvider value={vialContextValue}>
+        <MockKeyboardProvider value={keyboardContextValue}>
           {children}
-        </MockVialProvider>
+        </MockKeyboardProvider>
       );
     }
-    return <VialProvider>{children}</VialProvider>;
+    return <KeyboardProvider>{children}</KeyboardProvider>;
   };
 
   return rtlRenderHook(hook, { wrapper: Wrapper, ...renderOptions });
@@ -99,19 +99,19 @@ export function renderHook<TResult, TProps = {}>(
 // Factory functions for common test scenarios
 export const testScenarios = {
   // Disconnected state (default)
-  disconnected: (): Partial<MockVialContextValue> => ({
+  disconnected: (): Partial<MockKeyboardContextValue> => ({
     keyboard: null,
     isConnected: false
   }),
 
   // Connected with keyboard loaded
-  connected: (): Partial<MockVialContextValue> => ({
+  connected: (): Partial<MockKeyboardContextValue> => ({
     keyboard: createTestKeyboardInfo(),
     isConnected: true
   }),
 
   // Connecting state
-  connecting: (): Partial<MockVialContextValue> => ({
+  connecting: (): Partial<MockKeyboardContextValue> => ({
     keyboard: null,
     isConnected: false,
     connect: vi.fn().mockImplementation(() =>
@@ -120,7 +120,7 @@ export const testScenarios = {
   }),
 
   // Loading keyboard state
-  loading: (): Partial<MockVialContextValue> => ({
+  loading: (): Partial<MockKeyboardContextValue> => ({
     keyboard: null,
     isConnected: true,
     loadKeyboard: vi.fn().mockImplementation(() =>
@@ -129,7 +129,7 @@ export const testScenarios = {
   }),
 
   // Error state
-  error: (): Partial<MockVialContextValue> => ({
+  error: (): Partial<MockKeyboardContextValue> => ({
     keyboard: null,
     isConnected: false,
     connect: vi.fn().mockRejectedValue(new Error('Connection failed')),
@@ -137,7 +137,7 @@ export const testScenarios = {
   }),
 
   // With custom keyboard
-  withKeyboard: (keyboard: KeyboardInfo): Partial<MockVialContextValue> => ({
+  withKeyboard: (keyboard: KeyboardInfo): Partial<MockKeyboardContextValue> => ({
     keyboard,
     isConnected: true
   })

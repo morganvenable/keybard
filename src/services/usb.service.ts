@@ -1,6 +1,6 @@
 // USB HID communication layer for Svil protocol
 // Supports client ID wrapper (0xDD) for multi-client concurrent access
-import type { USBSendOptions } from "../types/vial.types";
+import type { USBSendOptions } from "../types/keyboard.types";
 import { BE16, LE16, MSG_LEN } from "./utils";
 
 // Protocol prefixes
@@ -121,11 +121,6 @@ export class SvilUSB {
   static readonly QMK_RGBLIGHT_EFFECT = 0x81;
   static readonly QMK_RGBLIGHT_EFFECT_SPEED = 0x82;
   static readonly QMK_RGBLIGHT_COLOR = 0x83;
-
-  static readonly VIALRGB_GET_INFO = 0x40;
-  static readonly VIALRGB_GET_MODE = 0x41;
-  static readonly VIALRGB_GET_SUPPORTED = 0x42;
-  static readonly VIALRGB_SET_MODE = 0x41;
 
   // Svil command IDs (0xDF protocol)
   static readonly CMD_SVIL_GET_INFO = 0x00;
@@ -1018,9 +1013,6 @@ export class SvilUSB {
 
 // Export singleton instance
 export const usbInstance = new SvilUSB();
-
-// Backward compatibility alias
-export { SvilUSB as VialUSB };
 
 /** A Sval table: its TABLE_SCAN id, per-index GET command and entry size in bytes. */
 export interface SvilTable {

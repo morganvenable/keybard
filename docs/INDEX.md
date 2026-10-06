@@ -2,7 +2,7 @@
 
 ## 📚 Documentation Overview
 
-Comprehensive documentation for the KeyBard-NG keyboard configuration tool, a modern web-based interface for Vial-compatible keyboards built with React, TypeScript, and the WebHID API.
+Comprehensive documentation for the KeyBard-NG keyboard configuration tool, a modern web-based interface for Svalboard-QMK keyboards built with React, TypeScript, and the WebHID API.
 
 ## 🚀 Quick Start
 
@@ -21,18 +21,18 @@ System design and architectural overview
 
 ### [API Documentation](./API.md)
 Complete service API reference
-- **VialService** - Core Vial protocol operations
+- **KeyboardService** - Core Sval protocol operations
 - **QMKService** - QMK settings management
 - **SvalService** - Svalboard-specific features
 - **KeyService** - Keycode translation utilities
-- **VialUSB** - Low-level USB communication
-- **VialContext** - React context API
+- **SvilUSB** - Low-level USB communication
+- **KeyboardContext** - React context API
 
 ### [Component Documentation](./COMPONENTS.md)
 React component guide
 - Component hierarchy
 - **App** - Root application component
-- **VialProvider** - Context provider
+- **KeyboardProvider** - Context provider
 - **KeyboardConnector** - Connection orchestration
 - **Keyboard** - Visual layout renderer
 - **Key** - Individual key component
@@ -73,12 +73,12 @@ TypeScript type reference
 ### By Feature
 
 #### USB Communication
-- [VialUSB API](./API.md#vialusb) - Low-level USB operations
+- [SvilUSB API](./API.md#svilusb) - Low-level USB operations
 - [USBSendOptions Type](./TYPES.md#usbsendoptions) - Communication options
 - [Protocol Constants](./TYPES.md#protocol-constants) - Command definitions
 
 #### Keyboard Configuration
-- [VialService API](./API.md#vialservice) - Keyboard operations
+- [KeyboardService API](./API.md#keyboardservice) - Keyboard operations
 - [KeyboardInfo Type](./TYPES.md#keyboardinfo) - State structure
 - [Keyboard Component](./COMPONENTS.md#keyboard) - Visual interface
 
@@ -114,15 +114,15 @@ keybard-ng/
 │   │   ├── Key.tsx
 │   │   └── QMKSettings.tsx
 │   ├── services/            # Business logic
-│   │   ├── vial.service.ts # [Line 221](../src/services/vial.service.ts#L221)
+│   │   ├── keyboard.service.ts # [Line 221](../src/services/keyboard.service.ts#L221)
 │   │   ├── qmk.service.ts  # [Line 95](../src/services/qmk.service.ts#L95)
 │   │   ├── sval.service.ts # [Line 130](../src/services/sval.service.ts#L130)
 │   │   ├── key.service.ts  # [Line 323](../src/services/key.service.ts#L323)
 │   │   └── usb.ts          # [Line 363](../src/services/usb.ts#L363)
 │   ├── contexts/           # React contexts
-│   │   └── VialContext.tsx
+│   │   └── KeyboardContext.tsx
 │   ├── types/              # TypeScript types
-│   │   ├── vial.types.ts
+│   │   ├── keyboard.types.ts
 │   │   ├── keymap.d.ts
 │   │   └── qmk.d.ts
 │   └── constants/          # Static data
@@ -137,19 +137,19 @@ keybard-ng/
 
 ### Service Dependencies
 ```
-VialService
-├── Depends on: VialUSB, SvalService, utils
-├── Used by: VialContext, KeyboardConnector
-└── Related docs: [API](./API.md#vialservice), [Architecture](./ARCHITECTURE.md#service-layer)
+KeyboardService
+├── Depends on: SvilUSB, SvalService, utils
+├── Used by: KeyboardContext, KeyboardConnector
+└── Related docs: [API](./API.md#keyboardservice), [Architecture](./ARCHITECTURE.md#service-layer)
 
 QMKService
-├── Depends on: VialUSB, utils, QMK_SETTINGS
-├── Used by: VialContext, QMKSettings component
+├── Depends on: SvilUSB, utils, QMK_SETTINGS
+├── Used by: KeyboardContext, QMKSettings component
 └── Related docs: [API](./API.md#qmkservice), [Types](./TYPES.md#qmk-settings-types)
 
 SvalService
-├── Depends on: VialUSB
-├── Used by: VialService
+├── Depends on: SvilUSB
+├── Used by: KeyboardService
 └── Related docs: [API](./API.md#svalservice)
 
 KeyService
@@ -161,19 +161,19 @@ KeyService
 ### Component Dependencies
 ```
 App
-└── VialProvider (context)
+└── KeyboardProvider (context)
     └── KeyboardConnector
-        ├── Uses: VialContext hooks
+        ├── Uses: KeyboardContext hooks
         ├── Renders: Keyboard, QMKSettings
         └── Related: [Components](./COMPONENTS.md#keyboardconnector)
 
 Keyboard
-├── Uses: VialContext, KeyService
+├── Uses: KeyboardContext, KeyService
 ├── Renders: Multiple Key components
 └── Related: [Components](./COMPONENTS.md#keyboard)
 
 QMKSettings
-├── Uses: VialContext, QMKService
+├── Uses: KeyboardContext, QMKService
 ├── Data: QMK_SETTINGS constant
 └── Related: [Components](./COMPONENTS.md#qmksettings)
 ```
@@ -205,9 +205,9 @@ npm run test:ui      # Vitest UI
 
 ### Protocol Implementation
 1. Add command constants to types
-2. Implement in VialUSB service
+2. Implement in SvilUSB service
 3. Create higher-level service method
-4. Expose via VialContext
+4. Expose via KeyboardContext
 5. Build UI component
 
 ## 📚 Additional Resources
@@ -227,12 +227,12 @@ npm run test:ui      # Vitest UI
 ## 🔍 Search Keywords
 
 **Architecture**: layers, system design, data flow, WebHID, USB protocol
-**Services**: VialService, QMKService, SvalService, KeyService, VialUSB
-**Components**: KeyboardConnector, Keyboard, Key, QMKSettings, VialProvider
+**Services**: KeyboardService, QMKService, SvalService, KeyService, SvilUSB
+**Components**: KeyboardConnector, Keyboard, Key, QMKSettings, KeyboardProvider
 **Types**: KeyboardInfo, USBSendOptions, KeyMapEntry, QMKSettings
 **Features**: keymap, macro, combo, tapdance, layer colors, QMK settings
 **Testing**: Vitest, coverage, mocks, fixtures
-**Protocols**: VIA, Vial, QMK, Svalboard
+**Protocols**: Sval with wrapped VIA commands; QMK keycodes
 
 ## 📝 Documentation Maintenance
 

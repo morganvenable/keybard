@@ -6,7 +6,7 @@
  * (e.g., 5-key vs 6-key finger clusters) are installed or selected.
  */
 
-import type { KeyboardInfo, FragmentInstance } from "../types/vial.types";
+import type { KeyboardInfo, FragmentInstance } from "../types/keyboard.types";
 import { KleService } from "./kle.service";
 import { FragmentService } from "./fragment.service";
 import { FRAGMENT_THUMB_GAP_REDUCTION_U } from "../constants/keyboard-visuals";

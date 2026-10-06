@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { selectPointingMenu } from '../../src/utils/pointing-menu';
-import type { CustomUIMenuItem } from '../../src/types/vial.types';
+import type { CustomUIMenuItem } from '../../src/types/keyboard.types';
 import { SVALBOARD_POINTING_MENU } from '../fixtures/pointing-menu.fixture';
 
 function controls(items: CustomUIMenuItem[]): CustomUIMenuItem[] {

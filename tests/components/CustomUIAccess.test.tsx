@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CustomUIRenderer } from '../../src/components/CustomUI/CustomUIRenderer';
-import type { CustomUIMenuItem } from '../../src/types/vial.types';
+import type { CustomUIMenuItem } from '../../src/types/keyboard.types';
 
 beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
 const items: CustomUIMenuItem[] = [

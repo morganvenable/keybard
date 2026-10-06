@@ -1,11 +1,11 @@
 import { FunctionComponent, useState, useRef, useLayoutEffect } from "react";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { LAYOUTS, BUTTON_TO_KEYCODE_MAP, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
@@ -40,7 +40,7 @@ const applyModifiers = (keycode: string, activeModifiers: string[]) => {
 const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [], hideLanguageSelector = false, disableTooltip = false }) => {
     const [layoutName, setLayoutName] = useState<"default" | "shift">("default");
     const { internationalLayout, setInternationalLayout, layoutMode } = useLayoutSettings();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { isBinding } = useKeyBinding();
 

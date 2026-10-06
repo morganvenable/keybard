@@ -3,16 +3,16 @@ import { ArrowRightFromLine, Plus } from "lucide-react";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { DragItem } from "@/contexts/DragContext";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 
 import EditorKey from "./EditorKey";
-import { ComboEntry } from "@/types/vial.types";
+import { ComboEntry } from "@/types/keyboard.types";
 
 const ComboEditor: FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();

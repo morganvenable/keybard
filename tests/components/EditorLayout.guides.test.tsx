@@ -73,8 +73,8 @@ vi.mock("@/contexts/DragContext", () => ({
   }),
 }));
 
-vi.mock("@/contexts/VialContext", () => ({
-  useVial: () => ({
+vi.mock("@/contexts/KeyboardContext", () => ({
+  useKeyboard: () => ({
     keyboard: {
       rows: 1,
       cols: 1,

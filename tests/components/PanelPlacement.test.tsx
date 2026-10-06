@@ -5,7 +5,7 @@ import SecondarySidebar from '../../src/layout/SecondarySidebar/SecondarySidebar
 const state = vi.hoisted(() => ({ activePanel: 'settings', state: 'expanded', itemToEdit: null as number | null }));
 vi.mock('@/components/ui/sidebar', () => ({ useSidebar: () => ({state: 'collapsed'}) }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ ...state, handleCloseDetails: vi.fn(), setItemToEdit: vi.fn() }) }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({keyboard: null}) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({keyboard: null}) }));
 vi.mock('../../src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer', () => ({default: () => {
  const [draft, setDraft] = useState('');
  return <input aria-label="Binding draft" value={draft} onChange={event => setDraft(event.target.value)} />;

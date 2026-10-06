@@ -12,7 +12,7 @@ import type {
     FragmentInstance,
     FragmentComposition,
     FragmentState
-} from '../../src/types/vial.types';
+} from '../../src/types/keyboard.types';
 import { createTestKeyboardInfo } from './keyboard-info.fixture';
 
 // Fragment IDs (protocol uses numeric IDs)

@@ -1,4 +1,4 @@
-import type { KeyboardInfo, CustomKeycode, MacroData } from '../../src/types/vial.types';
+import type { KeyboardInfo, CustomKeycode, MacroData } from '../../src/types/keyboard.types';
 import type { KeyboardInfoFactory, TestCustomKeycode } from './types';
 import { TEST_VENDOR_ID, TEST_PRODUCT_ID } from './types';
 
@@ -8,7 +8,7 @@ export const minimalKeyboardInfo: KeyboardInfo = {
   cols: 12,
   layers: 1,
   via_proto: 12,
-  vial_proto: 6,
+
   kbid: 'minimal_test_kb',
   keymap: [[]],
   settings: {}
@@ -20,7 +20,7 @@ export const typicalSvalboardInfo: KeyboardInfo = {
   cols: 14,
   layers: 4,
   via_proto: 12,
-  vial_proto: 6,
+
   kbid: 'svalboard_v1',
   custom_keycodes: [
     {
@@ -100,7 +100,7 @@ export const complexKeyboardInfo: KeyboardInfo = {
   cols: 16,
   layers: 8,
   via_proto: 12,
-  vial_proto: 6,
+
   kbid: 'complex_test_kb',
   custom_keycodes: Array(16).fill(null).map((_, i): CustomKeycode => ({
     name: `CUSTOM_${i}`,
@@ -161,7 +161,7 @@ export const createTestKeyboardInfo: KeyboardInfoFactory = (overrides = {}) => {
     cols: 14,
     layers: 4,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_keyboard',
     keymap: [[]],
     settings: {}

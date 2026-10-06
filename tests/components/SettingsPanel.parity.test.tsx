@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import SettingsPanel from '../../src/layout/SecondarySidebar/Panels/SettingsPanel';
 const state = vi.hoisted(() => ({ mode: 'sidebar', navigate: vi.fn(), update: vi.fn(), setInstant: vi.fn(async () => true) }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: null }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: null }) }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ setInstant: state.setInstant }) }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ layoutMode: state.mode }) }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ setActivePanel: state.navigate }) }));

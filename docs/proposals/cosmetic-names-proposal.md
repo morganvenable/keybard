@@ -502,7 +502,7 @@ export interface PoolInfo {
 // src/services/names.service.ts
 
 export class NamesService implements NameService {
-  constructor(private usb: VialUSB) {}
+  constructor(private usb: SvilUSB) {}
 
   async getName(ns: CosmeticNamespace, index: number): Promise<string> {
     const nsId = NAMESPACE_IDS[ns];
@@ -568,7 +568,7 @@ export class NamesService implements NameService {
 ### Context Integration
 
 ```typescript
-// In VialContext or a new NamesContext
+// In KeyboardContext or a new NamesContext
 
 const [names, setNames] = useState<CosmeticNames>({});
 

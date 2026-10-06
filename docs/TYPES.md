@@ -10,7 +10,7 @@ Complete TypeScript type definitions used throughout the KeyBard-NG application,
 
 Central state container for all keyboard data.
 
-**Location:** `src/types/vial.types.ts`
+**Location:** `src/types/keyboard.types.ts`
 
 ```typescript
 interface KeyboardInfo {
@@ -33,7 +33,7 @@ interface KeyboardInfo {
 
 ### KeyboardPayload
 
-Decompressed keyboard layout definition from Vial.
+Decompressed keyboard layout definition from the board.
 
 ```typescript
 interface KeyboardPayload {
@@ -137,7 +137,7 @@ interface CustomKeycode {
 
 Options for USB communication operations.
 
-**Location:** `src/types/vial.types.ts`
+**Location:** `src/types/keyboard.types.ts`
 
 ```typescript
 interface USBSendOptions {
@@ -148,12 +148,12 @@ interface USBSendOptions {
 }
 ```
 
-### VialAPI
+### KeyboardAPI
 
 API contract for keyboard updates.
 
 ```typescript
-interface VialAPI {
+interface KeyboardAPI {
   getProtocolVersion(): Promise<number>;
   getKeyboardValue(command: number): Promise<number>;
   setKeyboardValue(command: number, value: number): Promise<void>;
@@ -260,14 +260,14 @@ interface QMKSettingsField {
 
 ## Context Types
 
-### VialContextType
+### KeyboardContextType
 
 React context shape.
 
-**Location:** `src/contexts/VialContext.tsx`
+**Location:** `src/contexts/KeyboardContext.tsx`
 
 ```typescript
-interface VialContextType {
+interface KeyboardContextType {
   keyboard: KeyboardInfo | null;   // Current keyboard state
   isConnected: boolean;            // USB connection status
   isLoading: boolean;              // Loading operation status
@@ -322,17 +322,9 @@ enum VIACommand {
 }
 ```
 
-### Vial Protocol Commands
+### Sval Protocol Commands
 
-```typescript
-enum VialCommand {
-  PREFIX = 0xFE,
-  GET_KEYBOARD_ID = 0xFE00,
-  GET_SIZE = 0xFE0B,
-  GET_DEFINITION = 0xFE0C,
-  // ... additional commands
-}
-```
+Sval commands use the `0xDF` prefix inside the `0xDD` client-ID wrapper. Wrapped VIA operations use `0xFE`. See `src/services/usb.service.ts` for the current command registry.
 
 ### QMK Commands
 

@@ -1,5 +1,5 @@
 import { LAYOUTS } from '@/components/Keyboards/layouts';
-import type { KeyboardInfo } from '@/types/vial.types';
+import type { KeyboardInfo } from '@/types/keyboard.types';
 import { SVALBOARD_LAYOUT } from '@/constants/svalboard-layout';
 
 export interface Appearance {

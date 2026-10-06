@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
     queue: vi.fn(), setKeyboard: vi.fn(), update: vi.fn(), save: vi.fn(), connected: true,
     keyboard: { rows: 1, cols: 1, fragmentState: {hwDetection: new Map(), eepromSelections: new Map(), userSelections: new Map()} },
 }));
-vi.mock('@/contexts/VialContext', () => ({useVial: () => ({keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected, getKeyboardSnapshot: () => mocks.keyboard})}));
+vi.mock('@/contexts/KeyboardContext', () => ({useKeyboard: () => ({keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected, getKeyboardSnapshot: () => mocks.keyboard})}));
 vi.mock('@/contexts/ChangesContext', () => ({useChanges: () => ({queue: mocks.queue})}));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({useLayoutSettings: () => ({layoutMode: 'sidebar'})}));
 vi.mock('@/components/ui/select', () => ({
@@ -14,7 +14,7 @@ vi.mock('@/components/ui/select', () => ({
     SelectContent: ({children}: any) => <div>{children}</div>, SelectItem: ({children}: any) => <div>{children}</div>,
     SelectTrigger: ({children, ...props}: any) => <button role="combobox" {...props}>{children}</button>, SelectValue: () => null,
 }));
-vi.mock('@/services/vial.service', () => ({vialService: {
+vi.mock('@/services/keyboard.service', () => ({keyboardService: {
     getFragmentService: () => ({hasFragments: () => true, getSelectableInstances: () => [{idx: 0, instance: {id: 'left-test'}}],
         getOptionIndex: () => 1, resolveFragment: () => 'old', getFragmentOptions: () => ['old', 'new'],
         getInstanceDisplayName: () => 'Test', getFragmentDisplayName: (_kb: unknown, name: string) => name}),

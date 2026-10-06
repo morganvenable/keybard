@@ -2,12 +2,12 @@ import "./KeyboardConnector.css";
 
 import React, { useRef, useState } from "react";
 
-import { useVial } from "../contexts/VialContext";
+import { useKeyboard } from "../contexts/KeyboardContext";
 import { Keyboard } from "./Keyboard";
 import { Button } from "./ui/button";
 
 const KeyboardConnector: React.FC = () => {
-    const { keyboard, isConnected, isWebHIDSupported, loadedFrom, connect, disconnect, loadFromFile } = useVial();
+    const { keyboard, isConnected, isWebHIDSupported, loadedFrom, connect, disconnect, loadFromFile } = useKeyboard();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,8 +128,8 @@ const KeyboardConnector: React.FC = () => {
                         <dd>{keyboard.kbid}</dd>
                         <dt>VIA Protocol:</dt>
                         <dd>{keyboard.via_proto}</dd>
-                        <dt>Vial Protocol:</dt>
-                        <dd>{keyboard.vial_proto}</dd>
+                        <dt>Sval Protocol:</dt>
+                        <dd>{keyboard.svil_proto}</dd>
                         {keyboard.sval_proto !== undefined && keyboard.sval_proto > 0 && (
                             <>
                                 <dt>Svalboard Protocol:</dt>

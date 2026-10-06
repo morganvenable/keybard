@@ -1,6 +1,6 @@
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { keyService } from "./key.service";
-import { VialUSB, checkSvilStatus, svilHasMacroBuffer } from "./usb.service";
+import { SvilUSB, checkSvilStatus, svilHasMacroBuffer } from "./usb.service";
 
 export class MacroService {
     private readonly MACRO_IDS = {
@@ -29,7 +29,7 @@ export class MacroService {
     // minus [cmd][offset:4][count]
     private readonly SVIL_MACRO_CHUNK = 20;
 
-    constructor(private usb: VialUSB) { }
+    constructor(private usb: SvilUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         function checkComplete(data: any) {
@@ -40,7 +40,7 @@ export class MacroService {
         // older firmware: VIA, 28 bytes per fetch.
         const macro_memory = svilHasMacroBuffer(this.usb.svilProtocolVersion)
             ? await this.getSvilBuffer(kbinfo.macros_size || 0, kbinfo.macro_count || 0)
-            : await this.usb.getViaBuffer(VialUSB.CMD_VIA_MACRO_GET_BUFFER, kbinfo.macros_size || 0, { slice: 4, uint8: true, bytes: 1 }, checkComplete);
+            : await this.usb.getViaBuffer(SvilUSB.CMD_VIA_MACRO_GET_BUFFER, kbinfo.macros_size || 0, { slice: 4, uint8: true, bytes: 1 }, checkComplete);
 
         const raw_macros = this.split(kbinfo, macro_memory);
         kbinfo.macros = raw_macros.map((macro, mid) => this.parse(mid, macro));
@@ -61,7 +61,7 @@ export class MacroService {
         if (svilHasMacroBuffer(this.usb.svilProtocolVersion)) {
             await this.pushSvilBuffer(size, rawview);
         } else {
-            await this.usb.pushViaBuffer(VialUSB.CMD_VIA_MACRO_SET_BUFFER, size, raw);
+            await this.usb.pushViaBuffer(SvilUSB.CMD_VIA_MACRO_SET_BUFFER, size, raw);
         }
     }
 
@@ -79,7 +79,7 @@ export class MacroService {
         while (offset < size) {
             const count = Math.min(this.SVIL_MACRO_CHUNK, size - offset);
             const data = await this.usb.sendSvil(
-                VialUSB.CMD_SVIL_MACRO_BUFFER_GET,
+                SvilUSB.CMD_SVIL_MACRO_BUFFER_GET,
                 [...this.LE32(offset), count],
                 { uint8: true }
             ) as Uint8Array;
@@ -109,11 +109,11 @@ export class MacroService {
         for (let offset = 0; offset < size; offset += this.SVIL_MACRO_CHUNK) {
             const count = Math.min(this.SVIL_MACRO_CHUNK, size - offset);
             const resp = await this.usb.sendSvil(
-                VialUSB.CMD_SVIL_MACRO_BUFFER_SET,
+                SvilUSB.CMD_SVIL_MACRO_BUFFER_SET,
                 [...this.LE32(offset), count, ...buffer.slice(offset, offset + count)],
                 { uint8: true }
             ) as Uint8Array;
-            checkSvilStatus(VialUSB.CMD_SVIL_MACRO_BUFFER_SET, resp);
+            checkSvilStatus(SvilUSB.CMD_SVIL_MACRO_BUFFER_SET, resp);
         }
     }
 

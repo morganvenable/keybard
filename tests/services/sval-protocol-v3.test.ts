@@ -9,7 +9,7 @@ import { MacroService } from '../../src/services/macro.service';
 import { TapdanceService } from '../../src/services/tapdance.service';
 import { ComboService } from '../../src/services/combo.service';
 import { OverrideService } from '../../src/services/override.service';
-import { SvilService } from '../../src/services/vial.service';
+import { KeyboardService } from '../../src/services/keyboard.service';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 
 // Sval protocol v3: MACRO_BUFFER_* with 32-bit offsets, TABLE_SCAN, and refused writes.
@@ -60,7 +60,7 @@ describe('Sval v3 macro buffer', () => {
         return Promise.resolve(new Uint8Array(32));
       });
       const kbinfo = createTestKeyboardInfo();
-      await new SvilService(usb as unknown as SvilUSB).getFeatures(kbinfo);
+      await new KeyboardService(usb as unknown as SvilUSB).getFeatures(kbinfo);
 
       const viaSizeAsked = usb.send.mock.calls.some(c => c[0] === SvilUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE);
       if (version === 3) {
@@ -263,8 +263,8 @@ describe('Sval v3 TABLE_SCAN', () => {
     const entry = (n: number) => [0x04, 0, 0x05, 0, ...new Array(n - 4).fill(0)];
     const cases: [number, number, number, (usb: any, kb: any) => Promise<void>, (kb: any) => any][] = [
       [2, SvilUSB.CMD_SVIL_KEY_OVERRIDE_GET, 12, (u, kb) => new OverrideService(u).get(kb), kb => kb.key_overrides[7].trigger],
-      [3, SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET, 6, (u, kb) => new SvilService(u).getAltRepeatKeys(kb), kb => kb.alt_repeat_keys[7].keycode],
-      [4, SvilUSB.CMD_SVIL_LEADER_GET, 14, (u, kb) => new SvilService(u).getLeaders(kb), kb => kb.leaders[7].sequence[0]],
+      [3, SvilUSB.CMD_SVIL_ALT_REPEAT_KEY_GET, 6, (u, kb) => new KeyboardService(u).getAltRepeatKeys(kb), kb => kb.alt_repeat_keys[7].keycode],
+      [4, SvilUSB.CMD_SVIL_LEADER_GET, 14, (u, kb) => new KeyboardService(u).getLeaders(kb), kb => kb.leaders[7].sequence[0]],
     ];
     for (const [scanId, getCmd, size, read, pick] of cases) {
       const usb = makeTableKeyboard(3, scanId, getCmd, size, new Map([[7, entry(size)]]));
@@ -303,7 +303,7 @@ describe('Refused table writes', () => {
         alt_repeat_keys: [{ arkid: 0, keycode: 'KC_A', alt_keycode: 'KC_B', allowed_mods: 0, options: 0 }],
         leaders: [{ ldrid: 0, sequence: ['KC_A'], output: 'KC_B', options: 0 }],
       } as any);
-      const svil = new SvilService(usb as unknown as SvilUSB);
+      const svil = new KeyboardService(usb as unknown as SvilUSB);
 
       for (const write of [
         () => svil.updateTapdance(kbinfo, 0),

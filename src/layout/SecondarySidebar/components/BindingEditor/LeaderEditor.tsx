@@ -4,14 +4,14 @@ import { ArrowRight, ArrowRightFromLine } from "lucide-react";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 
 const LeaderEditor: FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectLeaderKey, selectedTarget } = useKeyBinding();

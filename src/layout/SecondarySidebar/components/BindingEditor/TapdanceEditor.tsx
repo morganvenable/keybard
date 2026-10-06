@@ -3,10 +3,10 @@ import { FC, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { isEditorInput } from "@/utils/editor-input";
-import { TapdanceEntry } from "@/types/vial.types";
+import { TapdanceEntry } from "@/types/keyboard.types";
 import { DragItem } from "@/contexts/DragContext";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { isTapdanceKeycode } from "@/utils/keys";
@@ -14,7 +14,7 @@ import { isTapdanceKeycode } from "@/utils/keys";
 import EditorKey from "./EditorKey";
 
 const TapdanceEditor: FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { keyVariant, layoutMode } = useLayoutSettings();

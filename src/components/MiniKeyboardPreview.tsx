@@ -6,7 +6,7 @@
 
 import type { FC } from "react";
 import { useMemo } from "react";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { THUMB_OFFSET_U } from "@/constants/keyboard-visuals";
 import { PreviewKey } from "./PreviewKey";
@@ -28,7 +28,7 @@ export const MiniKeyboardPreview: FC<MiniKeyboardPreviewProps> = ({
     layerColorStyle,
     unitSize = 30,
 }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
 
     // Get the layout to use - prefer current keyboard's layout, fallback to default
     const keyboardLayout = useMemo(() => {

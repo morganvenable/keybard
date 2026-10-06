@@ -8,10 +8,10 @@ A modern React UI built with Vite and TypeScript for keyboard configuration.
 keybard-ng/
 ├── src/               # Vite + React + TS
 │   ├── components/    # React components
-│   ├── contexts/      # React contexts (VialContext)
-│   ├── services/      # TypeScript Vial services
+│   ├── contexts/      # React contexts (KeyboardContext)
+│   ├── services/      # TypeScript keyboard services
 │   │   ├── usb.ts    # USB communication
-│   │   ├── vial.service.ts  # Main Vial service
+│   │   ├── keyboard.service.ts  # Main keyboard service
 │   │   └── utils.ts  # Utility functions
 │   ├── types/        # TypeScript type definitions
 │   ├── App.tsx       # Main App component
@@ -42,10 +42,10 @@ npm run dev
 
 ### TypeScript Services
 
-Core Vial modules implemented in TypeScript as ES modules:
+Core Sval modules implemented in TypeScript as ES modules:
 
-- **`usb.ts`**: USB HID communication with Vial protocol
-- **`vial.service.ts`**: Main service for keyboard operations
+- **`usb.ts`**: USB HID communication with Sval protocol
+- **`keyboard.service.ts`**: Main service for keyboard operations
 - **`key.service.ts`**: Keycode parsing and stringifying
 - **`utils.ts`**: Byte manipulation utilities
 
@@ -55,23 +55,23 @@ Core Vial modules implemented in TypeScript as ES modules:
 
 ### React Context
 
-`VialContext` provides Vial services throughout the React app:
+`KeyboardContext` provides keyboard services throughout the React app:
 
 ```tsx
-import { useVial } from './contexts/VialContext';
+import { useKeyboard } from './contexts/KeyboardContext';
 
 function MyComponent() {
-  const { keyboard, isConnected, connect, loadKeyboard } = useVial();
-  // Use the Vial services...
+  const { keyboard, isConnected, connect, loadKeyboard } = useKeyboard();
+  // Use the keyboard services...
 }
 ```
 
 ### Type Safety
 
-All Vial data structures are properly typed in `src/types/vial.types.ts`:
+All keyboard data structures are properly typed in `src/types/keyboard.types.ts`:
 
 - `KeyboardInfo`: Main keyboard state
-- `VialAPI`: API interface
+- `KeyboardAPI`: API interface
 - `USBSendOptions`: USB communication options
 - Feature-specific types for macros, combos, tap dance, etc.
 
@@ -92,7 +92,7 @@ npm run build
 - **Vite** - Build tool and dev server
 
 ### Keyboard Communication
-- **xz-decompress** - XZ decompression for Vial keyboard data (includes TypeScript types)
+- **xz-decompress** - XZ decompression for keyboard data (includes TypeScript types)
 - **@types/w3c-web-hid** - WebHID API types for USB communication
 
 ## NPM Scripts
@@ -109,7 +109,7 @@ npm run build
 
 ## Migration Status
 
-✅ Core Vial services converted to TypeScript
+✅ Core Sval services converted to TypeScript
 ✅ USB communication layer implemented
 ✅ XZ decompression integrated (xz-decompress with built-in types)
 ✅ KEY utilities converted (keycode parsing/stringifying)
@@ -121,7 +121,7 @@ npm run build
 
 ## Future Work
 
-The following Vial features can be implemented as TypeScript services:
+The following Sval features can be implemented as TypeScript services:
 
 - Macro management service
 - Combo configuration service

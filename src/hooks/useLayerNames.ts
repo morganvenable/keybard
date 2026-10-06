@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { LabelService } from "@/services/label.service";
 import { usbInstance } from "@/services/usb.service";
@@ -7,7 +7,7 @@ import { usbInstance } from "@/services/usb.service";
 const labels = new LabelService(usbInstance);
 
 export function useLayerNames() {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, setKeyboard, isConnected } = useKeyboard();
     const { queue } = useChanges();
     const [nameError, setNameError] = useState<string | null>(null);
     const renameLayer = async (index: number, value: string): Promise<boolean> => {

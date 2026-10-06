@@ -7,7 +7,7 @@
  * - 0x1A: Fragment Set Selections (save selections to EEPROM)
  */
 
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { SvilUSB } from "./usb.service";
 
 // Max number of fragment instances (protocol uses fixed 21-byte arrays)

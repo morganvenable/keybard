@@ -1,6 +1,6 @@
 // Custom Value Service - VIA3 Custom UI value get/set operations
 import { SvilUSB, usbInstance } from "./usb.service";
-import type { CustomUIMenuItem, CustomUIValueRef, CustomValueEntry } from "../types/vial.types";
+import type { CustomUIMenuItem, CustomUIValueRef, CustomValueEntry } from "../types/keyboard.types";
 
 /**
  * Service for managing VIA3 custom UI values

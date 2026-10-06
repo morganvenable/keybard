@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
 import type { KeyProps } from "@/components/Key";
 import { EditorKeyProps } from "@/layout/SecondarySidebar/components/EditorKey";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import type { LayerEntry } from "@/types/layer-library";
 
 export interface DragItem {

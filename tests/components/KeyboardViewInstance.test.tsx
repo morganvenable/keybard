@@ -12,8 +12,8 @@ const mockLayoutSettings = vi.hoisted(() => ({
   keyVariant: "default",
 }));
 
-vi.mock("@/contexts/VialContext", () => ({
-  useVial: () => ({
+vi.mock("@/contexts/KeyboardContext", () => ({
+  useKeyboard: () => ({
     keyboard: {
       rows: 1,
       cols: 1,

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LeaderEditor from '../../src/layout/SecondarySidebar/components/BindingEditor/LeaderEditor';
-import { VialProvider, useVial } from '../../src/contexts/VialContext';
+import { KeyboardProvider, useKeyboard } from '../../src/contexts/KeyboardContext';
 import { KeyBindingProvider } from '../../src/contexts/KeyBindingContext';
 import { ChangesProvider } from '../../src/contexts/ChangesContext';
 import { SettingsProvider } from '../../src/contexts/SettingsContext';
@@ -10,8 +10,8 @@ import { PanelsProvider, usePanels } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
 import { DragProvider } from '../../src/contexts/DragContext';
 import { LayoutSettingsProvider } from '../../src/contexts/LayoutSettingsContext';
-import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
-import { LeaderOptions } from '../../src/types/vial.types';
+import type { KeyboardInfo, LeaderEntry } from '../../src/types/keyboard.types';
+import { LeaderOptions } from '../../src/types/keyboard.types';
 import React from 'react';
 
 // Mock window.matchMedia for SidebarProvider
@@ -38,15 +38,15 @@ vi.mock('../../src/services/file.service', () => ({
     },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-    vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+    keyboardService: {
         init: vi.fn(),
         load: vi.fn(),
         updateKey: vi.fn(),
         updateLeader: vi.fn().mockResolvedValue(undefined),
         saveSvil: vi.fn().mockResolvedValue(undefined),
     },
-    VialService: {
+    KeyboardService: {
         isWebHIDSupported: vi.fn(() => true),
     },
 }));
@@ -87,7 +87,7 @@ const createKeyboardWithLeaders = (): KeyboardInfo => ({
     cols: 12,
     layers: 2,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_leaders_kb',
     keymap: [
         Array(4 * 12).fill('KC_NO'),
@@ -107,7 +107,7 @@ const TestSetup = ({
     itemToEdit: number,
     children: React.ReactNode
 }) => {
-    const { setKeyboard } = useVial();
+    const { setKeyboard } = useKeyboard();
     const { setItemToEdit, setBindingTypeToEdit, setAlternativeHeader } = usePanels();
 
     React.useEffect(() => {
@@ -136,7 +136,7 @@ const TestWrapper = ({
         <SettingsProvider>
             <LayoutSettingsProvider>
                 <ChangesProvider>
-                    <VialProvider>
+                    <KeyboardProvider>
                         <LayerProvider>
                             <SidebarProvider>
                                 <PanelsProvider>
@@ -150,7 +150,7 @@ const TestWrapper = ({
                                 </PanelsProvider>
                             </SidebarProvider>
                         </LayerProvider>
-                    </VialProvider>
+                    </KeyboardProvider>
                 </ChangesProvider>
             </LayoutSettingsProvider>
         </SettingsProvider>

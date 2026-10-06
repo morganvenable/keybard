@@ -1,8 +1,8 @@
 import React, { useRef, useState, useMemo, useCallback } from "react";
 import { DragItem, useDrag } from "@/contexts/DragContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useVial } from "@/contexts/VialContext";
-import { KeyContent } from "@/types/vial.types";
+import { useKeyboard } from "@/contexts/KeyboardContext";
+import { KeyContent } from "@/types/keyboard.types";
 import { keyService } from "@/services/key.service";
 import { UNIT_SIZE, MATRIX_COLS } from "@/constants/svalboard-layout";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -41,7 +41,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
     const { assignKeycodeTo, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { keyVariant } = useLayoutSettings();
 
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
