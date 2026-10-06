@@ -74,7 +74,7 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS):
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
                 return self.reply(state.snapshot(revision))
             if path.path in ('/', '/index.html'):
-                body = (assets / 'index.html').read_text().replace('<html lang="en">', '<html lang="en" data-keybard-host="true">').encode()
+                body = (assets / 'index.html').read_text(encoding='utf-8').replace('<html lang="en">', '<html lang="en" data-keybard-host="true">').encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Cache-Control', 'no-store')

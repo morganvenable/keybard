@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardInfo } from '@/types/vial.types';
 import type { Preferences } from './core';
 import { appStorage } from '@/utils/app-storage';
+import { PARANOID } from '@/lib/paranoid';
 
 // Keybard Host serves its own copy of Keybard and the host API on this port.
 // Any other copy (keybard.svalboard.com) calls it directly on loopback, which
@@ -31,7 +32,8 @@ export function useHost() {
     const busyRef = useRef(false);
     const local = servedByHost() || !!window.__keybardNativeState;
     const base = local ? '' : HOST_ORIGIN;
-    const [attempt, setAttempt] = useState(() => (local || rememberedRemote() ? 1 : 0));
+    // Keybard Paranoid only talks to the Keybard Host that serves it, never across origins.
+    const [attempt, setAttempt] = useState(() => (local || (!PARANOID && rememberedRemote()) ? 1 : 0));
     const asked = useRef(false);
     useEffect(() => {
         if (!attempt) return;
@@ -81,7 +83,7 @@ export function useHost() {
         return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
     }, [attempt, base, local]);
     /** Connect a hosted Keybard page to a running Keybard Host (user-initiated). */
-    const connect = useCallback(() => { asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
+    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
             const r = await fetch(`${base}/api/host/command`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': token.current }, body: JSON.stringify(value) });

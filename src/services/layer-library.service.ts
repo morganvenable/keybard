@@ -1,4 +1,5 @@
 import { appStorage } from "@/utils/app-storage";
+import compiledLayers from "virtual:bundled-layers";
 /**
  * Layer Library Service
  * Manages local layer database - reading from bundled JSON and writing to localStorage
@@ -52,6 +53,11 @@ export class LayerLibraryService {
      */
     private async fetchBundledLayers(): Promise<void> {
         try {
+            // Keybard Paranoid compiles the library in; it never fetches.
+            if (compiledLayers) {
+                this.bundledLayers = (compiledLayers as LayerDatabase).layers || [];
+                return;
+            }
             const response = await fetch(BUNDLED_LAYERS_PATH);
             if (response.ok) {
                 const data = await response.json() as LayerDatabase;

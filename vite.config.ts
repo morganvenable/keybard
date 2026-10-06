@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import { execSync } from "child_process";
+import { paranoidPlugins, bundledLayersPlugin } from "./build/paranoid";
 
 // Get current git branch for labeling and port assignment.
 // Falls back to env var (set by CI: GitHub Actions detached-HEAD checkouts
@@ -55,11 +56,14 @@ const devPort = getPortForBranch(gitBranch);
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), "VITE_");
+    const paranoid = mode === "paranoid";
     return {
     base: env.VITE_BASE_PATH || "/keybard-ng/",
     plugins: [
         react(),
         tailwindcss(),
+        bundledLayersPlugin(paranoid, path.resolve(__dirname)),
+        ...(paranoid ? paranoidPlugins(path.resolve(__dirname)) : []),
         {
             name: "git-branch-endpoint",
             configureServer(server) {
@@ -78,9 +82,9 @@ export default defineConfig(({ mode }) => {
     ],
     root: "src",
     envDir: path.resolve(__dirname),
-    publicDir: "../public",
+    publicDir: paranoid ? false : "../public",
     build: {
-        outDir: "../dist",
+        outDir: paranoid ? "../dist-paranoid" : "../dist",
         emptyOutDir: true,
     },
     resolve: {

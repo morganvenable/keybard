@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { bundledLayersPlugin } from './build/paranoid';
 
 export default defineConfig({
   root: __dirname,
-  plugins: [react()],
+  plugins: [react(), bundledLayersPlugin(false, __dirname)],
   test: {
     globals: true,
     environment: 'jsdom',

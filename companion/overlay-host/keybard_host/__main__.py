@@ -160,7 +160,7 @@ class OverlayControls(QWidget):
 
 
 class Host(QObject):
-    def __init__(self, app, assets, state, port, remote_origins=()):
+    def __init__(self, app, assets, state, port, remote_origins=(), paranoid=False):
         super().__init__()
         self.app, self.state = app, state
         self.worker = None
@@ -172,7 +172,8 @@ class Host(QObject):
         self.selected = None
         self.bridge = Bridge()
         self.bridge.command.connect(self.command)
-        self.server = make_server(state, assets, self.bridge.command.emit, port, REMOTE_ORIGINS | set(remote_origins))
+        # Paranoid mode trusts no website, only the Keybard this host serves itself.
+        self.server = make_server(state, assets, self.bridge.command.emit, port, set() if paranoid else REMOTE_ORIGINS | set(remote_origins))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f'http://127.0.0.1:{self.server.server_port}/'
         self.surface = Surface(self.server.server_port)
@@ -397,7 +398,11 @@ def main():
     parser.add_argument('--assets', type=Path, default=Path(__file__).resolve().parent.parent / 'web')
     parser.add_argument('--settings', type=Path)
     parser.add_argument('--allow-origin', action='append', default=[], help='extra hosted Keybard origin allowed to use the host API (testing)')
+    parser.add_argument('--paranoid', action='store_true', help='serve Keybard Paranoid and accept no website origins')
     args = parser.parse_args()
+    if args.paranoid:
+        if args.allow_origin: parser.error('--paranoid accepts no extra origins')
+        if args.assets == parser.get_default('assets'): args.assets = args.assets.parent / 'web-paranoid'
     app = QApplication(sys.argv[:1]); app.setApplicationName('Keybard Host'); app.setQuitOnLastWindowClosed(False)
     folder = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
     folder.mkdir(parents=True, exist_ok=True)
@@ -407,7 +412,7 @@ def main():
         QDesktopServices.openUrl(QUrl(f'http://127.0.0.1:{args.port}/')); return
     if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
     state = HostState(args.settings or folder / 'preferences.json')
-    host = Host(app, args.assets, state, args.port, args.allow_origin)
+    host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid)
     if not args.no_open: host.open_controls()
     sys.exit(app.exec())
 

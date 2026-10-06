@@ -74,3 +74,15 @@ class RemoteOriginTests(ServerTests):
             with self.assertRaises(HTTPError) as error: self.get('/api/host/bootstrap', headers)
             self.assertEqual(error.exception.code, 403)
             self.assertIsNone(error.exception.headers['Access-Control-Allow-Origin'])
+
+class Utf8IndexTests(unittest.TestCase):
+    def test_non_ascii_index_is_served_as_utf8(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); (root / 'index.html').write_text('<html lang="en"><body>Svalboard → Keybard é</body></html>', encoding='utf-8')
+            server = make_server(HostState(root / 'prefs.json'), root, lambda c: None)
+            thread = threading.Thread(target=server.serve_forever); thread.start()
+            try:
+                with urlopen(f'http://127.0.0.1:{server.server_port}/') as r: body = r.read().decode('utf-8')
+                self.assertIn('→ Keybard é', body); self.assertIn('data-keybard-host="true"', body)
+            finally:
+                server.shutdown(); server.server_close(); thread.join()

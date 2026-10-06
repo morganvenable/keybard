@@ -9,6 +9,7 @@ import { usbInstance } from "../services/usb.service";
 import { customValueService } from "../services/custom-value.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/vial.types";
+import { PARANOID, userIsLooking } from "../lib/paranoid";
 
 interface VialContextType {
     keyboard: KeyboardInfo | null;
@@ -372,7 +373,9 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const pollLayerState = async () => {
             if (!isActive) return;
-            if (isConnected && keyboard && usbInstance.getDeviceName()) {
+            if (PARANOID && !userIsLooking()) {
+                // Paranoid: don't watch the board while Keybard isn't in front of you.
+            } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
                     const activeLayer = await vialService.getActiveLayerIndex();
                     if (isActive) {

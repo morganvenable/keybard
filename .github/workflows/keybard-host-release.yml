@@ -35,6 +35,7 @@ jobs:
       - run: npm test
       - run: PYTHONPATH=companion/overlay-host python -m unittest discover -s companion/overlay-host/tests -q
       - run: npm run build:svalboard
+      - run: npm run build:paranoid
       - run: python companion/overlay-host/scripts/package.py
       - name: Checksum
         working-directory: dist
@@ -44,6 +45,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: >-
-          gh release create "$RELEASE_TAG" dist/KeybardHost-Windows.zip dist/SHA256SUMS.txt
+          cp dist-paranoid/keybard-paranoid.html dist/ &&
+          (cd dist && sha256sum keybard-paranoid.html >> SHA256SUMS.txt) &&
+          gh release create "$RELEASE_TAG" dist/KeybardHost-Windows.zip dist/keybard-paranoid.html dist/SHA256SUMS.txt
           --verify-tag --draft --prerelease --title "Keybard Host $RELEASE_TAG"
           --notes-file companion/overlay-host/RELEASE-NOTES.md

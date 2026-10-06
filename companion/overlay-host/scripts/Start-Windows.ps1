@@ -1,4 +1,4 @@
-param([switch]$Test, [switch]$SetupOnly)
+param([switch]$Test, [switch]$SetupOnly, [switch]$Paranoid)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -57,7 +57,9 @@ try {
     } else {
         # Always use the native Windows platform, even when launched from WSL.
         $env:QT_QPA_PLATFORM = 'windows'
-        Start-Process -FilePath (Join-Path $runtimeDir 'pythonw.exe') -ArgumentList @('-m', 'keybard_host') -WorkingDirectory $projectDir
+        $hostArgs = @('-m', 'keybard_host')
+        if ($Paranoid) { $hostArgs += '--paranoid' }
+        Start-Process -FilePath (Join-Path $runtimeDir 'pythonw.exe') -ArgumentList $hostArgs -WorkingDirectory $projectDir
         exit 0
     }
     if ($LASTEXITCODE -ne 0) { throw "Keybard Host exited with code $LASTEXITCODE" }

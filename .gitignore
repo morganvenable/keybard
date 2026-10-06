@@ -2,6 +2,7 @@ __pycache__
 attic
 node_modules
 dist
+dist-paranoid
 .DS_Store
 coverage/
 docs/dev-sessions/
