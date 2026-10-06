@@ -1,3 +1,4 @@
+import PendingChangesPopover from "@/components/PendingChangesPopover";
 import EditingTargetStatus from "@/components/EditingTargetStatus";
 import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { LayoutImport } from "@/components/icons/LayoutImport";
@@ -84,7 +85,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
 }) => {
     const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex, loadedFrom } = useKeyboard();
     const editingTarget = `${isConnected ? "Editing keyboard" : "Offline draft"}: ${loadedFrom || keyboard?.name || "Layout"}${isConnected ? "" : ". Export to keep edits."}`;
-    const { undo, undoLabel, commit, getPendingCount, getPendingChanges, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
+    const { undo, undoLabel, commit, getPendingCount, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
     const { updateSetting } = useSettings();
     const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
     const { activePanel, setActivePanel, setOpen, setItemToEdit, setPanelToGoBack } = usePanels();
@@ -410,14 +411,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             <button disabled={isSaving} onClick={() => void commit()} className="underline font-semibold">Retry</button>
                                         </div>
                                     )}
-                                    {getPendingCount() > 0 && (
-                                        <details className="relative text-xs">
-                                            <summary className="cursor-pointer">Pending ({getPendingCount()})</summary>
-                                            <ul className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded border bg-kb-surface p-3 shadow-lg">
-                                                {getPendingChanges().map(change => <li key={change.writeKey || change.desc} className="py-1">{change.desc}</li>)}
-                                            </ul>
-                                        </details>
-                                    )}
+                                    <PendingChangesPopover />
                                     {/* Mode Switch Button (Zap) - Only show when NOT live updating (to switch TO live) */}
                                     {!liveUpdating && (
                                         <Tooltip>
