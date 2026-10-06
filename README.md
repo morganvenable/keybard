@@ -5,6 +5,10 @@
 
 A modern Vite-based keyboard configuration UI built with React and TypeScript.
 
+## User manual
+
+The [illustrated launch manual](docs/manual/README.md) walks through connecting, editing, layers, behaviors, backups and Trainer. It includes a standalone HTML page and a printable PDF; see its README for local viewing and the review record.
+
 ## Quick Start
 
 ```bash

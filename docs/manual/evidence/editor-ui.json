@@ -1,0 +1,38 @@
+{
+  "macros": {
+    "text": "0\nMacro Key 0\nText\nKey Tap\nKey Down\nKey Up\nText\nDelay",
+    "inputs": [
+      {
+        "type": "textarea",
+        "placeholder": "",
+        "aria": null
+      }
+    ]
+  },
+  "tap-dance": {
+    "text": "0\nEnabled\nON\nOFF\nTap Dance Key 0\nTap\nHold\nTap-Hold\nDouble-Tap\nMilliseconds",
+    "inputs": [
+      {
+        "type": "number",
+        "placeholder": "Tap MS",
+        "aria": null
+      }
+    ]
+  },
+  "combos": {
+    "text": "0\nON\nOFF\nCombo 0\nOutput\nSet 2-4 keys to press simultaneously to get the output key.",
+    "inputs": []
+  },
+  "overrides": {
+    "text": "0\nON\nOFF\nOverride 0\nTrigger\nReplacement\nTRIGGER\nNEGATIVE\nSUSPENDED\nModifiers\nNONE\nSHIFT\nL\nR\nCTRL\nL\nR\nALT\nL\nR\nGUI\nL\nR\nLayers\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\nActive on trigger down\nON\nOFF\nActive on mod down\nON\nOFF\nActive on negative mod down\nON\nOFF\nActive trigger mod activates\nON\nOFF\nReregister trigger on deactivate\nON\nOFF\nNo unregister on other key down\nON\nOFF",
+    "inputs": []
+  },
+  "leaders": {
+    "text": "0\nON\nOFF\nLeader Sequence 0\nSequence (up to 5 keys)\n1\nOutput\nPress the Leader key, then type this sequence to trigger the output keycode.",
+    "inputs": []
+  },
+  "alt-repeat": {
+    "text": "0\nON\nOFF\nAlt-Repeat Key 0\nTrigger\nAlternate\nOptions\nDefault to alternate\nUse alternate key as default output\nON\nOFF\nBidirectional\nMapping works both ways\nON\nOFF\nIgnore mod handedness\nIgnore left/right modifier distinction\nON\nOFF",
+    "inputs": []
+  }
+}
