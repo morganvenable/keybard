@@ -15,7 +15,7 @@ export default defineConfig({
       include: [
         'src/services/utils.ts',
         'src/services/key.service.ts',
-        'src/services/vial.service.ts',
+        'src/services/keyboard.service.ts',
         'src/services/qmk.service.ts'
       ],
       thresholds: {

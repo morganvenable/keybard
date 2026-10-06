@@ -1,8 +1,8 @@
-import { VialUSB, usbInstance } from "./usb.service";
+import { SvilUSB, usbInstance } from "./usb.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 
 // Svalboard-specific protocol service
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 
 export class SvalService {
     private static readonly SVAL_IDENTIFIER = 0xee;
@@ -11,9 +11,9 @@ export class SvalService {
     private static readonly LAYER_COLOR_GET = 0x10;
     private static readonly LAYER_COLOR_SET = 0x11;
 
-    private usb: VialUSB;
+    private usb: SvilUSB;
 
-    constructor(usb: VialUSB) {
+    constructor(usb: SvilUSB) {
         this.usb = usb;
     }
 

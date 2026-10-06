@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
 
-import { useVial, listPermittedDevices } from "@/contexts/VialContext";
+import { useKeyboard, listPermittedDevices } from "@/contexts/KeyboardContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
-    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError } = useVial();
+    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError } = useKeyboard();
     const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);

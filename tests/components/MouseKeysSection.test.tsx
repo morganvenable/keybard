@@ -7,7 +7,7 @@ import MouseKeysSection from '../../src/layout/SecondarySidebar/Panels/MouseKeys
 const layoutSettings = { keyVariant: 'default' as 'small' | 'medium' | 'default', layoutMode: 'sidebar' };
 
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: null }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: null }) }));
 vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
 vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: vi.fn() }) }));
 vi.mock('@/components/Key', () => ({

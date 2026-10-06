@@ -1,5 +1,5 @@
-import type { CustomValueEntry, KeyboardInfo } from "../types/vial.types";
-import { ComboOptions } from "../types/vial.types";
+import type { CustomValueEntry, KeyboardInfo } from "../types/keyboard.types";
+import { ComboOptions } from "../types/keyboard.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";

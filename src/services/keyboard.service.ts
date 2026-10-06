@@ -5,7 +5,7 @@ import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus,
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
-import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/vial.types";
+import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyboard.types";
 
 // Svil feature flags (from protocol info response)
 // CAPS_WORD = 0x01, LAYER_LOCK = 0x02 - not currently used
@@ -69,14 +69,14 @@ async function decompress(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
- * SvilService - Keyboard configuration service using the Svil protocol
+ * KeyboardService - Keyboard configuration service using the Svil protocol
  *
  * The Svil protocol extends VIA3 with additional features:
  * - Alt Repeat Key, Leader sequences, One-shot settings
  * - Client ID wrapper for multi-client concurrent access
  * - Dynamic keyboard definitions with custom UI menus
  */
-export class SvilService {
+export class KeyboardService {
     private usb: SvilUSB;
     private macro: MacroService;
     private tapdance: TapdanceService;
@@ -623,9 +623,4 @@ export class SvilService {
     }
 }
 
-// Export with both names for backward compatibility
-export const svilService = new SvilService(usbInstance);
-export const vialService = svilService; // Alias for backward compatibility
-
-// Also export the class with old name
-export { SvilService as VialService };
+export const keyboardService = new KeyboardService(usbInstance);

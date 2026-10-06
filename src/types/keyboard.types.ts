@@ -1,10 +1,10 @@
 // Type definitions for Svil keyboard configuration system
-// (Migrated from Vial protocol to Svil protocol)
+// Keyboard configuration and Sval protocol data.
 
 export interface KeyboardInfo {
     via_proto?: number;
     svil_proto?: number;  // Svil protocol version
-    vial_proto?: number;    // Legacy, kept for compatibility
+    vial_proto?: number;    // Present only on imported legacy .vil files; used to require migration.
     kbid?: string;
     name?: string;          // Keyboard name from definition
     payload?: KeyboardPayload;
@@ -171,7 +171,7 @@ export interface USBSendOptions {
     validateInput?: (data: Uint8Array) => boolean;
 }
 
-export interface VialAPI {
+export interface KeyboardAPI {
     what: string;
     updateKey(layer: number, row: number, col: number, keymask: number): Promise<void>;
     updateMacros(kbinfo: KeyboardInfo): Promise<void>;
@@ -194,7 +194,7 @@ export interface KeyContent {
 }
 
 // ============================================================================
-// Svil Protocol Types (new features not in Vial)
+// Sval protocol types
 // ============================================================================
 
 /**
@@ -258,9 +258,9 @@ export const SvilFeatureFlags = {
 } as const;
 
 /**
- * Svil API interface (extends VialAPI for new features)
+ * Svil API interface (extends KeyboardAPI for new features)
  */
-export interface SvilAPI extends VialAPI {
+export interface SvilAPI extends KeyboardAPI {
     updateAltRepeatKey(kbinfo: KeyboardInfo, arkid: number): Promise<void>;
     updateLeader(kbinfo: KeyboardInfo, ldrid: number): Promise<void>;
     updateOneShot(kbinfo: KeyboardInfo): Promise<void>;

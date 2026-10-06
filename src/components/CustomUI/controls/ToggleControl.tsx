@@ -1,5 +1,5 @@
 import OnOffToggle from "@/components/ui/OnOffToggle";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
 
 interface ToggleControlProps {

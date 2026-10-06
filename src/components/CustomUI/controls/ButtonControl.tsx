@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
 
 interface ButtonControlProps {

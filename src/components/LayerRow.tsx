@@ -29,7 +29,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { colorClasses } from "@/utils/colors";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useDrag } from "@/contexts/DragContext";
@@ -60,7 +60,7 @@ export const LayerRow: FC<LayerRowProps> = ({
     searchQuery = "",
     compact = false,
 }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { startDrag, isDragging } = useDrag();
     const { copyLayer } = useLayoutLibrary();
     const { keyVariant } = useLayoutSettings();

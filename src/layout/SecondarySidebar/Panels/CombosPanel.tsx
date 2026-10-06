@@ -11,18 +11,18 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { qmkService } from "@/services/qmk.service";
-import { vialService } from "@/services/vial.service";
+import { keyboardService } from "@/services/keyboard.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
-import { KeyContent, ComboOptions } from "@/types/vial.types";
+import { KeyContent, ComboOptions } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const CombosPanel: React.FC = () => {
-    const { keyboard, isConnected, setKeyboard } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useKeyboard();
     const { queue } = useChanges();
     const persistBinding = useBindingChanges();
     const { assignKeycode } = useKeyBinding();
@@ -85,7 +85,7 @@ const CombosPanel: React.FC = () => {
             setKeyboard(updated);
             await queue(`QMK setting ${COMBO_TIMEOUT_QSID}`, async () => {
                 await qmkService.push(updated, COMBO_TIMEOUT_QSID);
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, { writeKey: `qmk:${COMBO_TIMEOUT_QSID}` });
         } catch (err) {
             console.error("Failed to update combo timeout:", err);
@@ -175,7 +175,7 @@ const CombosPanel: React.FC = () => {
         return (
             <div className="flex flex-row flex-wrap content-start gap-3 items-start pt-2">
                 {combos.map((comboEntry, i) => {
-                    const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
+                    const combo = comboEntry as any as import("@/types/keyboard.types").ComboEntry;
 
                     const inputs = [0, 1, 2, 3].map(idx => ({
                         content: getKeyContents(keyboard, combo.keys[idx] || "KC_NO") as KeyContent,
@@ -276,7 +276,7 @@ const CombosPanel: React.FC = () => {
                     </div>
                 )}
                 {combos.map((comboEntry, i) => {
-                    const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
+                    const combo = comboEntry as any as import("@/types/keyboard.types").ComboEntry;
 
                     const inputs = [0, 1, 2, 3].map(idx => ({
                         content: getKeyContents(keyboard, combo.keys[idx] || "KC_NO") as KeyContent,

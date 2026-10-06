@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { PrintableKeymap } from './PrintableKeymap';
 import type { PrintableLayer } from '@/services/print.service';
-import type { KeyboardInfo } from '@/types/vial.types';
+import type { KeyboardInfo } from '@/types/keyboard.types';
 
 interface PrintEventDetail {
   keyboard: KeyboardInfo;

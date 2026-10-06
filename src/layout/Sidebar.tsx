@@ -23,7 +23,7 @@ import {
     useSidebar
 } from "@/components/ui/sidebar";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 
 // --- Constants ---
@@ -159,7 +159,7 @@ const AppSidebar = () => {
         setOpen,
     } = usePanels();
 
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
 
 
 

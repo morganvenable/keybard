@@ -13,7 +13,7 @@ import { BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
 
 
 
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 import LayerSelector from "./LayerSelector";
 import KeyboardViewInstance from "./KeyboardViewInstance";
@@ -77,7 +77,7 @@ const EditorLayoutInner = () => {
         selectedLayer: number;
     };
 
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
     const {
@@ -1494,7 +1494,7 @@ const EditorLayoutInner = () => {
                         <div className="text-sm space-y-1">
                             {(() => {
                                 const { hoveredKey, selectedTarget } = useKeyBinding();
-                                const { keyboard } = useVial();
+                                const { keyboard } = useKeyboard();
                                 const target = hoveredKey || selectedTarget;
 
                                 if (!target) {

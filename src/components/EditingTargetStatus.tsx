@@ -1,8 +1,8 @@
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 
 /** Announce target changes without reserving a row in the editor. */
 export default function EditingTargetStatus() {
-    const { keyboard, isConnected, loadedFrom, connectionState, connectionError, isChangingTarget } = useVial();
+    const { keyboard, isConnected, loadedFrom, connectionState, connectionError, isChangingTarget } = useKeyboard();
     if (!keyboard) return null;
     return (
         <>

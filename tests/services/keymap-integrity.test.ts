@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { fileService, FileService } from '../../src/services/file.service';
 import { keyService } from '../../src/services/key.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import {
     generateComplexKeymap,
     assertKeymapsEqual,

@@ -16,7 +16,7 @@ import {
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
-import { LeaderOptions, AltRepeatKeyOptions, ComboOptions } from "@/types/vial.types";
+import { LeaderOptions, AltRepeatKeyOptions, ComboOptions } from "@/types/keyboard.types";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { Input } from "@/components/ui/input";
 import AltRepeatEditor from "./AltRepeatEditor";
@@ -26,10 +26,10 @@ import MacroEditor from "./MacroEditor";
 import OverrideEditor from "./OverrideEditor";
 import TapdanceEditor from "./TapdanceEditor";
 import { useBindingNames } from "@/hooks/useBindingNames";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 
 interface Props {
     shouldClose?: boolean;
@@ -114,7 +114,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         }
     }, [handleCloseEditor, isClosing]);
 
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { renameBinding, nameError } = useBindingNames();
     const [isEditingTitle, setIsEditingTitle] = useState(false);

@@ -2,7 +2,7 @@ import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 
 import { useState } from "react";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Modifier, modifierOptions, applyModifiers } from "@/utils/modifierUtils";
 import { getKeyContents } from "@/utils/keys";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 
 interface Props {
     compact?: boolean;
@@ -19,7 +19,7 @@ interface Props {
 
 const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     const { assignKeycode } = useKeyBinding();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant } = useLayoutSettings();
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);

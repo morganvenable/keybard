@@ -3,7 +3,7 @@
  * Includes ALL keycodes organized by category
  */
 
-import { KeyboardInfo, KeyContent } from "@/types/vial.types";
+import { KeyboardInfo, KeyContent } from "@/types/keyboard.types";
 import { getKeyContents } from "@/utils/keys";
 
 /**

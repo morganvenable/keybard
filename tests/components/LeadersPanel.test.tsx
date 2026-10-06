@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LeadersPanel from '../../src/layout/SecondarySidebar/Panels/LeadersPanel';
-import { VialProvider, useVial } from '../../src/contexts/VialContext';
+import { KeyboardProvider, useKeyboard } from '../../src/contexts/KeyboardContext';
 import { KeyBindingProvider } from '../../src/contexts/KeyBindingContext';
 import { ChangesProvider } from '../../src/contexts/ChangesContext';
 import { SettingsProvider } from '../../src/contexts/SettingsContext';
@@ -10,8 +10,8 @@ import { PanelsProvider } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
 import { DragProvider } from '../../src/contexts/DragContext';
 import { LayoutSettingsProvider } from '../../src/contexts/LayoutSettingsContext';
-import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
-import { LeaderOptions } from '../../src/types/vial.types';
+import type { KeyboardInfo, LeaderEntry } from '../../src/types/keyboard.types';
+import { LeaderOptions } from '../../src/types/keyboard.types';
 
 // Mock window.matchMedia for SidebarProvider
 beforeAll(() => {
@@ -37,15 +37,15 @@ vi.mock('../../src/services/file.service', () => ({
     },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-    vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+    keyboardService: {
         init: vi.fn(),
         load: vi.fn(),
         updateKey: vi.fn(),
         updateLeader: vi.fn().mockResolvedValue(undefined),
         saveSvil: vi.fn().mockResolvedValue(undefined),
     },
-    VialService: {
+    KeyboardService: {
         isWebHIDSupported: vi.fn(() => true),
     },
 }));
@@ -92,7 +92,7 @@ const createKeyboardWithLeaders = (): KeyboardInfo => ({
     cols: 12,
     layers: 2,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_leaders_kb',
     keymap: [
         Array(4 * 12).fill('KC_NO'),
@@ -108,7 +108,7 @@ const createKeyboardWithoutLeaders = (): KeyboardInfo => ({
     cols: 12,
     layers: 2,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_no_leaders_kb',
     keymap: [
         Array(4 * 12).fill('KC_NO'),
@@ -124,7 +124,7 @@ const TestWrapper = ({ keyboard, children }: { keyboard: KeyboardInfo | null, ch
         <SettingsProvider>
             <LayoutSettingsProvider>
                 <ChangesProvider>
-                    <VialProvider>
+                    <KeyboardProvider>
                         <LayerProvider>
                             <SidebarProvider>
                                 <PanelsProvider>
@@ -138,7 +138,7 @@ const TestWrapper = ({ keyboard, children }: { keyboard: KeyboardInfo | null, ch
                                 </PanelsProvider>
                             </SidebarProvider>
                         </LayerProvider>
-                    </VialProvider>
+                    </KeyboardProvider>
                 </ChangesProvider>
             </LayoutSettingsProvider>
         </SettingsProvider>
@@ -147,7 +147,7 @@ const TestWrapper = ({ keyboard, children }: { keyboard: KeyboardInfo | null, ch
 
 // Helper component to set keyboard in context
 const KeyboardSetter = ({ keyboard, children }: { keyboard: KeyboardInfo | null, children: React.ReactNode }) => {
-    const { setKeyboard } = useVial();
+    const { setKeyboard } = useKeyboard();
 
     // Set keyboard on mount
     React.useEffect(() => {

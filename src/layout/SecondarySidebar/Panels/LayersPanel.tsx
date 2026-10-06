@@ -7,10 +7,10 @@ import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { CODEMAP } from "@/constants/keygen";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
@@ -54,7 +54,7 @@ interface Props {
 const LayersPanel = ({ isPicker }: Props) => {
     const { renameLayer, nameError } = useLayerNames();
     const [activeModifier, setActiveModifier] = useState<LayerModifier>("MO");
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const { assignKeycode, selectedTarget } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();

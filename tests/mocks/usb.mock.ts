@@ -88,11 +88,6 @@ class MockUSBInstance implements Partial<SvilUSB> {
     return this.responseData;
   }
 
-  async sendVial(cmd: number, args: number[], options?: any): Promise<any> {
-    // Vial commands are sent with 0xFE prefix
-    return this.send(0xFE, [cmd, ...args], options);
-  }
-
   async sendSvil(cmd: number, args: number[], options?: any): Promise<any> {
     // Svil commands are sent with 0xDF prefix (wrapped in 0xDD client wrapper)
     // For testing, we simulate the response without the actual wrapper
@@ -242,14 +237,6 @@ export function createMockUSB(): { mock: SvilUSB; control: MockUSBControl } {
 
 // Helper functions for common USB responses
 export const USBResponses = {
-  // Vial protocol version response
-  vialVersion: (version = 0x06): Uint8Array => {
-    const response = new Uint8Array(32);
-    response[0] = 0xFE; // Vial command response
-    response[1] = version;
-    return response;
-  },
-
   // Via protocol version response
   viaVersion: (version = 0x0C): Uint8Array => {
     const response = new Uint8Array(32);
@@ -343,27 +330,10 @@ export function createRealisticKeyboardMock(): { mock: SvilUSB; control: MockUSB
   // Set up realistic responses based on command
   control.setResponseData((cmd: Uint8Array) => {
     const command = cmd[0];
-    const subCommand = cmd[1];
 
     // Via protocol commands
     if (command === 0x01) {
       return USBResponses.viaVersion();
-    }
-
-    // Vial protocol commands
-    if (command === 0xFE) {
-      switch (subCommand) {
-        case 0x00: // Get vial version
-          return USBResponses.vialVersion();
-        case 0x02: // Get keyboard ID
-          return USBResponses.keyboardId('svalboard_v1');
-        case 0x03: // Get matrix size
-          return USBResponses.matrixSize(5, 14);
-        case 0x11: // Get layer count
-          return USBResponses.layerCount(4);
-        default:
-          return USBResponses.success();
-      }
     }
 
     // Keymap commands

@@ -6,7 +6,7 @@ import { LayerNameBadge } from '../../src/components/LayerNameBadge';
 
 const { renameLayer, setKeyboard } = vi.hoisted(() => ({ renameLayer: vi.fn(), setKeyboard: vi.fn() }));
 vi.mock('@/hooks/useLayerNames', () => ({ useLayerNames: () => ({ renameLayer, nameError: null }) }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: { layers: 1, keymap: [[0]], cosmetic: { layer: { 0: 'Alpha' } } }, setKeyboard, isConnected: false }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: { layers: 1, keymap: [[0]], cosmetic: { layer: { 0: 'Alpha' } } }, setKeyboard, isConnected: false }) }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ queue: vi.fn() }) }));
 vi.mock('@/contexts/LayoutLibraryContext', () => ({ useLayoutLibrary: () => ({ copyLayer: vi.fn() }) }));
 vi.mock('@/services/sval.service', () => ({ svalService: { getLayerName: () => 'Alpha' } }));

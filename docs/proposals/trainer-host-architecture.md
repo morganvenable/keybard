@@ -18,7 +18,7 @@ Keep the existing Sval Trainer available and unchanged throughout migration. The
 - `src/layout/Sidebar.tsx`, `SecondarySidebar/SecondarySidebar.tsx`, and `contexts/PanelsContext.tsx`: existing workspace/panel entry points.
 - `src/components/Keyboard.tsx`, `Key.tsx`, and `layout/KeyboardViewInstance.tsx`: useful geometry/label/rendering concepts, but tied to editor selection, assignment, pending changes, and context menus.
 - `src/services/fragment-composer.service.ts`, `utils/layers.ts`, and `constants/svalboard-layout.ts`: candidates for extracting pure layout/legend utilities.
-- `src/services/usb.service.ts`: `SvilUSB` directly owns a browser `HIDDevice`, wrapper/session handling, and a request queue. `VialContext` currently polls layer state approximately every 120 ms and exposes an active layer index. That index is insufficient for trainer resolution.
+- `src/services/usb.service.ts`: `SvilUSB` directly owns a browser `HIDDevice`, wrapper/session handling, and a request queue. `KeyboardContext` currently polls layer state approximately every 120 ms and exposes an active layer index. That index is insufficient for trainer resolution.
 - Sval Trainer `7bfef64`: reference for full default masks, device identity, stale handling, keymap reads, appearance, held keys, and DPI recovery.
 - Separate, unmerged context-companion worktree at `12bc55f`: Python Windows foreground adapter, context-layer engine, authenticated browser-extension bridge, and a native settings UI. This is a related migration candidate, not a dependency or assumed part of main.
 
@@ -95,7 +95,7 @@ Maintain three distinct objects:
 - **Editor draft:** pending changes currently being edited in Keybard.
 - **Trainer configuration:** appearance, feedback, practice options, selected board, manual legacy default mask, schema version.
 
-The live trainer reads the board snapshot. It never consumes an editor draft merely because that object is currently in `VialContext`. After a successful edit transaction, invalidate the affected applied data and read it back before labeling the updated snapshot verified. A partial write invalidates affected data as well. Offer explicit draft preview inside the web workspace, visibly distinguished from the live overlay.
+The live trainer reads the board snapshot. It never consumes an editor draft merely because that object is currently in `KeyboardContext`. After a successful edit transaction, invalidate the affected applied data and read it back before labeling the updated snapshot verified. A partial write invalidates affected data as well. Offer explicit draft preview inside the web workspace, visibly distinguished from the live overlay.
 
 External editors may not emit a change event. Offer Reload and define a bounded reconciliation strategy: use a firmware keymap revision if available; otherwise perform scheduled read-only verification when idle. Do not claim immediate detection without such a signal. A host cache allows fast startup but remains a cached preview until board identity and layout have been revalidated.
 

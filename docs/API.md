@@ -2,9 +2,9 @@
 
 ## Service APIs
 
-### VialService
+### KeyboardService
 
-Primary service for Vial protocol operations.
+Primary service for Sval protocol operations.
 
 #### Methods
 
@@ -18,7 +18,7 @@ Loads complete keyboard configuration from connected device.
 
 **Example:**
 ```typescript
-const info = await vialService.load(initialInfo);
+const info = await keyboardService.load(initialInfo);
 ```
 
 ---
@@ -28,7 +28,7 @@ Retrieves and decompresses keyboard layout definition.
 
 **Returns:** Promise resolving to keyboard payload with layout structure
 
-**Protocol:** Uses VIA commands 0x01 (protocol version) and Vial 0xFE00 (keyboard info)
+**Protocol:** Uses VIA commands 0x01 (protocol version) and Sval GET_INFO (keyboard info)
 
 ---
 
@@ -53,7 +53,7 @@ Updates a single key mapping on the keyboard.
 
 **Example:**
 ```typescript
-await vialService.updateKey(0, 1, 2, 0x0004); // Set KC_A on layer 0
+await keyboardService.updateKey(0, 1, 2, 0x0004); // Set KC_A on layer 0
 ```
 
 ---
@@ -195,7 +195,7 @@ Parses key descriptor for UI rendering.
 
 ---
 
-### VialUSB
+### SvilUSB
 
 Low-level USB communication service.
 
@@ -249,14 +249,14 @@ Closes USB connection and cleans up resources.
 
 ## React Context API
 
-### VialContext
+### KeyboardContext
 
 Central state management for keyboard operations.
 
 #### Hook Usage
 
 ```typescript
-import { useVial } from './contexts/VialContext';
+import { useKeyboard } from './contexts/KeyboardContext';
 
 function MyComponent() {
   const {
@@ -268,14 +268,14 @@ function MyComponent() {
     disconnect,      // Disconnect function
     loadKeyboard,    // Load keyboard data
     updateKey        // Update key mapping
-  } = useVial();
+  } = useKeyboard();
 }
 ```
 
 #### Context Shape
 
 ```typescript
-interface VialContextType {
+interface KeyboardContextType {
   keyboard: KeyboardInfo | null;
   isConnected: boolean;
   isLoading: boolean;
@@ -344,10 +344,8 @@ const CMD_VIA_SET_KEYBOARD_VALUE = 0x03;
 const CMD_VIA_GET_KEYCODE = 0x04;
 const CMD_VIA_SET_KEYCODE = 0x05;
 
-// Vial Commands (via 0xFE prefix)
-const CMD_VIAL_PREFIX = 0xFE;
-const CMD_VIAL_GET_SIZE = 0xFE0B;
-const CMD_VIAL_GET_DEFINITION = 0xFE0C;
+// Sval commands use 0xDF inside the 0xDD client-ID wrapper.
+// See src/services/usb.service.ts for the authoritative command registry.
 
 // QMK Commands
 const CMD_VIA_QMK_PREFIX = 0x00;
@@ -393,7 +391,7 @@ await connect();
 await loadKeyboard();
 
 // 3. Access keyboard data
-const { keyboard } = useVial();
+const { keyboard } = useKeyboard();
 console.log(keyboard.payload.name);
 console.log(keyboard.matrix[0][0][0]); // Layer 0, row 0, col 0
 
@@ -425,5 +423,5 @@ keyService.define("MY_MACRO", "USER00");
 
 // Use in keymap
 const keycode = keyService.parse("MY_MACRO");
-await vialService.updateKey(0, 1, 1, keycode);
+await keyboardService.updateKey(0, 1, 1, keycode);
 ```

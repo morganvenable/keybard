@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { VialProvider, useVial } from '../../src/contexts/VialContext';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import { KeyboardProvider, useKeyboard } from '../../src/contexts/KeyboardContext';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 // Mock the services
 vi.mock('../../src/services/file.service', () => ({
@@ -10,14 +10,14 @@ vi.mock('../../src/services/file.service', () => ({
   },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-  vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+  keyboardService: {
     init: vi.fn(),
     load: vi.fn(),
     updateKey: vi.fn(),
     getActiveLayerIndex: vi.fn().mockResolvedValue(0),
   },
-  VialService: {
+  KeyboardService: {
     isWebHIDSupported: vi.fn(() => true),
   },
 }));
@@ -39,28 +39,28 @@ vi.mock('../../src/services/usb.service', () => ({
 
 import { fileService } from '../../src/services/file.service';
 import { usbInstance } from '../../src/services/usb.service';
-import { VialService, vialService } from '../../src/services/vial.service';
+import { KeyboardService, keyboardService } from '../../src/services/keyboard.service';
 
-describe('VialContext - File Loading', () => {
+describe('KeyboardContext - File Loading', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <VialProvider>{children}</VialProvider>
+    <KeyboardProvider>{children}</KeyboardProvider>
   );
 
   it('uses the real USB connection even on a host-served page', async () => {
     document.documentElement.dataset.keybardHost = 'true';
     vi.mocked(usbInstance.open).mockResolvedValue(true);
-    vi.mocked(vialService.init).mockResolvedValue(undefined);
-    vi.mocked(vialService.load).mockResolvedValue({ rows: 10, cols: 6, keymap: [Array(60).fill(4)] });
-    const { result } = renderHook(() => useVial(), { wrapper });
+    vi.mocked(keyboardService.init).mockResolvedValue(undefined);
+    vi.mocked(keyboardService.load).mockResolvedValue({ rows: 10, cols: 6, keymap: [Array(60).fill(4)] });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     try {
       await act(async () => { await result.current.connect(); });
       expect(usbInstance.open).toHaveBeenCalledTimes(1);
       expect(result.current.isConnected).toBe(true);
-      expect(vialService.load).toHaveBeenCalled();
+      expect(keyboardService.load).toHaveBeenCalled();
     } finally { delete document.documentElement.dataset.keybardHost; }
   });
 
@@ -73,7 +73,7 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(fileService.loadFile).mockResolvedValue(mockKeyboardInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     const mockFile = new File(['{}'], 'test.kbi', { type: 'application/json' });
 
@@ -93,7 +93,7 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(fileService.loadFile).mockResolvedValue(mockKeyboardInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     const mockFile = new File(['{}'], 'my-keyboard.kbi', { type: 'application/json' });
 
@@ -112,7 +112,7 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(fileService.loadFile).mockResolvedValue(mockKeyboardInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     const mockFile = new File(['{}'], 'test.kbi', { type: 'application/json' });
 
@@ -126,7 +126,7 @@ describe('VialContext - File Loading', () => {
   it('loadFromFile throws error for invalid file', async () => {
     vi.mocked(fileService.loadFile).mockRejectedValue(new Error('Invalid file'));
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     const mockFile = new File(['{}'], 'invalid.kbi', { type: 'application/json' });
 
@@ -146,7 +146,7 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(fileService.loadFile).mockResolvedValue(mockFileInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     const mockFile = new File(['{}'], 'test.kbi', { type: 'application/json' });
 
@@ -165,8 +165,8 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(usbInstance.open).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
-    vi.mocked(vialService.init).mockResolvedValue(undefined);
-    vi.mocked(vialService.load).mockResolvedValue(mockDeviceInfo);
+    vi.mocked(keyboardService.init).mockResolvedValue(undefined);
+    vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
 
     await act(async () => {
       await result.current.connect();
@@ -189,10 +189,10 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(usbInstance.open).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
-    vi.mocked(vialService.init).mockResolvedValue(undefined);
-    vi.mocked(vialService.load).mockResolvedValue(mockDeviceInfo);
+    vi.mocked(keyboardService.init).mockResolvedValue(undefined);
+    vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     await act(async () => {
       await result.current.connect();
@@ -231,10 +231,10 @@ describe('VialContext - File Loading', () => {
 
     vi.mocked(usbInstance.open).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
-    vi.mocked(vialService.init).mockResolvedValue(undefined);
-    vi.mocked(vialService.load).mockResolvedValue(mockDeviceInfo);
+    vi.mocked(keyboardService.init).mockResolvedValue(undefined);
+    vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
 
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
 
     await act(async () => {
       await result.current.connect();
@@ -257,7 +257,7 @@ describe('VialContext - File Loading', () => {
   it('does not borrow capabilities from a previously loaded target and closes USB', async () => {
     vi.mocked(fileService.loadFile).mockResolvedValueOnce({rows: 1, cols: 1, name: 'old', macros_size: 999})
       .mockResolvedValueOnce({rows: 2, cols: 2});
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'old.svil')); });
     const firstSession = result.current.connectionSessionId;
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'new.svil')); });
@@ -270,7 +270,7 @@ describe('VialContext - File Loading', () => {
   it('preserves a dirty draft when target change is cancelled', async () => {
     vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
     act(() => result.current.setKeyboard(kb => ({...kb!, name: 'edited'})));
     await act(async () => { await result.current.connect(); });
@@ -281,7 +281,7 @@ describe('VialContext - File Loading', () => {
 
   it('normalizes string file failures and preserves current target', async () => {
     vi.mocked(fileService.loadFile).mockRejectedValue('Empty file');
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await expect(result.current.loadFromFile(new File([''], 'empty.svil'))).rejects.toThrow('Empty file');
     expect(usbInstance.close).not.toHaveBeenCalled();
     expect(result.current.connectionSessionId).toBe(0);
@@ -289,7 +289,7 @@ describe('VialContext - File Loading', () => {
 
   it('does not mark unrelated edits saved when acknowledging an earlier snapshot', async () => {
     vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
     const confirmed = result.current.getKeyboardSnapshot()!;
     act(() => result.current.setKeyboard(kb => ({...kb!, name: 'newer edit'})));
@@ -298,30 +298,30 @@ describe('VialContext - File Loading', () => {
   });
 
   it('loads offline files in browsers without WebHID', async () => {
-    vi.mocked(VialService.isWebHIDSupported).mockReturnValue(false);
+    vi.mocked(KeyboardService.isWebHIDSupported).mockReturnValue(false);
     vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'offline.svil')); });
     expect(result.current.keyboard).not.toBeNull();
     expect(usbInstance.close).not.toHaveBeenCalled();
-    vi.mocked(VialService.isWebHIDSupported).mockReturnValue(true);
+    vi.mocked(KeyboardService.isWebHIDSupported).mockReturnValue(true);
   });
 
   it('loads once automatically and exposes failures without a writable connection', async () => {
     vi.mocked(usbInstance.open).mockResolvedValue(true);
-    vi.mocked(vialService.load).mockRejectedValueOnce(new Error('Definition read failed'));
-    const { result } = renderHook(() => useVial(), { wrapper });
+    vi.mocked(keyboardService.load).mockRejectedValueOnce(new Error('Definition read failed'));
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.connect(); });
     await waitFor(() => expect(result.current.connectionState).toBe('error'));
     expect(result.current.connectionError).toBe('Definition read failed');
     expect(result.current.isConnected).toBe(false);
-    expect(vialService.load).toHaveBeenCalledTimes(1);
+    expect(keyboardService.load).toHaveBeenCalledTimes(1);
     expect(usbInstance.close).toHaveBeenCalled();
   });
 
   it('waits for the previous write guard before opening another transport', async () => {
     vi.mocked(usbInstance.open).mockResolvedValue(false);
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     let finish!: (release: (discard?: boolean) => void) => void;
     const release = vi.fn();
     result.current.registerTargetChangeGuard(() => new Promise(resolve => { finish = resolve; }));
@@ -336,7 +336,7 @@ describe('VialContext - File Loading', () => {
   it('discards old queued callbacks only after successfully switching to an offline file', async () => {
     vi.mocked(fileService.loadFile).mockResolvedValue({rows: 1, cols: 1});
     const release = vi.fn();
-    const { result } = renderHook(() => useVial(), { wrapper });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     result.current.registerTargetChangeGuard(async () => release);
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'offline.svil')); });
     expect(release).toHaveBeenCalledWith(true);
@@ -344,8 +344,8 @@ describe('VialContext - File Loading', () => {
 
   it('serializes maintenance with queued writes and preserves pending callbacks', async () => {
     vi.mocked(usbInstance.open).mockResolvedValue(true);
-    vi.mocked(vialService.load).mockResolvedValue({rows: 1, cols: 1});
-    const { result } = renderHook(() => useVial(), { wrapper });
+    vi.mocked(keyboardService.load).mockResolvedValue({rows: 1, cols: 1});
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.connect(); });
     const release = vi.fn();
     let finish!: (release: (discard?: boolean) => void) => void;

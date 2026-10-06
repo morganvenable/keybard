@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 /** Present a rate limit while preserving the firmware's microsecond interval. */
 export function ScanRateControl({ item, value, onChange, compact = false }: {

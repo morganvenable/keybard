@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useVial } from '@/contexts/VialContext';
+import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
 import { useLayoutLibrary } from '@/contexts/LayoutLibraryContext';
 import { svalService } from '@/services/sval.service';
@@ -7,7 +7,7 @@ import { usbInstance } from '@/services/usb.service';
 import { parseLayerClipboard, readLayerClipboard, type LayerClipboardData } from '@/utils/layer-clipboard';
 
 export function useLayerClipboardActions() {
-    const { keyboard, setKeyboard, updateKey, isConnected } = useVial();
+    const { keyboard, setKeyboard, updateKey, isConnected } = useKeyboard();
     const { queue } = useChanges();
     const { copyLayer } = useLayoutLibrary();
     const [clipboardError, setClipboardError] = useState<string | null>(null);

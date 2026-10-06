@@ -81,7 +81,7 @@ cd ../keybard-ng && git worktree remove ../keybard-ng-explore
 
 KeyBard-NG is a React 19 + TypeScript web application for configuring Svil-compatible keyboards (especially Svalboard) via WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.
 
-**Note:** This project is migrating from the Vial protocol to the Svil protocol. The Svil protocol uses a client ID wrapper (`0xDD`) for multi-client concurrent access and adds features like alt-repeat keys, leader sequences, and one-shot settings.
+**Note:** This project uses the Sval protocol. The Svil protocol uses a client ID wrapper (`0xDD`) for multi-client concurrent access and adds features like alt-repeat keys, leader sequences, and one-shot settings.
 
 ## Development Commands
 
@@ -98,13 +98,13 @@ npm run test:ui        # Interactive Vitest UI
 
 ### Layer Structure
 ```
-UI Components → React Contexts → Services → VialUSB → WebHID API → Physical Keyboard
+UI Components → React Contexts → Services → SvilUSB → WebHID API → Physical Keyboard
 ```
 
 ### Key Architectural Patterns
 
 **Context-Based State Management:** Seven specialized contexts handle different domains:
-- `VialContext` - Keyboard state and operations
+- `KeyboardContext` - Keyboard state and operations
 - `KeyBindingContext` - Key selection and editing
 - `ChangesContext` - Change tracking
 - `LayerContext` - Layer management
@@ -113,14 +113,14 @@ UI Components → React Contexts → Services → VialUSB → WebHID API → Phy
 - `LayoutSettingsContext` - Keyboard layout preferences
 
 **Service Layer:** Each feature has a dedicated service class that encapsulates protocol details:
-- `VialService` - Core Vial protocol (keyboard loading, keymap read/write)
-- `VialUSB` - WebHID API abstraction with 32-byte message protocol
+- `KeyboardService` - Sval protocol service (keyboard loading, keymap read/write)
+- `SvilUSB` - WebHID API abstraction with 32-byte message protocol
 - `KeyService` - Keycode parsing and stringification
 - `QMKService` - QMK settings management
 - `SvalService` - Svalboard-specific features
 - `MacroService`, `TapdanceService`, `ComboService`, `OverrideService` - Feature-specific services
 
-**USB Communication:** VialUSB class handles queue-based async operations with command/response protocol.
+**USB Communication:** SvilUSB class handles queue-based async operations with command/response protocol.
 
 ### Import Aliases
 ```typescript
@@ -435,17 +435,17 @@ This section tracks progress toward full feature parity with viable-gui.
 1. **Alt-Repeat Keys Panel** - Create `AltRepeatPanel.tsx`
    - List entries: keycode → alternate keycode
    - Support allowed modifiers and enabled toggle
-   - Wire to `vialService.updateAltRepeatKey()`
+   - Wire to `keyboardService.updateAltRepeatKey()`
 
 2. **Leader Sequences Panel** - Create `LeadersPanel.tsx`
    - List entries: sequence (up to 5 keys) → output keycode
    - Support enabled toggle
-   - Wire to `vialService.updateLeader()`
+   - Wire to `keyboardService.updateLeader()`
 
 3. **One-Shot Settings** - Add to Settings or QMK Settings panel
    - Timeout slider (ms)
    - Tap-toggle count input
-   - Wire to `vialService.updateOneShot()`
+   - Wire to `keyboardService.updateOneShot()`
 
 #### MEDIUM - Fix Live Updating
 4. **Fix Combo live update** - `KeyBindingContext.tsx:223`
@@ -466,11 +466,11 @@ This section tracks progress toward full feature parity with viable-gui.
 ### Key Files Reference
 
 **Service Layer (Backend):**
-- `src/services/vial.service.ts` - Alt-repeat, leader, one-shot methods
+- `src/services/keyboard.service.ts` - Alt-repeat, leader, one-shot methods
 - `src/services/usb.service.ts` - All Svil command IDs defined
 
 **Type Definitions:**
-- `src/types/vial.types.ts` - AltRepeatKeyEntry, LeaderEntry, OneShotSettings
+- `src/types/keyboard.types.ts` - AltRepeatKeyEntry, LeaderEntry, OneShotSettings
 
 **UI Patterns to Follow:**
 - `src/layout/SecondarySidebar/Panels/TapdancePanel.tsx` - List + editor pattern

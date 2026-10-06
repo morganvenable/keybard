@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 interface RangeControlProps {
     item: CustomUIMenuItem;

@@ -17,7 +17,7 @@ import type { LayerEntry } from "@/types/layer-library";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { colorClasses } from "@/utils/colors";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { SVALBOARD_LAYOUT, MATRIX_COLS } from "@/constants/svalboard-layout";
 import { PreviewKey } from "@/components/PreviewKey";
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
@@ -30,7 +30,7 @@ const MiniKeyboardPreview: FC<{
     unitSize?: number;
     className?: string;
 }> = ({ keymap, layerColor = "primary", layerColorStyle, unitSize = 15, className }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const layout = (keyboard?.keylayout && Object.keys(keyboard.keylayout).length > 0)
         ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number; row?: number; col?: number }>
         : SVALBOARD_LAYOUT;

@@ -3,7 +3,7 @@ import { appStorage } from "@/utils/app-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 import { customValueService } from "@/services/custom-value.service";
@@ -67,7 +67,7 @@ const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 10
 const REBOOT_CONFIRM_WINDOW_MS = 20000;
 
 const ScanLabPanel = () => {
-    const { isConnected, connect } = useVial();
+    const { isConnected, connect } = useKeyboard();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
 

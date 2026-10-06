@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { KeyBindingProvider, useKeyBinding } from '../../src/contexts/KeyBindingContext';
-import { VialProvider } from '../../src/contexts/VialContext';
+import { KeyboardProvider } from '../../src/contexts/KeyboardContext';
 import { ChangesProvider } from '../../src/contexts/ChangesContext';
 import { SettingsProvider } from '../../src/contexts/SettingsContext';
-import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
-import { LeaderOptions } from '../../src/types/vial.types';
+import type { KeyboardInfo, LeaderEntry } from '../../src/types/keyboard.types';
+import { LeaderOptions } from '../../src/types/keyboard.types';
 
 // Mock the services
 vi.mock('../../src/services/file.service', () => ({
@@ -14,15 +14,15 @@ vi.mock('../../src/services/file.service', () => ({
     },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-    vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+    keyboardService: {
         init: vi.fn(),
         load: vi.fn(),
         updateKey: vi.fn(),
         updateLeader: vi.fn(),
         saveSvil: vi.fn(),
     },
-    VialService: {
+    KeyboardService: {
         isWebHIDSupported: vi.fn(() => true),
     },
 }));
@@ -69,7 +69,7 @@ const createKeyboardWithLeaders = (): KeyboardInfo => ({
     cols: 12,
     layers: 2,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_leaders_kb',
     keymap: [
         Array(4 * 12).fill('KC_NO'),
@@ -87,9 +87,9 @@ describe('KeyBindingContext - Leader Key Selection', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
         <SettingsProvider>
             <ChangesProvider>
-                <VialProvider>
+                <KeyboardProvider>
                     <KeyBindingProvider>{children}</KeyBindingProvider>
-                </VialProvider>
+                </KeyboardProvider>
             </ChangesProvider>
         </SettingsProvider>
     );
@@ -170,9 +170,9 @@ describe('KeyBindingContext - Leader Key Assignment', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
         <SettingsProvider>
             <ChangesProvider>
-                <VialProvider>
+                <KeyboardProvider>
                     <KeyBindingProvider>{children}</KeyBindingProvider>
-                </VialProvider>
+                </KeyboardProvider>
             </ChangesProvider>
         </SettingsProvider>
     );

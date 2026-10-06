@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
@@ -54,7 +54,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     trailingAction,
 }) => {
     const { renameLayer, nameError } = useLayerNames();
-    const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
+    const { keyboard, setKeyboard, isConnected, updateKey } = useKeyboard();
     const { copy, paste, clipboardError } = useLayerClipboardActions();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);

@@ -6,18 +6,18 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const ENABLED_BIT = 1 << 7;
 
 const OverridesPanel: React.FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();

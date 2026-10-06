@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, renderHook } from '@testing-library/react';
 import { KeyBindingProvider, useKeyBinding } from '../../src/contexts/KeyBindingContext';
 const mocks = vi.hoisted(() => ({setKeyboard: vi.fn(), updateKey: vi.fn(), queue: vi.fn(), enabled: true}));
-vi.mock('@/contexts/VialContext', () => ({useVial: () => ({keyboard: {rows: 1, cols: 1, layers: 1, keymap: [[0]]}, ...mocks})}));
+vi.mock('@/contexts/KeyboardContext', () => ({useKeyboard: () => ({keyboard: {rows: 1, cols: 1, layers: 1, keymap: [[0]]}, ...mocks})}));
 vi.mock('@/contexts/ChangesContext', () => ({useChanges: () => ({queue: mocks.queue})}));
 vi.mock('@/contexts/SettingsContext', () => ({useSettings: () => ({getSetting: (key: string) => key === 'typing-binds-key' ? mocks.enabled : 'none'})}));
 const wrapper = ({children}: {children: React.ReactNode}) => <KeyBindingProvider>{children}</KeyBindingProvider>;

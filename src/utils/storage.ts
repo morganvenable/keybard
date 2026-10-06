@@ -1,5 +1,5 @@
 import { appStorage } from "@/utils/app-storage";
-import { KeyboardInfo } from "@/types/vial.types";
+import { KeyboardInfo } from "@/types/keyboard.types";
 
 const STORAGE_KEY = "keybard_last_file_path";
 

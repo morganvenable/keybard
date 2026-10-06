@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BoardIdentitySection from '../../src/layout/SecondarySidebar/Panels/BoardIdentitySection';
 
-const vial = { isConnected: true, runDeviceMaintenance: vi.fn(async (operation: () => Promise<unknown>) => operation()) };
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => vial }));
+const keyboardContext = { isConnected: true, runDeviceMaintenance: vi.fn(async (operation: () => Promise<unknown>) => operation()) };
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardContext }));
 
 const svc = vi.hoisted(() => ({ getInfo: vi.fn(), setName: vi.fn(), restart: vi.fn() }));
 vi.mock('@/services/identity.service', async (orig) => {

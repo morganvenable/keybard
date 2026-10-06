@@ -27,7 +27,7 @@ Regression checks cover landing content in host mode and Trainer session preserv
 
 ## Connection flow correction
 
-Removed the host snapshot connection adapter: it incorrectly returned success while leaving isConnected false. VialContext, ConnectKeyboard, and MainScreen now match origin/main e7e9f3d exactly. A #trainer URL no longer bypasses the connection screen; it selects the panel only after a layout has loaded. The companion opens the root URL, and Trainer remains an ordinary left-panel option.
+Removed the host snapshot connection adapter: it incorrectly returned success while leaving isConnected false. KeyboardContext, ConnectKeyboard, and MainScreen now match origin/main e7e9f3d exactly. A #trainer URL no longer bypasses the connection screen; it selects the panel only after a layout has loaded. The companion opens the root URL, and Trainer remains an ordinary left-panel option.
 
 The Sval transport already supports concurrent client IDs. On Windows, a second read-only HID client loaded all 16 main-board layers and performed 100 layer queries while the companion remained valid. Queries averaged 3.0 ms, maximum 4.7 ms. This validates concurrent HID clients, not a browser chooser interaction. Regression tests confirm host-served pages use the original USB transport and report isConnected true, and a Trainer hash cannot bypass the landing connection flow. Production build and all 427 web tests pass.
 
@@ -45,7 +45,7 @@ A temporary Windows native surface received 15 synthetic layer transitions, with
 
 ## Production base correction
 
-Merged current production `svalboard/keybard` main `28aa05a`, retaining its Sval v2/v3 support, connection-state handling, current panel layouts, and stationary sidebar icons. VialContext, the protocol service, landing component, and MainScreen match production exactly. Removed the obsolete firmware guard and redirect tests inherited from the old fork. Trainer remains below Layouts with its existing state preservation and native renderer.
+Merged current production `svalboard/keybard` main `28aa05a`, retaining its Sval v2/v3 support, connection-state handling, current panel layouts, and stationary sidebar icons. KeyboardContext, the protocol service, landing component, and MainScreen match production exactly. Removed the obsolete firmware guard and redirect tests inherited from the old fork. Trainer remains below Layouts with its existing state preservation and native renderer.
 
 Production build and all 611 tests pass. Browser validation loaded the example through the standard landing page and exercised all 15 sidebar destinations, returning to Trainer with its practice state retained and no uncaught errors.
 

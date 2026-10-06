@@ -2,7 +2,7 @@ import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { keyService } from "@/services/key.service";
 
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
@@ -14,7 +14,7 @@ interface Props {
 
 const AudioKeys = ({ compact, variant: variantOverride }: Props) => {
     const { assignKeycode } = useKeyBinding();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant } = useLayoutSettings();
 

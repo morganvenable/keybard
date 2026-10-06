@@ -222,7 +222,7 @@ class ProtocolTests(unittest.TestCase):
         class HID:
             def enumerate(self):
                 return [{"usage_page": 0xFF61, "usage": 0x62, "path": b"sval"},
-                        {"usage_page": 0xFF60, "usage": 0x61, "path": b"vial"},
+                        {"usage_page": 0xFF60, "usage": 0x61, "path": b"raw-hid"},
                         {"usage_page": 1, "usage": 6, "path": b"keyboard"},
                         {"usage_page": 1, "usage": 2, "path": b"pointer"}]
         self.assertEqual([d["path"] for d in candidates(HID())], [b"sval"])

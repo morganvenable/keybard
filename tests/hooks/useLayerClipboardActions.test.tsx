@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLayerClipboardActions } from '../../src/hooks/useLayerClipboardActions';
 const m = vi.hoisted(() => ({keyboard: {} as any, setKeyboard: vi.fn(), updateKey: vi.fn(), queue: vi.fn(), copyLayer: vi.fn(), read: vi.fn(), led: vi.fn()}));
-vi.mock('@/contexts/VialContext', () => ({useVial: () => ({...m, isConnected: true})}));
+vi.mock('@/contexts/KeyboardContext', () => ({useKeyboard: () => ({...m, isConnected: true})}));
 vi.mock('@/contexts/ChangesContext', () => ({useChanges: () => ({queue: m.queue})}));
 vi.mock('@/contexts/LayoutLibraryContext', () => ({useLayoutLibrary: () => ({copyLayer: m.copyLayer})}));
 vi.mock('@/utils/layer-clipboard', async original => ({...await original(), readLayerClipboard: m.read}));

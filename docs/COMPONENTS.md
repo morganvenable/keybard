@@ -8,7 +8,7 @@ React components that make up the KeyBard-NG user interface, organized by respon
 
 ```
 App
-└── VialProvider
+└── KeyboardProvider
     └── KeyboardConnector
         ├── Connection UI
         ├── Keyboard
@@ -25,7 +25,7 @@ App
 Root component that sets up the application context.
 
 **Responsibilities:**
-- Wraps application with VialProvider
+- Wraps application with KeyboardProvider
 - Provides global error boundaries
 - Sets up theme and styling
 
@@ -33,18 +33,18 @@ Root component that sets up the application context.
 ```tsx
 function App() {
   return (
-    <VialProvider>
+    <KeyboardProvider>
       <KeyboardConnector />
-    </VialProvider>
+    </KeyboardProvider>
   );
 }
 ```
 
 ---
 
-### VialProvider
+### KeyboardProvider
 
-**Location:** `src/contexts/VialContext.tsx`
+**Location:** `src/contexts/KeyboardContext.tsx`
 
 Context provider for keyboard state and operations.
 
@@ -60,9 +60,9 @@ Context provider for keyboard state and operations.
 
 **Usage:**
 ```tsx
-<VialProvider>
-  {/* Child components can access useVial() hook */}
-</VialProvider>
+<KeyboardProvider>
+  {/* Child components can access useKeyboard() hook */}
+</KeyboardProvider>
 ```
 
 ---
@@ -81,7 +81,7 @@ Main orchestration component for keyboard connection and UI.
 - Conditional rendering of keyboard UI
 
 **State Management:**
-- Uses `useVial()` hook for all keyboard operations
+- Uses `useKeyboard()` hook for all keyboard operations
 - Manages local UI state for user interactions
 
 **Rendered UI:**
@@ -262,11 +262,11 @@ None (uses context)
 
 ### Context Usage
 
-All components access keyboard state via the `useVial` hook:
+All components access keyboard state via the `useKeyboard` hook:
 
 ```typescript
 function MyComponent() {
-  const { keyboard, isConnected, updateKey } = useVial();
+  const { keyboard, isConnected, updateKey } = useKeyboard();
 
   if (!isConnected) {
     return <div>Please connect a keyboard</div>;
@@ -367,9 +367,9 @@ Components adapt to container size:
 describe('Keyboard Component', () => {
   it('renders all keys for selected layer', () => {
     const { getAllByRole } = render(
-      <VialProvider>
+      <KeyboardProvider>
         <Keyboard />
-      </VialProvider>
+      </KeyboardProvider>
     );
 
     const keys = getAllByRole('button');
@@ -389,7 +389,7 @@ describe('Keyboard Component', () => {
 ### Mock Context
 
 ```typescript
-const mockVialContext = {
+const mockKeyboardContext = {
   keyboard: mockKeyboardInfo,
   isConnected: true,
   isLoading: false,
@@ -400,9 +400,9 @@ const mockVialContext = {
   updateKey: jest.fn()
 };
 
-<VialContext.Provider value={mockVialContext}>
+<KeyboardContext.Provider value={mockKeyboardContext}>
   <ComponentUnderTest />
-</VialContext.Provider>
+</KeyboardContext.Provider>
 ```
 
 ## Future Component Enhancements

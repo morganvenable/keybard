@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 import { useId } from "react";
 import { Key } from "./Key";

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { importService, ImportService } from '../../src/services/import.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 import { generateComplexKeymap } from '../utils/keymap-helpers';
 
@@ -14,7 +14,7 @@ describe('ImportService', () => {
     let service: ImportService;
     let mockQueue: ReturnType<typeof vi.fn>;
     let mockServices: {
-        vialService: {
+        keyboardService: {
             saveSvil: ReturnType<typeof vi.fn>;
             updateKey: ReturnType<typeof vi.fn>;
             updateMacros: ReturnType<typeof vi.fn>;
@@ -37,7 +37,7 @@ describe('ImportService', () => {
 
         // Create mock services
         mockServices = {
-            vialService: {
+            keyboardService: {
                 saveSvil: vi.fn().mockResolvedValue(undefined),
                 updateKey: vi.fn().mockResolvedValue(undefined),
                 updateMacros: vi.fn().mockResolvedValue(undefined),
@@ -58,18 +58,18 @@ describe('ImportService', () => {
         const imported = { ...currentKb, keymap: [[5]] };
         const staged: Array<{ cb: () => Promise<void>; key: string }> = [];
         await service.syncWithKeyboard(imported, currentKb, async (_desc, cb, metadata) => { staged.push({ cb, key: metadata?.writeKey ?? '' }); }, mockServices);
-        expect(mockServices.vialService.updateKey).not.toHaveBeenCalled();
-        expect(mockServices.vialService.saveSvil).not.toHaveBeenCalled();
+        expect(mockServices.keyboardService.updateKey).not.toHaveBeenCalled();
+        expect(mockServices.keyboardService.saveSvil).not.toHaveBeenCalled();
         expect(staged.map(write => write.key)).toEqual(['key:0:0:0', 'save-svil']);
         for (const write of staged) await write.cb();
-        expect(mockServices.vialService.saveSvil).toHaveBeenCalledTimes(1);
-        expect(mockServices.vialService.saveSvil.mock.invocationCallOrder[0]).toBeGreaterThan(mockServices.vialService.updateKey.mock.invocationCallOrder[0]);
+        expect(mockServices.keyboardService.saveSvil).toHaveBeenCalledTimes(1);
+        expect(mockServices.keyboardService.saveSvil.mock.invocationCallOrder[0]).toBeGreaterThan(mockServices.keyboardService.updateKey.mock.invocationCallOrder[0]);
     });
 
     it('propagates a refused persistent save so it remains retryable', async () => {
         const currentKb = createTestKeyboardInfo({ rows: 1, cols: 1, layers: 1, keymap: [[4]] });
         const imported = { ...currentKb, keymap: [[5]] };
-        mockServices.vialService.saveSvil.mockRejectedValue(new Error('Flash save failed'));
+        mockServices.keyboardService.saveSvil.mockRejectedValue(new Error('Flash save failed'));
         await expect(service.syncWithKeyboard(imported, currentKb, mockQueue, mockServices)).rejects.toThrow('Flash save failed');
     });
 
@@ -100,8 +100,8 @@ describe('ImportService', () => {
                 );
 
                 // updateKey should be called once
-                expect(mockServices.vialService.updateKey).toHaveBeenCalledTimes(1);
-                expect(mockServices.vialService.updateKey).toHaveBeenCalledWith(0, 0, 0, 0x08);
+                expect(mockServices.keyboardService.updateKey).toHaveBeenCalledTimes(1);
+                expect(mockServices.keyboardService.updateKey).toHaveBeenCalledWith(0, 0, 0, 0x08);
             });
 
             it('uses hardware dimensions for iteration', async () => {
@@ -125,7 +125,7 @@ describe('ImportService', () => {
 
                 // Should only iterate over hardware dimensions (2x2 = 4 keys)
                 // Not the file dimensions (3x3 = 9 keys)
-                const keyUpdateCalls = mockServices.vialService.updateKey.mock.calls;
+                const keyUpdateCalls = mockServices.keyboardService.updateKey.mock.calls;
 
                 // All calls should have row < 2 and col < 2
                 keyUpdateCalls.forEach(call => {
@@ -176,7 +176,7 @@ describe('ImportService', () => {
                 await service.syncWithKeyboard(newKb, currentKb, mockQueue, mockServices);
 
                 // No key updates should be queued
-                expect(mockServices.vialService.updateKey).not.toHaveBeenCalled();
+                expect(mockServices.keyboardService.updateKey).not.toHaveBeenCalled();
             });
 
             it('handles missing keymap in newKb', async () => {
@@ -197,7 +197,7 @@ describe('ImportService', () => {
                 await service.syncWithKeyboard(newKb, currentKb, mockQueue, mockServices);
 
                 // Should not throw, no key updates
-                expect(mockServices.vialService.updateKey).not.toHaveBeenCalled();
+                expect(mockServices.keyboardService.updateKey).not.toHaveBeenCalled();
             });
         });
 
@@ -226,7 +226,7 @@ describe('ImportService', () => {
                     expect.any(Function),
                     { type: 'macro', writeKey: 'macros' }
                 );
-                expect(mockServices.vialService.updateMacros).toHaveBeenCalledWith(newKb);
+                expect(mockServices.keyboardService.updateMacros).toHaveBeenCalledWith(newKb);
             });
 
             it('does not sync macros when unchanged', async () => {
@@ -250,7 +250,7 @@ describe('ImportService', () => {
 
                 await service.syncWithKeyboard(newKb, currentKb, mockQueue, mockServices);
 
-                expect(mockServices.vialService.updateMacros).not.toHaveBeenCalled();
+                expect(mockServices.keyboardService.updateMacros).not.toHaveBeenCalled();
             });
         });
 
@@ -420,8 +420,8 @@ describe('ImportService', () => {
                 await service.syncWithKeyboard(newKb, currentKb, mockQueue, mockServices);
 
                 // Should only update changed key in layer 1
-                expect(mockServices.vialService.updateKey).toHaveBeenCalledTimes(1);
-                expect(mockServices.vialService.updateKey).toHaveBeenCalledWith(1, 0, 0, 0x0C);
+                expect(mockServices.keyboardService.updateKey).toHaveBeenCalledTimes(1);
+                expect(mockServices.keyboardService.updateKey).toHaveBeenCalledWith(1, 0, 0, 0x0C);
             });
 
             it('handles different layer counts (uses minimum)', async () => {
@@ -450,7 +450,7 @@ describe('ImportService', () => {
                 await service.syncWithKeyboard(newKb, currentKb, mockQueue, mockServices);
 
                 // Should only sync layers 0 and 1 (min of 2, 4)
-                const calls = mockServices.vialService.updateKey.mock.calls;
+                const calls = mockServices.keyboardService.updateKey.mock.calls;
                 calls.forEach(call => {
                     expect(call[0]).toBeLessThan(2); // Layer should be 0 or 1
                 });

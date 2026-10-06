@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { cn } from "@/lib/utils";
-import { KeyboardInfo, KeyContent } from "@/types/vial.types";
+import { KeyboardInfo, KeyContent } from "@/types/keyboard.types";
 import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
@@ -40,7 +40,7 @@ interface Props {
 const BasicKeyboards = ({ isPicker }: Props) => {
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
     const { assignKeycode, isBinding, selectedTarget } = useKeyBinding();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant, layoutMode, internationalLayout, setInternationalLayout } = useLayoutSettings();
 

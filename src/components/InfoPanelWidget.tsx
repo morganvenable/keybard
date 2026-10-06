@@ -2,7 +2,7 @@ import React from "react";
 import { InfoIcon } from "@/components/icons/InfoIcon";
 import { cn } from "@/lib/utils";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { keyService } from "@/services/key.service";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 
@@ -31,7 +31,7 @@ export const InfoPanelWidget: React.FC<InfoPanelWidgetProps> = ({ showInfoPanel,
                 )}>
                     {(() => {
                         const { hoveredKey, selectedTarget } = useKeyBinding();
-                        const { keyboard } = useVial();
+                        const { keyboard } = useKeyboard();
 
                         // Priority: hoveredKey with keycode > selectedTarget
                         // For selectedTarget keyboard keys, we need to look up the keycode from keyboard data

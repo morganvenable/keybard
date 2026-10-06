@@ -7,7 +7,7 @@ const panels = vi.hoisted(() => ({
     setAlternativeHeader: vi.fn(), setPanelToGoBack: vi.fn(), setInitialEditorSlot: vi.fn(),
 }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => panels }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: {
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: {
     tapdances: [{ tap: 'KC_NO', hold: 'KC_NO', doubletap: 'KC_NO', taphold: 'KC_NO' }],
 } }) }));
 vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));

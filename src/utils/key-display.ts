@@ -1,4 +1,4 @@
-import type { KeyContent } from "@/types/vial.types";
+import type { KeyContent } from "@/types/keyboard.types";
 import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 
 export function getKeyDisplayText(

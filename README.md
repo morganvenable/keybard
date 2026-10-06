@@ -20,12 +20,12 @@ keybard-ng/
 ├── src/           # Vite + React + TypeScript
 │   ├── constants/      # KeyMap constants
 │   ├── components/     # React components
-│   ├── contexts/       # VialContext
-│   ├── services/       # TypeScript Vial services
+│   ├── contexts/       # KeyboardContext
+│   ├── services/       # TypeScript keyboard services
 │   │   ├── key.service.ts
 │   │   ├── usb.ts
 │   │   ├── utils.ts
-│   │   └── vial.service.ts
+│   │   └── keyboard.service.ts
 │   └── types/         # TypeScript definitions
 ├── tests/         # Test suite
 │   ├── services/       # Service layer tests
@@ -39,7 +39,7 @@ keybard-ng/
 
 - **React 19** with TypeScript
 - **Vite** for fast dev server and builds
-- **xz-decompress** for XZ decompression (keyboard data, includes types)
+- **js-lzma** for board-provided compressed definitions
 - **WebHID API** for USB keyboard communication
 
 ## Available Commands
@@ -56,7 +56,7 @@ KeyBard supports two ways to view keyboard configurations:
 
 ### 1. Connect to Physical Keyboard
 
-Click "Connect Keyboard" to connect to a Vial-compatible keyboard via WebHID.
+Click "Connect Keyboard" to connect to a Svalboard-QMK keyboard via WebHID.
 
 **Browser Support**: Chrome (89+), Edge (89+), Opera (75+), Brave
 **Not Supported**: Firefox, Safari (WebHID unavailable)
@@ -77,10 +77,10 @@ You can freely switch between connected keyboards and loaded files. The display 
 
 ## Integration Points
 
-### VialContext Hook
+### KeyboardContext Hook
 
 ```tsx
-import { useVial } from './contexts/VialContext';
+import { useKeyboard } from './contexts/KeyboardContext';
 
 function MyComponent() {
   const {
@@ -90,35 +90,32 @@ function MyComponent() {
     connect,
     loadKeyboard,
     loadFromFile
-  } = useVial();
+  } = useKeyboard();
 
-  // Use Vial services...
+  // Use keyboard services...
 }
 ```
 
 ### Services Available
 
-- `VialUSB` - USB HID communication
-- `VialService` - Keyboard operations (load, getKeyboardInfo, etc.)
+- `SvilUSB` - USB HID communication
+- `KeyboardService` - Keyboard operations (load, getKeyboardInfo, etc.)
 - `KeyService` - Keycode parsing and stringifying (parse, stringify, define, etc.)
 - Utilities - Byte manipulation (LE16, BE16, etc.)
 
 ## What's Working
 
-✅ TypeScript conversion of core Vial modules
+✅ TypeScript conversion of core Sval modules
 ✅ USB communication layer
-✅ XZ decompression via npm package (xz-decompress with built-in types)
+✅ Board-definition decompression via js-lzma
 ✅ KEY utilities (keycode parsing, CODEMAP, KEYMAP, KEYALIASES)
 ✅ React Context provider
 ✅ Basic connection UI
 ✅ File loading (.svil and .vil configuration files)
 
-## What's Next
+## Configuration and Trainer
 
-- Keymap editor component
-- Macro management UI
-- Combo/tap-dance configuration
-- Additional Vial features
+The editor includes keymaps, macros, combos, tap dances, overrides, leaders and pointing settings. Trainer configures the separate native Keybard Host overlay. See [the companion README](companion/overlay-host/README.md) for setup.
 
 ## Theming
 
@@ -174,7 +171,7 @@ This project maintains **90% code coverage** across:
 - ✅ Utility functions and byte manipulation
 - ✅ KeyService (keycode parsing, custom keys, layers)
 - ✅ USB communication layer (mocked WebHID API)
-- ✅ VialService (keyboard loading, keymap management)
+- ✅ KeyboardService (keyboard loading, keymap management)
 - ✅ QMK settings service
 - ✅ React Context state management
 
@@ -200,7 +197,7 @@ it('should update key at specific position', async () => {
   const keymask = 0x0004; // KC_A
 
   // Act
-  await vialService.updateKey(layer, row, col, keymask);
+  await keyboardService.updateKey(layer, row, col, keymask);
 
   // Assert
   expect(mockUSB.send).toHaveBeenCalledWith(/* ... */);

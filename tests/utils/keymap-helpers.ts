@@ -6,7 +6,7 @@
  */
 
 import { expect } from 'vitest';
-import type { KeyboardInfo, FragmentState } from '../../src/types/vial.types';
+import type { KeyboardInfo, FragmentState } from '../../src/types/keyboard.types';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 import { createTestFragments, createSelectableInstance, createFragmentState, FRAGMENT_NAMES, FRAGMENT_IDS } from '../fixtures/fragments.fixture';
 

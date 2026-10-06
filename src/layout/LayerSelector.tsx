@@ -13,7 +13,7 @@ import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
 import TelescopeIcon from "@/components/icons/TelescopeIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     isAllTransparencyActive,
     onToggleAllTransparency
 }) => {
-    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex, loadedFrom } = useVial();
+    const { keyboard, isConnected, connect, resetToOriginal, activeLayerIndex, loadedFrom } = useKeyboard();
     const editingTarget = `${isConnected ? "Editing keyboard" : "Offline draft"}: ${loadedFrom || keyboard?.name || "Layout"}${isConnected ? "" : ". Export to keep edits."}`;
     const { undo, undoLabel, commit, getPendingCount, getPendingChanges, clearAll, isSaving, error: saveError, setInstant, isInstant } = useChanges();
     const { updateSetting } = useSettings();

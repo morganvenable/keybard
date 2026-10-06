@@ -4,9 +4,9 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { DragItem } from "@/contexts/DragContext";
-import { AltRepeatKeyOptions } from "@/types/vial.types";
+import { AltRepeatKeyOptions } from "@/types/keyboard.types";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 
@@ -17,7 +17,7 @@ const OPTIONS = [
 ] as const;
 
 const AltRepeatEditor: FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectAltRepeatKey, selectedTarget } = useKeyBinding();

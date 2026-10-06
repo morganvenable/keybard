@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { LayerEntry } from "@/types/layer-library";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { Key } from "@/components/Key";
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
 import { SVALBOARD_LAYOUT, MATRIX_COLS } from "@/constants/svalboard-layout";
@@ -35,7 +35,7 @@ export const LayerPreviewModal: FC<LayerPreviewModalProps> = ({
     onClose,
     onCopy,
 }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const [justCopied, setJustCopied] = useState(false);
 
     if (!layer) return null;

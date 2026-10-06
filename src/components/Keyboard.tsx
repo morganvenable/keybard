@@ -7,7 +7,7 @@ import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "../constants/svalboard
 import { THUMB_OFFSET_U } from "../constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { Key } from "./Key";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useSettings } from "@/contexts/SettingsContext";

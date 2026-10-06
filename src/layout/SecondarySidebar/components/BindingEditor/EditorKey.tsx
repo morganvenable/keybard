@@ -1,7 +1,7 @@
 import { FC, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Key } from "@/components/Key";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
@@ -47,7 +47,7 @@ const EditorKey: FC<EditorKeyProps> = ({
     editorId,
     editorSlot
 }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
     const [isDragHover, setIsDragHover] = useState(false);

@@ -1,13 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import { useLayerNames } from '../../src/hooks/useLayerNames';
 
 const state = vi.hoisted(() => ({
     keyboard: null as KeyboardInfo | null, isConnected: true,
     setKeyboard: vi.fn(), queue: vi.fn(), sendSvil: vi.fn(),
 }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => state }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => state }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ queue: state.queue }) }));
 vi.mock('@/services/usb.service', async original => ({
     ...await original<typeof import('../../src/services/usb.service')>(),

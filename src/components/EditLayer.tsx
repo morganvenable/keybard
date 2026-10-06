@@ -2,7 +2,7 @@ import { useLayerNames } from "@/hooks/useLayerNames";
 import { DialogClose, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { FC, useState, useEffect, useRef } from "react";
 
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { layerColors } from "@/utils/colors";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -16,7 +16,7 @@ interface Props {
 const EditLayer: FC<Props> = ({ layer }) => {
     const { renameLayer, nameError } = useLayerNames();
     const closeRef = useRef<HTMLButtonElement>(null);
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const currentName = keyboard ? svalService.getLayerName(keyboard, layer) : "";
     const currentColor = keyboard?.cosmetic?.layer_colors?.[layer.toString()] || "green";
 

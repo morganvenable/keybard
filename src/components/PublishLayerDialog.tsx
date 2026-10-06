@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayerLibrary } from "@/contexts/LayoutLibraryContext";
 import { svalService } from "@/services/sval.service";
 import { layerLibraryService } from "@/services/layer-library.service";
@@ -33,7 +33,7 @@ export const PublishLayerDialog: FC<PublishLayerDialogProps> = ({
     onClose,
     layerIndex,
 }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { refreshLayers } = useLayerLibrary();
 
     // Form state
