@@ -1,6 +1,6 @@
 """Assemble the standalone manual from reviewed content fragments (stdlib only)."""
 from pathlib import Path
-import re, struct
+import re, struct, hashlib
 ROOT=Path(__file__).resolve().parents[1]
 raw='\n'.join((ROOT/'content'/name).read_text() for name in ('start.html','features.html'))
 sections={m.group(1):m.group(0) for m in re.finditer(r'<section id="([^"]+)"[\s\S]*?</section>',raw)}
@@ -36,5 +36,12 @@ def dimensions(match):
         tag=tag[:-1]+f' width="{w}" height="{h}" style="width:100%;max-width:{w}px;aspect-ratio:{w}/{h}">'
     return tag
 html=re.sub(r'<img\b[^>]*>',dimensions,html)
+# GIFs are the default HTML source, so autoplay does not depend on scripting.
+for animation,poster in re.findall(r'data-animation="([^"]+)" data-poster="([^"]+)"',html):
+    html=html.replace(f'src="{poster}"',f'src="{animation}"')
+html=html.replace('aria-pressed="false">Play demonstration</button>','aria-pressed="true">Pause demonstration</button>')
+for asset in ['manual.js','manual.css']:
+    version=hashlib.sha256((ROOT/asset).read_bytes()).hexdigest()[:12]
+    html=html.replace(f'"{asset}"',f'"{asset}?v={version}"')
 (ROOT/'index.html').write_text(html)
 print('Built manual:',len(body),'chapters')

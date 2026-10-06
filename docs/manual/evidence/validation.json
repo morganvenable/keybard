@@ -41,7 +41,7 @@
       }
     },
     {
-      "check": "autoplay, persistent pause and reduced motion",
+      "check": "autoplay including reduced motion, persistent pause",
       "passed": true,
       "detail": 34
     },
