@@ -17,7 +17,7 @@ def package():
             for path in (HOST / folder).rglob('*'):
                 if path.is_file() and '__pycache__' not in path.parts:
                     archive.write(path, Path('KeybardHost') / path.relative_to(HOST))
-        for name in ('Start-Windows.cmd', 'Start-Paranoid.cmd', 'README.md', 'RELEASE-NOTES.md', 'requirements.txt', 'start-linux.sh'):
+        for name in ('Start-Windows.cmd', 'Start-Paranoid.cmd', 'Open-Paranoid.cmd', 'README.md', 'RELEASE-NOTES.md', 'requirements.txt', 'start-linux.sh'):
             archive.write(HOST / name, Path('KeybardHost') / name)
         for path in web_files:
             archive.write(path, Path('KeybardHost/web') / path.relative_to(DIST))

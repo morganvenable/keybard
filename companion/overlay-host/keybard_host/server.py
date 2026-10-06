@@ -16,7 +16,13 @@ class LocalServer(ThreadingHTTPServer):
 REMOTE_ORIGINS = frozenset({'https://keybard.svalboard.com'})
 
 
-def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS):
+def is_paranoid_page(index):
+    """Paranoid mode only serves a Keybard Paranoid build (its no-network policy present)."""
+    text = index.read_text(encoding='utf-8', errors='replace')
+    return 'http-equiv="Content-Security-Policy"' in text and "default-src 'none'" in text
+
+
+def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, paranoid=False):
     remote_origins = frozenset(remote_origins)
 
     class Handler(SimpleHTTPRequestHandler):
@@ -37,6 +43,9 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS):
             return self.origin_ok() or self.remote_origin() is not None
 
         def end_headers(self):
+            # No website may frame the host's pages (clickjacking the Trainer controls).
+            self.send_header('X-Frame-Options', 'DENY')
+            self.send_header('Content-Security-Policy', "frame-ancestors 'none'")
             origin = self.remote_origin()
             if origin and urlsplit(self.path).path.startswith('/api/host/'):
                 self.send_header('Access-Control-Allow-Origin', origin)
@@ -68,7 +77,7 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS):
             path = urlsplit(self.path)
             if not (self.api_ok() if path.path.startswith('/api/host/') else self.origin_ok()):
                 return self.reply({'error': 'Local origin required'}, 403)
-            if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1))
+            if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1, paranoid=paranoid))
             if path.path == '/api/host/state':
                 try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)

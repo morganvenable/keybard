@@ -35,6 +35,7 @@ import {
     type SweepStep,
 } from "@/services/scanlab.service";
 import { cn } from "@/lib/utils";
+import { PARANOID, userIsLooking } from "@/lib/paranoid";
 
 type Axis = "pre" | "post";
 type ByHand<T> = { 0: T; 1: T };
@@ -157,8 +158,10 @@ const ScanLabPanel = () => {
 
     useEffect(() => {
         if (!isConnected || busy) return;
-        refreshPower();
-        const id = setInterval(refreshPower, 1000);
+        // Paranoid: idle readings reveal typing timing, so only take them while you're looking.
+        const tick = () => { if (!PARANOID || userIsLooking()) refreshPower(); };
+        tick();
+        const id = setInterval(tick, 1000);
         return () => clearInterval(id);
     }, [isConnected, busy, refreshPower]);
 

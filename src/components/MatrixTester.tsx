@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "@/constants/svalboard-layout";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
+import { PARANOID, userIsLooking } from "@/lib/paranoid";
 
 // Constants
 const POLL_INTERVAL_MS = 50;
@@ -81,7 +82,8 @@ export const MatrixTester: FC = () => {
         const poll = async (): Promise<void> => {
             if (!pollingRef.current) return;
 
-            if (isConnected && keyboard) {
+            // Paranoid: never read key presses while you're typing in another window.
+            if (isConnected && keyboard && !(PARANOID && !userIsLooking())) {
                 try {
                     const matrix = await pollMatrix();
                     const newlyPressed = new Set<string>();

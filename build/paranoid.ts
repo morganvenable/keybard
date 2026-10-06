@@ -53,14 +53,45 @@ export function contentSecurityPolicy(scriptHashes: string[]): string {
     ].join("; ");
 }
 
+const URL_ATTRS = /\s(src|href|srcset|poster|data|action|formaction|ping|background|xlink:href)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+const BANNED = [
+    /<meta\b[^>]*http-equiv\s*=\s*["']?refresh/i,
+    /<link\b[^>]*\brel\s*=\s*["']?[^"'>]*\b(prerender|prefetch|preconnect|dns-prefetch|preload|modulepreload)\b/i,
+    /<script\b[^>]*\btype\s*=\s*["']?speculationrules/i,
+];
+
+/**
+ * Everything in the static page that could load or navigate somewhere other than
+ * embedded data. Script bodies are skipped (the CSP governs what they do); style
+ * bodies are checked for url() and @import.
+ */
+export function staticReferences(html: string): string[] {
+    const problems: string[] = [];
+    const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]);
+    const markup = html.replace(/(<(script|style)\b[^>]*>)[\s\S]*?(<\/\2>)/gi, "$1$3");
+    for (const tag of markup.match(/<[a-zA-Z][^>]*>/g) || []) {
+        if (BANNED.some(rule => rule.test(tag))) { problems.push(tag); continue; }
+        for (const [, name, quoted] of tag.matchAll(URL_ATTRS)) {
+            const value = quoted.replace(/^["']|["']$/g, "").trim();
+            const values = name.toLowerCase() === "srcset" ? value.split(",").map(v => v.trim().split(/\s+/)[0]) : [value];
+            if (values.some(v => v && !v.startsWith("data:") && !v.startsWith("#"))) { problems.push(tag); break; }
+        }
+    }
+    for (const css of styles) {
+        if (/@import\b/i.test(css)) problems.push("CSS @import");
+        for (const [, , ref] of css.matchAll(/url\(\s*(["']?)([^"')]*)\1\s*\)/gi)) {
+            if (!ref.trim().startsWith("data:") && !ref.trim().startsWith("#")) problems.push(`CSS url(${ref})`);
+        }
+    }
+    return problems;
+}
+
 /** Add the CSP to a built page, refusing anything that would load from elsewhere. */
 export function lockDown(source: string): string {
     // Browsers hash script text after turning CRLF into LF, so hash (and ship) LF text.
     const html = source.replace(/\r\n?/g, "\n");
-    // Any resource tag pointing anywhere but an embedded data: URL fails the build.
-    const external = html.match(/<(script|link|img|iframe|source|video|audio|embed|object)\b[^>]*\s(src|href|data)\s*=\s*["'](?!data:)[^"']+["'][^>]*>/gi) || [];
-    if (external.length) throw new Error(`Paranoid build still references external resources:\n${external.join("\n")}`);
-    if (/@import\s+url\(\s*["']?https?:/i.test(html) || /url\(\s*["']?https?:/i.test(html)) throw new Error("Paranoid build CSS references a remote URL");
+    const problems = staticReferences(html);
+    if (problems.length) throw new Error(`Paranoid build still references external resources:\n${problems.join("\n")}`);
     const hashes = [...html.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
         .map(m => createHash("sha256").update(m[1], "utf8").digest("base64"));
     if (!hashes.length) throw new Error("Paranoid build has no inline scripts");

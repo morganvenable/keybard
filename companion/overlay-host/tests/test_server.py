@@ -6,7 +6,8 @@ import unittest
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from keybard_host.state import HostState, DEFAULTS
-from keybard_host.server import make_server
+from keybard_host.server import make_server, is_paranoid_page
+from keybard_host.browser import CONTAINMENT_FLAGS, contained_command
 
 class ServerTests(unittest.TestCase):
     def setUp(self):
@@ -86,3 +87,29 @@ class Utf8IndexTests(unittest.TestCase):
                 self.assertIn('→ Keybard é', body); self.assertIn('data-keybard-host="true"', body)
             finally:
                 server.shutdown(); server.server_close(); thread.join()
+
+class HardeningTests(ServerTests):
+    def test_pages_and_api_refuse_framing(self):
+        for path in ('/', '/api/host/bootstrap'):
+            with urlopen(self.base + path) as r:
+                self.assertEqual(r.headers['X-Frame-Options'], 'DENY')
+                self.assertIn("frame-ancestors 'none'", r.headers['Content-Security-Policy'])
+    def test_bootstrap_reports_mode(self):
+        with urlopen(self.base + '/api/host/bootstrap') as r: self.assertIs(json.load(r)['paranoid'], False)
+        root = Path(self.temp.name); paranoid = make_server(self.state, root, lambda c: None, 0, set(), True)
+        thread = threading.Thread(target=paranoid.serve_forever); thread.start()
+        try:
+            with urlopen(f'http://127.0.0.1:{paranoid.server_port}/api/host/bootstrap') as r: self.assertIs(json.load(r)['paranoid'], True)
+        finally: paranoid.shutdown(); paranoid.server_close(); thread.join()
+    def test_paranoid_mode_only_serves_a_paranoid_page(self):
+        root = Path(self.temp.name)
+        self.assertFalse(is_paranoid_page(root / 'index.html'))
+        (root / 'p.html').write_text("<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">", encoding='utf-8')
+        self.assertTrue(is_paranoid_page(root / 'p.html'))
+    def test_contained_browser_blocks_non_loopback_traffic(self):
+        command = contained_command('chrome.exe', 'C:/profile dir', 'http://127.0.0.1:5178/')
+        self.assertIn('--proxy-server=http://127.0.0.1:9', command)
+        self.assertIn('--force-webrtc-ip-handling-policy=disable_non_proxied_udp', command)
+        self.assertIn('--user-data-dir=C:/profile dir', command)
+        # An explicit bypass list would drop Chromium's implicit loopback bypass and break the host.
+        self.assertFalse(any(f.startswith('--proxy-bypass-list') for f in CONTAINMENT_FLAGS))

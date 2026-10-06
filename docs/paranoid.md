@@ -1,39 +1,49 @@
 # Keybard Paranoid
 
-Keybard Paranoid is Keybard as a single HTML file that runs on your own computer and cannot reach the network.
+Keybard Paranoid is Keybard as a single HTML file that runs on your own computer, plus launchers that keep the browser from reaching the network.
 
-## What it guarantees
+## What protects you, and how
 
-- **No network access.** The file carries a Content Security Policy that blocks every request: no fetches, fonts, images, frames, form posts or connections to anywhere. Even buggy or malicious code inside the page could not send anything. The only exception is the Keybard Host that serves the page in paranoid mode (below), and only that Host.
-- **Everything is inside the file.** Code, styles, the Inter font, the icon, the example layout and the layer library are embedded. Nothing is downloaded when you use it, and nothing updates itself.
-- **No background reads from your keyboard.** Keybard's active-layer display only asks the board while the Keybard window is in front of you. The Matrix Tester only reads key presses while it is open.
-- **No website can drive it.** It never connects to Keybard Host across origins, and Keybard Host in paranoid mode accepts no website at all.
+There are two layers. You need both.
 
-Everything else works as in Keybard: editing, saving to the board, layer colors, dark mode, printing, `.svil` import and export.
+1. **The page cannot fetch or load anything.** The file carries a Content Security Policy that blocks fetches, XHR, WebSockets, beacons, fonts, images, frames, workers, preloads and form posts. Scripts run only if their hashes match. Everything Keybard needs is embedded: code, styles, the Inter font, the icon, the example layout and the layer library. The only connection the policy allows is to the Keybard Host serving the page in paranoid mode.
+2. **The browser cannot reach the network.** A page's policy cannot stop navigations: redirects, prerendering, downloads and new windows can still carry data out. So the launchers open Chrome or Edge in a separate profile behind a dead proxy (`--proxy-server=127.0.0.1:9`). Every request that isn't loopback fails, navigations included. The launchers also keep WebRTC off the network and turn off background browser services. Chromium always bypasses proxies for `127.0.0.1`, so Keybard Host still works.
+
+Opening the file by double-clicking it gives you layer 1 only. Use the launchers for both.
+
+## What reads your keyboard, and when
+
+- **Keybard Paranoid** asks the board for its active layer only while its window is visible and focused. The Matrix Tester and Scan Lab only read while open and in front of you.
+- **Keybard Host** reads the board continuously while it runs, because the overlay is meant to work while you type in other apps. It reads the active layer and runs periodic device scans, and checks the Shift and Caps Lock state from Windows. Key presses are read only if you turn on held-key highlighting. It never sends anything off your computer, and in paranoid mode it accepts no website at all.
 
 ## Use it
 
 ### On its own
 
-1. Download `keybard-paranoid.html` from the Keybard Host release and check it against `SHA256SUMS.txt`.
-2. Open it in Chrome or Edge, either by double-clicking it or with **File → Open**. WebHID needs a Chromium browser.
+1. Extract the Keybard Host ZIP. It contains `keybard-paranoid.html` and `Open-Paranoid.cmd`. You can also download `keybard-paranoid.html` on its own from the release and check it against `SHA256SUMS.txt`.
+2. Run **Open-Paranoid.cmd**. It opens the file in the contained Chrome or Edge profile.
 3. Click **Connect Keyboard** and choose your Svalboard.
 
 The Trainer works as a preview. For the desktop overlay, use Keybard Host in paranoid mode.
 
 ### With the Trainer overlay
 
-1. Extract the Keybard Host ZIP and run **Start-Paranoid.cmd**.
-2. Use the Keybard it opens at `http://127.0.0.1:5178/`. That copy is Keybard Paranoid, served by the Host itself, so the Trainer can reach the Host. The page's policy allows that one local connection and nothing else.
+1. Quit any Keybard Host that is already running (tray icon → Quit).
+2. Run **Start-Paranoid.cmd**. The first run downloads and verifies the Host's private Python/Qt runtime. After that it needs no network.
+3. Keybard Paranoid opens at `http://127.0.0.1:5178/` in the contained profile.
 
-In paranoid mode the Host refuses every website, including keybard.svalboard.com, and its API stays loopback-only and token-protected.
+In paranoid mode the Host:
+- Refuses every website, including keybard.svalboard.com.
+- Refuses to be framed by any page.
+- Serves only a page that carries the paranoid policy.
+- Will not take over from a normal Host that is already running; it tells you to quit that one first.
 
 ## Limits worth knowing
 
-- **Use a dedicated browser profile.** Chrome treats every HTML file opened from disk as the same origin. Another local HTML file opened in the same profile could read Keybard's saved settings and, if you've granted it, talk to your keyboard. A Chrome profile used only for Keybard Paranoid avoids that.
-- **The firmware answers any page you connect.** Over WebHID, the keyboard's firmware will report its switch matrix to whatever page you've connected it to. Keybard Paranoid only asks while the Matrix Tester is open, but the protection comes from the page's code, not from the firmware.
-- **Links still open when you click them.** Links to documentation or releases open in your browser when you click them. The policy blocks the page from making requests itself, not from following a link you choose.
-- **Updates are manual.** Download the new file when a release comes out. There is no update check, by design.
+- **Keep the profile for Keybard only.** Chrome treats every HTML file opened from disk as the same origin. Another local HTML file opened in the contained profile could read Keybard's saved settings and, if permitted, talk to your keyboard. Don't use that profile for anything else.
+- **The firmware answers any page you connect.** Over WebHID, the keyboard's firmware reports its switch matrix to whatever page you've connected it to. Keybard Paranoid only asks while the Matrix Tester is open, but that protection is in the page's code, not in the firmware.
+- **The launchers need Chrome or Edge.** WebHID needs a Chromium browser. If neither is installed, the launchers say so and open nothing.
+- **Updates are manual.** Download the new release when one comes out. There is no update check, by design.
 
 ## Build it
 
@@ -41,4 +51,4 @@ In paranoid mode the Host refuses every website, including keybard.svalboard.com
 npm run build:paranoid     # writes dist-paranoid/keybard-paranoid.html and SHA256SUMS.txt
 ```
 
-`build/paranoid.ts` inlines everything. It hashes each inline script into the policy, after normalizing line endings exactly as browsers do, and fails the build if any external script, stylesheet, image, font or remote CSS URL remains. `tests/build/paranoid.test.ts` covers these rules.
+`build/paranoid.ts` inlines everything. It hashes each inline script into the policy, after normalizing line endings exactly as browsers do. It fails the build if the static page still references anything outside the file, through `src`, `href`, `srcset`, `poster`, `xlink:href`, CSS `url()` or `@import`. It also fails on meta refresh, preconnect, prefetch, prerender, preload or speculation rules. `tests/build/paranoid.test.ts` covers these rules, including the bypasses found in review.

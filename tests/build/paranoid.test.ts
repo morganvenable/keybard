@@ -20,10 +20,21 @@ describe('Keybard Paranoid lockdown', () => {
     });
 
     it('refuses pages that still load anything from elsewhere', () => {
-        for (const bad of ['<script src="https://cdn.example/x.js"></script>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2">', '<img src="/favicon.png">', '<link rel="icon" href="/favicon.png">']) {
+        for (const bad of [
+            '<script src="https://cdn.example/x.js"></script>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2">',
+            '<img src="/favicon.png">', '<link rel="icon" href="/favicon.png">',
+            // Bypasses found in review:
+            '<img srcset="data:image/png;base64,AA== 1x, https://x.example/a.png 2x">', '<video poster="https://x.example/p.png"></video>',
+            '<svg><use href="https://x.example/s.svg#a"></use></svg>', '<svg><image xlink:href="https://x.example/i.png"></image></svg>',
+            '<img src=https://x.example/unquoted.png>', '<style>@import "https://x.example/a.css";</style>',
+            '<style>body{background:url(//x.example/b.png)}</style>', '<meta http-equiv="refresh" content="0;url=https://x.example/">',
+            '<a ping="https://x.example/p" href="#">x</a>', '<link rel="prerender" href="data:text/html,">',
+            '<link rel="dns-prefetch" href="//x.example">', '<script type="speculationrules">{}</script>',
+        ]) {
             expect(() => lockDown(page(bad))).toThrow(/external resources/);
         }
         expect(() => lockDown(page('<img src="data:image/png;base64,AA==">'))).not.toThrow();
+        expect(() => lockDown(page('<style>a{background:url(data:image/png;base64,AA==)}</style><script>const s = "<img src=https://x.example>";</script>'))).not.toThrow();
     });
 
     it('only lets the page reach itself (the Keybard Host that serves it) or embedded data', () => {
