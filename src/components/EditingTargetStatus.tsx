@@ -13,7 +13,7 @@ export default function EditingTargetStatus() {
                 {!isConnected && <span>No keyboard writes. Export to keep edits.</span>}
                 {(isChangingTarget || connectionState === "loading") && <span>Changing connection…</span>}
             </div>
-            {connectionError && <p role="alert" className="absolute right-4 top-full z-50 max-w-sm whitespace-normal rounded-md border border-red-200 bg-white p-3 text-sm text-red-700 shadow-sm">{connectionError}</p>}
+            {connectionError && <p role="alert" className="absolute right-4 top-full z-50 max-w-sm whitespace-normal rounded-md border border-red-200 dark:border-red-900 bg-kb-surface p-3 text-sm text-red-700 dark:text-red-400 shadow-sm">{connectionError}</p>}
         </>
     );
 }

@@ -34,18 +34,18 @@ const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus
                         ref={textareaRef}
                         value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
-                        className="bg-white text-black border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
+                        className="bg-kb-surface text-kb-ink border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
                     />
                 ) : (
                     <Input
                         ref={inputRef}
                         value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
-                        className="bg-white text-black border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
+                        className="bg-kb-surface text-kb-ink border-input w-[180px] max-w-full min-w-0 flex-grow-0 select-text"
                     />
                 )}
                 <div className="flex flex-row items-center">
-                    {type && <div className="font-medium text-gray-600">{type === "delay" ? "Delay (ms)" : type.charAt(0).toUpperCase() + type.slice(1)}</div>}
+                    {type && <div className="font-medium text-gray-600 dark:text-neutral-300">{type === "delay" ? "Delay (ms)" : type.charAt(0).toUpperCase() + type.slice(1)}</div>}
                 </div>
             </div>
             {onDelete && (
@@ -53,7 +53,7 @@ const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus
                     <DelayedTooltip>
                         <TooltipTrigger asChild>
                             <button
-                                className="p-2 text-gray-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
+                                className="p-2 text-gray-400 dark:text-neutral-400 hover:bg-red-500 hover:text-white dark:hover:text-white rounded-full bg-kb-gray-medium"
                                 onClick={onDelete}
                                 type="button"
                             >

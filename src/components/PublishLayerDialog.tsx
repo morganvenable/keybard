@@ -114,14 +114,14 @@ export const PublishLayerDialog: FC<PublishLayerDialogProps> = ({
                 </DialogHeader>
 
                 {!keyboard ? (
-                    <div className="py-6 text-center text-gray-500">
+                    <div className="py-6 text-center text-gray-500 dark:text-neutral-400">
                         No keyboard loaded.
                     </div>
                 ) : (
                     <div className="space-y-4 py-2">
                         {/* Layer Info */}
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
-                            <p className="text-gray-600 dark:text-gray-400">
+                        <div className="bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-3 text-sm">
+                            <p className="text-gray-600 dark:text-neutral-300">
                                 Saving layer {layerIndex} with {keyCount} keys
                             </p>
                         </div>
@@ -145,7 +145,7 @@ export const PublishLayerDialog: FC<PublishLayerDialogProps> = ({
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="What is this layer for?"
-                                className="w-full border rounded-md p-2 text-sm bg-white dark:bg-gray-800 dark:border-gray-700 min-h-[80px]"
+                                className="w-full border rounded-md p-2 text-sm bg-kb-surface dark:border-neutral-500 min-h-[80px]"
                             />
                         </div>
 
@@ -177,18 +177,18 @@ export const PublishLayerDialog: FC<PublishLayerDialogProps> = ({
                     <Button
                         variant="outline"
                         onClick={handleClose}
-                        className="rounded-full px-8 py-5 text-base font-medium border-gray-200 hover:bg-gray-50 flex-1 sm:flex-none"
+                        className="rounded-full px-8 py-5 text-base font-medium border-gray-200 hover:bg-gray-50 dark:border-neutral-500 dark:hover:bg-neutral-800 flex-1 sm:flex-none"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handlePublish}
                         disabled={!keyboard || isPublishing || !name.trim()}
-                        className="rounded-full px-8 py-5 text-base font-bold bg-gray-900 hover:bg-black text-white flex-1 sm:flex-none"
+                        className="rounded-full px-8 py-5 text-base font-bold bg-gray-900 hover:bg-black text-white dark:bg-neutral-200 dark:hover:bg-neutral-300 dark:text-neutral-900 flex-1 sm:flex-none"
                     >
                         {isPublishing ? (
                             <>
-                                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <div className="w-4 h-4 mr-2 border-2 border-kb-surface border-t-transparent rounded-full animate-spin" />
                                 Saving...
                             </>
                         ) : (

@@ -79,7 +79,7 @@ const TapdancePanel: React.FC = () => {
                     variant="small"
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={
-                        !hasContent ? "bg-transparent border border-kb-gray-border" : "border-kb-gray"
+                        !hasContent ? "bg-transparent border border-kb-gray-border" : "border-kb-key-border"
                     }
                     headerClassName={!hasContent ? "hidden" : "bg-kb-sidebar-dark"}
                     onClick={() => handleEdit(tdIndex, slotName)}
@@ -119,7 +119,7 @@ const TapdancePanel: React.FC = () => {
                     return (
                         <div
                             key={i}
-                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px]"
+                            className="flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors min-w-[100px]"
                             onClick={() => handleEdit(i)}
                         >
                             {/* Header row with draggable TD key and label */}
@@ -138,13 +138,13 @@ const TapdancePanel: React.FC = () => {
                                         keyContents={tdKeyContents}
                                         variant="small"
                                         layerColor="sidebar"
-                                        className="border-kb-gray"
+                                        className="border-kb-key-border"
                                         headerClassName="bg-kb-sidebar-dark"
                                         onClick={() => assignKeycode(tdKeycode)}
                                         disableTooltip={true}
                                     />
                                 </div>
-                                <span className="text-xs font-bold text-slate-600 truncate">
+                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300 truncate">
                                     {customName || `Tap Dance ${i}`}
                                 </span>
                             </div>
@@ -153,7 +153,7 @@ const TapdancePanel: React.FC = () => {
                                     const slotName = idx === 0 ? "tap" : idx === 1 ? "hold" : idx === 2 ? "taphold" : "doubletap";
                                     return (
                                         <div key={idx} className="flex flex-col items-center">
-                                            <span className="text-[8px] text-gray-400 mb-0.5">{states[idx].label}</span>
+                                            <span className="text-[8px] text-gray-400 dark:text-neutral-400 mb-0.5">{states[idx].label}</span>
                                             {renderSmallKey(content, idx, i, slotName)}
                                         </div>
                                     );
@@ -166,17 +166,17 @@ const TapdancePanel: React.FC = () => {
                     <button
                         type="button"
                         title="Add new tap dance"
-                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                         onClick={() => handleEdit(emptyIndex)}
                     >
-                        <Plus className="w-6 h-6 text-gray-400" />
+                        <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                     </button>
                 )}
                 {tapdances.filter(td => {
                     const states = [td?.tap, td?.hold, td?.taphold, td?.doubletap];
                     return states.some(k => k && k !== "KC_NO");
                 }).length === 0 && (
-                        <div className="text-center text-gray-500 py-4 px-6">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 py-4 px-6">
                             No tap dance keys configured.
                         </div>
                     )}
@@ -192,7 +192,7 @@ const TapdancePanel: React.FC = () => {
                     Allows a single key to perform multiple, different actions based on the number of times it is tapped in sequence (e.g., tap once for 'A', twice for 'B', or hold for a modifier).
                 </DescriptionBlock>
                 {/* Header Row - Sticky */}
-                <div className="sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4 flex flex-row items-end pl-12 pr-12 mb-2">
+                <div className="sticky top-0 z-20 bg-kb-surface pt-4 pb-4 -mt-4 flex flex-row items-end pl-12 pr-12 mb-2">
                     <div className="flex-grow flex flex-row justify-between w-full max-w-[240px] ml-6">
                         <span className="text-xs font-bold text-center w-[30px]">Tap</span>
                         <span className="text-xs font-bold text-center w-[30px]">Hold</span>
@@ -253,7 +253,7 @@ const TapdancePanel: React.FC = () => {
                     );
                     })}
                     {tapdances.length === 0 && (
-                        <div className="text-center text-gray-500 mt-10">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                             No tap dance keys found.
                         </div>
                     )}

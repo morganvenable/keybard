@@ -149,8 +149,8 @@ export const LayerCard: FC<LayerCardProps> = ({
             <div
                 onClick={handleClick}
                 className={cn(
-                    "border rounded-lg p-2 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow group/card",
-                    "border-gray-200 dark:border-gray-700 w-[340px] h-full flex-shrink-0 flex flex-col",
+                    "border rounded-lg p-2 bg-kb-surface shadow-sm hover:shadow-md transition-shadow group/card",
+                    "border-gray-200 dark:border-neutral-700 w-[340px] h-full flex-shrink-0 flex flex-col",
                     onClick && "cursor-pointer",
                     className
                 )}
@@ -160,16 +160,16 @@ export const LayerCard: FC<LayerCardProps> = ({
                     <div
                         className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm", layerColorClass)}
                     />
-                    <h3 className="font-semibold text-xs text-gray-900 dark:text-gray-100 truncate flex-1">
+                    <h3 className="font-semibold text-xs text-gray-900 dark:text-neutral-100 truncate flex-1">
                         {layer.name}
                     </h3>
-                    <span className="text-[9px] px-1 py-0.5 rounded font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex-shrink-0">
+                    <span className="text-[9px] px-1 py-0.5 rounded font-medium bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300 flex-shrink-0">
                         {layer.keyCount} keys
                     </span>
                     {onDelete && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(layer); }}
-                            className="text-gray-300 hover:text-red-500 flex-shrink-0"
+                            className="text-gray-300 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
                         >
                             <Trash2 className="w-3 h-3" />
                         </button>
@@ -177,7 +177,7 @@ export const LayerCard: FC<LayerCardProps> = ({
                 </div>
 
                 {/* Mini keyboard preview - real key rendering */}
-                <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded p-1 flex-1 min-h-0 overflow-hidden">
+                <div className="flex items-center justify-center bg-gray-50 dark:bg-neutral-800/60 rounded p-1 flex-1 min-h-0 overflow-hidden">
                     <MiniKeyboardPreview
                         keymap={layer.keymap}
                         layerColor={layer.layerColor || "primary"}
@@ -224,8 +224,8 @@ export const LayerCard: FC<LayerCardProps> = ({
         <div
             onClick={handleClick}
             className={cn(
-                "border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow",
-                "border-gray-200 dark:border-gray-700",
+                "border rounded-lg p-4 bg-kb-surface shadow-sm hover:shadow-md transition-shadow",
+                "border-gray-200 dark:border-neutral-700",
                 onClick && "cursor-pointer",
                 className
             )}
@@ -241,17 +241,17 @@ export const LayerCard: FC<LayerCardProps> = ({
                                 layerColorClass
                             )}
                         />
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        <h3 className="font-semibold text-gray-900 dark:text-neutral-100 truncate">
                             {layer.name}
                         </h3>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    <p className="text-sm text-gray-600 dark:text-neutral-300 line-clamp-2">
                         {layer.description || "No description"}
                     </p>
                 </div>
                 <div className="flex items-center gap-1">
                     {/* Key count badge */}
-                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 flex items-center gap-1">
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200 flex items-center gap-1">
                         <Keyboard className="w-3 h-3" />
                         {layer.keyCount}
                     </span>
@@ -260,7 +260,7 @@ export const LayerCard: FC<LayerCardProps> = ({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="h-6 w-6 p-0 text-gray-400 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onDelete(layer);
@@ -273,7 +273,7 @@ export const LayerCard: FC<LayerCardProps> = ({
             </div>
 
             {/* Keyboard Preview */}
-            <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg p-2 mb-3 overflow-hidden">
+            <div className="flex items-center justify-center bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 mb-3 overflow-hidden">
                 <MiniKeyboardPreview
                     keymap={layer.keymap}
                     layerColor={layer.layerColor || "primary"}
@@ -282,7 +282,7 @@ export const LayerCard: FC<LayerCardProps> = ({
             </div>
 
             {/* Meta info */}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-3">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-neutral-400 mb-3">
                 <span className="flex items-center gap-1">
                     <User className="w-3 h-3" />
                     {layer.author || "Anonymous"}
@@ -299,14 +299,14 @@ export const LayerCard: FC<LayerCardProps> = ({
                     {layer.tags.slice(0, 4).map(tag => (
                         <span
                             key={tag}
-                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 rounded"
                         >
                             <Tag className="w-2.5 h-2.5" />
                             {tag}
                         </span>
                     ))}
                     {layer.tags.length > 4 && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-neutral-400">
                             +{layer.tags.length - 4}
                         </span>
                     )}

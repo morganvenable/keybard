@@ -112,7 +112,7 @@ export const LayerPreviewModal: FC<LayerPreviewModalProps> = ({
 
                 <div className="flex-1 overflow-auto">
                     {/* Layer Info */}
-                    <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="mb-4 text-sm text-gray-600 dark:text-neutral-300">
                         {layer.description && (
                             <p className="mb-2">{layer.description}</p>
                         )}
@@ -127,7 +127,7 @@ export const LayerPreviewModal: FC<LayerPreviewModalProps> = ({
                     </div>
 
                     {/* Keyboard Preview */}
-                    <div className="flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-center p-4 bg-gray-100 dark:bg-neutral-800 rounded-lg">
                         <div
                             className="keyboard-layout relative"
                             style={{
@@ -172,7 +172,7 @@ export const LayerPreviewModal: FC<LayerPreviewModalProps> = ({
 
                 {/* Footer with Copy button */}
                 <div className="flex justify-between items-center pt-4 border-t">
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-neutral-400">
                         {layer.keyCount} keys • Click Copy to paste into your layer
                     </p>
                     <div className="flex gap-2">

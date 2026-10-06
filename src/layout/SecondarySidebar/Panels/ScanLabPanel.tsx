@@ -46,7 +46,7 @@ interface SweepPoint {
 
 const HANDS: Hand[] = [0, 1];
 
-const sectionTitle = "font-semibold text-lg text-black";
+const sectionTitle = "font-semibold text-lg text-kb-ink";
 const mono = "font-mono tabular-nums";
 
 /**
@@ -379,10 +379,10 @@ const ScanLabPanel = () => {
                                     {r.columns.map((c) => {
                                         const mismatch = c.col !== 5 && c.activeDark !== c.expectedActiveDark;
                                         return (
-                                            <td key={c.col} className={cn("px-1 py-0.5 text-center", mono, mismatch && "text-red-600 font-bold")} title={`${c.settleChanges} / ${c.recoverChanges} level changes`}>
+                                            <td key={c.col} className={cn("px-1 py-0.5 text-center", mono, mismatch && "text-red-600 dark:text-red-400 font-bold")} title={`${c.settleChanges} / ${c.recoverChanges} level changes`}>
                                                 {r.valid ? `${c.settleUs}/${c.recoverUs}` : "–"}
                                                 <span className="text-muted-foreground"> {c.activeDark ? "AD" : "AL"}</span>
-                                                {(c.settleChanges > 1 || c.recoverChanges > 1) && <span className="text-amber-600">~</span>}
+                                                {(c.settleChanges > 1 || c.recoverChanges > 1) && <span className="text-amber-600 dark:text-amber-400">~</span>}
                                             </td>
                                         );
                                     })}
@@ -397,7 +397,7 @@ const ScanLabPanel = () => {
                     <span>Slowest settle: <b className={mono}>{probeSummary.settle.us} µs</b> ({probeSummary.settle.where || "none moved"})</span>
                     <span>Slowest recovery: <b className={mono}>{probeSummary.recover.us} µs</b> ({probeSummary.recover.where || "none moved"})</span>
                     {probeSummary.polarityIssues.length > 0 ? (
-                        <span className="text-red-600">Polarity disagrees with the firmware table: {probeSummary.polarityIssues.join(", ")}</span>
+                        <span className="text-red-600 dark:text-red-400">Polarity disagrees with the firmware table: {probeSummary.polarityIssues.join(", ")}</span>
                     ) : (
                         <span className="text-muted-foreground">Measured polarity matches the firmware table.</span>
                     )}
@@ -479,7 +479,7 @@ const ScanLabPanel = () => {
                                     {HANDS.map((h) => {
                                         const s = p.byHand[h];
                                         return (
-                                            <td key={h} className={cn("px-2 text-center", mono, s && s.totalMismatches > 0 && "text-red-600", s && s.state === SweepState.ReferenceFailed && "text-amber-600")}>
+                                            <td key={h} className={cn("px-2 text-center", mono, s && s.totalMismatches > 0 && "text-red-600 dark:text-red-400", s && s.state === SweepState.ReferenceFailed && "text-amber-600 dark:text-amber-400")}>
                                                 {!s ? "–" : s.state === SweepState.ReferenceFailed ? "ref?" : s.totalMismatches}
                                             </td>
                                         );
@@ -500,7 +500,7 @@ const ScanLabPanel = () => {
                             <button className="underline" onClick={() => (sweep!.axis === "pre" ? setApplyPre(sweepSummary.suggestion!) : setApplyPost(sweepSummary.suggestion!))}>use it</button>
                         </span>
                     ) : (
-                        <span className="text-amber-600">No clean value in this range. Widen the range or check the reference.</span>
+                        <span className="text-amber-600 dark:text-amber-400">No clean value in this range. Widen the range or check the reference.</span>
                     )}
                 </div>
             )}
@@ -543,7 +543,7 @@ const ScanLabPanel = () => {
             <p className="text-xs text-muted-foreground">
                 Sensor LED duty = rows × (pre-wait + read) ÷ frame period. The firmware measures both; change a value, apply (or press Enter), and watch the ammeter.
             </p>
-            {onBoard && <p className={cn("text-xs", pacingDirty ? "text-amber-700" : "text-muted-foreground")} data-testid="pacing-on-board">{onBoard}{pacingDirty ? " — the fields below differ; apply to change it." : ""}</p>}
+            {onBoard && <p className={cn("text-xs", pacingDirty ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")} data-testid="pacing-on-board">{onBoard}{pacingDirty ? " — the fields below differ; apply to change it." : ""}</p>}
             <div className={cn("grid gap-2", "grid-cols-2")}>
                 {HANDS.map((h) => {
                     const p = power[h];
@@ -662,7 +662,7 @@ const ScanLabPanel = () => {
     const feedback = (
         <div className="text-xs min-h-[1rem]" aria-live="polite">
             {busy && <span className="text-muted-foreground">{busy}</span>}
-            {error && <span className="text-red-600">{error}</span>}
+            {error && <span className="text-red-600 dark:text-red-400">{error}</span>}
         </div>
     );
 

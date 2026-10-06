@@ -133,7 +133,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 onClick={() => setActiveModifier(modifier)}
                                 className={cn(
                                     "px-3 py-1 text-sm font-medium rounded-full transition-all",
-                                    isActive ? "bg-gray-800 text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
+                                    isActive ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-sm" : "text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                                 )}
                             >
                                 {modifier}
@@ -172,10 +172,10 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
                 {/* Active Modifier Legend */}
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <span className="text-xs font-semibold text-black">
+                    <span className="text-xs font-semibold text-kb-ink">
                         {MODIFIER_NAMES[activeModifier]}
                     </span>
-                    <span className="text-xs text-slate-500 leading-relaxed max-w-prose">
+                    <span className="text-xs text-slate-500 dark:text-neutral-400 leading-relaxed max-w-prose">
                         {MODIFIER_DESCRIPTIONS[activeModifier]}
                     </span>
                 </div>
@@ -188,7 +188,7 @@ const LayersPanel = ({ isPicker }: Props) => {
         <section className="space-y-3 flex flex-col">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-black">Layer Keys</span>
+                    <span className="font-semibold text-xl text-kb-ink">Layer Keys</span>
                 </div>
             )}
             {/* Layer Modifier Selection Tabs */}
@@ -203,7 +203,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 variant={isActive ? "default" : "ghost"}
                                 className={cn(
                                     "px-4 py-1 text-sm font-medium rounded-full transition-all min-w-[2.5rem]",
-                                    isActive ? "shadow-sm bg-gray-800 text-white hover:bg-gray-700" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+                                    isActive ? "shadow-sm bg-gray-800 text-white hover:bg-gray-700 dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-neutral-300" : "text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-gray-900 dark:hover:text-neutral-100"
                                 )}
                                 aria-pressed={isActive}
                                 title={MODIFIER_NAMES[modifier]}
@@ -218,12 +218,12 @@ const LayersPanel = ({ isPicker }: Props) => {
 
             {/* Scrollable Layer List */}
             <div className="flex flex-col">
-                {nameError && <p role="alert" className="text-red-600">{nameError}</p>}
+                {nameError && <p role="alert" className="text-red-600 dark:text-red-400">{nameError}</p>}
                 <DescriptionBlock wrapText={false}>
-                    <span className="text-md font-medium text-black">
+                    <span className="text-md font-medium text-kb-ink">
                         {MODIFIER_NAMES[activeModifier]}
                     </span>
-                    <span className="text-sm text-slate-500 leading-relaxed max-w-[560px]">
+                    <span className="text-sm text-slate-500 dark:text-neutral-400 leading-relaxed max-w-[560px]">
                         {MODIFIER_DESCRIPTIONS[activeModifier]}
                     </span>
                 </DescriptionBlock>

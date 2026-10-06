@@ -47,7 +47,7 @@ const EditLayer: FC<Props> = ({ layer }) => {
     return (
         <DialogContent>
             <DialogHeader></DialogHeader>
-            {nameError && <p role="alert" className="text-red-600">{nameError}</p>}
+            {nameError && <p role="alert" className="text-red-600 dark:text-red-400">{nameError}</p>}
             <div className="grid gap-4">
                 <Label htmlFor="name-1">Layer {layer} Name</Label>
                 <Input id="name-1" name="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -58,7 +58,7 @@ const EditLayer: FC<Props> = ({ layer }) => {
                     {layerColors.map((color) => (
                         <div
                             key={color.name}
-                            className={`w-10 h-10 rounded-full cursor-pointer hover:opacity-90 ${selectedColor === color.name ? "border-black border-2 shadow-md" : "border-transparent"
+                            className={`w-10 h-10 rounded-full cursor-pointer hover:opacity-90 dark:ring-1 dark:ring-kb-gray-border ${selectedColor === color.name ? "border-kb-ink border-2 shadow-md" : "border-transparent"
                                 }`}
                             style={{ backgroundColor: color.hex }}
                             onClick={() => setSelectedColor(color.name)}

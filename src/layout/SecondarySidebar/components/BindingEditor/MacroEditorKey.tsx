@@ -43,7 +43,7 @@ const MacroEditorKey: FC<Props> = ({ label, binding, index, onDelete, onDrop, on
                     editorSlot={index}
                 />
                 <div className="flex flex-row items-center flex-grow">
-                    {label && <div className="font-medium text-gray-600 px-2">{label}</div>}
+                    {label && <div className="font-medium text-gray-600 dark:text-neutral-300 px-2">{label}</div>}
                 </div>
             </div>
         </div>

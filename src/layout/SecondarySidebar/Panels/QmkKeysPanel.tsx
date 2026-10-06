@@ -67,7 +67,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
 
         const renderGroup = (keys: { kc: string; label: string }[], label: string) => (
             <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">{label}</span>
+                <span className="text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase">{label}</span>
                 <div className="flex flex-row gap-1 flex-wrap">
                     {keys.map((k) => renderKey(k.kc, k.label, true))}
                 </div>
@@ -86,15 +86,15 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
         <div className="space-y-6 pt-0 pb-8">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-black">One-Shot</span>
+                    <span className="font-semibold text-xl text-kb-ink">One-Shot</span>
                 </div>
             )}
             {/* One-Shot Modifiers Section */}
             <section className="flex flex-col gap-3">
-                <span className="font-semibold text-lg text-black">One-Shot Modifiers</span>
+                <span className="font-semibold text-lg text-kb-ink">One-Shot Modifiers</span>
 
                 <div className="flex flex-col gap-2">
-                    <span className="text-base font-medium text-black">Left Hand Side</span>
+                    <span className="text-base font-medium text-kb-ink">Left Hand Side</span>
                     <div className="flex flex-wrap gap-2">
                         {renderKey("OSM(MOD_LSFT)", "OSM LSft")}
                         {renderKey("OSM(MOD_LCTL)", "OSM LCtl")}
@@ -115,7 +115,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <span className="text-base font-medium text-black">Right Hand Side</span>
+                    <span className="text-base font-medium text-kb-ink">Right Hand Side</span>
                     <div className="flex flex-wrap gap-2">
                         {renderKey("OSM(MOD_RSFT)", "OSM RSft")}
                         {renderKey("OSM(MOD_RCTL)", "OSM RCtl")}

@@ -137,11 +137,11 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             isSmall ? "rounded-[5px] border" : isMedium ? "rounded-[5px] border" : "rounded-md border",
 
             (shouldHighlightContainer || drag.isDragHover)
-                ? "bg-red-500 text-white border-kb-gray ring-2 ring-red-500 ring-offset-1 ring-offset-background" // Selected: Red BG + Red Ring
+                ? "bg-red-500 text-white border-kb-key-border ring-2 ring-red-500 ring-offset-1 ring-offset-background" // Selected: Red BG + Red Ring
                 : drag.isDragSource
-                    ? cn(colorClass, "bg-kb-light-grey border-kb-light-grey opacity-60")
+                    ? cn(colorClass, "bg-kb-light-grey border-kb-light-grey opacity-60 dark:bg-neutral-700 dark:border-neutral-700")
                     : cn(
-                        colorClass, "border-kb-gray",
+                        colorClass, "border-kb-key-border",
                         // Hover: Use ring-inset instead of border-2 to prevent shifting
                         !disableHover && (hoverBorderColor || "hover:border-red-500 hover:ring-2 hover:ring-inset hover:ring-red-500"),
                         !disableHover && hoverBackgroundColor,

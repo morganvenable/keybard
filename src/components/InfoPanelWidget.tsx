@@ -17,10 +17,10 @@ export const InfoPanelWidget: React.FC<InfoPanelWidgetProps> = ({ showInfoPanel,
             {/* Expanding panel - grows to the right from behind the icon */}
             <div
                 className={cn(
-                    "absolute bottom-0 left-0 bg-white text-black shadow-lg transition-all duration-300 ease-in-out overflow-hidden",
+                    "absolute bottom-0 left-0 bg-kb-surface text-kb-ink shadow-lg transition-all duration-300 ease-in-out overflow-hidden",
                     showInfoPanel
                         ? "w-[350px] h-12 rounded-xl"
-                        : "w-12 h-12 rounded-xl border border-gray-200"
+                        : "w-12 h-12 rounded-xl border border-gray-200 dark:border-neutral-700"
                 )}
                 onClick={() => !showInfoPanel && setShowInfoPanel(true)}
             >
@@ -58,14 +58,14 @@ export const InfoPanelWidget: React.FC<InfoPanelWidgetProps> = ({ showInfoPanel,
 
                         if (!keycodeName) {
                             return (
-                                <p className="text-gray-300 italic text-sm select-none">No key selected</p>
+                                <p className="text-gray-300 dark:text-neutral-400 italic text-sm select-none">No key selected</p>
                             );
                         }
 
                         return (
                             <div className="flex items-center gap-2 select-none min-w-0">
-                                <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider shrink-0">Keycode:</span>
-                                <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs truncate">{keycodeName}</span>
+                                <span className="font-bold text-gray-500 dark:text-neutral-400 text-[10px] uppercase tracking-wider shrink-0">Keycode:</span>
+                                <span className="font-mono bg-gray-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-xs truncate">{keycodeName}</span>
                             </div>
                         );
                     })()}
@@ -77,8 +77,8 @@ export const InfoPanelWidget: React.FC<InfoPanelWidgetProps> = ({ showInfoPanel,
                 className={cn(
                     "absolute bottom-0 left-0 w-12 h-12 flex items-center justify-center transition-colors z-10",
                     showInfoPanel
-                        ? "text-black hover:text-gray-600"
-                        : "text-black hover:text-gray-500 hover:bg-gray-50 rounded-xl"
+                        ? "text-kb-ink hover:text-gray-600 dark:hover:text-neutral-300"
+                        : "text-kb-ink hover:text-gray-500 dark:hover:text-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 rounded-xl"
                 )}
                 onClick={(e) => {
                     e.stopPropagation();

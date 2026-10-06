@@ -2,9 +2,9 @@ import { SVGProps } from "react";
 
 export const LayoutExport = (props: SVGProps<SVGSVGElement>) => (
     <svg version="1.1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
-        <path fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2px" d="M12,2v8" />
-        <path fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2px" d="M8,6l4-4,4,4" />
-        <g>
+        <path fill="none" className="stroke-kb-ink" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2px" d="M12,2v8" />
+        <path fill="none" className="stroke-kb-ink" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2px" d="M8,6l4-4,4,4" />
+        <g className="fill-kb-ink">
             <path d="M2.65,16.77h-.99c-.29,0-.52.23-.52.52v.99c0,.29.23.52.52.52h.99c.29,0,.52-.23.52-.52v-.99c0-.29-.23-.52-.52-.52Z" />
             <path d="M6.13,20.3h-.99c-.29,0-.52.23-.52.52v1c0,.29.23.52.52.52h.99c.29,0,.52-.23.52-.52v-1c0-.29-.23-.52-.52-.52Z" />
             <path d="M5.13,15.25c-.34,0-.51-.17-.51-.52v-1c0-.34.17-.51.51-.51h1c.35,0,.52.17.52.51v1c0,.35-.17.52-.52.52h-1Z" />

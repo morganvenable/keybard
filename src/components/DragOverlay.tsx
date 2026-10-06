@@ -10,7 +10,7 @@ import { colorClasses } from "@/utils/colors";
 
 // Reusing styles from EditorKey roughly to ensure it looks identical
 const classes = {
-    key: "bg-white border-2 border-kb-gray-border w-12 h-12 rounded-md flex flex-col items-center justify-center shadow-lg pointer-events-none z-[99999]",
+    key: "bg-kb-surface border-2 border-kb-gray-border w-12 h-12 rounded-md flex flex-col items-center justify-center shadow-lg pointer-events-none z-[99999]",
     emptyKey:
         "bg-kb-green text-white w-12 h-12 rounded-md border-2 border-transparent flex items-center justify-center text-wrap text-center text-xs flex-col shadow-lg pointer-events-none z-[99999]",
 };
@@ -76,7 +76,7 @@ export const DragOverlay: React.FC = () => {
     };
 
     return createPortal(
-        <div style={style} className="shadow-lg rounded-md bg-white">
+        <div style={style} className="shadow-lg rounded-md bg-kb-surface">
             {renderContent()}
         </div>,
         document.body

@@ -6,7 +6,7 @@ const AboutPanel: React.FC = () => {
         <div className="space-y-3 pt-0 pb-8 relative flex flex-col">
             <div className="flex flex-col">
                 <DescriptionBlock wrapText={false}>
-                    <p className="mb-4 text-sm text-slate-500 leading-relaxed">
+                    <p className="mb-4 text-sm text-slate-500 dark:text-neutral-400 leading-relaxed">
                         <b>Keybard</b> version 1.0.0
                         <br/><br/>
                         Developed for the <b>Svalboard</b> community.

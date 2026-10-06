@@ -40,4 +40,6 @@ export interface SettingsContextType {
     resetSettings: () => void;
     resetSetting: (name: string) => void;
     refreshHardwareSettings: () => Promise<void>;
+    /** True once persisted settings have been read from storage. */
+    isLoaded?: boolean;
 }

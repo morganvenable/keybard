@@ -23,7 +23,7 @@ const DeployBadge: React.FC = () => {
 
     return (
         <div
-            className="fixed bottom-1 left-1 max-w-[80vw] truncate font-mono text-[10px] text-slate-500/70 pointer-events-none select-none z-50"
+            className="fixed bottom-1 left-1 max-w-[80vw] truncate font-mono text-[10px] text-slate-500/70 dark:text-neutral-400/70 pointer-events-none select-none z-50"
             aria-hidden="true"
         >
             {parts.join(" · ")}

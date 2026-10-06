@@ -32,7 +32,7 @@ const ExtraFunctionKeys = ({ compact, variant: variantOverride }: Props) => {
 
     return (
         <div className="flex flex-col gap-1">
-            <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+            <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                 F13-F24
             </span>
             <div className="flex flex-wrap gap-1">

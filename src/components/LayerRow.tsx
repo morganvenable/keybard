@@ -215,7 +215,7 @@ export const LayerRow: FC<LayerRowProps> = ({
         return (
             <>
                 {text.slice(0, index)}
-                <mark className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">
+                <mark className="bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100 px-0.5 rounded">
                     {text.slice(index, index + searchQuery.length)}
                 </mark>
                 {text.slice(index + searchQuery.length)}
@@ -243,14 +243,14 @@ export const LayerRow: FC<LayerRowProps> = ({
             )}
         >
             <div className={cn(
-                "rounded-sm bg-kb-gray dark:bg-gray-800/80 flex flex-col",
+                "rounded-sm bg-kb-gray flex flex-col",
                 compact ? "p-1.5" : "p-2"
             )}>
                 {/* Layer header */}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <div className={cn(
-                            "relative flex items-center justify-start transition-colors hover:bg-black/5 group-hover/row:bg-black/5 rounded-t-md rounded-b-none cursor-grab active:cursor-grabbing",
+                            "relative flex items-center justify-start transition-colors hover:bg-black/5 group-hover/row:bg-black/5 dark:hover:bg-white/5 dark:group-hover/row:bg-white/5 rounded-t-md rounded-b-none cursor-grab active:cursor-grabbing",
                             compact
                                 ? "-mx-1.5 -mt-1.5 px-2.5 pt-1.5 pb-1 mb-1"
                                 : "-mx-2 -mt-2 px-3 pt-2 pb-1.5 mb-2"
@@ -266,17 +266,17 @@ export const LayerRow: FC<LayerRowProps> = ({
                                     )}
                                 />
                                 {/* Layer index */}
-                                <span className="text-sm font-mono text-gray-500 font-bold">
+                                <span className="text-sm font-mono text-gray-500 dark:text-neutral-400 font-bold">
                                     {layer.index}
                                 </span>
                                 {/* Layer name */}
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                <span className="text-sm font-medium text-gray-900 dark:text-neutral-100 truncate">
                                     {highlightMatch(layer.name)}
                                 </span>
                             </div>
 
                             {/* Centered drag handle indicator */}
-                            <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none text-gray-400">
+                            <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none text-gray-400 dark:text-neutral-400">
                                 <GripHorizontal className="w-4 h-4" />
                             </div>
 
@@ -287,7 +287,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-6 w-6 rounded-full flex items-center justify-center p-0 transition-all hover:bg-black/10 text-gray-500"
+                                            className="h-6 w-6 rounded-full flex items-center justify-center p-0 transition-all hover:bg-black/10 dark:hover:bg-white/10 text-gray-500 dark:text-neutral-400 dark:hover:text-neutral-100"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsMaximized(true);
@@ -368,7 +368,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                     size="icon"
                                     className={cn(
                                         "h-8 w-8 rounded-full flex items-center justify-center p-0 transition-all",
-                                        justCopied ? "bg-black hover:bg-black/90 border-black text-white" : "bg-white dark:bg-gray-700 shadow-sm"
+                                        justCopied ? "bg-kb-active hover:bg-kb-active/90 border-kb-active text-kb-active-fg" : "bg-kb-surface shadow-sm"
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -398,7 +398,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                 <TooltipProvider delayDuration={0}>
                 <div
                     ref={floatingRef}
-                    className="fixed z-[9999] max-h-[calc(100dvh-2rem)] rounded-xl bg-kb-gray dark:bg-gray-800/80 shadow-2xl flex flex-col select-none group/floating"
+                    className="fixed z-[9999] max-h-[calc(100dvh-2rem)] rounded-xl bg-kb-gray shadow-2xl dark:ring-1 dark:ring-white/10 flex flex-col select-none group/floating"
                     style={{
                         width: `min(${fullDimensions.width + 64}px, calc(100vw - 2rem))`,
                         left: `clamp(16px, ${floatingPos.x}px, calc(100vw - min(${fullDimensions.width + 64}px, 100vw - 2rem) - 16px))`,
@@ -407,7 +407,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                 >
                     {/* Floating panel header – draggable */}
                     <div
-                        className="relative flex shrink-0 items-center justify-between px-4 pt-3 pb-2.5 cursor-grab active:cursor-grabbing rounded-t-xl transition-colors hover:bg-black/5 group-hover/floating:bg-black/5"
+                        className="relative flex shrink-0 items-center justify-between px-4 pt-3 pb-2.5 cursor-grab active:cursor-grabbing rounded-t-xl transition-colors hover:bg-black/5 group-hover/floating:bg-black/5 dark:hover:bg-white/5 dark:group-hover/floating:bg-white/5"
                         onMouseDown={handleFloatingDragStart}
                     >
                         <div className="flex min-w-0 items-center gap-2">
@@ -417,16 +417,16 @@ export const LayerRow: FC<LayerRowProps> = ({
                                     colorClasses[resolvedColorName] || "bg-kb-primary"
                                 )}
                             />
-                            <span className="text-sm font-mono text-gray-500 font-bold">
+                            <span className="text-sm font-mono text-gray-500 dark:text-neutral-400 font-bold">
                                 {layer.index}
                             </span>
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            <span className="text-sm font-medium text-gray-900 dark:text-neutral-100">
                                 {layer.name}
                             </span>
                         </div>
 
                         {/* Centered drag handle */}
-                        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none text-gray-400">
+                        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none text-gray-400 dark:text-neutral-400">
                             <GripHorizontal className="w-5 h-5" />
                         </div>
 
@@ -435,7 +435,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 rounded-full flex items-center justify-center p-0 transition-all hover:bg-black/10 text-gray-500"
+                                className="h-6 w-6 rounded-full flex items-center justify-center p-0 transition-all hover:bg-black/10 dark:hover:bg-white/10 text-gray-500 dark:text-neutral-400 dark:hover:text-neutral-100"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setIsMaximized(false);
@@ -489,7 +489,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                                         size="icon"
                                         className={cn(
                                             "h-10 w-10 rounded-full flex items-center justify-center p-0 transition-all",
-                                            justCopied ? "bg-black hover:bg-black/90 border-black text-white" : "bg-white dark:bg-gray-700 shadow-sm"
+                                            justCopied ? "bg-kb-active hover:bg-kb-active/90 border-kb-active text-kb-active-fg" : "bg-kb-surface shadow-sm"
                                         )}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -528,7 +528,7 @@ export const LayerRow: FC<LayerRowProps> = ({
                         <Button
                             variant="outline"
                             onClick={() => setIsDeleteConfirmOpen(false)}
-                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 dark:border-neutral-500 dark:hover:bg-neutral-800 transition-colors"
                         >
                             Cancel
                         </Button>

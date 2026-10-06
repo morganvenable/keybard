@@ -33,7 +33,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
     return (
         <div className="flex flex-wrap justify-end items-center gap-2 max-w-full">
 
-            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
+            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 dark:bg-neutral-700/50 p-0.5 rounded-md border border-gray-300/50 dark:border-neutral-600/50 w-fit">
                 {(['default', 'medium', 'small'] as const).map((variant) => (
                     <button
                         key={variant}
@@ -44,10 +44,10 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                         className={cn(
                             "px-2 py-0.5 text-xs uppercase tracking-wide rounded-[4px] transition-all font-semibold border select-none",
                             keyVariant === variant && !isAutoKeySize
-                                ? "bg-black text-white shadow-sm border-black"
+                                ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
                                 : keyVariant === variant && isAutoKeySize
-                                    ? "bg-gray-400 text-white border-gray-400"
-                                    : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                                    ? "bg-gray-400 text-white border-gray-400 dark:bg-neutral-600 dark:border-neutral-600"
+                                    : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                         )}
                         aria-pressed={keyVariant === variant && !isAutoKeySize}
                         title={`Set key size to ${variant}`}
@@ -63,8 +63,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     className={cn(
                         "px-2 py-0.5 text-xs uppercase tracking-wide rounded-[4px] transition-all font-semibold border select-none",
                         isAutoKeySize
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                            : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                     )}
                     aria-pressed={isAutoKeySize}
                     title="Auto size based on window"
@@ -73,7 +73,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                 </button>
             </div>
 
-            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
+            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 dark:bg-neutral-700/50 p-0.5 rounded-md border border-gray-300/50 dark:border-neutral-600/50 w-fit">
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -83,8 +83,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     className={cn(
                         "p-1 rounded-[4px] transition-all border",
                         layoutMode === "sidebar" && !isAutoLayoutMode
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                            : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                     )}
                     aria-label="Sidebar layout"
                     aria-pressed={layoutMode === "sidebar" && !isAutoLayoutMode}
@@ -101,8 +101,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     className={cn(
                         "p-1 rounded-[4px] transition-all border",
                         layoutMode === "bottombar" && !isAutoLayoutMode
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                            : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                     )}
                     aria-label="Bottom bar layout"
                     aria-pressed={layoutMode === "bottombar" && !isAutoLayoutMode}
@@ -118,8 +118,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     className={cn(
                         "px-1.5 py-0.5 text-xs uppercase tracking-wide rounded-[4px] transition-all font-semibold border select-none",
                         isAutoLayoutMode
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                            : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                     )}
                     aria-pressed={isAutoLayoutMode}
                     title="Auto-switch layout based on window size"
@@ -137,8 +137,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     className={cn(
                         "p-1 rounded-[4px] transition-all border",
                         showInfoPanel
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                            : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-300/50 dark:hover:bg-neutral-600/50"
                     )}
                     aria-label={showInfoPanel ? "Hide Key Info" : "Show Key Info"}
                     aria-expanded={showInfoPanel}

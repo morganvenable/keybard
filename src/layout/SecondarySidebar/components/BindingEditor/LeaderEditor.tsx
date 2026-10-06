@@ -130,7 +130,7 @@ const LeaderEditor: FC = () => {
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className={cn("font-medium text-black", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
+                <span className={cn("font-medium text-kb-ink", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
                 <EditorKey
                     keycode={keycode}
                     selected={isSelected}
@@ -183,7 +183,7 @@ const LeaderEditor: FC = () => {
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className={cn("font-bold text-slate-600", isHorizontal ? "text-xs" : "text-sm")}>Output</span>
+                <span className={cn("font-bold text-slate-600 dark:text-neutral-300", isHorizontal ? "text-xs" : "text-sm")}>Output</span>
                 <EditorKey
                     keycode={keycode}
                     selected={isSelected}
@@ -224,14 +224,14 @@ const LeaderEditor: FC = () => {
                             if (idx > filledKeys) return null;
                             return (
                                 <div key={idx} className="flex items-center gap-0.5">
-                                    {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400" />}
+                                    {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400 dark:text-neutral-400" />}
                                     {renderSequenceKey(idx)}
                                 </div>
                             );
                         })}
                     </div>
 
-                    <ArrowRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                    <ArrowRight className="w-5 h-5 text-gray-600 dark:text-neutral-300 flex-shrink-0" />
 
                     {/* Output Key */}
                     {renderOutputKey()}
@@ -252,7 +252,7 @@ const LeaderEditor: FC = () => {
         <div className="flex flex-col gap-8 py-6 pl-10 pb-20">
             {/* Sequence & Output Keys */}
             <div className="flex flex-col gap-3">
-                <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>
+                <span className="font-semibold text-sm text-slate-600 dark:text-neutral-300">Sequence (up to 5 keys)</span>
                 <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3, 4].map((idx) => {
                         // Only show slots up to filledKeys + 1 (to allow adding one more)
@@ -261,7 +261,7 @@ const LeaderEditor: FC = () => {
                             <div key={idx} className="flex flex-row items-end gap-4">
                                 {idx > 0 && (
                                     <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
-                                        <ArrowRight className="w-5 h-5 text-black" />
+                                        <ArrowRight className="w-5 h-5 text-kb-ink" />
                                     </div>
                                 )}
                                 {renderSequenceKey(idx)}
@@ -272,7 +272,7 @@ const LeaderEditor: FC = () => {
                     {/* Output Key on same line */}
                     <div className="flex flex-row gap-4 items-end">
                         <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
-                            <ArrowRightFromLine className="w-5 h-5 text-black" />
+                            <ArrowRightFromLine className="w-5 h-5 text-kb-ink" />
                         </div>
                         {renderOutputKey()}
                     </div>

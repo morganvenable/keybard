@@ -57,9 +57,9 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
     );
 
     return (
-        <div className="h-full w-full bg-white flex flex-col">
+        <div className="h-full w-full bg-kb-surface flex flex-col">
             {/* Header */}
-            <header className="border-b border-gray-200 px-6 py-4 flex items-center gap-4 shrink-0">
+            <header className="border-b border-gray-200 dark:border-neutral-700 px-6 py-4 flex items-center gap-4 shrink-0">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -69,8 +69,8 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="flex-1">
-                    <h1 className="text-2xl font-semibold text-slate-800">Key Proof Sheet</h1>
-                    <p className="text-sm text-gray-500">
+                    <h1 className="text-2xl font-semibold text-slate-800 dark:text-neutral-100">Key Proof Sheet</h1>
+                    <p className="text-sm text-gray-500 dark:text-neutral-400">
                         Visual inspection of key renderings at all sizes ({totalKeys} keys in{" "}
                         {proofCategories.length} categories)
                     </p>
@@ -78,10 +78,10 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
             </header>
 
             {/* Controls Bar */}
-            <div className="border-b border-gray-200 px-6 py-3 flex items-center gap-6 bg-gray-50 shrink-0 flex-wrap">
+            <div className="border-b border-gray-200 dark:border-neutral-700 px-6 py-3 flex items-center gap-6 bg-gray-50 dark:bg-neutral-800/60 shrink-0 flex-wrap">
                 {/* Layer Color Selector */}
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Layer Color:</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-neutral-200">Layer Color:</span>
                     <div className="flex gap-1">
                         {layerColors.map((color) => (
                             <button
@@ -90,7 +90,7 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
                                 className={cn(
                                     "w-6 h-6 rounded-full border-2 transition-all",
                                     selectedLayerColor === color.name
-                                        ? "border-gray-800 scale-110"
+                                        ? "border-gray-800 dark:border-neutral-100 scale-110"
                                         : "border-transparent hover:scale-105"
                                 )}
                                 style={{ backgroundColor: color.hex }}
@@ -101,7 +101,7 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
                 </div>
 
                 {/* Divider */}
-                <div className="h-6 w-px bg-gray-300" />
+                <div className="h-6 w-px bg-gray-300 dark:bg-neutral-600" />
 
                 {/* State Toggles */}
                 <div className="flex items-center gap-4">
@@ -110,7 +110,7 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
                             checked={showSelected}
                             onCheckedChange={setShowSelected}
                         />
-                        <span className="text-sm text-gray-700">Selected</span>
+                        <span className="text-sm text-gray-700 dark:text-neutral-200">Selected</span>
                     </label>
 
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -118,12 +118,12 @@ const ProofSheetPage: FC<ProofSheetPageProps> = ({ onBack }) => {
                             checked={showPending}
                             onCheckedChange={setShowPending}
                         />
-                        <span className="text-sm text-gray-700">Pending</span>
+                        <span className="text-sm text-gray-700 dark:text-neutral-200">Pending</span>
                     </label>
                 </div>
 
                 {/* Divider */}
-                <div className="h-6 w-px bg-gray-300" />
+                <div className="h-6 w-px bg-gray-300 dark:bg-neutral-600" />
 
                 {/* Expand/Collapse Buttons */}
                 <div className="flex items-center gap-2">

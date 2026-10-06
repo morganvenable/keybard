@@ -116,7 +116,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     return (
         <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
             <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Mouse Buttons
                 </span>
                 {/* Row 1: Mouse buttons */}
@@ -127,7 +127,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
 
             {/* Modifiers section */}
             <div className="flex flex-col gap-2">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Modifiers
                 </span>
                 {compact ? (
@@ -139,7 +139,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                             size="sm"
                             className={cn(
                                 "rounded-md px-2 py-0.5 h-6 transition-all text-[10px] font-medium border-none",
-                                activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                activeModifiers.length === 0 ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                             )}
                             onClick={handleClearModifiers}
                             title="Clear modifiers"
@@ -156,7 +156,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                                     size="sm"
                                     className={cn(
                                         "rounded-md px-2 py-0.5 h-6 transition-all text-[11px] font-medium border-none",
-                                        isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                        isActive ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                                     )}
                                     onClick={() => handleModifierToggle(modifier)}
                                     title={modifier}
@@ -175,7 +175,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                             size="sm"
                             className={cn(
                                 "rounded-md h-8 transition-all text-sm font-bold border-none w-[84px]",
-                                activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                activeModifiers.length === 0 ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                             )}
                             onClick={handleClearModifiers}
                             title="Clear modifiers"
@@ -192,7 +192,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                                     size="sm"
                                     className={cn(
                                         "rounded-md h-8 transition-all text-sm font-bold border-none w-[84px]",
-                                        isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                        isActive ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                                     )}
                                     onClick={() => handleModifierToggle(modifier)}
                                 >
@@ -205,7 +205,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
             </div>
 
             <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Sniper Keys
                 </span>
                 {/* Row 2: Sniper keys */}
@@ -215,7 +215,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
             </div>
 
             <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Boost
                 </span>
                 {/* Row 3: Boost keys */}

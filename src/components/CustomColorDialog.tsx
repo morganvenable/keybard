@@ -207,13 +207,13 @@ const CustomColorDialog = ({
                                 style={{
                                     backgroundColor: displayColor,
                                     boxShadow: activeTarget === 'display'
-                                        ? `0 0 0 4px black, 0 0 20px ${displayColor}80`
+                                        ? `0 0 0 4px var(--kb-ink), 0 0 20px ${displayColor}80`
                                         : `0 0 0 4px transparent`
                                 }}
                             />
                             <span className={cn(
                                 "text-sm font-semibold transition-colors",
-                                activeTarget === 'display' ? "text-black" : "text-black/60 group-hover:text-black"
+                                activeTarget === 'display' ? "text-kb-ink" : "text-kb-ink/60 group-hover:text-kb-ink"
                             )}>
                                 Key color
                             </span>
@@ -234,13 +234,13 @@ const CustomColorDialog = ({
                                 style={{
                                     backgroundColor: ledColor,
                                     boxShadow: activeTarget === 'led'
-                                        ? `0 0 0 4px black, 0 0 20px ${ledColor}80`
+                                        ? `0 0 0 4px var(--kb-ink), 0 0 20px ${ledColor}80`
                                         : `0 0 0 4px transparent`
                                 }}
                             />
                             <span className={cn(
                                 "text-sm font-semibold transition-colors",
-                                activeTarget === 'led' ? "text-black" : "text-black/60 group-hover:text-black"
+                                activeTarget === 'led' ? "text-kb-ink" : "text-kb-ink/60 group-hover:text-kb-ink"
                             )}>
                                 LED color
                             </span>
@@ -361,7 +361,7 @@ const CustomColorDialog = ({
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}
-                        className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                        className="rounded-full px-8 py-5 text-base border-slate-300 dark:border-neutral-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors"
                     >
                         Cancel
                     </Button>

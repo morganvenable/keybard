@@ -376,10 +376,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             isDropTarget
                                 ? "bg-red-500 text-white shadow-md scale-105 ring-2 ring-red-500 ring-offset-1 ring-offset-background"
                                 : isActive
-                                    ? "bg-gray-800 text-white shadow-md scale-105"
-                                    : "bg-transparent text-gray-600 hover:bg-gray-200",
+                                    ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105"
+                                    : "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700",
                             isDropTarget && "hover:bg-red-500",
-                            isHudMode && !isActive && !isLayerActive && "text-gray-300"
+                            isHudMode && !isActive && !isLayerActive && "text-gray-300 dark:text-neutral-400"
                         )}
                     >
                         <span className={cn("select-none", isLayerActive && "underline underline-offset-2")}>
@@ -549,7 +549,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 transition: effectiveRootTransition,
             }}
         >
-            {clipboardError && <p role="alert" className="pointer-events-auto text-sm text-red-700">{clipboardError}</p>}
+            {clipboardError && <p role="alert" className="pointer-events-auto text-sm text-red-700 dark:text-red-400">{clipboardError}</p>}
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             {!hideLayerTabs && !isOverviewSceneActive && !show3DScene && (
                 <div
@@ -565,8 +565,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                     className={cn(
                                         "p-2 rounded-full transition-colors flex-shrink-0",
                                         activePanel === "matrixtester"
-                                            ? "text-gray-400 cursor-not-allowed opacity-30"
-                                            : "text-black hover:bg-gray-200"
+                                            ? "text-gray-400 dark:text-neutral-400 cursor-not-allowed opacity-30"
+                                            : "text-kb-ink hover:bg-gray-200 dark:hover:bg-neutral-700"
                                     )}
                                     aria-label={showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
                                 >
@@ -605,8 +605,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 className={cn(
                                     "p-2 rounded-full transition-colors",
                                     isHudMode
-                                        ? "bg-black text-kb-gray"
-                                        : "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                        ? "bg-kb-active text-kb-gray"
+                                        : "text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-100 hover:bg-gray-200 dark:hover:bg-neutral-700"
                                 )}
                                 aria-label="Reverse Layer Order"
                             >
@@ -626,7 +626,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                                    className="p-2 rounded-full transition-colors text-gray-400 hover:text-black hover:bg-gray-200 ml-auto mr-4 flex-shrink-0"
+                                    className="p-2 rounded-full transition-colors text-gray-400 dark:text-neutral-400 hover:text-kb-ink hover:bg-gray-200 dark:hover:bg-neutral-700 ml-auto mr-4 flex-shrink-0"
                                     aria-label="Hide layer view"
                                     disabled={selectedLayer === 0}
                                     data-remove-view={instanceId}
@@ -682,12 +682,12 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                             className={cn(
                                                 "w-8 h-8 rounded-full transition-all duration-150 flex-shrink-0 ml-[-4px] flex items-center justify-center",
                                                 activePanel === "matrixtester"
-                                                    ? "text-gray-400 cursor-not-allowed opacity-30"
+                                                    ? "text-gray-400 dark:text-neutral-400 cursor-not-allowed opacity-30"
                                                     : isTransparencyActive
-                                                        ? "opacity-100 bg-black hover:bg-gray-800"
+                                                        ? "opacity-100 bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
                                                         : cn(
                                                             "opacity-0 pointer-events-none scale-95",
-                                                            !suppressTransparencyHover && "group-hover/layer-badge:opacity-100 group-hover/layer-badge:pointer-events-auto group-hover/layer-badge:scale-100 hover:bg-gray-200"
+                                                            !suppressTransparencyHover && "group-hover/layer-badge:opacity-100 group-hover/layer-badge:pointer-events-auto group-hover/layer-badge:scale-100 hover:bg-gray-200 dark:hover:bg-neutral-700"
                                                         ),
                                                 isTransparencyRestoring && "invisible pointer-events-none"
                                             )}
@@ -695,7 +695,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                         >
                                             <span className={cn(
                                                 "text-base leading-none font-semibold translate-y-[1px]",
-                                                isTransparencyActive ? "text-kb-gray" : "text-black"
+                                                isTransparencyActive ? "text-kb-gray" : "text-kb-ink"
                                             )}>
                                                 {transparentKeyGlyph}
                                             </span>

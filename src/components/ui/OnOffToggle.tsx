@@ -15,7 +15,7 @@ const OnOffToggle: FC<Props> = ({ value, onToggle, className, label, description
             role="group"
             aria-label={label}
             aria-description={description}
-            className={cn("flex flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 w-fit border border-gray-200 dark:border-gray-700", className)}
+            className={cn("flex flex-row items-center bg-gray-100 dark:bg-neutral-800 rounded-full p-0.5 w-fit border border-gray-200 dark:border-neutral-500", className)}
             onClick={(e) => e.stopPropagation()}
         >
             <button
@@ -28,8 +28,8 @@ const OnOffToggle: FC<Props> = ({ value, onToggle, className, label, description
                 className={cn(
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 px-3 py-1 text-[10px] uppercase tracking-wide rounded-full transition-all font-bold",
                     value
-                        ? "bg-black text-white shadow-sm"
-                        : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        ? "bg-kb-active text-kb-active-fg shadow-sm"
+                        : "text-gray-500 hover:text-kb-ink dark:text-neutral-400 dark:hover:text-kb-ink"
                 )}
             >
                 ON
@@ -44,8 +44,8 @@ const OnOffToggle: FC<Props> = ({ value, onToggle, className, label, description
                 className={cn(
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 px-3 py-1 text-[10px] uppercase tracking-wide rounded-full transition-all font-bold",
                     !value
-                        ? "bg-black text-white shadow-sm"
-                        : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        ? "bg-kb-active text-kb-active-fg shadow-sm"
+                        : "text-gray-500 hover:text-kb-ink dark:text-neutral-400 dark:hover:text-kb-ink"
                 )}
             >
                 OFF

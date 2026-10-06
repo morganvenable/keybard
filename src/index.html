@@ -2,6 +2,30 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <!--
+            No-flash theme: apply html.dark before first paint. Reads the same namespaced
+            "keyboard-settings" JSON that SettingsService writes (src/utils/app-storage.ts).
+            Default is light on this branch (keep in sync with DEFAULT_THEME_PREF in src/lib/theme.ts).
+            The background colour #141517 must equal --kb-gray in .dark (src/index.css);
+            tests/utils/theme.test.ts asserts they match.
+        -->
+        <script>
+            (function () {
+                try {
+                    var ns = "%VITE_STORAGE_NAMESPACE%";
+                    if (ns.charAt(0) === "%") ns = "";
+                    var raw = window.localStorage.getItem((ns ? ns + ":" : "") + "keyboard-settings");
+                    var pref = raw ? (JSON.parse(raw) || {}).theme : undefined;
+                    var dark = pref === "dark" ||
+                        (pref === "system" && typeof window.matchMedia === "function" &&
+                            window.matchMedia("(prefers-color-scheme: dark)").matches);
+                    if (dark) document.documentElement.classList.add("dark");
+                } catch (e) {
+                    /* ignore: fall back to light */
+                }
+            })();
+        </script>
+        <style>html.dark{color-scheme:dark;background-color:#141517}</style>
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

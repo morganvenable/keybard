@@ -141,7 +141,7 @@ const SettingsPanel = () => {
                             </label>
                         </div>
                     </div>
-                    {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
+                    {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
                     <DialogFooter>
                         <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
                             Cancel
@@ -190,7 +190,7 @@ const SettingsPanel = () => {
                         onClick={() => setActiveCategory(category.name)}
                         className={cn(
                             "w-0 min-w-0 flex-1 flex items-center gap-2 flex-col cursor-pointer py-3 rounded-lg transition-all",
-                            activeCategory === category.name ? "bg-black text-white hover:bg-black/80 hover:text-white" : "text-muted-foreground hover:bg-muted bg-muted/60"
+                            activeCategory === category.name ? "bg-kb-active text-kb-active-fg hover:bg-kb-active/80 hover:text-kb-active-fg" : "text-muted-foreground hover:bg-muted bg-muted/60"
                         )}
                     >
                         {category.icon && <category.icon className="h-4 w-4" />}

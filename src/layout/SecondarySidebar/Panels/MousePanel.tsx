@@ -112,7 +112,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
     if (isHorizontal) {
         const renderKeyGroup = (keys: readonly MouseKeyDefinition[], label: string) => (
             <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">{label}</span>
+                <span className="text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase">{label}</span>
                 <div className="flex flex-row gap-1 flex-wrap">
                     {keys.map((mouseKey) => {
                         const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
@@ -155,7 +155,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
         <section className="flex flex-col space-y-3 pt-0">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-black">Mouse Keys</span>
+                    <span className="font-semibold text-xl text-kb-ink">Mouse Keys</span>
                 </div>
             )}
             <div className="flex flex-col">

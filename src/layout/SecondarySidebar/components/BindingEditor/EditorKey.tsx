@@ -39,7 +39,7 @@ const EditorKey: FC<EditorKeyProps> = ({
     trashOffset = "-left-10",
     trashSize = "w-4 h-4",
     variant = "default",
-    labelClassName = "text-sm font-bold text-slate-600",
+    labelClassName = "text-sm font-bold text-slate-600 dark:text-neutral-300",
     wrapperClassName = "flex flex-col items-center gap-1 relative",
     showTrash = true,
     onDrop,
@@ -72,16 +72,16 @@ const EditorKey: FC<EditorKeyProps> = ({
     } else if (isDragHover && isDragging && onDrop) {
         // Drag Hover State: Double Border effect
         keyColor = undefined;
-        keyClassName = "bg-red-500 border-kb-gray ring-2 ring-red-500 ring-offset-1 ring-offset-background";
+        keyClassName = "bg-red-500 border-kb-key-border ring-2 ring-red-500 ring-offset-1 ring-offset-background";
         headerClass = "bg-red-600 text-white";
     } else if (hasContent) {
         keyColor = "sidebar";
-        keyClassName = "border-kb-gray";
+        keyClassName = "border-kb-key-border";
         headerClass = "bg-kb-sidebar-dark";
     } else {
         keyColor = undefined;
-        keyClassName = "bg-transparent border-2 border-black";
-        headerClass = "text-black";
+        keyClassName = "bg-transparent border-2 border-kb-ink";
+        headerClass = "text-kb-ink";
     }
 
     const handleMouseEnter = () => {
@@ -159,7 +159,7 @@ const EditorKey: FC<EditorKeyProps> = ({
                         <DelayedTooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    className="p-1.5 text-gray-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
+                                    className="p-1.5 text-gray-400 dark:text-neutral-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onClear();

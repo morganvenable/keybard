@@ -20,6 +20,9 @@
     background-size: 8px 100%;
     background-repeat: repeat-x;
 }
+.dark .sidebar-dotted-line {
+    background-image: radial-gradient(circle, #4b4f55 1px, transparent 1.2px);
+}
 /* Binding input stays mounted as placement changes. Each editor has its own
    bounded viewport beside (or above) the independently scrollable key palette. */
 .detail-panel[data-placement="side"] .binding-workspace {

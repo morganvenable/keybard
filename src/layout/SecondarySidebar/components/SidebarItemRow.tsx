@@ -135,7 +135,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
             <div
                 className={cn(
                     "flex flex-row items-center py-0 panel-layer-item group/item relative pl-6 pr-2 transition-colors",
-                    (onEdit || onNameChange || onColorChange) && "hover:bg-black/5 hover:rounded-lg py-2",
+                    (onEdit || onNameChange || onColorChange) && "hover:bg-black/5 dark:hover:bg-white/5 hover:rounded-lg py-2",
                     isClickable && "cursor-pointer",
                     className
                 )}
@@ -159,9 +159,9 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                         <div className="relative" ref={pickerRef}>
                             <div
                                 className={cn(
-                                    "w-4 h-4 rounded-full flex-shrink-0 cursor-pointer transition-transform hover:scale-110 border-2",
+                                    "w-4 h-4 rounded-full flex-shrink-0 cursor-pointer transition-transform hover:scale-110 border-2 dark:ring-1 dark:ring-kb-gray-border",
                                     colorClasses[color],
-                                    isColorPickerOpen ? "border-black" : "border-transparent"
+                                    isColorPickerOpen ? "border-kb-ink" : "border-transparent"
                                 )}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -172,14 +172,14 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             />
 
                             {isColorPickerOpen && onColorChange && (
-                                <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-50 bg-[#EEEEEE] rounded-3xl p-2 flex flex-col items-center gap-2 shadow-xl border border-gray-200 min-w-[40px]">
+                                <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-50 bg-kb-popover rounded-3xl p-2 flex flex-col items-center gap-2 shadow-xl border border-gray-200 dark:border-neutral-700 min-w-[40px]">
                                     {layerColors.map((layerColor) => (
                                         <button
                                             key={layerColor.name}
                                             className={cn(
-                                                "w-4 h-4 rounded-full transition-all hover:scale-110 border-2",
+                                                "w-4 h-4 rounded-full transition-all hover:scale-110 border-2 dark:ring-1 dark:ring-kb-gray-border",
                                                 color === layerColor.name
-                                                    ? "border-black border-3"
+                                                    ? "border-kb-ink border-3"
                                                     : "border-transparent"
                                             )}
                                             style={{ backgroundColor: layerColor.hex }}
@@ -192,7 +192,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                         </div>
                     )}
                     {showIndex && (
-                        <span className="text-md font-semibold w-5 text-center flex-shrink-0 text-black">
+                        <span className="text-md font-semibold w-5 text-center flex-shrink-0 text-kb-ink">
                             {index}
                         </span>
                     )}
@@ -214,7 +214,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             {/* Visual dotted border baseline */}
                             {isEditing && onNameChange ? (
                                 <div
-                                    className="absolute left-[-4px] right-0 bottom-[-7px] flex items-center bg-white rounded-md px-2 py-1.5 border border-black shadow-sm"
+                                    className="absolute left-[-4px] right-0 bottom-[-7px] flex items-center bg-kb-surface rounded-md px-2 py-1.5 border border-kb-ink shadow-sm"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Input
@@ -282,26 +282,26 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                     )}
                     {onEdit && showEditIcon && (
                         <div
-                            className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1"
+                            className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 dark:bg-neutral-800 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onEdit(index);
                             }}
                             title="Edit"
                         >
-                            <Pencil className="w-4 h-4 text-gray-700" />
+                            <Pencil className="w-4 h-4 text-gray-700 dark:text-neutral-200" />
                         </div>
                     )}
                     {onDelete && (
                         <div
-                            className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 hover:bg-red-500 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1 group/delete"
+                            className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-500 dark:hover:bg-red-500 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1 group/delete"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onDelete(index);
                             }}
                             title="Delete"
                         >
-                            <X className="w-4 h-4 text-gray-700 group-hover/delete:text-white transition-colors" />
+                            <X className="w-4 h-4 text-gray-700 dark:text-neutral-200 group-hover/delete:text-white dark:group-hover/delete:text-white transition-colors" />
                         </div>
                     )}
                 </div>

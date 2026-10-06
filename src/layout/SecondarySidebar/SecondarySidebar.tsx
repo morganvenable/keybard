@@ -49,10 +49,10 @@ const AlternativeHeader = ({ onBack, menus }: AlternativeHeaderProps) => {
                 className="bg-transparent hover:bg-muted/60 rounded-full p-2 cursor-pointer transition-colors"
                 aria-label="Go back"
             >
-                <ArrowLeft className="h-6 w-6 text-gray-500" />
+                <ArrowLeft className="h-6 w-6 text-gray-500 dark:text-neutral-400" />
             </button>
             <div>
-                <h2 className="text-[22px] font-semibold leading-none text-black">
+                <h2 className="text-[22px] font-semibold leading-none text-kb-ink">
                     {title}
                 </h2>
             </div>
@@ -134,7 +134,7 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
             inert={state !== "expanded"}
             data-binding-open={showPicker ? "true" : undefined}
             data-placement={bottom ? "bottom" : "side"}
-            className={cn("detail-panel fixed z-[60] flex flex-col bg-white border shadow-lg min-h-0", bottom ? "bottom-panel bottom-0 right-0" : "top-2 bottom-2 rounded-2xl", state !== "expanded" && "hidden")}
+            className={cn("detail-panel fixed z-[60] flex flex-col bg-kb-surface border shadow-lg min-h-0", bottom ? "bottom-panel bottom-0 right-0" : "top-2 bottom-2 rounded-2xl", state !== "expanded" && "hidden")}
             style={{
                 left: leftOffset ?? primaryOffset,
                 width: bottom ? undefined : `min(${DETAIL_SIDEBAR_WIDTH}, calc(100vw - ${leftOffset ?? primaryOffset} - 8px))`,
@@ -151,7 +151,7 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
                 ) : (
                     <div className="flex items-center justify-between gap-4 pt-1.5">
                         <div>
-                            <h2 className="text-[22px] font-semibold leading-none text-black">
+                            <h2 className="text-[22px] font-semibold leading-none text-kb-ink">
                                 {getPanelTitle(activePanel, keyboard?.menus)}
                             </h2>
                         </div>
@@ -178,14 +178,14 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
             {/* Overlay Panel for Key Picker */}
             <div
                 className={cn(
-                    "absolute top-0 bottom-0 left-0 -right-[2px] bg-white shadow-[4px_0_16px_rgba(0,0,0,0.1)] z-20 transition-all duration-500 ease-in-out flex flex-col",
+                    "absolute top-0 bottom-0 left-0 -right-[2px] bg-kb-surface shadow-[4px_0_16px_rgba(0,0,0,0.1)] z-20 transition-all duration-500 ease-in-out flex flex-col",
                     showPicker && !bottom ? "translate-x-0 opacity-100" : "-translate-x-[120%] opacity-0 pointer-events-none"
                 )}
                 aria-hidden={!showPicker || bottom}
                 inert={!showPicker || bottom}
                 style={{ clipPath: "inset(-50px -300px -50px 0px)" }}
             >
-                <div className="px-4 py-6 bg-white shrink-0">
+                <div className="px-4 py-6 bg-kb-surface shrink-0">
                     <AlternativeHeader onBack={() => setIsClosingEditor(true)} menus={keyboard?.menus} />
                 </div>
 
@@ -205,7 +205,7 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
                 </div>
             </div>
             {showPicker && <div ref={bindingRef} tabIndex={-1} className="binding-workspace z-30 bg-kb-gray-medium shadow-lg flex min-h-0" aria-label="Binding editor">
-                {bottom && <div className="shrink-0 bg-white overflow-y-auto">
+                {bottom && <div className="shrink-0 bg-kb-surface overflow-y-auto">
                     <EditorSidePanel activeTab={pickerMode} onTabChange={setPickerMode} showMacros={activePanel !== "macros"} />
                 </div>}
                 <div className="relative min-w-0 flex-1 overflow-auto overscroll-contain" data-binding-scroll-owner>

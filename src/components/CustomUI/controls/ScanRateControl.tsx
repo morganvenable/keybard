@@ -43,7 +43,7 @@ export function ScanRateControl({ item, value, onChange, compact = false }: {
                     }} />
                 <span className="text-xs">Hz</span>
             </div> : <select ref={selectRef} aria-label={item.label} aria-description={item.description} title={item.description} value={String(value)}
-                className="rounded-md border bg-white px-2 py-1.5 text-sm" onChange={e => {
+                className="rounded-md border dark:border-input bg-kb-surface px-2 py-1.5 text-sm" onChange={e => {
                     if (e.target.value === "custom") { cancelEdit.current = false; setDraft(String(rate(value) || 1000)); setCustom(true); }
                     else onChange(Number(e.target.value));
                 }}>
@@ -51,6 +51,6 @@ export function ScanRateControl({ item, value, onChange, compact = false }: {
                 <option value="custom">Custom rate…</option>
             </select>}
         </div>
-        {error && <p role="alert" className="mt-1 text-xs text-red-700">{error}</p>}
+        {error && <p role="alert" className="mt-1 text-xs text-red-700 dark:text-red-400">{error}</p>}
     </div>;
 }

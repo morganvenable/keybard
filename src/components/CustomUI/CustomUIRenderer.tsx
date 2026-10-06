@@ -46,7 +46,7 @@ export const CustomUIRenderer: React.FC<CustomUIRendererProps> = ({
     // Section label classes
     const sectionLabelClasses = compact
         ? "text-xs font-semibold text-muted-foreground uppercase tracking-wide py-0.5"
-        : "font-semibold text-lg text-slate-700";
+        : "font-semibold text-lg text-slate-700 dark:text-neutral-200";
 
     return (
         <div className={containerClasses}>

@@ -182,7 +182,7 @@ const LeadersPanel: React.FC = () => {
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
-                        hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border",
+                        hasContent ? "border-kb-key-border" : "bg-transparent border border-kb-gray-border",
                         isSelected && "ring-2 ring-blue-500"
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
@@ -238,23 +238,23 @@ const LeadersPanel: React.FC = () => {
                             <div
                                 key={i}
                                 className={cn(
-                                    "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors group",
+                                    "relative flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors group",
                                     !enabled && "opacity-50"
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                <span className="text-[9px] font-bold text-slate-600 mb-1">L{i}</span>
+                                <span className="text-[9px] font-bold text-slate-600 dark:text-neutral-300 mb-1">L{i}</span>
                                 <div className="flex flex-row items-center gap-0.5">
                                     {entry.sequence.slice(0, 5).map((keycode, seqIdx) => {
                                         if (keycode === "KC_NO" || keycode === "") return null;
                                         return (
                                             <React.Fragment key={seqIdx}>
-                                                {seqIdx > 0 && <ArrowRight className="w-3 h-3 text-black" />}
+                                                {seqIdx > 0 && <ArrowRight className="w-3 h-3 text-kb-ink" />}
                                                 {renderSmallKey(keycode, i, "sequence", seqIdx, false)}
                                             </React.Fragment>
                                         );
                                     })}
-                                    <ArrowRightFromLine className="w-3 h-3 text-black mx-0.5" />
+                                    <ArrowRightFromLine className="w-3 h-3 text-kb-ink mx-0.5" />
                                     {renderSmallKey(entry.output, i, "output", undefined, false)}
                                 </div>
                             </div>
@@ -263,15 +263,15 @@ const LeadersPanel: React.FC = () => {
                     {/* Add new leader button */}
                     {findFirstEmptyLeader() < (leaders.length || 0) && (
                         <button
-                            className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                            className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                             onClick={handleAddLeader}
                             title="Add new leader"
                         >
-                            <Plus className="w-6 h-6 text-gray-400" />
+                            <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                         </button>
                     )}
                     {leaders.filter(e => e.sequence.some(k => k !== "KC_NO" && k !== "") || (e.output !== "KC_NO" && e.output !== "")).length === 0 && (
-                        <div className="text-center text-gray-500 py-2 px-4 text-sm">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 py-2 px-4 text-sm">
                             No leader sequences configured.
                         </div>
                     )}
@@ -287,7 +287,7 @@ const LeadersPanel: React.FC = () => {
                     Leader sequences trigger an output when you press a specific sequence of keys after the Leader key. Click on a key slot to assign a keycode.
                 </DescriptionBlock>
                 {/* Placeable Leader key */}
-                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-kb-surface pb-3 pt-2">
                     <Key
                         isRelative
                         x={0} y={0} w={1} h={1} row={-1} col={-1}
@@ -296,7 +296,7 @@ const LeadersPanel: React.FC = () => {
                         keyContents={leaderKeyContents}
                         layerColor="sidebar"
                         className={cn(
-                            "border-kb-gray cursor-pointer",
+                            "border-kb-key-border cursor-pointer",
                             isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
                         )}
                         headerClassName="bg-kb-sidebar-dark"
@@ -306,7 +306,7 @@ const LeadersPanel: React.FC = () => {
                 </div>
                 {/* Leader Timing Settings */}
                 {isConnected && (isTimeoutSupported || isPerKeySupported) && (
-                    <div className="pl-6 pr-2 pb-3 pt-4 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="pl-6 pr-2 pb-3 pt-4 border-t border-b border-gray-200 dark:border-neutral-700 space-y-3">
                         {isTimeoutSupported && (
                             <div className="flex items-center justify-between gap-4">
                                 <div className="flex flex-col">
@@ -355,17 +355,17 @@ const LeadersPanel: React.FC = () => {
                                     if (keycode === "KC_NO" || keycode === "") return null;
                                     return (
                                         <React.Fragment key={seqIdx}>
-                                            {seqIdx > 0 && <ArrowRight className="w-4 h-4 text-black mx-0.5" />}
+                                            {seqIdx > 0 && <ArrowRight className="w-4 h-4 text-kb-ink mx-0.5" />}
                                             {renderSmallKey(keycode, i, "sequence", seqIdx, isEditing)}
                                         </React.Fragment>
                                     );
                                 })}
                                 {!hasSequence && (
-                                    <div className="w-[30px] h-[30px] border border-dashed border-gray-300 rounded flex items-center justify-center">
-                                        <span className="text-xs text-gray-400">...</span>
+                                    <div className="w-[30px] h-[30px] border border-dashed border-gray-300 dark:border-neutral-600 rounded flex items-center justify-center">
+                                        <span className="text-xs text-gray-400 dark:text-neutral-400">...</span>
                                     </div>
                                 )}
-                                <ArrowRightFromLine className="w-4 h-4 text-black mx-1" />
+                                <ArrowRightFromLine className="w-4 h-4 text-kb-ink mx-1" />
                                 {renderSmallKey(entry.output, i, "output", undefined, isEditing)}
                             </div>
                         </div>
@@ -407,7 +407,7 @@ const LeadersPanel: React.FC = () => {
                 })}
 
                 {leaders.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         <p>No leader sequences configured.</p>
                         <p className="text-sm mt-2">This keyboard may not support leader sequences.</p>
                     </div>

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import DeployBadge from "./components/DeployBadge";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
+import ThemeSync from "./components/ThemeSync";
 import ExploreLayoutsPage from "./pages/ExploreLayoutsPage";
 import { ProofSheetPage } from "./pages/ProofSheet";
 
@@ -106,6 +107,7 @@ function App() {
             <LoadingOverlay />
             <DeployBadge />
             <SettingsProvider>
+                <ThemeSync />
                 <ChangesProviderWithVial>
                     <KeyBindingProvider>
                         <LayoutLibraryProvider>

@@ -155,7 +155,7 @@ const TapdanceEditor: FC = () => {
         if (isHorizontal) {
             return (
                 <div className="flex flex-col items-center gap-1 group">
-                    <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>
+                    <span className={`${labelClass} font-medium text-slate-600 dark:text-neutral-300`}>{label}</span>
                     <EditorKey
                         keycode={keycode}
                         selected={isSelected}
@@ -208,7 +208,7 @@ const TapdanceEditor: FC = () => {
                         editorId={itemToEdit!}
                         editorSlot={type}
                     />
-                    <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>
+                    <span className={`${labelClass} font-medium text-slate-600 dark:text-neutral-300`}>{label}</span>
                 </div>
             </div>
         );
@@ -228,14 +228,14 @@ const TapdanceEditor: FC = () => {
 
                 {/* Hold time input */}
                 <div className="flex flex-row gap-3 items-center">
-                    <span className="text-sm font-medium text-slate-600">Hold Time (ms)</span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-neutral-300">Hold Time (ms)</span>
                     <Input
                         value={tapMs || 0}
                         type="number"
                         onChange={(e) => void updateTapMs(e.target.valueAsNumber)}
                         min={0}
                         step={25}
-                        className="w-20 h-10 bg-white text-center text-base px-2"
+                        className="w-20 h-10 bg-kb-surface text-center text-base px-2"
                     />
                 </div>
             </div>
@@ -251,14 +251,14 @@ const TapdanceEditor: FC = () => {
             {renderTapdanceKey("Double-Tap", keys.doubletap, "doubletap")}
 
             <div className="flex flex-row gap-3 items-center mt-4">
-                <span className="text-md font-normal text-slate-600">Milliseconds</span>
+                <span className="text-md font-normal text-slate-600 dark:text-neutral-300">Milliseconds</span>
                 <Input
                     value={tapMs}
                     type="number"
                     onChange={(e) => void updateTapMs(e.target.valueAsNumber)}
                     min={0}
                     step={25}
-                    className="w-32 bg-white"
+                    className="w-32 bg-kb-surface"
                     placeholder="Tap MS"
                 />
             </div>

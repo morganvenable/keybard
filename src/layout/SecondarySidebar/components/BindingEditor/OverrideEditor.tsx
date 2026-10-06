@@ -152,7 +152,7 @@ const OverrideEditor: FC = () => {
 
         return (
             <div className="flex flex-col items-center gap-2 relative">
-                <span className="text-sm font-bold text-slate-600">{label}</span>
+                <span className="text-sm font-bold text-slate-600 dark:text-neutral-300">{label}</span>
                 <EditorKey
                     keycode={keycode}
                     selected={isSelected}
@@ -184,14 +184,14 @@ const OverrideEditor: FC = () => {
 
             <div className="flex flex-row flex-wrap gap-4 justify-start items-center">
                 {renderOverrideKey("Trigger", "trigger")}
-                <div className="pt-6 text-black -mr-1">
+                <div className="pt-6 text-kb-ink -mr-1">
                     <ArrowRight className="w-6 h-6" />
                 </div>
                 {renderOverrideKey("Replacement", "replacement")}
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-row flex-wrap gap-1 items-center bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-4">
+            <div className="flex flex-row flex-wrap gap-1 items-center bg-gray-200/50 dark:bg-neutral-700/50 p-1 rounded-lg border border-gray-400/50 dark:border-neutral-500/50 w-full mt-4">
                 {TABS.map((tab) => (
                     <button
                         key={tab}
@@ -199,8 +199,8 @@ const OverrideEditor: FC = () => {
                         className={cn(
                             "flex-1 min-w-20 px-2 py-1.5 text-xs uppercase tracking-wider rounded-md transition-all font-bold border-none",
                             activeTab === tab
-                                ? "bg-black text-white shadow-md"
-                                : "text-gray-500 hover:text-black hover:bg-white/50"
+                                ? "bg-kb-active text-kb-active-fg shadow-md"
+                                : "text-gray-500 dark:text-neutral-400 hover:text-kb-ink dark:hover:text-kb-ink hover:bg-white/50 dark:hover:bg-neutral-700"
                         )}
                     >
                         {tab}
@@ -213,7 +213,7 @@ const OverrideEditor: FC = () => {
 
             {/* Layers Section */}
             <div className="flex flex-col gap-1.5">
-                <span className="font-semibold text-lg text-black">Layers</span>
+                <span className="font-semibold text-lg text-kb-ink">Layers</span>
                 <div className="grid grid-cols-[repeat(auto-fit,2.5rem)] gap-2 w-full">
                     {Array.from({ length: 16 }).map((_, i) => {
                         const isActive = (override.layers & (1 << i)) !== 0;
@@ -223,8 +223,8 @@ const OverrideEditor: FC = () => {
                                 className={cn(
                                     "w-10 h-10 flex items-center justify-center rounded-md cursor-pointer transition-colors text-sm font-medium",
                                     isActive
-                                        ? "bg-kb-sidebar-dark text-white hover:bg-white hover:text-black"
-                                        : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black"
+                                        ? "bg-kb-active text-kb-active-fg hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink"
+                                        : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink"
                                 )}
                                 onClick={() => updateLayer(i, !isActive)}
                             >
@@ -242,7 +242,7 @@ const OverrideEditor: FC = () => {
                 {OPTIONS.map((opt) => (
                     <div key={opt.label} className="flex flex-row items-center justify-between py-1">
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-neutral-200">{opt.label}</span>
                         </div>
                         <OnOffToggle
                             value={(override.options & opt.bit) !== 0}

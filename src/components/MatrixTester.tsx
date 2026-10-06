@@ -10,7 +10,7 @@ import { useVial } from "@/contexts/VialContext";
 
 // Constants
 const POLL_INTERVAL_MS = 50;
-const BUTTON_STYLES = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 bg-white shadow-lg flex items-center justify-center text-black focus:outline-none transition-colors border border-gray-200" as const;
+const BUTTON_STYLES = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 bg-kb-surface shadow-lg flex items-center justify-center text-kb-ink focus:outline-none transition-colors border border-gray-200 dark:border-neutral-700" as const;
 
 /**
  * Creates a unique key identifier from row and column indices

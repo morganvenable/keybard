@@ -180,7 +180,7 @@ const FragmentsPanel: React.FC = () => {
     if (!keyboard || !fragmentService.hasFragments(keyboard)) {
         return (
             <section className="space-y-3 flex flex-col pt-0">
-                <div className="text-center text-gray-500 mt-10">
+                <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                     No fragment configuration available for this keyboard.
                 </div>
             </section>
@@ -192,7 +192,7 @@ const FragmentsPanel: React.FC = () => {
     if (selectableInstances.length === 0) {
         return (
             <section className="space-y-3 flex flex-col pt-0">
-                <div className="text-center text-gray-500 mt-10">
+                <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                     No selectable fragment positions available.
                 </div>
             </section>
@@ -221,7 +221,7 @@ const FragmentsPanel: React.FC = () => {
                         type="button"
                         variant="default"
                         size="sm"
-                        className="rounded-full px-4 bg-black text-white hover:bg-gray-800"
+                        className="rounded-full px-4 bg-kb-active text-kb-active-fg hover:bg-gray-800 dark:hover:bg-neutral-300"
                         aria-label="Restore default hardware selections"
                         onClick={handleApplyDefault}
                         disabled={updating !== null}
@@ -231,7 +231,7 @@ const FragmentsPanel: React.FC = () => {
                 </div>
                 {leftInstances.length > 0 && (
                     <div className="flex flex-col gap-2">
-                        <div className="text-sm font-semibold text-black">Left</div>
+                        <div className="text-sm font-semibold text-kb-ink">Left</div>
                         {leftInstances.map(({ idx, instance }) => {
                             const options = fragmentService.getFragmentOptions(instance);
                             const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
@@ -267,7 +267,7 @@ const FragmentsPanel: React.FC = () => {
                                             {instanceDisplayName}
                                         </Label>
                                         {statusText && (
-                                            <span className={`text-xs ${isLocked ? 'text-amber-600' : 'text-blue-600'}`}>
+                                            <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                                 {statusText}
                                             </span>
                                         )}
@@ -299,7 +299,7 @@ const FragmentsPanel: React.FC = () => {
                 )}
                 {rightInstances.length > 0 && (
                     <div className="flex flex-col gap-2">
-                        <div className="text-sm font-semibold text-black">Right</div>
+                        <div className="text-sm font-semibold text-kb-ink">Right</div>
                         {rightInstances.map(({ idx, instance }) => {
                             const options = fragmentService.getFragmentOptions(instance);
                             const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
@@ -335,7 +335,7 @@ const FragmentsPanel: React.FC = () => {
                                             {instanceDisplayName}
                                         </Label>
                                         {statusText && (
-                                            <span className={`text-xs ${isLocked ? 'text-amber-600' : 'text-blue-600'}`}>
+                                            <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                                 {statusText}
                                             </span>
                                         )}
@@ -400,7 +400,7 @@ const FragmentsPanel: React.FC = () => {
                                     {instanceDisplayName}
                                 </Label>
                                 {statusText && (
-                                    <span className={`text-xs ${isLocked ? 'text-amber-600' : 'text-blue-600'}`}>
+                                    <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                         {statusText}
                                     </span>
                                 )}

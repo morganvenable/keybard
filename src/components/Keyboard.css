@@ -92,3 +92,12 @@
     border: 2px solid #e4e4e7;
     border-radius: 8px;
 }
+
+/* Dark mode: neutral scrollbar on the dark canvas (track = kb-surface dark). */
+.dark .keyboard-canvas-scroll::-webkit-scrollbar-track {
+    background: #1d1e21;
+}
+.dark .keyboard-canvas-scroll::-webkit-scrollbar-thumb {
+    background: #4b4f55;
+    border-color: #1d1e21;
+}

@@ -62,7 +62,7 @@ export function useLayoutImport() {
     };
 
     const importReview = <>
-        {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
+        {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
         {fileStatus && <p role="status" className="text-sm">{fileStatus}</p>}
         <Dialog open={!!review} onOpenChange={open => { if (!open && !applying) setReview(null); }}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
@@ -71,9 +71,9 @@ export function useLayoutImport() {
                     <DialogDescription>{review?.filename} — {isConnected ? `replace matching entries on ${keyboard?.name || 'the connected keyboard'}` : 'open as an offline layout'}.</DialogDescription>
                 </DialogHeader>
                 <ul className="list-disc pl-5 text-sm space-y-1">{review?.plan.summary.map((line, i) => <li key={i}>{line}</li>)}</ul>
-                {!!review?.plan.errors.length && <div role="alert" className="text-sm text-red-700"><p className="font-semibold">Cannot import this file</p><ul className="list-disc pl-5">{review.plan.errors.map((line, i) => <li key={i}>{line}</li>)}</ul></div>}
+                {!!review?.plan.errors.length && <div role="alert" className="text-sm text-red-700 dark:text-red-400"><p className="font-semibold">Cannot import this file</p><ul className="list-disc pl-5">{review.plan.errors.map((line, i) => <li key={i}>{line}</li>)}</ul></div>}
                 {!!review?.plan.warnings.length && <div className="text-sm"><p className="font-semibold">Review before applying</p><ul className="list-disc pl-5">{review.plan.warnings.map((line, i) => <li key={i}>{line}</li>)}</ul></div>}
-                {fileError && <p role="alert" className="text-sm text-red-700">{fileError}</p>}
+                {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
                 <p className="text-sm">{isConnected ? (isInstant ? 'Applying writes these changes to the keyboard. Save a backup first so you can restore the previous layout.' : 'This will stage changes in Manual mode. Nothing is written until you use Apply.') : 'This replaces the current offline layout.'}</p>
                 <DialogFooter className="flex-wrap">
                     {keyboard && <Button variant="secondary" disabled={applying} onClick={async () => { try { await fileService.downloadSvil(keyboard); } catch (error) { setFileError(error instanceof Error ? error.message : String(error)); } }}>Back up current layout</Button>}

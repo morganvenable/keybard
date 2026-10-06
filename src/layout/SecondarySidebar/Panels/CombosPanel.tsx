@@ -160,7 +160,7 @@ const CombosPanel: React.FC = () => {
                     label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
-                    className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
+                    className={hasContent ? "border-kb-key-border" : "bg-transparent border border-kb-gray-border"}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(comboIndex, slot)}
@@ -194,17 +194,17 @@ const CombosPanel: React.FC = () => {
                         <div
                             key={i}
                             className={cn(
-                                "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] group",
+                                "relative flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors min-w-[100px] group",
                                 !enabled && "opacity-50"
                             )}
                             onClick={() => handleEdit(i)}
                         >
                             {/* Header with icon and label */}
                             <div className="flex flex-row items-center gap-2 mb-2">
-                                <div className="w-5 h-5 text-slate-600 flex-shrink-0">
+                                <div className="w-5 h-5 text-slate-600 dark:text-neutral-300 flex-shrink-0">
                                     <ComboIcon />
                                 </div>
-                                <span className="text-xs font-bold text-slate-600">Combo {i}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300">Combo {i}</span>
                                 <OnOffToggle
                                     value={enabled}
                                     onToggle={() => handleToggleEnabled(i)}
@@ -214,11 +214,11 @@ const CombosPanel: React.FC = () => {
                             <div className="flex flex-row items-center justify-center gap-1 flex-wrap">
                                 {inputs.map((input, idx) => (
                                     <React.Fragment key={input.id}>
-                                        {idx > 0 && <Plus className="w-2 h-2 text-gray-400" />}
+                                        {idx > 0 && <Plus className="w-2 h-2 text-gray-400 dark:text-neutral-400" />}
                                         {renderSmallKey(input.content, input.id, i, input.id)}
                                     </React.Fragment>
                                 ))}
-                                <ArrowRightFromLine className="w-3 h-3 text-gray-400 mx-1" />
+                                <ArrowRightFromLine className="w-3 h-3 text-gray-400 dark:text-neutral-400 mx-1" />
                                 {renderSmallKey(result, 4, i, 4)}
                             </div>
                         </div>
@@ -227,11 +227,11 @@ const CombosPanel: React.FC = () => {
                 {/* Add new combo button */}
                 {findFirstEmptyCombo() < (combos.length || 0) && (
                     <button
-                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                         onClick={handleAddCombo}
                         title="Add new combo"
                     >
-                        <Plus className="w-6 h-6 text-gray-400" />
+                        <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                     </button>
                 )}
                 {combos.filter(combo => {
@@ -239,7 +239,7 @@ const CombosPanel: React.FC = () => {
                     const inputs = [0, 1, 2, 3].map(idx => c.keys?.[idx]).filter(k => k && k !== "KC_NO");
                     return inputs.length > 0 || (c.output && c.output !== "KC_NO");
                 }).length === 0 && (
-                        <div className="text-center text-gray-500 py-4 px-6">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 py-4 px-6">
                             No combos configured.
                         </div>
                     )}
@@ -256,7 +256,7 @@ const CombosPanel: React.FC = () => {
                 </DescriptionBlock>
                 {/* Combo Timeout Setting */}
                 {isTimeoutSupported && isConnected && (
-                    <div className="px-3 pb-3 pt-3 border-t border-b border-gray-200 dark:border-gray-700">
+                    <div className="px-3 pb-3 pt-3 border-t border-b border-gray-200 dark:border-neutral-700">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">Combo Timeout</span>
@@ -293,11 +293,11 @@ const CombosPanel: React.FC = () => {
                         <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden w-full">
                             {inputs.map((input, idx) => (
                                 <React.Fragment key={input.id}>
-                                    {idx > 0 && <Plus className="w-3 h-3 text-black" />}
+                                    {idx > 0 && <Plus className="w-3 h-3 text-kb-ink" />}
                                     {renderSmallKey(input.content, input.id, i, input.id)}
                                 </React.Fragment>
                             ))}
-                            <ArrowRightFromLine className="w-3 h-3 text-black mx-1" />
+                            <ArrowRightFromLine className="w-3 h-3 text-kb-ink mx-1" />
                             {renderSmallKey(result, 4, i, 4)}
                             <OnOffToggle
                                 value={enabled}
@@ -332,7 +332,7 @@ const CombosPanel: React.FC = () => {
                 })}
 
                 {combos.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         No combos found.
                     </div>
                 )}

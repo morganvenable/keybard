@@ -6,10 +6,10 @@ const QuickStartPanel: React.FC = () => {
         <div className="space-y-3 pt-0 pb-8 relative flex flex-col">
             <div className="flex flex-col">
                 <DescriptionBlock wrapText={false}>
-                    <p className="mb-4 text-sm text-slate-500 leading-relaxed">
+                    <p className="mb-4 text-sm text-slate-500 dark:text-neutral-400 leading-relaxed">
                         <b>Keybard</b> is a keyboard layout editor that allows you to create and edit keyboard layouts for your <b>Svalboard</b> keyboard.
                     </p>
-                    <ol className="list-decimal list-outside ml-0 pl-8 space-y-3 text-sm text-slate-500 leading-relaxed marker:font-bold">
+                    <ol className="list-decimal list-outside ml-0 pl-8 space-y-3 text-sm text-slate-500 dark:text-neutral-400 leading-relaxed marker:font-bold">
                         <li>
                             Start by connecting your <b>Svalboard</b> to see its current layout. Then you have two options:
                             <ol className="list-decimal list-outside ml-0 pl-8 mt-2 space-y-2 marker:font-normal">

@@ -208,7 +208,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                 isCompact ? (
                     <div className="flex flex-row items-center justify-end -mb-1">
                         <select
-                            className="border rounded text-[10px] text-slate-500 py-0.5 px-1 border-gray-200 bg-gray-50 !outline-none focus:border-gray-300 cursor-pointer"
+                            className="border rounded text-[10px] text-slate-500 dark:text-neutral-400 py-0.5 px-1 border-gray-200 dark:border-neutral-500 bg-gray-50 dark:bg-neutral-800/60 !outline-none focus:border-gray-300 dark:focus:border-neutral-400 cursor-pointer"
                             value={internationalLayout}
                             onChange={(e) => setInternationalLayout(e.target.value)}
                             title="Keyboard layout"
@@ -223,7 +223,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                 ) : (
                     <div className="flex flex-row items-center gap-2">
                         <select
-                            className="border rounded-md text-lg text-slate-600 py-4 border-none !outline-none focus:border-none focus:outline-none cursor-pointer font-semibold"
+                            className="border rounded-md text-lg text-slate-600 dark:text-neutral-300 py-4 border-none !outline-none focus:border-none focus:outline-none cursor-pointer font-semibold"
                             value={internationalLayout}
                             onChange={(e) => setInternationalLayout(e.target.value)}
                         >

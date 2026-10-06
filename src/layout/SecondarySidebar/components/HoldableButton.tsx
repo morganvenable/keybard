@@ -11,8 +11,8 @@ const HoldableButton: FC<Props> = ({ label }) => {
     return (
         <div
             className={cn(
-                "px-5 text-center py-1 bg-transparent hover:bg-black hover:text-white rounded-full cursor-pointer text-center",
-                value && "bg-black text-white hover:bg-slate-600"
+                "px-5 text-center py-1 bg-transparent hover:bg-kb-active hover:text-kb-active-fg rounded-full cursor-pointer text-center",
+                value && "bg-kb-active text-kb-active-fg hover:bg-slate-600 dark:hover:bg-neutral-300"
             )}
             onClick={() => setValue((val) => !val)}
         >

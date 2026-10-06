@@ -70,7 +70,7 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
 
     return (
         <>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+            <div className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden bg-kb-surface shadow-sm">
                 {/* Header */}
                 <div
                     role="button"
@@ -78,32 +78,32 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
                     tabIndex={0}
                     onClick={() => setIsExpanded(!isExpanded)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(!isExpanded); } }}
-                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
                 >
                     <div className="flex min-w-0 items-center gap-2">
                         {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500" />
+                            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
                         ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
+                            <ChevronRight className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
                         )}
-                        <LayoutLayersIcon className="w-5 h-5 text-gray-500" />
-                        <span className="min-w-0 break-words font-medium text-gray-900 dark:text-gray-100">
+                        <LayoutLayersIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400" />
+                        <span className="min-w-0 break-words font-medium text-gray-900 dark:text-neutral-100">
                             {group.name}
                         </span>
                         {group.source === "current" && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 rounded">
                                 Active
                             </span>
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-neutral-400">
                             {filteredLayers.length} layer{filteredLayers.length !== 1 ? 's' : ''}
                         </span>
                         {canDelete && onDelete && (
                             <button
                                 type="button"
-                                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-gray-500 transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-white"
+                                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-gray-500 dark:text-neutral-400 transition-all hover:bg-red-500 hover:text-white dark:hover:text-white focus:outline-none cursor-pointer bg-kb-surface"
                                 onClick={handleOpenDeleteConfirm}
                                 title="Delete layout"
                             >
@@ -127,7 +127,7 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
                             />
                         ))}
                         {filteredLayers.length === 0 && (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                            <div className="px-4 py-3 text-sm text-gray-500 dark:text-neutral-400 text-center">
                                 No layers
                             </div>
                         )}
@@ -146,7 +146,7 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
                         <Button
                             variant="outline"
                             onClick={() => setIsDeleteConfirmOpen(false)}
-                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 dark:border-neutral-500 dark:hover:bg-neutral-800 transition-colors"
                         >
                             Cancel
                         </Button>

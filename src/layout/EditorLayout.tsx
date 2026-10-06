@@ -1199,8 +1199,8 @@ const EditorLayoutInner = () => {
     );
 
     return (
-        <div className={cn("flex flex-1 h-dvh w-full min-w-0 overflow-hidden p-0", showDetailsSidebar && "bg-white")}>
-            {(layerPasteError || clipboardError) && <div role="alert" className="fixed top-2 right-2 z-[100] rounded border bg-white p-3 text-sm text-red-700">
+        <div className={cn("flex flex-1 h-dvh w-full min-w-0 overflow-hidden p-0", showDetailsSidebar && "bg-kb-surface")}>
+            {(layerPasteError || clipboardError) && <div role="alert" className="fixed top-2 right-2 z-[100] rounded border bg-kb-surface p-3 text-sm text-red-700 dark:text-red-400">
                 {layerPasteError || clipboardError}
                 <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
             </div>}
@@ -1393,7 +1393,7 @@ const EditorLayoutInner = () => {
                                     <button
                                         ref={addViewButtonRef}
                                         onClick={handleAddView}
-                                        className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                        className="p-2 rounded-full transition-colors text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-100 hover:bg-gray-200 dark:hover:bg-neutral-700"
                                         aria-label="Add keyboard layer view"
                                     >
                                         <LayersPlusIcon className="h-5 w-5" />
@@ -1431,8 +1431,8 @@ const EditorLayoutInner = () => {
                         >
                             <div className="p-2">
                                 {flyingIcon.iconType === 'plus'
-                                    ? <LayersPlusIcon className="h-5 w-5 text-gray-500" />
-                                    : <LayersMinusIcon className="h-5 w-5 text-gray-400" />}
+                                    ? <LayersPlusIcon className="h-5 w-5 text-gray-500 dark:text-neutral-400" />
+                                    : <LayersMinusIcon className="h-5 w-5 text-gray-400 dark:text-neutral-400" />}
                             </div>
                         </div>
                     )}
@@ -1467,7 +1467,7 @@ const EditorLayoutInner = () => {
                                     />
                                 </div>
                                 {import.meta.env.DEV && (
-                                    <div className="text-[10px] font-medium text-slate-400 select-none px-1 pointer-events-auto">
+                                    <div className="text-[10px] font-medium text-slate-400 dark:text-neutral-400 select-none px-1 pointer-events-auto">
                                         Branch: {gitBranchLabel}
                                     </div>
                                 )}
@@ -1480,7 +1480,7 @@ const EditorLayoutInner = () => {
             {/* Picked Key Info Panel Display (Floating near bottom left button) */}
             {
                 useBottomLayout && !showEditorOverlay && showInfoPanel && (
-                    <div className="absolute bottom-16 left-4 z-50 bg-white text-black shadow-lg rounded-xl p-4 w-[280px] border border-gray-200">
+                    <div className="absolute bottom-16 left-4 z-50 bg-kb-surface text-kb-ink shadow-lg rounded-xl p-4 w-[280px] border border-gray-200 dark:border-neutral-700">
                         <div className="text-sm space-y-1">
                             {(() => {
                                 const { hoveredKey, selectedTarget } = useKeyBinding();
@@ -1489,7 +1489,7 @@ const EditorLayoutInner = () => {
 
                                 if (!target) {
                                     return (
-                                        <p className="text-gray-300 italic text-sm text-center">No key selected</p>
+                                        <p className="text-gray-300 dark:text-neutral-400 italic text-sm text-center">No key selected</p>
                                     );
                                 }
 
@@ -1501,17 +1501,17 @@ const EditorLayoutInner = () => {
                                 return (
                                     <div className="text-sm space-y-1.5 select-none">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">Keycode:</span>
-                                            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{target.keycode || "?"}</span>
+                                            <span className="font-bold text-gray-500 dark:text-neutral-400 text-[10px] uppercase tracking-wider">Keycode:</span>
+                                            <span className="font-mono bg-gray-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-xs">{target.keycode || "?"}</span>
                                         </div>
                                         {pos !== null && (
-                                            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-1.5 mt-1.5">
+                                            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-neutral-700 pt-1.5 mt-1.5">
                                                 <div>
-                                                    <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Position:</span>
+                                                    <span className="block font-bold text-gray-500 dark:text-neutral-400 text-[10px] uppercase tracking-wider">Position:</span>
                                                     <span className="text-xs">R{target.row} C{target.col}</span>
                                                 </div>
                                                 <div>
-                                                    <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Matrix:</span>
+                                                    <span className="block font-bold text-gray-500 dark:text-neutral-400 text-[10px] uppercase tracking-wider">Matrix:</span>
                                                     <span className="text-xs">{pos}</span>
                                                 </div>
                                             </div>

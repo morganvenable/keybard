@@ -294,8 +294,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                 className={cn(
                     "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 whitespace-nowrap",
                     isActive
-                        ? "bg-gray-800 text-white shadow-md scale-105"
-                        : "bg-transparent text-gray-600 hover:bg-gray-200"
+                        ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105"
+                        : "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                 )}
             >
                 <span className={cn("select-none", isLayerActive && "underline underline-offset-2")}>
@@ -325,7 +325,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
             {/* Collapsed toolbar disclosure for short windows */}
             {!showFullBar && (
                 <button type="button" aria-label="Show editor controls" title="Show editor controls" aria-expanded={false}
-                    className="flex w-full items-center justify-center text-gray-500 hover:text-black cursor-pointer h-5 focus-visible:outline-2"
+                    className="flex w-full items-center justify-center text-gray-500 dark:text-neutral-400 hover:text-kb-ink cursor-pointer h-5 focus-visible:outline-2"
                     onClick={() => setToolbarPinned(true)}>
                     <ChevronDown className="h-3 w-3" />
                 </button>
@@ -339,7 +339,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                         <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap bg-transparent overflow-x-auto overscroll-x-contain [&>*]:shrink-0">
 
                             {isVerticallyConstrained && <button type="button" aria-label="Hide editor controls" title="Hide editor controls"
-                                className="rounded p-1 text-gray-500 hover:bg-gray-200 focus-visible:outline-2"
+                                className="rounded p-1 text-gray-500 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700 focus-visible:outline-2"
                                 onClick={() => { setToolbarPinned(false); }}>
                                 <ChevronDown className="h-3 w-3 rotate-180" />
                             </button>}
@@ -395,17 +395,17 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                             {!isConnected ? (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); connect(); }}
-                                    className="flex items-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full mr-2"
+                                    className="flex items-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-active text-gray-200 dark:text-neutral-900 hover:bg-gray-800 dark:hover:bg-neutral-300 px-5 py-1.5 rounded-full mr-2"
                                     title={`${editingTarget} Click to connect.`}
                                 >
-                                    <Unplug className="h-4 w-4 text-gray-200" />
+                                    <Unplug className="h-4 w-4 text-gray-200 dark:text-neutral-900" />
                                     <span className="select-none">Connect</span>
                                 </button>
                             ) : (
                                 <div className="flex items-center gap-1" title={editingTarget}>
 
                                     {saveError && (
-                                        <div role="alert" className="max-w-xs text-xs text-red-700">
+                                        <div role="alert" className="max-w-xs text-xs text-red-700 dark:text-red-400">
                                             <span>Not saved: {saveError}. Pending edits are retained. Retry before discarding; some writes may already have succeeded. </span>
                                             <button disabled={isSaving} onClick={() => void commit()} className="underline font-semibold">Retry</button>
                                         </div>
@@ -413,7 +413,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     {getPendingCount() > 0 && (
                                         <details className="relative text-xs">
                                             <summary className="cursor-pointer">Pending ({getPendingCount()})</summary>
-                                            <ul className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded border bg-white p-3 shadow-lg">
+                                            <ul className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded border bg-kb-surface p-3 shadow-lg">
                                                 {getPendingChanges().map(change => <li key={change.writeKey || change.desc} className="py-1">{change.desc}</li>)}
                                             </ul>
                                         </details>
@@ -428,10 +428,10 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                         e.stopPropagation();
                                                         if (await setInstant(true)) updateSetting("live-updating", true);
                                                     }}
-                                                    className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100"
+                                                    className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700"
                                                     aria-label="Switch to Live Updating"
                                                 >
-                                                    <Zap className="h-4 w-4 fill-black text-black" />
+                                                    <Zap className="h-4 w-4 fill-kb-ink text-kb-ink" />
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
@@ -451,7 +451,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                             void setInstant(false);
                                                             updateSetting("live-updating", false);
                                                         }}
-                                                        className="p-2 rounded-full transition-all cursor-pointer bg-black hover:bg-gray-800"
+                                                        className="p-2 rounded-full transition-all cursor-pointer bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
                                                         aria-label="Switch to Manual Updates"
                                                     >
                                                         <Zap className="h-4 w-4 fill-kb-gray text-kb-gray" />
@@ -464,7 +464,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             {/* Live Updating button - black text on transparent background */}
                                             <button
                                                 disabled={true}
-                                                className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-black border border-transparent cursor-default"
+                                                className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-kb-ink border border-transparent cursor-default"
                                             >
                                                 <span className="select-none">{isSaving ? "Saving…" : saveError ? "Changes not saved" : "Live Updating"}</span>
                                             </button>
@@ -483,18 +483,18 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
                                                 // Disabled state
                                                 getPendingCount() === 0
-                                                    ? "bg-gray-200 text-black border-gray-200 cursor-not-allowed"
-                                                    : "bg-black text-gray-200 cursor-pointer",
+                                                    ? "bg-gray-200 dark:bg-neutral-700 text-kb-ink border-gray-200 dark:border-neutral-700 cursor-not-allowed"
+                                                    : "bg-kb-active text-gray-200 dark:text-neutral-900 cursor-pointer",
                                                 // Hover logic - Manual Mode: Red (only when enabled)
-                                                getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white hover:border-red-500",
+                                                getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white dark:hover:text-white hover:border-red-500",
 
                                                 // Pending Changes Ring (Manual Mode only)
                                                 getPendingCount() > 0
-                                                    ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
+                                                    ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-kb-ink" : ""}`
                                                     : "", // No ring when disabled
 
                                                 // Active state (click) - only when enabled
-                                                getPendingCount() > 0 && "active:bg-red-500 active:text-white"
+                                                getPendingCount() > 0 && "active:bg-red-500 active:text-white dark:active:text-white"
                                             )}
                                         >
                                             <span className="select-none">
@@ -519,8 +519,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     disabled={isSaving || !!saveError || getPendingCount() === 0}
                                                     aria-label="Discard pending edits"
                                                     className={cn(
-                                                        "p-2 rounded-full transition-all text-black ml-0",
-                                                        getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"
+                                                        "p-2 rounded-full transition-all text-kb-ink ml-0",
+                                                        getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700" : "opacity-30 cursor-not-allowed"
                                                     )}
                                                 >
                                                     <Undo2 className="h-4 w-4" />
@@ -536,7 +536,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
 
                             {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={`Undo ${undoLabel}`}>Undo</button>}
                             {/* Divider */}
-                            <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
+                            <div className="h-4 w-[1px] bg-slate-400 dark:bg-neutral-600 mx-0 flex-shrink-0" />
 
                             <div className="flex items-center gap-1">
                                 {/* Import Button */}
@@ -544,10 +544,10 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     <TooltipTrigger asChild>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                                            className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                            className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             aria-label="Import Layout"
                                         >
-                                            <LayoutImport className="h-5 w-5 text-black" />
+                                            <LayoutImport className="h-5 w-5 text-kb-ink" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
@@ -560,11 +560,11 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     <TooltipTrigger asChild>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
-                                            className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                            className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             disabled={!keyboard}
                                             aria-label="Export Layout"
                                         >
-                                            <LayoutExport className="h-5 w-5 text-black" />
+                                            <LayoutExport className="h-5 w-5 text-kb-ink" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
@@ -592,14 +592,14 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer",
                                                 activePanel === "matrixtester"
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
                                         >
                                             <MatrixTesterIcon className={cn(
                                                 "h-5 w-5",
-                                                activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
+                                                activePanel === "matrixtester" ? "text-kb-gray" : "text-kb-ink"
                                             )} />
                                         </button>
                                     </TooltipTrigger>
@@ -609,7 +609,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                 </Tooltip>
 
                                 {/* Divider */}
-                                <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-2 flex-shrink-0" />
+                                <div className="h-4 w-[1px] bg-slate-400 dark:bg-neutral-600 ml-2 mr-2 flex-shrink-0" />
 
                                 {/* Multi Layers Button */}
                                 <Tooltip delayDuration={500}>
@@ -626,15 +626,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer",
                                                 isMultiLayersActive
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-pressed={isMultiLayersActive}
                                             aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
                                         >
                                             <LayoutMultiLayersIcon className={cn(
                                                 "h-5 w-5",
-                                                isMultiLayersActive ? "text-kb-gray" : "text-black"
+                                                isMultiLayersActive ? "text-kb-gray" : "text-kb-ink"
                                             )} />
                                         </button>
                                     </TooltipTrigger>
@@ -655,15 +655,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer",
                                                 is3DMode
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-pressed={is3DMode}
                                             aria-label={is3DMode ? "Exit 3D View" : "3D View"}
                                         >
                                             <BoxIcon className={cn(
                                                 "h-5 w-5",
-                                                is3DMode ? "text-kb-gray" : "text-gray-700"
+                                                is3DMode ? "text-kb-gray" : "text-gray-700 dark:text-neutral-200"
                                             )} />
                                         </button>
                                     </TooltipTrigger>
@@ -684,15 +684,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer",
                                                 isThumb3DOffsetActive
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-pressed={isThumb3DOffsetActive}
                                             aria-label={isThumb3DOffsetActive ? "Show Thumbs" : "Hide Thumbs"}
                                         >
                                             <ThumbGrid3x2Icon className={cn(
                                                 "h-5 w-5",
-                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-gray-700"
+                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-gray-700 dark:text-neutral-200"
                                             )} />
                                         </button>
                                     </TooltipTrigger>
@@ -713,15 +713,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer w-9 h-9 flex items-center justify-center",
                                                 isAllTransparencyActive
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-pressed={isAllTransparencyActive}
                                             aria-label={isAllTransparencyActive ? "Show All Transparent Keys" : "Hide All Transparent Keys"}
                                         >
                                             <span className={cn(
                                                 "text-lg leading-none font-semibold translate-y-[2px]",
-                                                isAllTransparencyActive ? "text-kb-gray" : "text-gray-700"
+                                                isAllTransparencyActive ? "text-kb-gray" : "text-gray-700 dark:text-neutral-200"
                                             )}>
                                                 {transparentKeyGlyph}
                                             </span>
@@ -743,15 +743,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             className={cn(
                                                 "p-2 rounded-full transition-all cursor-pointer",
                                                 isOverviewActive
-                                                    ? "bg-black hover:bg-gray-800"
-                                                    : "hover:bg-gray-200"
+                                                    ? "bg-kb-active hover:bg-gray-800 dark:hover:bg-neutral-300"
+                                                    : "hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-pressed={isOverviewActive}
                                             aria-label={isOverviewActive ? "Disable Overview" : "Overview"}
                                         >
                                             <TelescopeIcon className={cn(
                                                 "h-5 w-5",
-                                                isOverviewActive ? "text-kb-gray" : "text-gray-700"
+                                                isOverviewActive ? "text-kb-gray" : "text-gray-700 dark:text-neutral-200"
                                             )} />
                                         </button>
                                     </TooltipTrigger>
@@ -769,11 +769,11 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setActivePanel(null)}
-                                        className="flex items-center gap-2 p-1 pr-3 -ml-1 rounded-lg hover:bg-gray-200 transition-colors"
+                                        className="flex items-center gap-2 p-1 pr-3 -ml-1 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors"
                                         title="Return to layer view"
                                     >
-                                        <ArrowLeft className="h-5 w-5 text-black" />
-                                        <span className="font-bold text-lg text-black">Matrix Tester</span>
+                                        <ArrowLeft className="h-5 w-5 text-kb-ink" />
+                                        <span className="font-bold text-lg text-kb-ink">Matrix Tester</span>
                                     </button>
                                 </div>
                             </div>
@@ -795,8 +795,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 className={cn(
                                                     "p-2 rounded-full transition-colors flex-shrink-0",
                                                     activePanel === "matrixtester"
-                                                        ? "text-gray-400 cursor-not-allowed opacity-30"
-                                                        : "text-black hover:bg-gray-200"
+                                                        ? "text-gray-400 dark:text-neutral-400 cursor-not-allowed opacity-30"
+                                                        : "text-kb-ink hover:bg-gray-200 dark:hover:bg-neutral-700"
                                                 )}
                                             aria-pressed={showAllLayers}
                                             aria-label={showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
@@ -824,7 +824,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                             }}
                                             className={cn(
                                                 "p-2 rounded-full transition-colors",
-                                                "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                                "text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-100 hover:bg-gray-200 dark:hover:bg-neutral-700"
                                             )}
                                             aria-label="Reverse Layer Order"
                                         >

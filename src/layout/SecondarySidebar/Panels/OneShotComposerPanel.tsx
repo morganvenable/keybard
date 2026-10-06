@@ -94,8 +94,8 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
             className={cn(
                 "px-3 py-1.5 text-xs uppercase tracking-wide rounded-md transition-all font-bold border",
                 active
-                    ? "bg-black text-white shadow-sm border-black"
-                    : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm",
+                    ? "bg-kb-active text-kb-active-fg shadow-sm border-kb-active"
+                    : "text-gray-500 dark:text-neutral-400 border-transparent hover:text-kb-ink dark:hover:text-kb-ink hover:bg-kb-surface dark:hover:bg-neutral-700 hover:shadow-sm",
                 className
             )}
         >
@@ -108,7 +108,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
         return (
             <div className="flex flex-row gap-4 h-full items-center px-4 py-2">
                 {/* Mode toggle */}
-                <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50">
+                <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 dark:bg-neutral-700/50 p-0.5 rounded-md border border-gray-400/50 dark:border-neutral-500/50">
                     <ToggleButton active={mode === "osm"} onClick={() => setMode("osm")}>
                         OSM
                     </ToggleButton>
@@ -144,7 +144,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                 </div>
 
                 {hasSelection && (
-                    <span className="text-xs text-gray-500">Click key to assign</span>
+                    <span className="text-xs text-gray-500 dark:text-neutral-400">Click key to assign</span>
                 )}
             </div>
         );
@@ -182,7 +182,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
         <div className="flex flex-col gap-4 py-4 px-5">
             {isPicker && (
                 <div className="pb-1">
-                    <span className="font-semibold text-xl text-black">One-Shot / Mod-Tap</span>
+                    <span className="font-semibold text-xl text-kb-ink">One-Shot / Mod-Tap</span>
                 </div>
             )}
 
@@ -208,14 +208,14 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                         />
                     </div>
                     {hasSelection && (
-                        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600">{composedKeycode}</code>
+                        <code className="bg-gray-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-[10px] text-gray-600 dark:text-neutral-300">{composedKeycode}</code>
                     )}
                 </div>
 
                 {/* Mode toggle */}
                 <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium text-slate-500">Mode</span>
-                    <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50 w-fit">
+                    <span className="text-sm font-medium text-slate-500 dark:text-neutral-400">Mode</span>
+                    <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 dark:bg-neutral-700/50 p-0.5 rounded-md border border-gray-400/50 dark:border-neutral-500/50 w-fit">
                         <ToggleButton active={mode === "osm"} onClick={() => setMode("osm")}>
                             One-Shot
                         </ToggleButton>
@@ -227,14 +227,14 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
             </div>
 
             {/* Instruction text */}
-            <span className="text-sm text-gray-400">Select modifiers below.</span>
+            <span className="text-sm text-gray-400 dark:text-neutral-400">Select modifiers below.</span>
 
             {/* Modifier selector with L/R drop-under buttons */}
             <OneShotModifierSelector value={modMask} onChange={setModMask} />
 
             {/* Presets with sliding L/R toggle */}
             <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-slate-500">Presets</span>
+                <span className="text-sm font-medium text-slate-500 dark:text-neutral-400">Presets</span>
                 <div className="flex flex-row gap-1.5 min-h-[58px]">
                     {PRESET_GROUPS.map((preset) => {
                         const anyActive = isPresetActive(preset.lMask, preset.rMask);
@@ -246,8 +246,8 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                                 className={cn(
                                     "flex flex-col items-center rounded-md overflow-hidden min-w-[70px] transition-[height] duration-300 ease-in-out",
                                     anyActive
-                                        ? "bg-black text-white h-[58px]"
-                                        : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black h-8 delay-150"
+                                        ? "bg-kb-active text-kb-active-fg h-[58px]"
+                                        : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink h-8 delay-150"
                                 )}
                             >
                                 {/* Main Label */}
@@ -269,7 +269,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                                 )}>
                                     <button
                                         type="button"
-                                        className="relative w-10 h-5 rounded-full bg-gray-600 flex items-center px-0.5 outline-none"
+                                        className="relative w-10 h-5 rounded-full bg-gray-600 dark:bg-neutral-500 flex items-center px-0.5 outline-none"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             togglePresetSide(preset.lMask, preset.rMask);
@@ -277,16 +277,16 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                                     >
                                         {/* L and R labels */}
                                         <span className={cn(
-                                            "absolute left-1 text-[8px] font-bold transition-opacity",
+                                            "absolute left-1 text-[8px] font-bold dark:text-neutral-100 transition-opacity",
                                             isRight ? "opacity-50" : "opacity-0"
                                         )}>L</span>
                                         <span className={cn(
-                                            "absolute right-1 text-[8px] font-bold transition-opacity",
+                                            "absolute right-1 text-[8px] font-bold dark:text-neutral-100 transition-opacity",
                                             isRight ? "opacity-0" : "opacity-50"
                                         )}>R</span>
                                         {/* Sliding thumb */}
                                         <span className={cn(
-                                            "w-4 h-4 rounded-full bg-white flex items-center justify-center text-[8px] font-bold text-black transition-transform duration-200",
+                                            "w-4 h-4 rounded-full bg-kb-surface flex items-center justify-center text-[8px] font-bold text-kb-ink transition-transform duration-200",
                                             isRight ? "translate-x-5" : "translate-x-0"
                                         )}>
                                             {isRight ? "R" : "L"}

@@ -100,7 +100,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         keyContents={actionKeyContents}
                         variant="small"
                         layerColor="sidebar"
-                        className="border-kb-gray"
+                        className="border-kb-key-border"
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={() => handleEdit(macroIndex, idx)}
                         disableTooltip={true}
@@ -111,7 +111,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             return (
                 <div
                     key={idx}
-                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white cursor-pointer"
+                    className="flex items-center justify-center bg-kb-sidebar-dark border border-kb-sidebar-dark rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white cursor-pointer"
                     onClick={(e) => {
                         e.stopPropagation();
                         handleEdit(macroIndex, idx);
@@ -124,7 +124,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             return (
                 <div
                     key={idx}
-                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white cursor-pointer"
+                    className="flex items-center justify-center bg-kb-sidebar-dark border border-kb-sidebar-dark rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white cursor-pointer"
                     onClick={(e) => {
                         e.stopPropagation();
                         handleEdit(macroIndex, idx);
@@ -154,7 +154,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                     return (
                         <div
                             key={i}
-                            className="relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] max-w-[180px] group"
+                            className="relative flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors min-w-[100px] max-w-[180px] group"
                             onClick={() => handleEdit(i)}
                         >
                             {/* Header with draggable macro key and label */}
@@ -173,25 +173,25 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                                         keyContents={macroKeyContents}
                                         variant="small"
                                         layerColor="sidebar"
-                                        className="border-kb-gray"
+                                        className="border-kb-key-border"
                                         headerClassName="bg-kb-sidebar-dark"
                                         onClick={() => assignKeycode(macroKeycode)}
                                         disableTooltip={true}
                                     />
                                 </div>
-                                <span className="text-xs font-bold text-slate-600 truncate">
+                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300 truncate">
                                     {customName || `Macro ${i} `}
                                 </span>
                             </div>
                             <div className="flex flex-row items-center gap-0.5 flex-wrap justify-center">
                                 {actions.slice(0, 4).map((action, idx) => (
                                     <React.Fragment key={idx}>
-                                        {idx > 0 && <ArrowRight className="w-2 h-2 text-gray-400 flex-shrink-0" />}
+                                        {idx > 0 && <ArrowRight className="w-2 h-2 text-gray-400 dark:text-neutral-400 flex-shrink-0" />}
                                         {renderAction(action, idx, i)}
                                     </React.Fragment>
                                 ))}
                                 {actions.length > 4 && (
-                                    <span className="text-[10px] text-gray-400 ml-1">+{actions.length - 4}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-neutral-400 ml-1">+{actions.length - 4}</span>
                                 )}
                             </div>
                         </div>
@@ -200,15 +200,15 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                 {/* Add new macro button */}
                 {findFirstEmptyMacro() < (macros.length || 0) && (
                     <button
-                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                         onClick={handleAddMacro}
                         title="Add new macro"
                     >
-                        <Plus className="w-6 h-6 text-gray-400" />
+                        <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                     </button>
                 )}
                 {macros.filter(m => m?.actions?.length > 0).length === 0 && (
-                    <div className="text-center text-gray-500 py-4 px-6">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 py-4 px-6">
                         No macro keys configured.
                     </div>
                 )}
@@ -221,7 +221,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
         <section className="space-y-3 flex flex-col pt-0">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-black">Macro Keys</span>
+                    <span className="font-semibold text-xl text-kb-ink">Macro Keys</span>
                 </div>
             )}
             <div className="flex flex-col">
@@ -239,7 +239,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden">
                             {actions.map((action, idx) => (
                                 <React.Fragment key={idx}>
-                                    {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400 flex-shrink-0" />}
+                                    {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400 dark:text-neutral-400 flex-shrink-0" />}
                                     {renderAction(action, idx, i)}
                                 </React.Fragment>
                             ))}
@@ -268,7 +268,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                     );
                 })}
                 {macros.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         No macro keys found.
                     </div>
                 )}

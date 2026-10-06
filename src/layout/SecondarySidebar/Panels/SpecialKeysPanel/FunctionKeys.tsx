@@ -28,7 +28,7 @@ const FunctionKeys = () => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-black">Extra Function Keys</span>
+            <span className="font-semibold text-lg text-kb-ink">Extra Function Keys</span>
             <div className="flex flex-wrap gap-1">
                 {keys.map((k) => (
                     <Key

@@ -250,8 +250,8 @@ describe('LeadersPanel - Toggle Behavior', () => {
             // The first entry is enabled, so its ON button should have the active styling
             const onButtons = screen.getAllByRole('button', { name: /^ON$/i });
             expect(onButtons.length).toBeGreaterThan(0);
-            // The first ON button should have bg-black (active state)
-            expect(onButtons[0]).toHaveClass('bg-black');
+            // The first ON button should have bg-kb-active (active state)
+            expect(onButtons[0]).toHaveClass('bg-kb-active');
         });
     });
 });

@@ -27,12 +27,12 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
     const label = keyContents?.str || keycode.replace("KC_", "");
 
     return (
-        <div className="flex flex-row items-center gap-4 py-2 px-3 hover:bg-gray-50 rounded-lg transition-colors">
+        <div className="flex flex-row items-center gap-4 py-2 px-3 hover:bg-gray-50 dark:hover:bg-neutral-800 rounded-lg transition-colors">
             {/* Key info */}
             <div className="w-40 shrink-0">
-                <div className="font-mono text-xs text-gray-600">{keycode}</div>
+                <div className="font-mono text-xs text-gray-600 dark:text-neutral-300">{keycode}</div>
                 {description && (
-                    <div className="text-xs text-gray-400 truncate">{description}</div>
+                    <div className="text-xs text-gray-400 dark:text-neutral-400 truncate">{description}</div>
                 )}
             </div>
 
@@ -40,7 +40,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
             <div className="flex flex-row items-center gap-6">
                 {/* Default size (60px) */}
                 <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-gray-400 uppercase font-semibold">Default</span>
+                    <span className="text-[10px] text-gray-400 dark:text-neutral-400 uppercase font-semibold">Default</span>
                     <Key
                         x={0}
                         y={0}
@@ -63,7 +63,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
 
                 {/* Medium size (45px) */}
                 <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-gray-400 uppercase font-semibold">Medium</span>
+                    <span className="text-[10px] text-gray-400 dark:text-neutral-400 uppercase font-semibold">Medium</span>
                     <Key
                         x={0}
                         y={0}
@@ -86,7 +86,7 @@ const KeyProofRow: FC<KeyProofRowProps> = ({
 
                 {/* Small size (30px) */}
                 <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-gray-400 uppercase font-semibold">Small</span>
+                    <span className="text-[10px] text-gray-400 dark:text-neutral-400 uppercase font-semibold">Small</span>
                     <Key
                         x={0}
                         y={0}

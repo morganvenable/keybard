@@ -101,7 +101,7 @@ const OverridesPanel: React.FC = () => {
                     label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
-                    className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
+                    className={hasContent ? "border-kb-key-border" : "bg-transparent border border-kb-gray-border"}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(overrideIndex, idx === 0 ? "trigger" : "replacement")}
@@ -128,13 +128,13 @@ const OverridesPanel: React.FC = () => {
                         <div
                             key={i}
                             className={cn(
-                                "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[90px] group",
+                                "relative flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors min-w-[90px] group",
                                 !isEnabled && "opacity-50"
                             )}
                             onClick={() => handleEdit(i)}
                         >
                             <div className="flex flex-row items-center justify-between mb-1">
-                                <span className="text-xs font-bold text-slate-600">OR {i}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300">OR {i}</span>
                                 <OnOffToggle
                                     value={isEnabled}
                                     onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
@@ -143,7 +143,7 @@ const OverridesPanel: React.FC = () => {
                             </div>
                             <div className="flex flex-row items-center justify-center gap-1">
                                 {renderSmallKey(triggerContent, 0, i)}
-                                <ArrowRight className="w-3 h-3 text-gray-400 mx-0.5" />
+                                <ArrowRight className="w-3 h-3 text-gray-400 dark:text-neutral-400 mx-0.5" />
                                 {renderSmallKey(replacementContent, 1, i)}
                             </div>
                         </div>
@@ -152,15 +152,15 @@ const OverridesPanel: React.FC = () => {
                 {/* Add new override button */}
                 {findFirstEmptyOverride() < (overrides.length || 0) && (
                     <button
-                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[70px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[70px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                         onClick={handleAddOverride}
                         title="Add new override"
                     >
-                        <Plus className="w-6 h-6 text-gray-400" />
+                        <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                     </button>
                 )}
                 {overrides.filter(o => (o.trigger && o.trigger !== "KC_NO") || (o.replacement && o.replacement !== "KC_NO")).length === 0 && (
-                    <div className="text-center text-gray-500 py-4 px-6">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 py-4 px-6">
                         No overrides configured.
                     </div>
                 )}
@@ -186,7 +186,7 @@ const OverridesPanel: React.FC = () => {
                         <div className="flex flex-row items-center w-full">
                             <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden">
                                 {renderSmallKey(triggerContent, 0, i)}
-                                <ArrowRight className="w-3 h-3 text-black mx-1" />
+                                <ArrowRight className="w-3 h-3 text-kb-ink mx-1" />
                                 {renderSmallKey(replacementContent, 1, i)}
                             </div>
                         </div>
@@ -224,7 +224,7 @@ const OverridesPanel: React.FC = () => {
                     );
                 })}
                 {overrides.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         No overrides found.
                     </div>
                 )}

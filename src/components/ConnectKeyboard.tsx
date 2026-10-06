@@ -124,29 +124,29 @@ const ConnectKeyboard = () => {
                     <svg width="30" height="30" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M5.7998 0.884241V3.46595C5.7998 3.95425 6.1146 4.3501 6.50293 4.3501L22.4967 4.3501C22.885 4.3501 23.1998 3.95425 23.1998 3.46595V0.884241C23.1998 0.395941 22.885 9.58443e-05 22.4967 9.58443e-05L6.50293 9.58443e-05C6.1146 9.58443e-05 5.7998 0.395941 5.7998 0.884241Z"
-                            fill="black"
+                            className="fill-kb-ink"
                         ></path>
                         <path
                             d="M28.1162 5.7998H25.5345C25.0462 5.7998 24.6504 6.1146 24.6504 6.50293V22.4967C24.6504 22.885 25.0462 23.1998 25.5345 23.1998H28.1162C28.6045 23.1998 29.0004 22.885 29.0004 22.4967V6.50293C29.0004 6.1146 28.6045 5.7998 28.1162 5.7998Z"
-                            fill="black"
+                            className="fill-kb-ink"
                         ></path>
                         <path
                             d="M3.46585 5.7998H0.884147C0.395846 5.7998 0 6.1146 0 6.50293V22.4967C0 22.885 0.395846 23.1998 0.884147 23.1998H3.46585C3.95416 23.1998 4.35 22.885 4.35 22.4967V6.50293C4.35 6.1146 3.95416 5.7998 3.46585 5.7998Z"
-                            fill="black"
+                            className="fill-kb-ink"
                         ></path>
                         <path
                             d="M5.7998 25.5341V28.1159C5.7998 28.6042 6.1146 29 6.50293 29H22.4967C22.885 29 23.1998 28.6042 23.1998 28.1159V25.5341C23.1998 25.0458 22.885 24.65 22.4967 24.65H6.50293C6.1146 24.65 5.7998 25.0458 5.7998 25.5341Z"
-                            fill="black"
+                            className="fill-kb-ink"
                         ></path>
                         <path
                             d="M14.5 21.75C18.5041 21.75 21.75 18.5041 21.75 14.5C21.75 10.4959 18.5041 7.25 14.5 7.25C10.4959 7.25 7.25 10.4959 7.25 14.5C7.25 18.5041 10.4959 21.75 14.5 21.75Z"
-                            fill="black"
+                            className="fill-kb-ink"
                         ></path>
                     </svg>
                     <KeybardLogo className="!h-[32px] !w-auto" />
                 </div>
             </div>
-            <div className="p-10 max-w-xl mx-auto rounded-md border-dashed border-1 border-gray-300">
+            <div className="p-10 max-w-xl mx-auto rounded-md border-dashed border-1 border-gray-300 dark:border-neutral-600">
                 {!isWebHIDSupported && (
                     <div className="browser-not-supported">
                         <h2>Browser Not Supported</h2>
@@ -188,7 +188,7 @@ const ConnectKeyboard = () => {
                                         <button
                                             key={`${device.vendorId}:${device.productId}:${index}`}
                                             onClick={() => handleConnectDevice(device)}
-                                            className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 hover:bg-white px-5 py-1.5 rounded-full w-full"
+                                            className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 px-5 py-1.5 rounded-full w-full"
                                             data-testid="known-device"
                                         >
                                             <PlugZap className="h-4 w-4" />
@@ -199,11 +199,11 @@ const ConnectKeyboard = () => {
                             )}
                             {!(loading && !isDisconnecting) && (
                                 <>
-                                    <p className="text-sm font-bold text-center text-gray-700 my-1">or</p>
+                                    <p className="text-sm font-bold text-center text-gray-700 dark:text-neutral-200 my-1">or</p>
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={loading || connectionState === "loading"}
-                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full w-full"
+                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-active text-gray-200 dark:text-neutral-900 hover:bg-gray-800 dark:hover:bg-neutral-300 px-5 py-1.5 rounded-full w-full"
                                     >
                                         {loading ? "Loading..." : "Load File"}
                                     </button>
@@ -211,7 +211,7 @@ const ConnectKeyboard = () => {
                                     <button
                                         onClick={handleLoadDemo}
                                         disabled={loading || connectionState === "loading"}
-                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray text-black hover:bg-kb-gray-medium px-5 py-1.5 rounded-full w-full border border-gray-300"
+                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray text-kb-ink hover:bg-kb-gray-medium px-5 py-1.5 rounded-full w-full border border-gray-300 dark:border-neutral-500"
                                     >
                                         {loading ? "Loading..." : "QWERTY Example"}
                                     </button>

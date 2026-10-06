@@ -19,6 +19,8 @@ import { layerColors } from "@/utils/colors";
 import { getPresetHsv, hsvToHex, hexToHsv } from "@/utils/color-conversion";
 
 import { cn } from "@/lib/utils";
+import { useIsDark } from "@/lib/theme";
+import { needsDarkIndicatorOutline } from "@/components/layer3DColors";
 import { KEYMAP } from "@/constants/keygen";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import CustomColorDialog from "@/components/CustomColorDialog";
@@ -66,6 +68,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     const renameButtonRef = useRef<HTMLButtonElement>(null);
     const cancelRename = useRef(false);
     const savingRename = useRef(false);
+    const isDark = useIsDark();
     const restoreRenameFocus = () => requestAnimationFrame(() => renameButtonRef.current?.focus());
 
     useEffect(() => {
@@ -104,6 +107,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
 
     const displayColorHex = getDisplayColorHex();
+    // Dark mode only: a status dot whose colour is too close to the dark page (e.g. a very
+    // dark custom colour) gets a thin kb-gray-border outline so it stays visible.
+    const showDarkDotOutline = isDark && needsDarkIndicatorOutline(displayColorHex);
     // const hardwareColorHex = getHardwareColorHex();
 
     const allColors = [...layerColors];
@@ -258,8 +264,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
 
     return (
         <>
-            {clipboardError && <p role="alert" className="text-sm text-red-700">{clipboardError}</p>}
-            {nameError && <div role="alert" className="text-red-600">{nameError}</div>}
+            {clipboardError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{clipboardError}</p>}
+            {nameError && <div role="alert" className="text-red-600 dark:text-red-400">{nameError}</div>}
             <div
                 className={cn(
                     "group/layer-badge flex items-center gap-2 z-50 transition-[margin] duration-150",
@@ -301,6 +307,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                 onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
                             >
                                 <svg viewBox="0 0 28 28" className="absolute inset-0 block h-full w-full" aria-hidden="true">
+                                    {showDarkDotOutline && <circle cx="14" cy="14" r={showStatusRing ? 13.5 : 9.5} fill="none" stroke="var(--kb-gray-border)" strokeWidth="1" />}
                                     {showStatusRing && <circle cx="14" cy="14" r="13" fill="none" stroke={displayColorHex} strokeWidth="2" />}
                                     <circle cx="14" cy="14" r={useInsetDotStyle ? 6 : 9}
                                         fill={useInsetDotStyle ? "none" : displayColorHex}
@@ -308,7 +315,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                         strokeWidth={useInsetDotStyle ? 6 : 0} />
                                 </svg>
                                 {isColorPickerOpen && (
-                                    <span className="absolute -inset-[3px] rounded-full border-2 border-black pointer-events-none z-20" />
+                                    <span className="absolute -inset-[3px] rounded-full border-2 border-kb-ink pointer-events-none z-20" />
                                 )}
                             </button>
                         </TooltipTrigger>
@@ -316,7 +323,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     </Tooltip>
 
                     {isColorPickerOpen && (
-                        <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[100] bg-[#EEEEEE] rounded-3xl p-2 flex flex-col items-center gap-2 shadow-xl border border-gray-200 min-w-[40px]">
+                        <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[100] bg-kb-popover rounded-3xl p-2 flex flex-col items-center gap-2 shadow-xl border border-gray-200 dark:border-neutral-700 min-w-[40px]">
                             {allColors.map((color) => (
                                 <button
                                     key={color.name}
@@ -325,8 +332,10 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                     aria-label={color.name}
                                     aria-pressed={currentLayerColorName === color.name}
                                     className={cn(
-                                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
-                                        currentLayerColorName === color.name ? "border-black" : "border-transparent"
+                                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2 dark:ring-1 dark:ring-kb-gray-border",
+                                        currentLayerColorName === color.name
+                                            ? "border-kb-ink dark:ring-2 dark:ring-kb-ink dark:ring-offset-2 dark:ring-offset-kb-popover"
+                                            : "border-transparent"
                                     )}
                                     style={{ backgroundColor: color.hex }}
                                     onClick={() => handleSetColor(color.name)}
@@ -336,13 +345,13 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                             <button
                                 type="button"
                                 aria-label="Custom layer color"
-                                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
+                                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 dark:bg-neutral-700 flex items-center justify-center"
                                 onClick={() => {
                                     setIsColorPickerOpen(false);
                                     setIsCustomColorOpen(true);
                                 }}
                             >
-                                <Settings2Icon className="w-3 h-3 text-gray-600" />
+                                <Settings2Icon className="w-3 h-3 text-gray-600 dark:text-neutral-300" />
                             </button>
                         </div>
                     )}
@@ -357,7 +366,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={() => void handleSave()}
                         onKeyDown={handleKeyDown}
-                        className="h-6 py-0 px-2 text-xs font-bold border border-black rounded w-24 bg-white"
+                        className="h-6 py-0 px-2 text-xs font-bold border border-kb-ink rounded w-24 bg-kb-surface"
                         autoFocus
                     />
                 ) : (
@@ -366,7 +375,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                         ref={renameButtonRef}
                         aria-label={`Rename layer ${selectedLayer}: ${svalService.getLayerName(keyboard, selectedLayer)}`}
                         className={cn(
-                            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 rounded text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 rounded text-base font-medium text-kb-ink cursor-pointer hover:underline whitespace-nowrap select-none"
                         )}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
@@ -378,7 +387,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 {/* Layer Actions Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button type="button" aria-label={`Actions for layer ${selectedLayer}`} className="focus-visible:ring-2 focus-visible:ring-black hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
+                        <button type="button" aria-label={`Actions for layer ${selectedLayer}`} className="focus-visible:ring-2 focus-visible:ring-kb-ink hover:bg-black/10 dark:hover:bg-white/10 p-1 rounded-full transition-colors flex items-center justify-center text-kb-ink outline-none">
                             <EllipsisVertical size={16} strokeWidth={1.5} />
                         </button>
                     </DropdownMenuTrigger>

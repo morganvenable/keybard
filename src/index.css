@@ -39,7 +39,15 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
-    --color-kb-gray: #f1f2f2;
+    /* Themed kb-* tokens: values live on :root (light) and .dark below. */
+    --color-kb-gray: var(--kb-gray);
+    --color-kb-key-border: var(--kb-key-border);
+    --color-kb-surface: var(--kb-surface);
+    --color-kb-ink: var(--kb-ink);
+    --color-kb-active: var(--kb-active);
+    --color-kb-active-fg: var(--kb-active-fg);
+    --color-kb-popover: var(--kb-popover);
+    /* Brand and layer colours stay literal (they are user data). */
     --color-kb-primary: #099e7c;
     --color-kb-green: #099e7c;
     --color-kb-blue: #379cd7;
@@ -51,13 +59,24 @@
     --color-kb-red: #d8304a;
     --color-kb-brown: #b39369;
     --color-kb-magenta: #b5508a;
-    --color-kb-gray-medium: #eaeae9;
-    --color-kb-gray-border: #a7a9ac;
+    --color-kb-gray-medium: var(--kb-gray-medium);
+    --color-kb-gray-border: var(--kb-gray-border);
     --color-kb-sidebar-base: #3E3E3E;
     --color-kb-sidebar-dark: #000000;
 }
 
 :root {
+    /* kb-* themed tokens: light values equal the literals they replaced. */
+    --kb-gray: #f1f2f2;
+    --kb-key-border: #f1f2f2;
+    --kb-gray-medium: #eaeae9;
+    --kb-gray-border: #a7a9ac;
+    --kb-surface: #ffffff;
+    --kb-ink: #000000;
+    --kb-active: #000000;
+    --kb-active-fg: #ffffff;
+    --kb-popover: #EEEEEE;
+
     --radius: 0.625rem;
     --background: oklch(1 0 0);
     --foreground: oklch(0.129 0.042 264.695);
@@ -93,37 +112,63 @@
 }
 
 .dark {
-    --background: oklch(0.129 0.042 264.695);
-    --foreground: oklch(0.984 0.003 247.858);
-    --card: oklch(0.208 0.042 265.755);
-    --card-foreground: oklch(0.984 0.003 247.858);
-    --popover: oklch(0.208 0.042 265.755);
-    --popover-foreground: oklch(0.984 0.003 247.858);
-    --primary: oklch(0.929 0.013 255.508);
-    --primary-foreground: oklch(0.208 0.042 265.755);
-    --secondary: oklch(0.279 0.041 260.031);
-    --secondary-foreground: oklch(0.984 0.003 247.858);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788);
-    --accent: oklch(0.279 0.041 260.031);
-    --accent-foreground: oklch(0.984 0.003 247.858);
+    /* kb-* themed tokens. --kb-gray must match the inline no-flash style in src/index.html. */
+    --kb-gray: #141517;
+    --kb-key-border: #5a5e65;
+    --kb-gray-medium: #26282b;
+    --kb-gray-border: #75797f;
+    --kb-surface: #1d1e21;
+    --kb-ink: #f1f2f2;
+    --kb-active: #e8e9ea;
+    --kb-active-fg: #111214;
+    --kb-popover: #33363b;
+
+    --background: #1d1e21;
+    --foreground: #f1f2f2;
+    --card: #1d1e21;
+    --card-foreground: #f1f2f2;
+    --popover: #26282b;
+    --popover-foreground: #f1f2f2;
+    --primary: #e8e9ea;
+    --primary-foreground: #111214;
+    --secondary: #2c2e33;
+    --secondary-foreground: #f1f2f2;
+    --muted: #2c2e33;
+    --muted-foreground: #a3a6ab;
+    --accent: #2c2e33;
+    --accent-foreground: #f1f2f2;
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.551 0.027 264.364);
+    --border: oklch(1 0 0 / 12%);
+    --input: #75797f;
+    --ring: #babec4;
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.208 0.042 265.755);
-    --sidebar-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.279 0.041 260.031);
-    --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.551 0.027 264.364);
+    --sidebar: #1d1e21;
+    --sidebar-foreground: #f1f2f2;
+    --sidebar-primary: #e8e9ea;
+    --sidebar-primary-foreground: #111214;
+    --sidebar-accent: #2c2e33;
+    --sidebar-accent-foreground: #f1f2f2;
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: #babec4;
+}
+
+html.dark {
+    color-scheme: dark;
+}
+
+/* Printed output stays light even when the editor is in dark mode.
+   PrintableKeymap.css also forces white/black with !important. */
+@media print {
+    html {
+        color-scheme: light;
+    }
+    html.dark body {
+        background-color: #f1f2f2;
+    }
 }
 
 @layer utilities {

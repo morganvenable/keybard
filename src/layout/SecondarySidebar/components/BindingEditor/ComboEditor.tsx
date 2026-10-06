@@ -154,7 +154,7 @@ const ComboEditor: FC = () => {
         return (
             <div className="flex flex-row flex-wrap items-center gap-4 pl-8 pr-2 py-3">
                 <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-slate-500 mb-1">Input Keys</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-neutral-400 mb-1">Input Keys</span>
                     <div className="grid grid-cols-2 gap-2">
                         {renderComboKey(currCombo.keys[0], 0)}
                         {renderComboKey(currCombo.keys[1], 1)}
@@ -162,9 +162,9 @@ const ComboEditor: FC = () => {
                         {renderComboKey(currCombo.keys[3], 3)}
                     </div>
                 </div>
-                <ArrowRightFromLine className="h-5 w-5 flex-shrink-0 text-gray-600" />
+                <ArrowRightFromLine className="h-5 w-5 flex-shrink-0 text-gray-600 dark:text-neutral-300" />
                 <div className="flex flex-col items-center">
-                    <span className="text-xs font-medium text-slate-500 mb-1">Output</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-neutral-400 mb-1">Output</span>
                     {renderComboKey(currCombo.output, 4)}
                 </div>
             </div>
@@ -183,7 +183,7 @@ const ComboEditor: FC = () => {
                         <div key={slotIdx} className="flex flex-row items-end gap-4">
                             {slotIdx > 0 && (
                                 <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
-                                    <Plus className="w-5 h-5 text-black" />
+                                    <Plus className="w-5 h-5 text-kb-ink" />
                                 </div>
                             )}
                             {renderComboKey(currCombo.keys[slotIdx], slotIdx)}
@@ -193,10 +193,10 @@ const ComboEditor: FC = () => {
                     {/* Output Key */}
                     <div className="flex flex-row gap-4 items-end">
                         <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
-                            <ArrowRightFromLine className="w-5 h-5 text-black" />
+                            <ArrowRightFromLine className="w-5 h-5 text-kb-ink" />
                         </div>
                         <div className="flex flex-col items-center gap-1 relative">
-                            <span className="font-bold text-slate-600 text-sm">Output</span>
+                            <span className="font-bold text-slate-600 dark:text-neutral-300 text-sm">Output</span>
                             {renderComboKey(currCombo.output, 4)}
                         </div>
                     </div>

@@ -123,7 +123,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
         return (
             <section className={`${embedded ? "" : "h-full "}flex flex-col p-4`}>
                 <h2 className="text-lg font-semibold mb-4">{menu.label}</h2>
-                <p className="text-red-500">{error}</p>
+                <p className="text-red-500 dark:text-red-400">{error}</p>
             </section>
         );
     }

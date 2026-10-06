@@ -229,7 +229,7 @@ const LayoutsPanel: FC = () => {
         >
             {/* Header Description */}
             <div className="pl-0 pr-3">
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-neutral-400">
                     Drag and drop to apply a layout to one of your layers or drag and drop individual keys. Default layouts are provided by Svalboard. You can save any of your own layers here, or import any .svil file.
                 </span>
             </div>
@@ -237,9 +237,9 @@ const LayoutsPanel: FC = () => {
             {/* Controls (Search + Import) */}
             <div className="pl-0 pr-3 flex flex-wrap items-center gap-2">
                 <div className="relative flex-1 min-w-0">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-400" />
                     <Input
-                        className="pl-9 bg-gray-50/50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 focus:ring-1 focus:ring-blue-500/20 rounded-full h-9"
+                        className="pl-9 bg-gray-50/50 dark:bg-neutral-800/60 border-gray-200 dark:border-neutral-500 focus:ring-1 focus:ring-blue-500/20 rounded-full h-9"
                         aria-label="Search layouts"
                         placeholder="Search layouts..."
                         value={searchQuery}
@@ -248,7 +248,7 @@ const LayoutsPanel: FC = () => {
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-neutral-400 dark:hover:text-neutral-300"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -278,7 +278,7 @@ const LayoutsPanel: FC = () => {
             {
                 importError && (
                     <div className="pl-0 pr-3">
-                        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-md text-sm flex items-center justify-between">
+                        <div className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-3 rounded-md text-sm flex items-center justify-between">
                             <span>{importError}</span>
                             <button onClick={() => setImportError(null)} className="ml-2">
                                 <X className="w-4 h-4" />
@@ -338,8 +338,8 @@ const LayoutsPanel: FC = () => {
 
                 {/* Empty State */}
                 {importedLayouts.length === 0 && publishedLayers.length === 0 && (
-                    <div className="text-center text-gray-500 mt-20">
-                        <LayoutImport className="w-16 h-16 mx-auto mb-6 text-gray-200 dark:text-gray-800" />
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-20">
+                        <LayoutImport className="w-16 h-16 mx-auto mb-6 text-gray-200 dark:text-neutral-700" />
                         <p className="text-base font-medium mb-2">No layouts loaded</p>
                         <p className="text-sm max-w-[300px] mx-auto opacity-70">
                             Import a .svil file <br></br>or save one of your current layers from it's contextual menu.
@@ -349,10 +349,10 @@ const LayoutsPanel: FC = () => {
 
                 {/* No search results */}
                 {searchQuery && importedLayouts.filter(hasMatchingLayers).length === 0 && filteredPublishedLayers.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         <p className="mb-2">No layers match "{searchQuery}"</p>
                         <button
-                            className="text-sm text-blue-600 hover:underline"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                             onClick={() => setSearchQuery('')}
                         >
                             Clear search
@@ -362,8 +362,8 @@ const LayoutsPanel: FC = () => {
 
                 {/* Loading State */}
                 {(isImporting || isPublishedLoading) && (
-                    <div className="text-center text-gray-500 py-4">
-                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="text-center text-gray-500 dark:text-neutral-400 py-4">
+                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 dark:border-neutral-600 dark:border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
                         <p className="text-sm">{isImporting ? "Importing layout..." : "Loading..."}</p>
                     </div>
                 )}

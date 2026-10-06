@@ -32,12 +32,12 @@ export const DragReplaceLayerDialog: FC<DragReplaceLayerDialogProps> = ({
         <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
             <DialogContent className="sm:max-w-[420px] p-8">
                 <DialogHeader className="space-y-3">
-                    <DialogTitle className="text-xl font-bold text-gray-900">
+                    <DialogTitle className="text-xl font-bold text-gray-900 dark:text-neutral-100">
                         Replace
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="py-1 text-xl text-gray-900 leading-tight">
+                <div className="py-1 text-xl text-gray-900 dark:text-neutral-100 leading-tight">
                     <p>Current {targetText} with {sourceText}.</p>
                 </div>
 
@@ -45,13 +45,13 @@ export const DragReplaceLayerDialog: FC<DragReplaceLayerDialogProps> = ({
                     <Button
                         variant="outline"
                         onClick={onCancel}
-                        className="rounded-full px-8 py-5 text-base font-medium border-gray-200 hover:bg-gray-50 flex-1 sm:flex-none"
+                        className="rounded-full px-8 py-5 text-base font-medium border-gray-200 hover:bg-gray-50 dark:border-neutral-500 dark:hover:bg-neutral-800 flex-1 sm:flex-none"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={onConfirm}
-                        className="rounded-full px-8 py-5 text-base font-bold bg-gray-900 hover:bg-black text-white flex-1 sm:flex-none"
+                        className="rounded-full px-8 py-5 text-base font-bold bg-gray-900 hover:bg-black text-white dark:bg-neutral-200 dark:hover:bg-neutral-300 dark:text-neutral-900 flex-1 sm:flex-none"
                     >
                         OK
                     </Button>

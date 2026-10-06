@@ -98,7 +98,7 @@ const AltRepeatEditor: FC = () => {
             {/* Key Slots */}
             <div className="flex flex-row flex-wrap gap-4 justify-start items-center">
                 <div className="flex flex-col items-center gap-2 relative">
-                    <span className="text-sm font-bold text-slate-600">Trigger</span>
+                    <span className="text-sm font-bold text-slate-600 dark:text-neutral-300">Trigger</span>
                     <EditorKey
                         keycode={altRepeatEntry.keycode}
                         selected={isSlotSelected("keycode")}
@@ -110,11 +110,11 @@ const AltRepeatEditor: FC = () => {
                         editorSlot="keycode"
                     />
                 </div>
-                <div className="pt-6 text-black -mr-1">
+                <div className="pt-6 text-kb-ink -mr-1">
                     <ArrowRight className="w-6 h-6" />
                 </div>
                 <div className="flex flex-col items-center gap-2 relative">
-                    <span className="text-sm font-bold text-slate-600">Alternate</span>
+                    <span className="text-sm font-bold text-slate-600 dark:text-neutral-300">Alternate</span>
                     <EditorKey
                         keycode={altRepeatEntry.alt_keycode}
                         selected={isSlotSelected("alt_keycode")}
@@ -130,12 +130,12 @@ const AltRepeatEditor: FC = () => {
 
             {/* Options Switches */}
             <div className="flex flex-col gap-1 mt-2">
-                <span className="font-semibold text-lg text-black">Options</span>
+                <span className="font-semibold text-lg text-kb-ink">Options</span>
                 {OPTIONS.map((opt) => (
                     <div key={opt.bit} className="flex flex-row items-center justify-between py-1">
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
-                            <span className="text-xs text-slate-500">{opt.description}</span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-neutral-200">{opt.label}</span>
+                            <span className="text-xs text-slate-500 dark:text-neutral-400">{opt.description}</span>
                         </div>
                         <OnOffToggle
                             value={(altRepeatEntry?.options & opt.bit) !== 0}

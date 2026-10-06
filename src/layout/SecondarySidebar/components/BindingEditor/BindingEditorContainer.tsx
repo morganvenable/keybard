@@ -449,10 +449,10 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         >
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
                 {!inline && <div
-                    className="w-full h-6 flex items-center justify-center cursor-ns-resize hover:bg-black/5 transition-colors group z-20"
+                    className="w-full h-6 flex items-center justify-center cursor-ns-resize hover:bg-black/5 dark:hover:bg-white/5 transition-colors group z-20"
                     onMouseDown={handleMouseDown}
                 >
-                    <GripHorizontal className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                    <GripHorizontal className="h-4 w-4 text-gray-400 dark:text-neutral-400 group-hover:text-gray-600 dark:group-hover:text-neutral-300" />
                 </div>}
                 <div className={inline ? "p-3 pt-0" : "p-5 pt-0"}>
                     <div className={cn(
@@ -465,7 +465,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                 <div className={cn("font-normal", inline ? "text-lg" : "text-xl")}>
                                     {bindingTypeToEdit === "macros" || bindingTypeToEdit === "tapdances" ? (
                                         isEditingTitle ? (
-                                            <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
+                                            <div className="flex items-center gap-2 bg-kb-surface rounded-md px-1 py-0.5 border border-kb-ink shadow-sm">
                                                 <Input
                                                     ref={inputRef}
                                                     aria-label="Binding name"
@@ -481,7 +481,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                             <button
                                                 type="button"
                                                 aria-label={`Rename ${getEditorTitle()}`}
-                                                className="cursor-pointer hover:bg-black/5 rounded-md px-2 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 text-left"
+                                                className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md px-2 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 text-left"
                                                 onClick={handleStartEditingTitle}
                                                 title="Click to rename"
                                             >
@@ -500,7 +500,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                     type="button"
                                     aria-label="Close binding editor"
                                     onClick={handleAnimatedClose}
-                                    className="rounded-sm p-1 text-kb-gray-border transition-all hover:text-black focus:outline-none focus:text-black cursor-pointer"
+                                    className="rounded-sm p-1 text-kb-gray-border dark:text-neutral-400 transition-all hover:text-kb-ink dark:hover:text-kb-ink focus:outline-none focus:text-kb-ink dark:focus:text-kb-ink cursor-pointer"
                                 >
                                     <X className="h-5 w-5" />
                                 </button>
@@ -508,7 +508,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         )}
 
                     </div>
-                    {nameError && <p role="alert" className="px-4 text-sm text-red-700">{nameError}</p>}
+                    {nameError && <p role="alert" className="px-4 text-sm text-red-700 dark:text-red-400">{nameError}</p>}
                     {bindingTypeToEdit === "tapdances" && <TapdanceEditor />}
                     {bindingTypeToEdit === "combos" && <ComboEditor />}
                     {bindingTypeToEdit === "overrides" && <OverrideEditor />}
@@ -524,7 +524,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                         type="button"
                                         aria-label={`Clear ${getEditorTitle()}`}
                                         onClick={() => setIsConfirmOpen(true)}
-                                        className="rounded-full p-1 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
+                                        className="rounded-full p-1 text-kb-gray-border dark:text-neutral-400 transition-all hover:bg-red-500 hover:text-white dark:hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
                                     >
                                         <Trash2 className="h-5 w-5" />
                                     </button>
@@ -548,14 +548,14 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         <Button
                             variant="outline"
                             onClick={() => setIsConfirmOpen(false)}
-                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                            className="rounded-full px-8 py-5 text-base border-slate-300 dark:border-neutral-500 hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors"
                         >
                             Cancel
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={handleClearAll}
-                            className="rounded-full px-8 py-5 text-base font-bold bg-red-600 hover:bg-red-700 transition-colors border-none"
+                            className="rounded-full px-8 py-5 text-base font-bold bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 transition-colors border-none"
                         >
                             Clear
                         </Button>

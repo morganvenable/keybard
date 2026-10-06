@@ -93,7 +93,7 @@ const footerItems: SidebarItem[] = [
 
 const SlidingIndicator = ({ y }: { y: number }) => (
     <div
-        className="absolute left-[4px] top-0 w-[3px] h-[26px] bg-black z-20 transition-transform duration-300 ease-in-out pointer-events-none"
+        className="absolute left-[4px] top-0 w-[3px] h-[26px] bg-kb-active z-20 transition-transform duration-300 ease-in-out pointer-events-none"
         style={{ transform: `translateY(${y}px)` }}
     />
 );
@@ -124,7 +124,7 @@ const SidebarNavItem = ({
             size="nav"
             className={cn(
                 "transition-colors",
-                (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
+                (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400 dark:text-neutral-400"
             )}
         >
             <button type="button" aria-label={item.title} aria-pressed={isActive} onClick={() => onClick(item)} className="flex w-full items-center justify-start">
@@ -324,7 +324,7 @@ const AppSidebar = () => {
                             ))}
 
                             {/* Divider between top section and middle section */}
-                            <div className="mx-4 my-2 h-[1px] bg-slate-400" />
+                            <div className="mx-4 my-2 h-[1px] bg-slate-400 dark:bg-neutral-600" />
 
                             {/* Middle section items (Special, Layer Keys, Mouse Keys, Tap Dances, Macros) */}
                             {middleSectionItems.map((item) => (
@@ -339,7 +339,7 @@ const AppSidebar = () => {
                                 />
                             ))}
 
-                            <div className="mx-4 my-2 h-[1px] bg-slate-400" />
+                            <div className="mx-4 my-2 h-[1px] bg-slate-400 dark:bg-neutral-600" />
 
                             {featureSidebarItems.map((item) => (
                                 <SidebarNavItem
@@ -353,7 +353,7 @@ const AppSidebar = () => {
                                 />
                             ))}
 
-                            <div className="mx-4 my-2 h-[1px] bg-slate-400" />
+                            <div className="mx-4 my-2 h-[1px] bg-slate-400 dark:bg-neutral-600" />
 
                             {layoutSidebarItems.map((item) => (
                                 <SidebarNavItem

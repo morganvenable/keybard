@@ -111,7 +111,7 @@ export default function BoardIdentitySection() {
                         </Button>
                     </div>
                     <div className="flex flex-row justify-between text-xs text-muted-foreground">
-                        <span role={problem || message ? "alert" : "status"} className={problem ? "text-red-600" : undefined}>{problem ?? message ?? (dirty ? "Not saved yet" : "")}</span>
+                        <span role={problem || message ? "alert" : "status"} className={problem ? "text-red-600 dark:text-red-400" : undefined}>{problem ?? message ?? (dirty ? "Not saved yet" : "")}</span>
                         <span>
                             {nameLength(draft)}/{NAME_MAX_CHARS}
                         </span>

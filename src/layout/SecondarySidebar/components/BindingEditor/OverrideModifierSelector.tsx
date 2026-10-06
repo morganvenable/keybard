@@ -59,7 +59,7 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-black">Modifiers</span>
+            <span className="font-semibold text-lg text-kb-ink">Modifiers</span>
             <div className="flex flex-row items-start gap-2 flex-wrap min-h-[63px]">
                 {/* NONE Button */}
                 <Button
@@ -68,8 +68,8 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
                     className={cn(
                         "h-9 px-5 rounded-md font-medium transition-colors border-none min-w-[84px]",
                         isNone
-                            ? "bg-black text-white shadow-none"
-                            : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black"
+                            ? "bg-kb-active text-kb-active-fg shadow-none"
+                            : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink"
                     )}
                     onClick={handleNoneClick}
                 >
@@ -88,8 +88,8 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
                             className={cn(
                                 "flex flex-col items-center rounded-md overflow-hidden min-w-[84px] transition-[height] duration-300 ease-in-out",
                                 anyActive
-                                    ? "bg-black text-white h-[63px]"
-                                    : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black h-9 delay-150"
+                                    ? "bg-kb-active text-kb-active-fg h-[63px]"
+                                    : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink h-9 delay-150"
                             )}
                         >
                             {/* Main Label */}
@@ -113,10 +113,10 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
                                 <button
                                     type="button"
                                     className={cn(
-                                        "w-9 h-6 rounded-[6px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
+                                        "w-9 h-6 rounded-[6px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink",
                                         lActive
-                                            ? "bg-black border-white text-white"
-                                            : "bg-kb-gray-medium border-white text-black"
+                                            ? "bg-kb-active border-kb-surface text-kb-active-fg"
+                                            : "bg-kb-gray-medium border-kb-surface text-kb-ink"
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -130,10 +130,10 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
                                 <button
                                     type="button"
                                     className={cn(
-                                        "w-9 h-6 rounded-[6px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
+                                        "w-9 h-6 rounded-[6px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink",
                                         rActive
-                                            ? "bg-black border-white text-white"
-                                            : "bg-kb-gray-medium border-white text-black"
+                                            ? "bg-kb-active border-kb-surface text-kb-active-fg"
+                                            : "bg-kb-gray-medium border-kb-surface text-kb-ink"
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();

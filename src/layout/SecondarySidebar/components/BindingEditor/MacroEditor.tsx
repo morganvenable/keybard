@@ -143,7 +143,7 @@ const MacroEditor: FC = () => {
     const AddButton = ({ type, label }: { type: string; label: string }) => {
         return (
             <button
-                className="bg-black cursor-pointer text-white pl-[19px] pr-[22px] py-2 rounded-full hover:bg-gray-600 transition flex flex-row gap-2 items-center"
+                className="bg-kb-active cursor-pointer text-kb-active-fg pl-[19px] pr-[22px] py-2 rounded-full hover:bg-gray-600 dark:hover:bg-neutral-300 transition flex flex-row gap-2 items-center"
                 onClick={() => handleAddItem(type)}
             >
                 <PlusIcon className="h-5 w-5" /> {label}
@@ -219,12 +219,12 @@ const MacroEditor: FC = () => {
                                 }}
                             />
                         )}
-                        {index < actions.length - 1 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
+                        {index < actions.length - 1 && <ArrowDown className="w-6 h-6 text-kb-ink ml-[18px]" />}
                     </div>
                 ))}
             </div>
             <div className="flex flex-col gap-[14px]">
-                {actions.length > 0 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
+                {actions.length > 0 && <ArrowDown className="w-6 h-6 text-kb-ink ml-[18px]" />}
                 <AddButton type="tap" label="Key Tap" />
                 <AddButton type="down" label="Key Down" />
                 <AddButton type="up" label="Key Up" />

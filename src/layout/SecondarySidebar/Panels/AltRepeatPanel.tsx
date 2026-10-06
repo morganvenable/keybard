@@ -117,7 +117,7 @@ const AltRepeatPanel: React.FC = () => {
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
-                        hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border",
+                        hasContent ? "border-kb-key-border" : "bg-transparent border border-kb-gray-border",
                         isSelected && "ring-2 ring-blue-500"
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
@@ -173,15 +173,15 @@ const AltRepeatPanel: React.FC = () => {
                             <div
                                 key={i}
                                 className={cn(
-                                    "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors group",
+                                    "relative flex flex-col bg-gray-50 dark:bg-neutral-800/60 rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors group",
                                     !enabled && "opacity-50"
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                <span className="text-[9px] font-bold text-slate-600 mb-1">AR {i}</span>
+                                <span className="text-[9px] font-bold text-slate-600 dark:text-neutral-300 mb-1">AR {i}</span>
                                 <div className="flex flex-row items-center gap-1">
                                     {renderSmallKey(entry.keycode, i, "keycode", false)}
-                                    <ArrowRight className="w-2 h-2 text-gray-400" />
+                                    <ArrowRight className="w-2 h-2 text-gray-400 dark:text-neutral-400" />
                                     {renderSmallKey(entry.alt_keycode, i, "alt_keycode", false)}
                                 </div>
                             </div>
@@ -190,15 +190,15 @@ const AltRepeatPanel: React.FC = () => {
                     {/* Add new alt-repeat button */}
                     {findFirstEmptyAltRepeat() < (altRepeatKeys.length || 0) && (
                         <button
-                            className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                            className="flex flex-col items-center justify-center bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500"
                             onClick={handleAddAltRepeat}
                             title="Add new alt-repeat"
                         >
-                            <Plus className="w-6 h-6 text-gray-400" />
+                            <Plus className="w-6 h-6 text-gray-400 dark:text-neutral-400" />
                         </button>
                     )}
                     {altRepeatKeys.filter(e => (e.keycode !== "KC_NO" && e.keycode !== "") || (e.alt_keycode !== "KC_NO" && e.alt_keycode !== "")).length === 0 && (
-                        <div className="text-center text-gray-500 py-2 px-4 text-sm">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 py-2 px-4 text-sm">
                             No alt-repeat keys configured.
                         </div>
                     )}
@@ -214,7 +214,7 @@ const AltRepeatPanel: React.FC = () => {
                     Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key. Click on a key slot to assign a keycode.
                 </DescriptionBlock>
                 {/* Placeable Alt-Repeat key */}
-                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-kb-surface pb-3 pt-2">
                     <Key
                         isRelative
                         x={0} y={0} w={1} h={1} row={-1} col={-1}
@@ -223,7 +223,7 @@ const AltRepeatPanel: React.FC = () => {
                         keyContents={altRepeatKeyContents}
                         layerColor="sidebar"
                         className={cn(
-                            "border-kb-gray cursor-pointer",
+                            "border-kb-key-border cursor-pointer",
                             isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
                         )}
                         headerClassName="bg-kb-sidebar-dark"
@@ -285,7 +285,7 @@ const AltRepeatPanel: React.FC = () => {
                 })}
 
                 {altRepeatKeys.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
+                    <div className="text-center text-gray-500 dark:text-neutral-400 mt-10">
                         <p>No alt-repeat keys configured.</p>
                         <p className="text-sm mt-2">This keyboard may not support alt-repeat keys.</p>
                     </div>

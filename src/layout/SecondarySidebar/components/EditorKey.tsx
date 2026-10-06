@@ -12,12 +12,12 @@ export interface EditorKeyProps {
 }
 
 const classes = {
-    key: "bg-white border border-kb-gray-border border-2 w-12 h-12 rounded-md cursor-pointer hover:border-red-600 transition-all flex flex-col select-none",
+    key: "bg-kb-surface border border-kb-gray-border border-2 w-12 h-12 rounded-md cursor-pointer hover:border-red-600 transition-all flex flex-col select-none",
     emptyKey:
         "bg-kb-green text-white w-12 h-12 rounded-md cursor-pointer hover:border-2 border-2 border border-transparent hover:border-red-600 transition-all flex items-center justify-center text-wrap text-center text-xs flex-col select-none",
     selectedKey: "!bg-red-600 border-2 border-red-600 text-white",
-    dragSource: "!bg-kb-light-grey border-kb-light-grey text-transparent opacity-65 select-none",
-    dragHover: "!border-red-500 !bg-red-50 !border-2",
+    dragSource: "!bg-kb-light-grey border-kb-light-grey dark:!bg-neutral-700 dark:border-neutral-700 text-transparent opacity-65 select-none",
+    dragHover: "!border-red-500 !bg-red-50 dark:!bg-red-950/40 !border-2",
 };
 
 const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDrop }) => {
@@ -126,7 +126,7 @@ const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDr
                 {binding?.type === "macro" && <MacrosIcon className=" mt-2 h-8" />}
                 {displayText && <span style={{ whiteSpace: "pre-line" }}>{displayText}</span>}
             </div>
-            {label && <div className="font-medium text-gray-600 px-5">{label}</div>}
+            {label && <div className="font-medium text-gray-600 dark:text-neutral-300 px-5">{label}</div>}
         </div>
     );
 };

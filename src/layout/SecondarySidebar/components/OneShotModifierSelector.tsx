@@ -74,7 +74,7 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-500">Modifiers</span>
+            <span className="text-sm font-medium text-slate-500 dark:text-neutral-400">Modifiers</span>
             <div className="flex flex-row items-start gap-1.5 min-h-[58px]">
                 {/* NONE Button */}
                 <Button
@@ -83,8 +83,8 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
                     className={cn(
                         "h-8 px-3 rounded-md font-medium transition-colors border-none text-xs",
                         isNone
-                            ? "bg-black text-white shadow-none"
-                            : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black"
+                            ? "bg-kb-active text-kb-active-fg shadow-none"
+                            : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink"
                     )}
                     onClick={handleNoneClick}
                 >
@@ -104,8 +104,8 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
                             className={cn(
                                 "flex flex-col items-center rounded-md overflow-hidden min-w-[60px] transition-[height] duration-300 ease-in-out",
                                 anyActive
-                                    ? "bg-black text-white h-[58px]"
-                                    : "bg-kb-gray-medium text-slate-700 hover:bg-white hover:text-black h-8 delay-150"
+                                    ? "bg-kb-active text-kb-active-fg h-[58px]"
+                                    : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 hover:text-kb-ink dark:hover:text-kb-ink h-8 delay-150"
                             )}
                         >
                             {/* Main Label */}
@@ -127,7 +127,7 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
                             )}>
                                 <button
                                     type="button"
-                                    className="relative w-10 h-5 rounded-full bg-gray-600 flex items-center px-0.5 outline-none"
+                                    className="relative w-10 h-5 rounded-full bg-gray-600 dark:bg-neutral-500 dark:text-white flex items-center px-0.5 outline-none"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         toggleSide(group.lBit, group.rBit);

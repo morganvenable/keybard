@@ -26,6 +26,8 @@ import { svalService } from "@/services/sval.service";
 // import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
+import { useIsDark } from "@/lib/theme";
+import { dark3DLabelColor, needsDarkIndicatorOutline, screenedBackdropHex } from "./layer3DColors";
 
 const TEXT_CLASS_TO_HEX: Record<string, string> = {
     "text-white": "#ffffff",
@@ -506,6 +508,26 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const inactiveGrayTextLabelOverride = !isLayerActive && layerTextColorClass === "text-gray-200"
         ? "#000000"
         : undefined;
+    // Dark mode only. The 3D layer label and its status ring/dot sit inside the top-left
+    // corner of the layer backdrop, which dark mode screens over the page. Contrast is
+    // measured against that composited backdrop (layer3DColors.ts). Light path unchanged.
+    const isDark = useIsDark();
+    const darkBackdropHex = useMemo(() => {
+        if (!isDark) return undefined;
+        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const layerHex = getColorByName(layerName)?.hex || "#099e7c";
+        return screenedBackdropHex(layerHex, isActiveLayerBackdrop ? 0.65 : backdropOpacity);
+    }, [isDark, keyboard.cosmetic, selectedLayer, isActiveLayerBackdrop, backdropOpacity]);
+    const dark3DLabelColorValue = useMemo(() => {
+        if (!darkBackdropHex) return undefined;
+        const base = useKeyTextColorFor3DLabel
+            ? (layerTextColorClass ? TEXT_CLASS_TO_HEX[layerTextColorClass] : undefined)
+            : (inactiveGrayTextLabelOverride ?? active3DIndicatorColor);
+        return base ? dark3DLabelColor(base, darkBackdropHex) : undefined;
+    }, [darkBackdropHex, useKeyTextColorFor3DLabel, layerTextColorClass, inactiveGrayTextLabelOverride, active3DIndicatorColor]);
+    const darkIndicatorOutline = !!darkBackdropHex && needsDarkIndicatorOutline(active3DIndicatorColor, darkBackdropHex)
+        ? "0 0 0 1px var(--kb-gray-border)"
+        : undefined;
     const isDefaultLayer = selectedLayer === 0;
     const showStatusRing = isDefaultLayer || isLayerActive;
     const useInsetDotStyle = isLayerActive && !isDefaultLayer;
@@ -619,7 +641,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             >
                 {show3DBackdrops && clusterBounds && (
                     <div
-                        className="absolute"
+                        className="absolute mix-blend-multiply dark:mix-blend-screen"
                         data-layer-backdrop="true"
                         data-layer-index={selectedLayer}
                         style={{
@@ -631,7 +653,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                                 (currentUnitSize * 1.5) +
                                 (effectiveFingerBackdropExtensionUnits * currentUnitSize),
                             background: layerBackdropColor,
-                            mixBlendMode: "multiply",
                             zIndex: -1,
                             pointerEvents: isBackdropDropTargetActive ? "auto" : "none",
                             opacity: backdropsVisible ? 1 : 0,
@@ -657,9 +678,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             )}
                             data-layer-label="true"
                             style={{
-                                color: useKeyTextColorFor3DLabel
+                                color: dark3DLabelColorValue ?? (useKeyTextColorFor3DLabel
                                     ? undefined
-                                    : (inactiveGrayTextLabelOverride ?? active3DIndicatorColor),
+                                    : (inactiveGrayTextLabelOverride ?? active3DIndicatorColor)),
                                 left: ((clusterBounds!.minX + layoutOffsets.offsetX) * currentUnitSize) - currentUnitSize + labelPadX,
                                 top: ((clusterBounds!.minY + layoutOffsets.offsetY) * currentUnitSize) - currentUnitSize + labelPadY + labelYShift,
                                 fontSize: `${fontSize}px`,
@@ -672,6 +693,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                                     width: `${indicatorSize}px`,
                                     height: `${indicatorSize}px`,
                                     ...(showStatusRing ? { border: `2px solid ${active3DIndicatorColor}` } : {}),
+                                    ...(showStatusRing && darkIndicatorOutline ? { boxShadow: darkIndicatorOutline } : {}),
                                 }}
                             >
                                 <span
@@ -682,9 +704,13 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                                         ...(useInsetDotStyle
                                             ? {
                                                 backgroundColor: "transparent",
-                                                boxShadow: `inset 0 0 0 ${Math.round(6 * sizeRatio)}px ${active3DIndicatorColor}`,
+                                                boxShadow: `inset 0 0 0 ${Math.round(6 * sizeRatio)}px ${active3DIndicatorColor}`
+                                                    + (darkIndicatorOutline ? `, ${darkIndicatorOutline}` : ""),
                                             }
-                                            : { backgroundColor: active3DIndicatorColor }),
+                                            : {
+                                                backgroundColor: active3DIndicatorColor,
+                                                ...(darkIndicatorOutline ? { boxShadow: darkIndicatorOutline } : {}),
+                                            }),
                                     }}
                                 />
                             </span>
@@ -694,7 +720,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 })()}
                 {show3DBackdrops && clusterBounds && thumbClusterBounds && (
                     <div
-                        className="absolute"
+                        className="absolute mix-blend-multiply dark:mix-blend-screen"
                         data-layer-backdrop="true"
                         data-layer-index={selectedLayer}
                         style={{
@@ -703,7 +729,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             width: ((thumbClusterBounds!.maxX - thumbClusterBounds!.minX) * currentUnitSize) + (currentUnitSize * 2),
                             height: ((thumbClusterBounds!.maxY - thumbClusterBounds!.minY) * currentUnitSize) + (currentUnitSize * 1.5),
                             background: layerBackdropColor,
-                            mixBlendMode: "multiply",
                             zIndex: -1,
                             pointerEvents: isBackdropDropTargetActive ? "auto" : "none",
                             opacity: backdropsVisible ? 1 : 0,

@@ -60,9 +60,9 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
     };
 
     return (
-        <div className="h-full w-full bg-white flex flex-col">
+        <div className="h-full w-full bg-kb-surface flex flex-col">
             {/* Header */}
-            <header className="border-b border-gray-200 px-6 py-4 flex items-center gap-4 shrink-0">
+            <header className="border-b border-gray-200 dark:border-neutral-700 px-6 py-4 flex items-center gap-4 shrink-0">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -72,8 +72,8 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="flex-1">
-                    <h1 className="text-2xl font-semibold text-slate-800">Layer Library</h1>
-                    <p className="text-sm text-gray-500">
+                    <h1 className="text-2xl font-semibold text-slate-800 dark:text-neutral-100">Layer Library</h1>
+                    <p className="text-sm text-gray-500 dark:text-neutral-400">
                         {layerClipboard
                             ? `"${layerClipboard.layer.name}" copied — press Ctrl+V on any layer to paste`
                             : "Browse layers and copy them to paste into your keymap"}
@@ -84,12 +84,12 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
             {/* Main Content */}
             <div className="flex-1 overflow-hidden flex">
                 {/* Filters Sidebar */}
-                <aside className="w-64 border-r border-gray-200 p-4 flex flex-col gap-4 shrink-0 overflow-auto">
+                <aside className="w-64 border-r border-gray-200 dark:border-neutral-700 p-4 flex flex-col gap-4 shrink-0 overflow-auto">
                     {/* Search */}
                     <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-neutral-200 mb-2 block">Search</label>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-400" />
                             <Input
                                 type="text"
                                 placeholder="Search layers..."
@@ -100,7 +100,7 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-neutral-400 dark:hover:text-neutral-300"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -112,11 +112,11 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                     {availableTags.length > 0 && (
                         <div>
                             <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-medium text-gray-700">Tags</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-neutral-200">Tags</label>
                                 {selectedTags.length > 0 && (
                                     <button
                                         onClick={() => setSelectedTags([])}
-                                        className="text-xs text-gray-500 hover:text-gray-700"
+                                        className="text-xs text-gray-500 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200"
                                     >
                                         Clear all
                                     </button>
@@ -130,8 +130,8 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                                         className={cn(
                                             "text-xs px-2 py-1 rounded-full transition-colors",
                                             selectedTags.includes(tag)
-                                                ? "bg-gray-900 text-white"
-                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                                ? "bg-gray-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
+                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                         )}
                                     >
                                         {tag}
@@ -142,14 +142,14 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                     )}
 
                     {/* Local Storage Notice */}
-                    <div className="mt-auto pt-4 border-t border-gray-200">
-                        <p className="text-xs text-gray-400 text-center mb-3">
+                    <div className="mt-auto pt-4 border-t border-gray-200 dark:border-neutral-700">
+                        <p className="text-xs text-gray-400 dark:text-neutral-400 text-center mb-3">
                             Layers are stored locally on this PC.
                         </p>
                         <button
                             onClick={refreshLayers}
                             disabled={isLoading}
-                            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-2 w-full justify-center"
+                            className="text-sm text-gray-500 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200 flex items-center gap-2 w-full justify-center"
                         >
                             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
                             Refresh
@@ -162,7 +162,7 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                     {/* Error State */}
                     {error && (
                         <div className="mb-6">
-                            <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm">
+                            <div className="bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 p-4 rounded-lg text-sm">
                                 {error}
                             </div>
                         </div>
@@ -183,9 +183,9 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
 
                     {/* Empty State */}
                     {!isLoading && layers.length === 0 && !error && (
-                        <div className="text-center text-gray-500 mt-20">
+                        <div className="text-center text-gray-500 dark:text-neutral-400 mt-20">
                             <div className="text-6xl mb-4">
-                                <Search className="w-16 h-16 mx-auto text-gray-300" />
+                                <Search className="w-16 h-16 mx-auto text-gray-300 dark:text-neutral-500" />
                             </div>
                             <p className="text-lg mb-2">No layers found</p>
                             {searchQuery || selectedTags.length > 0 ? (
@@ -204,12 +204,12 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                                 <div
                                     key={i}
-                                    className="border rounded-lg p-4 bg-gray-50 animate-pulse"
+                                    className="border rounded-lg p-4 bg-gray-50 dark:bg-neutral-800/60 animate-pulse"
                                 >
-                                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
-                                    <div className="h-4 bg-gray-200 rounded w-full mb-3" />
+                                    <div className="h-5 bg-gray-200 dark:bg-neutral-700 rounded w-3/4 mb-2" />
+                                    <div className="h-4 bg-gray-200 dark:bg-neutral-700 rounded w-full mb-3" />
                                     <div className="flex gap-2">
-                                        <div className="h-8 bg-gray-200 rounded flex-1" />
+                                        <div className="h-8 bg-gray-200 dark:bg-neutral-700 rounded flex-1" />
                                     </div>
                                 </div>
                             ))}

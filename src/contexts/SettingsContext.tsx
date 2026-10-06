@@ -3,9 +3,21 @@ import { SettingsIcon, LayoutGrid, FileJson } from "lucide-react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { SettingsService } from "@/services/settings.service";
+import { DEFAULT_THEME_PREF, THEME_SETTING_NAME } from "@/lib/theme";
 
 // Settings definitions - single source of truth
 export const SETTINGS: SettingDefinition[] = [
+    {
+        name: THEME_SETTING_NAME,
+        label: "Appearance",
+        type: "select",
+        items: [
+            { label: "System", value: "system" },
+            { label: "Light", value: "light" },
+            { label: "Dark", value: "dark" },
+        ],
+        defaultValue: DEFAULT_THEME_PREF,
+    },
     {
         name: "live-updating",
         label: "Live Updating",
@@ -170,7 +182,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "print"],
+        settings: [THEME_SETTING_NAME, "typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings", "print"],
     },
     {
         name: "fragments",
@@ -282,7 +294,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getSettingDefinition,
         resetSettings,
         resetSetting,
-        refreshHardwareSettings
+        refreshHardwareSettings,
+        isLoaded: loaded,
     };
 
     return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

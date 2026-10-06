@@ -4,11 +4,10 @@ const KeybardLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 100 30"
-        fill="black"
         shapeRendering="geometricPrecision"
         {...props}
     >
-        <g id="Layer_1">
+        <g id="Layer_1" className="fill-kb-ink">
             {/* k */}
             <path d="M4.37,4.61v10.07l4.7-4.89h4.42l-5.13,4.99,5.7,8.59h-4.52l-3.73-6.07-1.45,1.39v4.68H.64V4.61h3.73Z" />
             {/* e */}

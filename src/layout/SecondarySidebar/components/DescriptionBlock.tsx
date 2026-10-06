@@ -17,7 +17,7 @@ const DescriptionBlock: React.FC<DescriptionBlockProps> = ({ children, className
             )}
         >
             {wrapText ? (
-                <span className={cn("text-sm text-slate-500 leading-relaxed max-w-[560px]", textClassName)}>
+                <span className={cn("text-sm text-slate-500 dark:text-neutral-400 leading-relaxed max-w-[560px]", textClassName)}>
                     {children}
                 </span>
             ) : (

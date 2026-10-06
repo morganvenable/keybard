@@ -206,7 +206,7 @@ const QMKSettingsPanel: React.FC = () => {
         const isExpanded = expanded[name];
 
         return (
-            <div key={name} className="border-b border-gray-200 dark:border-gray-700">
+            <div key={name} className="border-b border-gray-200 dark:border-neutral-700">
                 <button
                     type="button"
                     aria-expanded={!!isExpanded}
@@ -234,7 +234,7 @@ const QMKSettingsPanel: React.FC = () => {
     return (
         <section className="space-y-0 flex flex-col">
             {/* Header */}
-            <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="px-3 py-3 border-b border-gray-200 dark:border-neutral-700">
                 <h2 className="font-semibold text-sm">QMK Settings</h2>
                 <p className="text-xs text-muted-foreground mt-1">
                     Configure firmware behavior. Changes follow your update mode.
