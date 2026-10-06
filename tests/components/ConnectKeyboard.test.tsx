@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ConnectKeyboard from '../../src/components/ConnectKeyboard';
-import { listPermittedDevices } from '../../src/contexts/VialContext';
+import { listPermittedDevices } from '../../src/contexts/KeyboardContext';
 
-const vial = {
+const keyboardContext = {
     isConnected: false,
     isWebHIDSupported: true,
     connect: vi.fn(),
@@ -13,9 +13,9 @@ const vial = {
     loadFromFile: vi.fn(),
 };
 
-vi.mock('@/contexts/VialContext', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/contexts/VialContext')>();
-    return { ...actual, useVial: () => vial };
+vi.mock('@/contexts/KeyboardContext', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/contexts/KeyboardContext')>();
+    return { ...actual, useKeyboard: () => keyboardContext };
 });
 
 const fakeDevice = (productName: string, productId: number, collections: Array<[number, number]>) => ({
@@ -44,21 +44,21 @@ describe('listPermittedDevices', () => {
 describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vial.isConnected = false;
-        vial.isWebHIDSupported = true;
+        keyboardContext.isConnected = false;
+        keyboardContext.isWebHIDSupported = true;
     });
 
     it('lists permitted keyboards and opens one without the chooser', async () => {
         const hid = navigator.hid as unknown as { getDevices: ReturnType<typeof vi.fn> };
         const scanlab = fakeDevice('Svalboard ScanLab', 0x4044, [[0xff61, 0x62]]);
         hid.getDevices.mockResolvedValue([scanlab]);
-        vial.connectDevice.mockResolvedValue(true);
+        keyboardContext.connectDevice.mockResolvedValue(true);
 
         render(<ConnectKeyboard />);
         const button = await screen.findByRole('button', { name: 'Svalboard ScanLab' });
         fireEvent.click(button);
-        await waitFor(() => expect(vial.connectDevice).toHaveBeenCalledWith(scanlab));
-        expect(vial.connect).not.toHaveBeenCalled();
+        await waitFor(() => expect(keyboardContext.connectDevice).toHaveBeenCalledWith(scanlab));
+        expect(keyboardContext.connect).not.toHaveBeenCalled();
     });
 
     it('shows nothing extra when no keyboard has been permitted', async () => {
@@ -68,7 +68,7 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         expect(screen.queryByTestId('known-devices')).not.toBeInTheDocument();
     });
     it('explains unsupported connections while still allowing offline files and demo', async () => {
-        vial.isWebHIDSupported = false;
+        keyboardContext.isWebHIDSupported = false;
         render(<ConnectKeyboard />);
         expect(screen.getByText('Browser Not Supported')).toBeInTheDocument();
         expect(screen.getByRole('button', {name: 'Connect Keyboard'})).toBeDisabled();
@@ -78,13 +78,13 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
     });
 
     it('shows file errors as alerts without reconnecting on click', async () => {
-        vial.loadFromFile.mockRejectedValueOnce('Empty file');
+        keyboardContext.loadFromFile.mockRejectedValueOnce('Empty file');
         const {container} = render(<ConnectKeyboard />);
         fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File([''], 'empty.svil')]}});
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('Empty file');
         fireEvent.click(alert);
-        expect(vial.connect).not.toHaveBeenCalled();
+        expect(keyboardContext.connect).not.toHaveBeenCalled();
     });
 
 });

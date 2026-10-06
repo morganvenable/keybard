@@ -3,10 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanLabPanel from '../../src/layout/SecondarySidebar/Panels/ScanLabPanel';
 import type { ProbeRow, ScanLabPower, ScanLabStatus } from '../../src/services/scanlab.service';
 
-const vial = { isConnected: true, connect: vi.fn() };
+const keyboardContext = { isConnected: true, connect: vi.fn() };
 const layoutSettings = { layoutMode: 'sidebar' as 'sidebar' | 'bottombar', keyVariant: 'default' };
 
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => vial }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardContext }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
 vi.mock('@/layout/SecondarySidebar/components/DescriptionBlock', () => ({
     default: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -57,7 +57,7 @@ vi.mock('@/services/scanlab.service', async (importOriginal) => {
 describe('ScanLabPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vial.isConnected = true;
+        keyboardContext.isConnected = true;
         svc.getStatus.mockImplementation(async (hand: 0 | 1) => status(hand === 0 ? { isLeft: true } : { isLeft: false, hwRevision: 0 }));
         svc.applyTiming.mockResolvedValue(undefined);
         svc.applyPacing.mockResolvedValue(undefined);
@@ -169,7 +169,7 @@ describe('ScanLabPanel', () => {
     });
 
     it('asks to connect when no keyboard is attached', () => {
-        vial.isConnected = false;
+        keyboardContext.isConnected = false;
         render(<ScanLabPanel />);
         expect(screen.getByText('Connect')).toBeInTheDocument();
         expect(svc.getStatus).not.toHaveBeenCalled();

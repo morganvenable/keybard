@@ -5,11 +5,11 @@ import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
@@ -63,7 +63,7 @@ interface Props {
 }
 
 const MousePanel: React.FC<Props> = ({ isPicker }) => {
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();

@@ -2,7 +2,7 @@ import { getKeyContents } from "@/utils/keys";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { Key } from "@/components/Key";
 
@@ -12,7 +12,7 @@ interface Props {
 
 const QmkKeyPanel = ({ isPicker }: Props) => {
     const { assignKeycode } = useKeyBinding();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant, layoutMode } = useLayoutSettings();
 

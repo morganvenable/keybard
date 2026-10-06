@@ -1,7 +1,7 @@
 import { useChanges } from "@/contexts/ChangesContext";
-import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
-import type { KeyboardInfo } from "@/types/vial.types";
+import { useKeyboard } from "@/contexts/KeyboardContext";
+import { keyboardService } from "@/services/keyboard.service";
+import type { KeyboardInfo } from "@/types/keyboard.types";
 
 export type BindingKind = "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leader";
 const fields = { combo: "combos", tapdance: "tapdances", macro: "macros", override: "key_overrides", altrepeat: "alt_repeat_keys", leader: "leaders" } as const;
@@ -9,7 +9,7 @@ const fields = { combo: "combos", tapdance: "tapdances", macro: "macros", overri
 /** Coalesce by the unit written by the firmware, not the individual UI control. */
 export function useBindingChanges() {
     const { queue, registerUndo } = useChanges();
-    const { keyboard: previous, setKeyboard, getKeyboardSnapshot } = useVial();
+    const { keyboard: previous, setKeyboard, getKeyboardSnapshot } = useKeyboard();
     const persist = (keyboard: KeyboardInfo, kind: BindingKind, index: number): Promise<void> => {
         const field = fields[kind];
         const oldEntry = previous?.[field]?.[index];
@@ -28,14 +28,14 @@ export function useBindingChanges() {
         }
         return queue(`${kind} ${index}`, async () => {
             switch (kind) {
-                case "combo": await vialService.updateCombo(keyboard, index); break;
-                case "tapdance": await vialService.updateTapdance(keyboard, index); break;
-                case "macro": await vialService.updateMacros(keyboard); break;
-                case "override": await vialService.updateKeyoverride(keyboard, index); break;
-                case "altrepeat": await vialService.updateAltRepeatKey(keyboard, index); break;
-                case "leader": await vialService.updateLeader(keyboard, index); break;
+                case "combo": await keyboardService.updateCombo(keyboard, index); break;
+                case "tapdance": await keyboardService.updateTapdance(keyboard, index); break;
+                case "macro": await keyboardService.updateMacros(keyboard); break;
+                case "override": await keyboardService.updateKeyoverride(keyboard, index); break;
+                case "altrepeat": await keyboardService.updateAltRepeatKey(keyboard, index); break;
+                case "leader": await keyboardService.updateLeader(keyboard, index); break;
             }
-            await vialService.saveSvil();
+            await keyboardService.saveSvil();
         }, { type: kind === "altrepeat" || kind === "leader" ? "key" : kind,
             writeKey: kind === "macro" ? "macros" : `${kind}:${index}` });
     };

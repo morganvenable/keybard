@@ -6,10 +6,10 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { keyService } from "@/services/key.service";
 import { isTapdanceKeycode } from "@/utils/keys";
 import { isEditorInput } from "@/utils/editor-input";
-import { vialService } from "@/services/vial.service";
+import { keyboardService } from "@/services/keyboard.service";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
-import { useVial } from "./VialContext";
+import { useKeyboard } from "./KeyboardContext";
 
 interface BindingTarget {
     type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders";
@@ -60,7 +60,7 @@ interface KeyBindingContextType {
 const KeyBindingContext = createContext<KeyBindingContextType | undefined>(undefined);
 
 export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { keyboard, setKeyboard, updateKey, getKeyboardSnapshot } = useVial();
+    const { keyboard, setKeyboard, updateKey, getKeyboardSnapshot } = useKeyboard();
     const { queue, registerUndo } = useChanges();
     const { getSetting } = useSettings();
     const [selectedTarget, setSelectedTarget] = useState<BindingTarget | null>(null);
@@ -340,8 +340,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing combo change: Combo ${cmbId}, Slot ${comboSlot} → ${keycodeName}`);
-                            await vialService.updateCombo(updatedKeyboard, cmbId);
-                            await vialService.saveSvil();
+                            await keyboardService.updateCombo(updatedKeyboard, cmbId);
+                            await keyboardService.saveSvil();
                         },
                         {
                             type: "combo",
@@ -399,8 +399,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing tapdance change: Tapdance ${tdId}, ${tapdanceSlot} → ${keycodeName}`);
-                            await vialService.updateTapdance(updatedKeyboard, tdId);
-                            await vialService.saveSvil();
+                            await keyboardService.updateTapdance(updatedKeyboard, tdId);
+                            await keyboardService.saveSvil();
                         },
                         {
                             type: "tapdance",
@@ -434,8 +434,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         `macro_${mId}`,
                         async () => {
                             console.log(`Committing macro change: Macro ${macroId}, Index ${macroIndex} → ${keycodeName}`);
-                            await vialService.updateMacros(updatedKeyboard);
-                            await vialService.saveSvil();
+                            await keyboardService.updateMacros(updatedKeyboard);
+                            await keyboardService.saveSvil();
                         },
                         {
                             writeKey: "macros", type: "macro" as any,
@@ -468,8 +468,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing override change: Override ${koId}, ${overrideSlot} → ${keycodeName}`);
-                            await vialService.updateKeyoverride(updatedKeyboard, koId);
-                            await vialService.saveSvil();
+                            await keyboardService.updateKeyoverride(updatedKeyboard, koId);
+                            await keyboardService.saveSvil();
                         },
                         {
                             type: "override",
@@ -504,8 +504,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing alt-repeat change: AltRepeat ${arkId}, ${altRepeatSlot} → ${keycodeName}`);
-                            await vialService.updateAltRepeatKey(updatedKeyboard, arkId);
-                            await vialService.saveSvil(); // Persist to EEPROM
+                            await keyboardService.updateAltRepeatKey(updatedKeyboard, arkId);
+                            await keyboardService.saveSvil(); // Persist to EEPROM
                         },
                         {
                             type: "altrepeat" as any,
@@ -551,8 +551,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         changeDesc,
                         async () => {
                             console.log(`Committing leader change: Leader ${ldrId}, ${leaderSlot} → ${keycodeName}`);
-                            await vialService.updateLeader(updatedKeyboard, ldrId);
-                            await vialService.saveSvil();
+                            await keyboardService.updateLeader(updatedKeyboard, ldrId);
+                            await keyboardService.saveSvil();
                         },
                         {
                             type: "leaders" as any,

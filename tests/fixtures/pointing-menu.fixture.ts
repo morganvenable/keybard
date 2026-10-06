@@ -1,4 +1,4 @@
-import type { CustomUIMenuItem } from '../../src/types/vial.types';
+import type { CustomUIMenuItem } from '../../src/types/keyboard.types';
 
 /**
  * Mirrors the "Pointing Device" VIA3 menu from sval-qmk (formerly viable-qmk)

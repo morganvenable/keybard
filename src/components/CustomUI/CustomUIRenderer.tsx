@@ -1,4 +1,4 @@
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { CustomUIControl } from "./controls";
 import { evaluateShowIf } from "@/utils/show-if-evaluator";
 

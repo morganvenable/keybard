@@ -5,19 +5,19 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
-import { KeyContent, AltRepeatKeyOptions } from "@/types/vial.types";
+import { KeyContent, AltRepeatKeyOptions } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const AltRepeatPanel: React.FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const persistBinding = useBindingChanges();
     const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();

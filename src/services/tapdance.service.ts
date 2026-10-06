@@ -1,4 +1,4 @@
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { keyService } from "./key.service";
 import { SVIL_TABLE_TAP_DANCE, SvilUSB, checkSvilStatus, readSvilTable, svilIndexArgs } from "./usb.service";
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import KeyboardConnector from '../../src/components/KeyboardConnector';
-import { VialProvider } from '../../src/contexts/VialContext';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import { KeyboardProvider } from '../../src/contexts/KeyboardContext';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 // Mock services
 vi.mock('../../src/services/file.service', () => ({
@@ -11,13 +11,13 @@ vi.mock('../../src/services/file.service', () => ({
   },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-  vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+  keyboardService: {
     init: vi.fn(),
     load: vi.fn(),
     updateKey: vi.fn(),
   },
-  VialService: {
+  KeyboardService: {
     isWebHIDSupported: vi.fn(() => true),
   },
 }));
@@ -53,9 +53,9 @@ describe('KeyboardConnector - File Loading', () => {
 
   const renderComponent = () => {
     return render(
-      <VialProvider>
+      <KeyboardProvider>
         <KeyboardConnector />
-      </VialProvider>
+      </KeyboardProvider>
     );
   };
 
@@ -73,7 +73,7 @@ describe('KeyboardConnector - File Loading', () => {
       cols: 14,
       kbid: 'test-keyboard',
       via_proto: 9,
-      vial_proto: 6,
+
     };
 
     vi.mocked(fileService.loadFile).mockResolvedValue(mockKeyboardInfo);

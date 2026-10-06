@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { colorClasses, hoverContainerTextClasses } from "@/utils/colors";
-import { KeyContent } from "@/types/vial.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { DragItem } from "@/contexts/DragContext";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
 import { useKeyDrag } from "@/hooks/useKeyDrag";

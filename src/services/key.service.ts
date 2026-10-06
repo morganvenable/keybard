@@ -1,7 +1,7 @@
 // Key service - keycode parsing and stringifying
 import { CODEMAP, KEYMAP, KEYALIASES } from '../constants/keygen';
 import type { KeyString, KeyMapEntry } from '../types/keymap';
-import type { KeyboardInfo } from '../types/vial.types';
+import type { KeyboardInfo } from '../types/keyboard.types';
 
 interface KeyParseDesc {
   type: 'layer' | 'macro' | 'tapdance' | 'key';

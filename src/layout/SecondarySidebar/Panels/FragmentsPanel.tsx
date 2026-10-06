@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useChanges } from "@/contexts/ChangesContext";
-import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
-import type { FragmentInstance, KeyboardInfo } from "@/types/vial.types";
+import { useKeyboard } from "@/contexts/KeyboardContext";
+import { keyboardService } from "@/services/keyboard.service";
+import type { FragmentInstance, KeyboardInfo } from "@/types/keyboard.types";
 
 /**
  * Safely get a value from something that might be a Map or a plain object
@@ -31,11 +31,11 @@ function safeMapGet<K extends string | number, V>(
  * be locked depending on the keyboard configuration.
  */
 const FragmentsPanel: React.FC = () => {
-    const { keyboard, setKeyboard, isConnected, getKeyboardSnapshot } = useVial();
+    const { keyboard, setKeyboard, isConnected, getKeyboardSnapshot } = useKeyboard();
     const { queue } = useChanges();
     const [updating, setUpdating] = useState<number | "bulk" | null>(null);
 
-    const fragmentService = vialService.getFragmentService();
+    const fragmentService = keyboardService.getFragmentService();
 
     const applyLocalSelections = useCallback((
         baseKeyboard: KeyboardInfo,
@@ -65,7 +65,7 @@ const FragmentsPanel: React.FC = () => {
             if (entry) newEepromSelections.set(entry.idx, fragmentService.getOptionIndex(entry.instance, fragmentName));
         });
 
-        const fragmentComposer = vialService.getFragmentComposer();
+        const fragmentComposer = keyboardService.getFragmentComposer();
         const composedLayout = fragmentComposer.composeLayout(newKeyboard);
         if (Object.keys(composedLayout).length > 0) {
             newKeyboard.keylayout = { ...composedLayout };
@@ -91,10 +91,10 @@ const FragmentsPanel: React.FC = () => {
 
             applyLocalSelections(keyboard, [{ instanceId: instance.id, fragmentName: newFragmentName }]);
             if (isConnected) await queue(`Hardware position ${instance.id}`, async () => {
-                if (!await vialService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, instanceIdx, optionIdx)) {
+                if (!await keyboardService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, instanceIdx, optionIdx)) {
                     throw new Error(`Keyboard rejected the selection for ${instance.id}`);
                 }
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, {writeKey: `fragment:${instanceIdx}`});
         } catch (error) {
             console.error("Failed to update fragment selection:", error);
@@ -166,10 +166,10 @@ const FragmentsPanel: React.FC = () => {
         if (isConnected) for (const update of updates) {
             const optionIdx = fragmentService.getOptionIndex(update.instance, update.fragmentName);
             await queue(`Hardware position ${update.instance.id}`, async () => {
-                if (!await vialService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, update.idx, optionIdx)) {
+                if (!await keyboardService.updateFragmentSelection(getKeyboardSnapshot() ?? keyboard, update.idx, optionIdx)) {
                     throw new Error(`Keyboard rejected the selection for ${update.instance.id}`);
                 }
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, {writeKey: `fragment:${update.idx}`});
         }
 

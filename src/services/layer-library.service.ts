@@ -15,7 +15,7 @@ import type {
     ImportedLayer,
     ImportedLayoutsStorage,
 } from '../types/layer-library';
-import type { KeyboardInfo } from '../types/vial.types';
+import type { KeyboardInfo } from '../types/keyboard.types';
 import { fileService } from './file.service';
 
 // localStorage key for user-added layers

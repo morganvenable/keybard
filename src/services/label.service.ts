@@ -1,4 +1,4 @@
-import type { KeyboardInfo } from "@/types/vial.types";
+import type { KeyboardInfo } from "@/types/keyboard.types";
 import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
 
 export type LabelKind = "layer" | "macro" | "tapdance";

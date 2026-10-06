@@ -28,7 +28,7 @@ const QuickStartPanel: React.FC = () => {
                         <li>Click on a layer name to give it new name and color to help you distinguish between layers. </li>
                         <li>Each layer has a contextual menu which allows you to copy, pasted, make blank or transparent, or save to the <b>Layouts</b> panel.</li>
                         <li>You can set an entire layer by dragging and dropping one from the <b>Layouts</b> panel and tempoarilly save your own layers there too.</li>
-                        <li>You can <b>Export</b> and <b>Import</b> your layouts using the .vial file format.</li>
+                        <li>You can <b>Export</b> and <b>Import</b> your layouts using the .svil file format.</li>
                         <li>Use the <b>Matrix Tester</b> to check if your Svalboard keys are all working correctly.</li>
                         <li>Click the <b>Info</b> button in the bottom left corner to see the QMK code for the currently selected key.</li>
                     </ol>

@@ -7,7 +7,7 @@ vi.mock('@/hooks/useLayerNames', () => ({ useLayerNames: () => ({ renameLayer: v
 vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode }) }));
 vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ layoutMode: 'bottombar' }) }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: { layers: 16, cosmetic: {} } }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: { layers: 16, cosmetic: {} } }) }));
 vi.mock('@/services/sval.service', () => ({ svalService: { getLayerCosmetic: () => '' } }));
 vi.mock('@/utils/keys', () => ({ getKeyContents: () => ({}) }));
 vi.mock('@/components/Key', () => ({ Key: ({ keycode, onClick }: { keycode: string; onClick: () => void }) => <button onClick={onClick}>{keycode}</button> }));

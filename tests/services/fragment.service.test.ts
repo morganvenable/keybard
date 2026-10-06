@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FragmentService } from '../../src/services/fragment.service';
-import type { KeyboardInfo, FragmentInstance, FragmentState } from '../../src/types/vial.types';
+import type { KeyboardInfo, FragmentInstance, FragmentState } from '../../src/types/keyboard.types';
 import {
     createTestFragments,
     createFragmentState,

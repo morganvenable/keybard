@@ -15,7 +15,7 @@ import { KeyBindingProvider } from "./contexts/KeyBindingContext";
 import { LayoutLibraryProvider } from "./contexts/LayoutLibraryContext";
 import { LayoutSettingsProvider } from "./contexts/LayoutSettingsContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { VialProvider, useVial } from "./contexts/VialContext";
+import { KeyboardProvider, useKeyboard } from "./contexts/KeyboardContext";
 
 // Simple page navigation context
 type Page = "main" | "explore" | "proof-sheet";
@@ -36,9 +36,9 @@ export const useNavigation = () => {
     return context;
 };
 
-// Wrapper to connect VialContext's markAsSaved to ChangesProvider
-const ChangesProviderWithVial = ({ children }: { children: ReactNode }) => {
-    const { markAsSaved, getKeyboardSnapshot, isConnected, connectionSessionId, registerTargetChangeGuard } = useVial();
+// Wrapper to connect KeyboardContext's markAsSaved to ChangesProvider
+const ChangesProviderWithKeyboard = ({ children }: { children: ReactNode }) => {
+    const { markAsSaved, getKeyboardSnapshot, isConnected, connectionSessionId, registerTargetChangeGuard } = useKeyboard();
     return <ChangesProvider captureSave={() => { const snapshot = getKeyboardSnapshot(); return () => { if (snapshot) markAsSaved(snapshot); }; }} canWrite={isConnected} sessionKey={connectionSessionId} registerTargetChangeGuard={registerTargetChangeGuard}>{children}</ChangesProvider>;
 };
 
@@ -61,7 +61,7 @@ const NavigationProvider = ({ children }: { children: ReactNode }) => {
 };
 
 function LoadingOverlay() {
-    const { isImporting } = useVial();
+    const { isImporting } = useKeyboard();
     if (!isImporting) return null;
     return createPortal(
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
@@ -103,12 +103,12 @@ function AppContent() {
 
 function App() {
     return (
-        <VialProvider>
+        <KeyboardProvider>
             <LoadingOverlay />
             <DeployBadge />
             <SettingsProvider>
                 <ThemeSync />
-                <ChangesProviderWithVial>
+                <ChangesProviderWithKeyboard>
                     <KeyBindingProvider>
                         <LayoutLibraryProvider>
                             <NavigationProvider>
@@ -116,9 +116,9 @@ function App() {
                             </NavigationProvider>
                         </LayoutLibraryProvider>
                     </KeyBindingProvider>
-                </ChangesProviderWithVial>
+                </ChangesProviderWithKeyboard>
             </SettingsProvider>
-        </VialProvider>
+        </KeyboardProvider>
     );
 }
 

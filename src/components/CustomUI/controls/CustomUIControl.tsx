@@ -1,4 +1,4 @@
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { ToggleControl } from "./ToggleControl";
 import { RangeControl } from "./RangeControl";
 import { DropdownControl } from "./DropdownControl";

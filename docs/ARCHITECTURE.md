@@ -2,7 +2,7 @@
 
 ## Overview
 
-KeyBard-NG is a modern web-based keyboard configuration tool for Vial-compatible keyboards, with specific support for the Svalboard. Built with React 19, TypeScript, and Vite, it leverages the WebHID API for direct USB communication with keyboards running Vial/QMK firmware.
+KeyBard-NG is a modern web-based keyboard configuration tool for Svalboard-QMK keyboards, with specific support for the Svalboard. Built with React 19, TypeScript, and Vite, it leverages the WebHID API for direct USB communication with keyboards running Svalboard-QMK firmware.
 
 ## System Architecture
 
@@ -14,18 +14,18 @@ KeyBard-NG is a modern web-based keyboard configuration tool for Vial-compatible
 │  │  ┌────────────────────────────────────────────────┐  │   │
 │  │  │         UI Layer (Components)                  │  │   │
 │  │  └────────────────────────────────────────────────┘  │   │
-│  │           ↕ VialContext (State Management)           │   │
+│  │           ↕ KeyboardContext (State Management)           │   │
 │  │  ┌────────────────────────────────────────────────┐  │   │
 │  │  │         Service Layer                          │  │   │
 │  │  └────────────────────────────────────────────────┘  │   │
-│  │           ↕ VialUSB (Communication Layer)            │   │
+│  │           ↕ SvilUSB (Communication Layer)            │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                      ↕ WebHID API                            │
 └─────────────────────────────────────────────────────────────┘
                       ↕ USB Protocol
 ┌─────────────────────────────────────────────────────────────┐
 │                 Physical Keyboard Hardware                   │
-│         (Vial/QMK firmware with VIA protocol)                │
+│         (Svalboard-QMK firmware with VIA protocol)                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,35 +38,35 @@ KeyBard-NG is a modern web-based keyboard configuration tool for Vial-compatible
 - **QMKSettings**: Settings configuration UI
 
 ### 2. State Management Layer
-- **VialContext**: Centralized state management using React Context
+- **KeyboardContext**: Centralized state management using React Context
 - Provides keyboard state and operations to all components
 - Manages connection lifecycle and data loading
 
 ### 3. Service Layer
-- **VialService**: Core Vial protocol implementation
+- **KeyboardService**: Core Sval protocol implementation
 - **QMKService**: QMK settings management
 - **SvalService**: Svalboard-specific features
 - **KeyService**: Keycode translation and management
 
 ### 4. Communication Layer
-- **VialUSB**: WebHID API abstraction
+- **SvilUSB**: WebHID API abstraction
 - Handles all USB HID communication
-- Implements VIA/Vial protocol commands
+- Implements wrapped VIA and Sval protocol commands
 
 ## Data Flow
 
 ### Connection Sequence
 1. User initiates connection via UI
 2. WebHID API prompts for device selection
-3. VialUSB establishes communication channel
-4. VialService queries keyboard information
+3. SvilUSB establishes communication channel
+4. KeyboardService queries keyboard information
 5. Keyboard layout and features are loaded
 6. UI renders based on loaded configuration
 
 ### Key Update Flow
 1. User modifies key mapping
-2. Component triggers update via VialContext
-3. VialService sends update command
+2. Component triggers update via KeyboardContext
+3. KeyboardService sends update command
 4. Keyboard firmware updates EEPROM
 5. UI state updates for immediate feedback
 
@@ -94,8 +94,8 @@ keybard-ng/
 
 ## Service Architecture
 
-### VialService
-Central service for Vial protocol operations:
+### KeyboardService
+Central service for Sval protocol operations:
 - Protocol version negotiation
 - Keyboard information retrieval
 - Keymap management

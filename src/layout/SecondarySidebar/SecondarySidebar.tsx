@@ -17,9 +17,9 @@ import MousePanel from "./Panels/MousePanel";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { usePanels } from "@/contexts/PanelsContext";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 import { getPanelTitle, PanelContent } from "../PanelContent";
 
@@ -73,7 +73,7 @@ interface SecondarySidebarProps {
 const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: SecondarySidebarProps) => {
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
     const { activePanel, handleCloseDetails, state, alternativeHeader, itemToEdit, setItemToEdit } = usePanels();
-    const { keyboard } = useVial();
+    const { keyboard } = useKeyboard();
 
     const panelRef = React.useRef<HTMLElement>(null);
     const returnFocus = React.useRef<HTMLElement | null>(null);

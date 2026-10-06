@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { TapdanceService } from '../../src/services/tapdance.service';
 import { SvilUSB } from '../../src/services/usb.service';
 import { fileService } from '../../src/services/file.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 const keyboard = (enabled: boolean | undefined, term = 0): KeyboardInfo => ({ rows: 1, cols: 1, layers: 1, keymap: [[4]], tapdances: [{ idx: 0, tap: 'KC_A', hold: 'KC_B', doubletap: 'KC_C', taphold: 'KC_D', tapping_term: term, enabled }] });
 describe('tap dance save fidelity', () => {
     it.each([[false, 0, 0], [true, 0, 32768], [undefined, 200, 32968], [false, -20, 0], [false, 40000, 32767]] as const)('writes enabled=%s term=%s as %s', async (enabled, term, expected) => {

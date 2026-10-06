@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { VialService, vialService } from "../services/vial.service";
+import { KeyboardService, keyboardService } from "../services/keyboard.service";
 import { svalService } from "../services/sval.service";
 
 import { fileService } from "../services/file.service";
@@ -8,10 +8,10 @@ import { qmkService } from "../services/qmk.service";
 import { usbInstance } from "../services/usb.service";
 import { customValueService } from "../services/custom-value.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { PARANOID, userIsLooking } from "../lib/paranoid";
 
-interface VialContextType {
+interface KeyboardContextType {
     keyboard: KeyboardInfo | null;
     setKeyboard: React.Dispatch<React.SetStateAction<KeyboardInfo | null>>;
     originalKeyboard: KeyboardInfo | null;
@@ -44,12 +44,12 @@ interface VialContextType {
 
 const serializeDraft = (value: unknown) => JSON.stringify(value, (_key, item) => item instanceof Map ? { __map: [...item.entries()] } : item);
 
-const VialContext = createContext<VialContextType | undefined>(undefined);
+const KeyboardContext = createContext<KeyboardContextType | undefined>(undefined);
 
 export const DEFAULT_HID_FILTERS: HIDDeviceFilter[] = [
     { usagePage: 0xff61, usage: 0x62 },  // Svil keyboards
-    { usagePage: 0xff60, usage: 0x61 },  // Vial keyboards (legacy)
-    { usagePage: 0xff60, usage: 0x62 },  // Vial RawHID (legacy)
+    { usagePage: 0xff60, usage: 0x61 },  // Raw HID interface used by some Sval firmware builds
+    { usagePage: 0xff60, usage: 0x62 },  // Alternate Raw HID interface
 ];
 
 /**
@@ -68,11 +68,11 @@ export async function listPermittedDevices(filters: HIDDeviceFilter[] = DEFAULT_
     return devices.filter(matches);
 }
 
-export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [keyboard, setKeyboardState] = useState<KeyboardInfo | null>(null);
     const [originalKeyboard, setOriginalKeyboard] = useState<KeyboardInfo | null>(null);
     const [isConnected, setIsConnected] = useState(false);
-    const [connectionState, setConnectionState] = useState<VialContextType["connectionState"]>("idle");
+    const [connectionState, setConnectionState] = useState<KeyboardContextType["connectionState"]>("idle");
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [connectionSessionId, setConnectionSessionId] = useState(0);
     const sessionRef = useRef(0);
@@ -98,12 +98,12 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isImporting, setIsImporting] = useState(false);
     const [lastHeartbeat, setLastHeartbeat] = useState<number>(0);
     const [activeLayerIndex, setActiveLayerIndex] = useState<number | null>(null);
-    const isWebHIDSupported = VialService.isWebHIDSupported();
+    const isWebHIDSupported = KeyboardService.isWebHIDSupported();
 
     // Tracks the in-flight loadKeyboard promise. Multiple components mounted
-    // at the same time (VialProvider's own auto-load effect, ConnectKeyboard,
+    // at the same time (KeyboardProvider's own auto-load effect, ConnectKeyboard,
     // KeyboardConnector, ...) all run loadKeyboard on isConnected → fire
-    // concurrent Vial protocol reads over the same HID transport. The
+    // concurrent Sval protocol reads over the same HID transport. The
     // chunked keyboard-definition fetch can get its chunks interleaved
     // between requests, leaving custom_keycodes (and other payload fields)
     // undefined or partial. Dedupe so callers share a single load.
@@ -217,20 +217,20 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     rows: 0,
                     cols: 0,
                 };
-                await vialService.init(kbinfo);
-                const loadedInfo = await vialService.load(kbinfo);
+                await keyboardService.init(kbinfo);
+                const loadedInfo = await keyboardService.load(kbinfo);
 
                 // Load QMK settings
-                console.log("[VialContext] About to load QMK settings...");
+                console.log("[KeyboardContext] About to load QMK settings...");
                 try {
                     await qmkService.get(loadedInfo);
-                    console.log("[VialContext] QMK settings loaded:", loadedInfo.settings);
+                    console.log("[KeyboardContext] QMK settings loaded:", loadedInfo.settings);
                 } catch (error) {
                     console.warn("Failed to load QMK settings:", error);
                 }
 
                 // Load layer colors from keyboard using VIA custom values
-                console.log("[VialContext] Loading layer colors from keyboard...");
+                console.log("[KeyboardContext] Loading layer colors from keyboard...");
                 try {
                     const layerColors = await usbInstance.getAllLayerColors();
                     // Convert to format with val (brightness) - default to max
@@ -239,7 +239,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         sat: c.sat,
                         val: 255
                     }));
-                    console.log("[VialContext] Layer colors loaded:", loadedInfo.layer_colors);
+                    console.log("[KeyboardContext] Layer colors loaded:", loadedInfo.layer_colors);
 
                     // Also update cosmetic.layer_colors with the closest preset color names
                     // This is needed for the keyboard display to show correct colors
@@ -253,20 +253,20 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const presetName = getClosestPresetColor(c.hue, c.sat, 255);
                         loadedInfo.cosmetic!.layer_colors![idx.toString()] = presetName;
                     });
-                    console.log("[VialContext] Cosmetic layer colors:", loadedInfo.cosmetic.layer_colors);
+                    console.log("[KeyboardContext] Cosmetic layer colors:", loadedInfo.cosmetic.layer_colors);
                 } catch (error) {
                     console.warn("Failed to load layer colors:", error);
                 }
 
                 // Load all VIA3 custom values (DPI, scroll mode, automouse, etc.)
                 if (loadedInfo.menus) {
-                    console.log("[VialContext] Loading VIA3 custom values from keyboard...");
+                    console.log("[KeyboardContext] Loading VIA3 custom values from keyboard...");
                     try {
                         // Drop any values cached from a previous connect so a stale
                         // reading can't survive a reconnect within the same page session.
                         customValueService.clearCache();
                         loadedInfo.custom_values = await customValueService.loadAllMenuValues(loadedInfo.menus);
-                        console.log("[VialContext] Custom values loaded:", loadedInfo.custom_values.length, "entries");
+                        console.log("[KeyboardContext] Custom values loaded:", loadedInfo.custom_values.length, "entries");
                     } catch (error) {
                         console.warn("Failed to load custom values:", error);
                     }
@@ -319,7 +319,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             release = await beginTargetChange();
             svalService.setupCosmeticLayerNames(kbinfo);
             keyService.generateAllKeycodes(kbinfo);
-            if (VialService.isWebHIDSupported()) await usbInstance.close();
+            if (KeyboardService.isWebHIDSupported()) await usbInstance.close();
             nextSession();
             changed = true;
             setConnectionError(null);
@@ -355,14 +355,14 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!isConnected || connectionState !== "connected") {
                 throw new Error("Keyboard is not ready for changes");
             }
-            await vialService.updateKey(layer, row, col, keymask);
+            await keyboardService.updateKey(layer, row, col, keymask);
         },
         [isConnected, connectionState]
     );
 
     const pollMatrix = useCallback(async () => {
         if (!keyboard || !isConnected) return [];
-        const result = await vialService.pollMatrix(keyboard);
+        const result = await keyboardService.pollMatrix(keyboard);
         setLastHeartbeat(Date.now());
         return result;
     }, [keyboard, isConnected]);
@@ -377,7 +377,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // Paranoid: don't watch the board while Keybard isn't in front of you.
             } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
-                    const activeLayer = await vialService.getActiveLayerIndex();
+                    const activeLayer = await keyboardService.getActiveLayerIndex();
                     if (isActive) {
                         setActiveLayerIndex(activeLayer);
                     }
@@ -429,7 +429,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => window.removeEventListener("beforeunload", warn);
     }, [hasUnsavedChanges]);
 
-    const value: VialContextType = {
+    const value: KeyboardContextType = {
         keyboard,
         setKeyboard,
         originalKeyboard,
@@ -459,13 +459,13 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeLayerIndex,
     };
 
-    return <VialContext.Provider value={value}>{children}</VialContext.Provider>;
+    return <KeyboardContext.Provider value={value}>{children}</KeyboardContext.Provider>;
 };
 
-export const useVial = (): VialContextType => {
-    const context = useContext(VialContext);
+export const useKeyboard = (): KeyboardContextType => {
+    const context = useContext(KeyboardContext);
     if (!context) {
-        throw new Error("useVial must be used within a VialProvider");
+        throw new Error("useKeyboard must be used within a KeyboardProvider");
     }
     return context;
 };

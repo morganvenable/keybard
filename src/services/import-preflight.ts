@@ -1,4 +1,4 @@
-import type { KeyboardInfo } from '../types/vial.types';
+import type { KeyboardInfo } from '../types/keyboard.types';
 import { customValueService } from './custom-value.service';
 import { MacroService } from './macro.service';
 import { LabelService } from './label.service';

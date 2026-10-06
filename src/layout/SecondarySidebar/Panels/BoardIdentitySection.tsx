@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { identityService, IdentityInfo, IdentityStatus, NAME_MAX_CHARS, nameLength, nameProblem, SerialSource } from "@/services/identity.service";
 import { useEffect, useState } from "react";
 
@@ -15,7 +15,7 @@ const STATUS_TEXT: Record<number, string> = {
  * firmware updates. Shown only when the firmware supports it.
  */
 export default function BoardIdentitySection() {
-    const { isConnected, connectionSessionId, hasUnsavedChanges, runDeviceMaintenance } = useVial();
+    const { isConnected, connectionSessionId, hasUnsavedChanges, runDeviceMaintenance } = useKeyboard();
     const [info, setInfo] = useState<IdentityInfo | null>(null);
     const [draft, setDraft] = useState("");
     const [busy, setBusy] = useState(false);

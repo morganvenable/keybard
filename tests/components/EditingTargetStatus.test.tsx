@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import EditingTargetStatus from '../../src/components/EditingTargetStatus';
 const state = vi.hoisted(() => ({keyboard: {name: 'Board'}, isConnected: false, loadedFrom: 'layout.svil', connectionState: 'offline', connectionError: null as string | null, isChangingTarget: false}));
-vi.mock('@/contexts/VialContext', () => ({useVial: () => state}));
+vi.mock('@/contexts/KeyboardContext', () => ({useKeyboard: () => state}));
 describe('editing target status', () => {
     beforeEach(() => {state.isConnected = false; state.connectionError = null; state.isChangingTarget = false;});
     it('identifies offline files and explains export without requiring the toolbar to be open', () => {

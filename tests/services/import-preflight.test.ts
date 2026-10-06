@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { prepareImport } from '../../src/services/import-preflight';
 import { fileService } from '../../src/services/file.service';
 import { usbInstance } from '../../src/services/usb.service';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 const board = (overrides: Partial<KeyboardInfo> = {}): KeyboardInfo => ({
     rows: 1, cols: 2, layers: 2, keymap: [[4, 5], [6, 7]], svil_proto: 3,

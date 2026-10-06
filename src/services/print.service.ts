@@ -1,5 +1,5 @@
 // Print service - generate printable keyboard layout views
-import type { KeyboardInfo } from '../types/vial.types';
+import type { KeyboardInfo } from '../types/keyboard.types';
 import { keyService } from './key.service';
 
 // KC_NO = 0x0000, KC_TRNS = 0x0001

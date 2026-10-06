@@ -66,7 +66,7 @@ Refactored the Matrix Tester feature and related components to ensure excellent 
 - ✅ Better error handling and timeout management
 - ✅ Consistent return value handling in queue advancement
 
-### 4. Vial Service (`src/services/vial.service.ts`)
+### 4. Keyboard Service (`src/services/keyboard.service.ts`)
 
 #### Type Safety
 - ✅ Added explicit type assertions where needed
@@ -113,7 +113,7 @@ Refactored the Matrix Tester feature and related components to ensure excellent 
 1. ✅ `src/components/MatrixTester.tsx` - Complete refactor
 2. ✅ `src/components/icons/BrushCleaning.tsx` - Enhanced with types
 3. ✅ `src/services/usb.service.ts` - Type safety improvements
-4. ✅ `src/services/vial.service.ts` - Fixed method signatures
+4. ✅ `src/services/keyboard.service.ts` - Fixed method signatures
 5. ✅ `src/layout/LayerSelector.tsx` - Removed unused code
 
 ## Build Status

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { KeyBindingProvider, useKeyBinding } from '../../src/contexts/KeyBindingContext';
-import { VialProvider } from '../../src/contexts/VialContext';
+import { KeyboardProvider } from '../../src/contexts/KeyboardContext';
 import { ChangesProvider } from '../../src/contexts/ChangesContext';
 import { SettingsProvider } from '../../src/contexts/SettingsContext';
-import type { KeyboardInfo, AltRepeatKeyEntry } from '../../src/types/vial.types';
-import { AltRepeatKeyOptions } from '../../src/types/vial.types';
+import type { KeyboardInfo, AltRepeatKeyEntry } from '../../src/types/keyboard.types';
+import { AltRepeatKeyOptions } from '../../src/types/keyboard.types';
 
 // Mock the services
 vi.mock('../../src/services/file.service', () => ({
@@ -14,14 +14,14 @@ vi.mock('../../src/services/file.service', () => ({
     },
 }));
 
-vi.mock('../../src/services/vial.service', () => ({
-    vialService: {
+vi.mock('../../src/services/keyboard.service', () => ({
+    keyboardService: {
         init: vi.fn(),
         load: vi.fn(),
         updateKey: vi.fn(),
         updateAltRepeatKey: vi.fn(),
     },
-    VialService: {
+    KeyboardService: {
         isWebHIDSupported: vi.fn(() => true),
     },
 }));
@@ -73,7 +73,7 @@ const createKeyboardWithAltRepeat = (): KeyboardInfo => ({
     cols: 12,
     layers: 2,
     via_proto: 12,
-    vial_proto: 6,
+
     kbid: 'test_altrepeat_kb',
     keymap: [
         Array(4 * 12).fill('KC_NO'),
@@ -91,9 +91,9 @@ describe('KeyBindingContext - Alt-Repeat Key Selection', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
         <SettingsProvider>
             <ChangesProvider>
-                <VialProvider>
+                <KeyboardProvider>
                     <KeyBindingProvider>{children}</KeyBindingProvider>
-                </VialProvider>
+                </KeyboardProvider>
             </ChangesProvider>
         </SettingsProvider>
     );
@@ -154,9 +154,9 @@ describe('KeyBindingContext - Alt-Repeat Key Assignment', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
         <SettingsProvider>
             <ChangesProvider>
-                <VialProvider>
+                <KeyboardProvider>
                     <KeyBindingProvider>{children}</KeyBindingProvider>
-                </VialProvider>
+                </KeyboardProvider>
             </ChangesProvider>
         </SettingsProvider>
     );

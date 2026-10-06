@@ -10,8 +10,8 @@ const keyRenders = vi.fn();
 const mouseKeysSectionRenders = vi.fn();
 
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
-vi.mock('@/contexts/VialContext', () => ({
-    useVial: () => ({ keyboard: { menus: [{ label: 'Pointing Device', content: [] }] }, isConnected: true, connect: vi.fn() }),
+vi.mock('@/contexts/KeyboardContext', () => ({
+    useKeyboard: () => ({ keyboard: { menus: [{ label: 'Pointing Device', content: [] }] }, isConnected: true, connect: vi.fn() }),
 }));
 vi.mock('@/components/Key', () => ({
     Key: (props: { keycode: string }) => { keyRenders(props); return <div data-testid="stray-key" />; },

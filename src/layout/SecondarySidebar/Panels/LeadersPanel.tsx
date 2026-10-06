@@ -8,20 +8,20 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { qmkService } from "@/services/qmk.service";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
-import { KeyContent, LeaderOptions } from "@/types/vial.types";
-import { vialService } from "@/services/vial.service";
+import { KeyContent, LeaderOptions } from "@/types/keyboard.types";
+import { keyboardService } from "@/services/keyboard.service";
 import { cn } from "@/lib/utils";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const LeadersPanel: React.FC = () => {
-    const { keyboard, isConnected, setKeyboard } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useKeyboard();
     const { queue } = useChanges();
     const persistBinding = useBindingChanges();
     const { assignKeycode, isBinding } = useKeyBinding();
@@ -71,7 +71,7 @@ const LeadersPanel: React.FC = () => {
             setKeyboard(updated);
             await queue(`QMK setting ${LEADER_TIMEOUT_QSID}`, async () => {
                 await qmkService.push(updated, LEADER_TIMEOUT_QSID);
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, { writeKey: `qmk:${LEADER_TIMEOUT_QSID}` });
         } catch (err) {
             console.error("Failed to update leader timeout:", err);
@@ -91,7 +91,7 @@ const LeadersPanel: React.FC = () => {
             setKeyboard(updated);
             await queue(`QMK setting ${LEADER_PER_KEY_QSID}`, async () => {
                 await qmkService.push(updated, LEADER_PER_KEY_QSID);
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, { writeKey: `qmk:${LEADER_PER_KEY_QSID}` });
         } catch (err) {
             console.error("Failed to update per-key timing:", err);

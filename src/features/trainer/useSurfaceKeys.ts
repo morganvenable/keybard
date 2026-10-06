@@ -1,4 +1,4 @@
-import type { KeyboardInfo } from '@/types/vial.types';
+import type { KeyboardInfo } from '@/types/keyboard.types';
 import { getKeyDisplayText } from '@/utils/key-display';
 import { keyService } from '@/services/key.service';
 import { getLabelForKeycode } from '@/components/Keyboards/layouts';

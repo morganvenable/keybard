@@ -3,10 +3,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import QMKSettingsPanel from '../../src/layout/SecondarySidebar/Panels/QMKSettingsPanel';
 const { queue, setKeyboard } = vi.hoisted(() => ({ queue: vi.fn(), setKeyboard: vi.fn() }));
-vi.mock('@/contexts/VialContext', () => ({ useVial: () => ({ keyboard: {settings: {7: 200, 8: 0, 21: 0}}, setKeyboard }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: {settings: {7: 200, 8: 0, 21: 0}}, setKeyboard }) }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({queue}) }));
 vi.mock('@/services/qmk.service', () => ({qmkService: {}}));
-vi.mock('@/services/vial.service', () => ({vialService: {}}));
+vi.mock('@/services/keyboard.service', () => ({keyboardService: {}}));
 describe('QMK settings access', () => {
  it('names real controls and exposes disclosure state without writing on navigation', async () => {
   const user = userEvent.setup();

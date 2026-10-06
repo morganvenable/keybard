@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FragmentComposerService, ComposedKeyLayout } from '../../src/services/fragment-composer.service';
 import { FragmentService } from '../../src/services/fragment.service';
 import { KleService } from '../../src/services/kle.service';
-import type { KeyboardInfo, FragmentInstance } from '../../src/types/vial.types';
+import type { KeyboardInfo, FragmentInstance } from '../../src/types/keyboard.types';
 import {
     createTestFragments,
     createFragmentState,

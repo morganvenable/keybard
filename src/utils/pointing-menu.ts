@@ -1,4 +1,4 @@
-import type { CustomUIMenuItem } from "@/types/vial.types";
+import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { developerSettingsCopy } from "./developer-settings-copy";
 
 // Firmware places these board-wide controls in its Pointing Device menu.

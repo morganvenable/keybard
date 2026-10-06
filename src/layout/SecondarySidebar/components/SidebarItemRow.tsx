@@ -4,7 +4,7 @@ import { Pencil, X } from "lucide-react";
 import { Key } from "@/components/Key";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { KeyboardInfo, KeyContent } from "@/types/vial.types";
+import { KeyboardInfo, KeyContent } from "@/types/keyboard.types";
 import { colorClasses, layerColors } from "@/utils/colors";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 

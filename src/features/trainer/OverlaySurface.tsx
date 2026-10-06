@@ -1,4 +1,4 @@
-import type { KeyContent } from '@/types/vial.types';
+import type { KeyContent } from '@/types/keyboard.types';
 import { getHeaderIcons, getCenterContent, getTypeIcon } from '@/utils/key-icons';
 import type { Appearance, Preferences } from './core';
 import { haloColor } from './core';

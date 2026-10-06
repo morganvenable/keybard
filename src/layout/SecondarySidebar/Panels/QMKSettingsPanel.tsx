@@ -4,10 +4,10 @@ import { ChevronDown } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { useVial } from "@/contexts/VialContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import { QMK_SETTINGS } from "@/constants/qmk-settings";
 import { qmkService } from "@/services/qmk.service";
-import { vialService } from "@/services/vial.service";
+import { keyboardService } from "@/services/keyboard.service";
 import { cn } from "@/lib/utils";
 import type { QMKSettingsField } from "@/types/qmk";
 
@@ -16,7 +16,7 @@ import type { QMKSettingsField } from "@/types/qmk";
 // These duplicates exist temporarily to allow side-by-side comparison during testing.
 
 const QMKSettingsPanel: React.FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard } = useKeyboard();
     const { queue } = useChanges();
     const panelId = useId();
     const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -97,7 +97,7 @@ const QMKSettingsPanel: React.FC = () => {
 
             await queue(`QMK setting ${qsid}`, async () => {
                 await qmkService.push(updated, qsid);
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);
@@ -121,7 +121,7 @@ const QMKSettingsPanel: React.FC = () => {
 
             await queue(`QMK setting ${qsid}`, async () => {
                 await qmkService.push(updated, qsid);
-                await vialService.saveSvil();
+                await keyboardService.saveSvil();
             }, { writeKey: `qmk:${qsid}` });
         } catch (err) {
             console.error("Failed to update QMK setting:", err);

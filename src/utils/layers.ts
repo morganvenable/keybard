@@ -1,6 +1,6 @@
 import { KEYMAP } from "../constants/keygen";
 import { keyService } from "../services/key.service";
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo } from "../types/keyboard.types";
 import { getKeyContents } from "./keys";
 // Convert HSV to RGB for CSS color
 export const hsvToRgb = (h: number, s: number, v: number): string => {

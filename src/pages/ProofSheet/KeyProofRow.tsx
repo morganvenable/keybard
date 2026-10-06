@@ -4,7 +4,7 @@
 
 import type { FC } from "react";
 import { Key } from "@/components/Key";
-import type { KeyContent } from "@/types/vial.types";
+import type { KeyContent } from "@/types/keyboard.types";
 
 interface KeyProofRowProps {
     keycode: string;

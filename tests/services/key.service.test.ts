@@ -6,7 +6,7 @@ import {
   createTestKeyboardInfo,
   minimalKeyboardInfo
 } from '../fixtures/keyboard-info.fixture';
-import type { KeyboardInfo } from '../../src/types/vial.types';
+import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import type { KeyString } from '../../src/types/keymap';
 
 // Mock the constants module

@@ -4,7 +4,7 @@ import { TapdanceService } from '../../src/services/tapdance.service';
 import { ComboService } from '../../src/services/combo.service';
 import { OverrideService } from '../../src/services/override.service';
 import { LabelService } from '../../src/services/label.service';
-import { SvilService } from '../../src/services/vial.service';
+import { KeyboardService } from '../../src/services/keyboard.service';
 import { keyService } from '../../src/services/key.service';
 import { createTestKeyboardInfo } from '../fixtures/keyboard-info.fixture';
 
@@ -139,7 +139,7 @@ describe('Sval protocol v1/v2 table requests', () => {
         }
         return Promise.resolve(new Uint8Array([cmd, 0]));
       });
-      const service = new SvilService(usb as unknown as SvilUSB);
+      const service = new KeyboardService(usb as unknown as SvilUSB);
       const kbinfo = createTestKeyboardInfo({ alt_repeat_key_count: 1, leader_count: 1 });
       await service.getAltRepeatKeys(kbinfo);
       await service.getLeaders(kbinfo);
@@ -244,7 +244,7 @@ describe('256 macros', () => {
         return Promise.resolve(0x1000);
       });
       const kbinfo = createTestKeyboardInfo();
-      await new SvilService(usb as unknown as SvilUSB).getFeatures(kbinfo);
+      await new KeyboardService(usb as unknown as SvilUSB).getFeatures(kbinfo);
       expect(kbinfo.macro_count).toBe(expected);
     }
   });

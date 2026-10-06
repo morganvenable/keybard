@@ -1,4 +1,4 @@
-import type { KeyboardInfo, CustomKeycode, MacroData, ComboData, TapdanceData, KeyOverrideData } from '../../src/types/vial.types';
+import type { KeyboardInfo, CustomKeycode, MacroData, ComboData, TapdanceData, KeyOverrideData } from '../../src/types/keyboard.types';
 import type { QMKSettings, QMKSettingsTab } from '../../src/types/qmk';
 
 // Test constants
@@ -10,7 +10,7 @@ export const TEST_DEVICE_NAME = 'Test Svalboard';
 export interface TestKeyboardInfo extends KeyboardInfo {
   // Ensures all optional properties are defined for testing
   via_proto: number;
-  vial_proto: number;
+
   kbid: string;
   layers: number;
   custom_keycodes: CustomKeycode[];

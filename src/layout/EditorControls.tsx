@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { PanelBottom, PanelRight } from "lucide-react";
 import { InfoIcon } from "@/components/icons/InfoIcon";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-// import { useVial } from "@/contexts/VialContext";
+// import { useKeyboard } from "@/contexts/KeyboardContext";
 
 interface EditorControlsProps {
     showInfoPanel: boolean;
@@ -28,7 +28,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
         layoutMode,
         setLayoutMode
     } = useLayoutSettings();
-    // const { resetToOriginal } = useVial();
+    // const { resetToOriginal } = useKeyboard();
 
     return (
         <div className="flex flex-wrap justify-end items-center gap-2 max-w-full">

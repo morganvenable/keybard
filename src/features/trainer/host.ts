@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KeyboardInfo } from '@/types/vial.types';
+import type { KeyboardInfo } from '@/types/keyboard.types';
 import type { Preferences } from './core';
 import { appStorage } from '@/utils/app-storage';
 import { PARANOID } from '@/lib/paranoid';

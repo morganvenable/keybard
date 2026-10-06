@@ -98,7 +98,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 export const usePanels = (): PanelsContextType => {
     const context = useContext(PanelsContext);
     if (!context) {
-        throw new Error("useVial must be used within a VialProvider");
+        throw new Error("useKeyboard must be used within a KeyboardProvider");
     }
     return context;
 };
