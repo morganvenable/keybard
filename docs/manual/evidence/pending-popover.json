@@ -1,0 +1,28 @@
+[
+  {
+    "width": 1440,
+    "toolbarUnchanged": {
+      "width": 1200,
+      "height": 52,
+      "scrollWidth": 1200,
+      "scrollHeight": 52
+    },
+    "content": [
+      "QMK setting 7"
+    ],
+    "escapeRestoresFocus": true
+  },
+  {
+    "width": 900,
+    "toolbarUnchanged": {
+      "width": 660,
+      "height": 52,
+      "scrollWidth": 668,
+      "scrollHeight": 52
+    },
+    "content": [
+      "QMK setting 7"
+    ],
+    "escapeRestoresFocus": true
+  }
+]

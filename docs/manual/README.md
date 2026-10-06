@@ -79,3 +79,7 @@ Recording the actual workflows corrected the mod-tap and layer-tap instructions:
 Expanded acceptance: all 34 GIFs decode completely. Browser checks pass at five widths, including every Play/Pause control, viewport autoplay, persistent user pause, reduced-motion preference changes and the two-case layer comparison. The regenerated PDF has 44 pages and uses stills.
 
 Autoplay correction: GIF URLs are now present directly in the HTML, and playback no longer depends on the system motion preference. JavaScript pauses offscreen recordings and honors individual Pause controls. Content-hashed script/style URLs prevent older cached playback code from surviving a page refresh.
+
+Opening flow: the hero now records opening Standard Keys and dragging A directly onto Q, with the resulting keycode asserted. The first offline tour uses the same direct-drag interaction; select-then-click is documented as an alternative. Re-capture with `capture-walkthroughs.py opening-drag offline-edit`.
+
+The Pending review uses a portaled popover. Its component tests exercise the real queue, including superseded edits and partial write failures. `tools/check-pending-popover.py` verifies the actual staged setting and unchanged toolbar scroll dimensions at two widths using controlled test-board data. The associated walkthrough GIFs have been refreshed. There are now 35 playback demonstrations including the opening hero.

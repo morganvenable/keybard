@@ -24,9 +24,14 @@ def leaders(r):
  # Picker switches to the real macro palette to choose output 0.
  r.click(r.slots().last);r.nav('Macros');r.click(r.page.locator('.select-none').filter(has_text=re.compile('^0$')).filter(visible=True).first)
  assert '0' in r.slots().last.inner_text();r.nav('Close binding editor');r.drag(r.page.get_by_text('Leader',exact=True).filter(visible=True).first,r.page.locator('[data-keycode="KC_Q"]').first);assert r.page.locator('[data-keycode="QK_LEADER"]').count();return 'Enabled A then B sequence with Macro 0 output and assigned Leader key (create the text macro first)'
+def opening_drag(r):
+ r.nav('Standard Keys');target=r.page.locator('[data-keycode="KC_Q"]').first
+ x,y=target.get_attribute('data-key-x'),target.get_attribute('data-key-y')
+ r.drag(r.picker('a'),target)
+ assert r.page.locator(f'[data-key-x="{x}"][data-key-y="{y}"]').get_attribute('data-keycode')=='KC_A'
+ return 'Opened Standard Keys, dragged A directly onto Q, and verified the changed binding without selecting a target first'
 def offline(r):
- r.nav('QWERTY Example');r.nav('Standard Keys');r.click(r.page.locator('[data-keycode="KC_Q"]').first);r.click(r.picker('a'));assert r.page.locator('[data-keycode="KC_A"]').count()==2
- return 'Opened bundled example and replaced Q with A using select then assign'
+ r.nav('QWERTY Example');return opening_drag(r)
 def preferences(r):
  r.nav('Settings');r.select(r.page.get_by_label('Appearance',exact=True),'dark');r.frame(900);r.select(r.page.get_by_label('Appearance',exact=True),'light')
  r.click(r.page.get_by_text('Typing Binds a Key',exact=True).locator('../..').get_by_text('OFF',exact=True))
@@ -55,7 +60,7 @@ def timing(r):
 def pointing(r):
  r.nav('Pointing Devices');print(r.page.locator('body').inner_text()[-3000:],flush=True)
  r.click(r.page.get_by_role('combobox',name='DPI',exact=True).first);r.click(r.page.get_by_role('option',name='1200',exact=True));r.frame(1000);return 'Adjusted pointer sensitivity in controlled connected UI; no physical sensor test'
-CASES={'offline-edit':(offline,False,True),'tap-dance-action':(tapdance,False,False),'combo-action':(combos,False,False),'override-action':(overrides,False,False),'leader-action':(leaders,False,False),'alt-repeat-action':(altrepeat,False,False),'preferences-action':(preferences,False,False),'compare-layers':(compare_layers,False,False),'rename-layer':(rename_layer,False,False),'reopen-layout':(reopen,False,True),'import-action':(imports,False,False),'trainer-appearance':(trainer_appearance,False,False),'trainer-practice-action':(trainer_practice,False,False),'trainer-feedback':(trainer_feedback,False,False),'timing-action':(timing,True,False),'pointing-action':(pointing,True,False)}
+CASES={'opening-drag':(opening_drag,False,False),'offline-edit':(offline,False,True),'tap-dance-action':(tapdance,False,False),'combo-action':(combos,False,False),'override-action':(overrides,False,False),'leader-action':(leaders,False,False),'alt-repeat-action':(altrepeat,False,False),'preferences-action':(preferences,False,False),'compare-layers':(compare_layers,False,False),'rename-layer':(rename_layer,False,False),'reopen-layout':(reopen,False,True),'import-action':(imports,False,False),'trainer-appearance':(trainer_appearance,False,False),'trainer-practice-action':(trainer_practice,False,False),'trainer-feedback':(trainer_feedback,False,False),'timing-action':(timing,True,False),'pointing-action':(pointing,True,False)}
 if __name__=='__main__':
  failures=[]
  with sync_playwright() as p:
