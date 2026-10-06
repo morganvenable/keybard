@@ -4807,10 +4807,10 @@
     },
     "layer_colors": {
       "0": "green",
-      "1": "blue",
-      "2": "orange",
-      "3": "yellow",
-      "4": "magenta"
+      "1": "green",
+      "2": "green",
+      "3": "green",
+      "4": "green"
     }
   },
   "custom_values": [
@@ -4828,7 +4828,7 @@
       "channel": 0,
       "valueId": 1,
       "data": [
-        21,
+        85,
         255
       ]
     },
@@ -4837,7 +4837,7 @@
       "channel": 0,
       "valueId": 2,
       "data": [
-        149,
+        85,
         255
       ]
     },
@@ -4846,8 +4846,8 @@
       "channel": 0,
       "valueId": 3,
       "data": [
-        11,
-        176
+        85,
+        255
       ]
     },
     {
@@ -4855,7 +4855,7 @@
       "channel": 0,
       "valueId": 4,
       "data": [
-        43,
+        85,
         255
       ]
     },
