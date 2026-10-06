@@ -1,0 +1,8 @@
+{
+  "clip": "matrix-action",
+  "verifiedResult": "Actual Matrix Tester displays three simulated switch reports and clears their history; no hardware presses",
+  "frames": 20,
+  "durationMs": 8520,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid"
+}

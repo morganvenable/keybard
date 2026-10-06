@@ -1,0 +1,8 @@
+{
+  "clip": "leader-action",
+  "verifiedResult": "Enabled A then B sequence with Macro 0 output and assigned Leader key (create the text macro first)",
+  "frames": 99,
+  "durationMs": 20110,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

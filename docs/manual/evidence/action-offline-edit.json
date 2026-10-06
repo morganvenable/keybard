@@ -1,0 +1,8 @@
+{
+  "clip": "offline-edit",
+  "verifiedResult": "Opened bundled example and replaced Q with A using select then assign",
+  "frames": 30,
+  "durationMs": 7540,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

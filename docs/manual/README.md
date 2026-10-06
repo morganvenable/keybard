@@ -1,6 +1,6 @@
 # Keybard launch user manual
 
-Open [index.html](index.html), or serve this directory with `python3 -m http.server 5190 --directory docs/manual` from the repository root. The manual needs no JavaScript framework, package install, external font, or network connection to read. All essential instructions remain visible without JavaScript; search, image enlargement and the layer example are enhancements. Use Print / Save as PDF for a paper copy.
+Open [index.html](index.html), or serve this directory with `python3 -m http.server 5190 --directory docs/manual` from the repository root. The manual needs no JavaScript framework, package install, external font, or network connection to read. All essential instructions remain visible without JavaScript; search, image enlargement and recording playback are enhancements. Use Print / Save as PDF for a paper copy.
 
 ## Scope and product baseline
 
@@ -64,10 +64,16 @@ python3 docs/manual/tools/build.py
 
 Capture scripts use Playwright’s installed Chromium by default; set `CHROMIUM_PATH` to use another executable, `KEYBARD_CAPTURE_URL` for the running Keybard development server (default port 5188), and `MANUAL_URL` for the manual server (default port 5190). With Playwright installed, run captures in this order: `capture.py`, `capture-editors.py`, `capture-files.py`, `capture-connected.py`, `capture-native.py`. Then rebuild and validate. Connected captures block physical HID access and inject controlled device responses.
 
-Final acceptance passed at widths 360, 390, 768, 1280 and 1600 pixels, including search, mobile navigation, layer examples, image enlargement, keyboard focus, stable deep links, local links, JavaScript-disabled reading and PDF generation. All eleven chapters remain readable without JavaScript. The independent usability re-review found no remaining material blocker.
+Final acceptance passed at widths 360, 390, 768, 1280 and 1600 pixels, including search, mobile navigation, layer comparison, image enlargement, keyboard focus, stable deep links, local links, JavaScript-disabled reading and PDF generation. All eleven chapters remain readable without JavaScript. The independent usability re-review found no remaining material blocker.
 
 ## Action demonstrations
 
 `tools/capture-actions.py` uses Playwright and Pillow to record real mouse and typing interactions in the bundled offline example. It verifies the dropped key's keycode, the macro text and the downloaded backup JSON. The export capture disables the native save-picker API to exercise the real browser-download fallback; it does not mock file contents. GIFs show the actual application; an orange pointer ring is a recording aid. No hardware is accessed. `evidence/actions.json` records results and timing. Run with the same browser environment as the other capture scripts.
 
-The manual replaces three overview images with explicit Play/Stop demonstrations: dragging A onto Q, creating a text macro, and exporting a backup. They never autoplay; stills remain available without JavaScript and in print. Direct GIF links are provided.
+The manual replaces three overview images with explicit Play/Stop demonstrations: dragging A onto Q, creating a text macro, and exporting a backup. They autoplay only while visible; Pause remains in effect when scrolling away and back. Reduced-motion users get stills until they explicitly choose Play. Stills remain available without JavaScript and in print. Direct GIF links are provided.
+
+The expanded recordings cover the worked browser tutorials throughout the manual. Run `capture-walkthroughs.py` and `capture-extra.py` (optionally passing individual case names), plus `capture-overlay-action.py`. `action_recorder.py` provides pointer movement and GIF encoding; `connected-fixture.js` supplies controlled board responses and blocks real USB commands. Each recording has an outcome assertion and an evidence file. The native renderer demonstration uses controlled reports and is explicitly not a Windows desktop or timing test. Native OS device/file choosers, installing/running Windows software, physical key presses and firmware upgrades are outside browser capture; their instructions remain written, with those boundaries called out.
+
+Recording the actual workflows corrected the mod-tap and layer-tap instructions: assignment can clear the target selection, so reselect before composing. The Transparent/Blank example now compares the same A position in two cases with explicit output, rather than requiring readers to operate an unexplained three-key schematic.
+
+Expanded acceptance: all 34 GIFs decode completely. Browser checks pass at five widths, including every Play/Pause control, viewport autoplay, persistent user pause, reduced-motion preference changes and the two-case layer comparison. The regenerated PDF has 44 pages and uses stills.
