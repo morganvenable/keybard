@@ -1,7 +1,7 @@
 {
   "offline-edit": {
     "title": "Open an example and make a first edit",
-    "description": "Open QWERTY Example, select Q, and assign A. This is an offline draft; no keyboard is changed."
+    "description": "Open QWERTY Example, open Standard Keys and drag A onto Q."
   },
   "macro-full": {
     "title": "Create and assign a text macro",
@@ -126,5 +126,9 @@
   "overlay-layers": {
     "title": "See the overlay respond to layer changes",
     "description": "The actual shared native renderer receives controlled reports: base, symbols, function keys, then base with held-key highlighting. This demonstrates rendering; it is not a Windows desktop recording or a hardware latency test."
+  },
+  "opening-drag": {
+    "title": "Open the panel and drag a letter",
+    "description": "Open Standard Keys, drag A onto Q without selecting the destination first, and verify A."
   }
 }
