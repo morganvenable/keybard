@@ -31,8 +31,10 @@ const defaultLayoutModules = import.meta.glob('@/default-layouts/*.{svil,viable,
 // Transform the glob object into an array of { name, fileUrl }
 const DEFAULT_LAYOUTS = Object.entries(defaultLayoutModules).map(([path, url]) => {
     // Extract just the filename without extension for the 'name'
-    const name = path.split('/').pop()?.replace(/\.(svil|viable|vil|json)$/i, '') || 'unknown';
-    return { name, fileUrl: url };
+    // Names come from the source file, never the URL: Keybard Paranoid embeds these as data: URLs.
+    const fileName = path.split('/').pop() || 'unknown.svil';
+    const name = fileName.replace(/\.(svil|viable|vil|json)$/i, '') || 'unknown';
+    return { name, fileName, fileUrl: url };
 });
 
 const LayoutsPanel: FC = () => {
@@ -58,6 +60,11 @@ const LayoutsPanel: FC = () => {
         const loadInitialLayouts = async () => {
             let currentLayouts = layerLibraryService.getImportedLayouts();
 
+            // Earlier Keybard Paranoid builds named these after their data: URL; drop those copies.
+            for (const broken of currentLayouts.filter(l => /;base64,/.test(l.name))) {
+                layerLibraryService.deleteImportedLayout(broken.id);
+            }
+            currentLayouts = layerLibraryService.getImportedLayouts();
             for (const layout of DEFAULT_LAYOUTS) {
                 // Check if layout with this name is already imported
                 if (!currentLayouts.find(l => l.name === layout.name)) {
@@ -65,9 +72,7 @@ const LayoutsPanel: FC = () => {
                         const response = await fetch(layout.fileUrl);
                         if (response.ok) {
                             const blob = await response.blob();
-                            // Generate a proper filename from the URL or name
-                            const filename = layout.fileUrl.split('/').pop()?.split('?')[0] || `${layout.name}.svil`;
-                            const file = new File([blob], filename, { type: "application/json" });
+                            const file = new File([blob], layout.fileName, { type: "application/json" });
                             await layerLibraryService.importLayoutFromFile(file);
 
                             // Refresh layouts list from service after saving

@@ -108,7 +108,8 @@ const ConnectKeyboard = () => {
             if (!response.ok) throw new Error("Failed to fetch demo file");
             const blob = await response.blob();
             // Generate a proper filename from the URL or name
-            const filename = demoLayoutUrl.split('/').pop()?.split('?')[0] || "sval-default.svil";
+            // The bundled file's real name; in Keybard Paranoid the URL is a data: URL.
+            const filename = "sval-default.svil";
             const file = new File([blob], filename, { type: "application/octet-stream" });
             await loadFromFile(file, "demo");
         } catch (err) {
