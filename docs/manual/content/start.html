@@ -1,0 +1,112 @@
+<section id="start" aria-labelledby="start-title">
+  <p class="eyebrow">Your first session</p>
+  <h2 id="start-title">1. Start with a keyboard—or an example</h2>
+  <p>Keybard lets you configure your Svalboard, organize layers, create advanced bindings, and set up an on-screen trainer. You can explore the editor before connecting hardware. This guide starts with one ordinary key change, then builds toward reusable layouts and reliable backups.</p>
+  <p>Choose a starting point on the welcome screen:</p>
+  <table><thead><tr><th>Choose</th><th>What happens</th><th>Use it for</th></tr></thead><tbody>
+    <tr><td><strong>Connect Keyboard</strong></td><td>The browser asks which keyboard to open, then Keybard reads its configuration.</td><td>Editing your connected Svalboard.</td></tr>
+    <tr><td><strong>Load File</strong></td><td>A saved layout opens as an offline draft.</td><td>Inspecting a backup or continuing exported work.</td></tr>
+    <tr><td><strong>QWERTY Example</strong></td><td>A bundled example opens without a keyboard.</td><td>Learning the controls safely.</td></tr>
+  </tbody></table>
+  <figure><img src="assets/landing.png" alt="Keybard welcome screen with Connect Keyboard, Load File, and QWERTY Example choices" loading="lazy"><figcaption>The welcome screen offers hardware, file, and example entry points.</figcaption></figure>
+  <h3>Three places your work can live</h3><div class="state-model" aria-label="The board, the current editor draft and an exported file are separate copies"><article><small>On your Svalboard</small><strong>The saved configuration</strong><p>Runs on the keyboard. Connecting reads it; applying edits changes it.</p></article><article><small>In this browser session</small><strong>The current draft</strong><p>May include unsaved changes. The layout you see is not always what the board runs.</p></article><article><small>On your computer</small><strong>An exported file</strong><p>A copy you keep. Export downloads it; import reviews which parts can be applied.</p></article></div><h3>Take the five-minute tour</h3>
+  <ol><li>Choose <strong>QWERTY Example</strong>.</li><li>If only icons are showing, click the logo at the top of the left navigation rail to reveal its labels. Hovering an icon also identifies it.</li><li>Open <strong>Standard Keys</strong>, select a key position in the layout, and choose a replacement from the key palette.</li><li>Switch layer tabs to see how the same physical positions can carry different bindings.</li><li>Choose <strong>Export Layout</strong> in the editor toolbar if you want to keep your experiment.</li></ol>
+  <div class="callout"><strong>Offline means no keyboard writes.</strong> An example or loaded file is a draft in the current session. Export it before closing or refreshing. Connecting a keyboard later reads that keyboard; it does not automatically install your draft.</div>
+  <p>Most illustrations use the bundled offline example. Captions explicitly identify connected controls shown with controlled test-board data. No screenshot is presented as proof of a hardware write.</p>
+</section>
+
+<section id="connect" aria-labelledby="connect-title">
+  <h2 id="connect-title">2. Connect and protect your starting point</h2>
+  <p class="path">Welcome → Connect Keyboard → browser device chooser</p>
+  <p>Use a desktop browser that supports WebHID, such as Chrome or Edge, and a USB data connection. The connection button is unavailable when the browser lacks the required API. Keybard's browser editor expects compatible Svalboard firmware; seeing a keyboard in a device chooser does not establish firmware compatibility.</p>
+  <ol><li>Connect your Svalboard by USB, open Keybard, and choose <strong>Connect Keyboard</strong>.</li><li>Select the intended keyboard in the browser's chooser and grant access. With several keyboards attached, check which one you selected.</li><li>Wait for the layout to load. Hover the connection/update controls to check the editing target before changing anything.</li><li>Choose <strong>Export Layout</strong>. Keep the native <strong>.svil (Recommended)</strong> and <strong>Include Macros</strong> enabled, then choose <strong>Export</strong>.</li><li>Name the downloaded file clearly—for example, <code>before-first-edit.svil</code>—and keep it somewhere you can find again.</li></ol>
+  <div class="warning"><strong>Back up before editing.</strong> Export captures the configuration currently shown in the editor, including staged changes. Exporting after experiments does not recover the untouched configuration you originally connected to.</div>
+  <figure><img src="assets/export.png" alt="Export Keyboard Configuration dialog with native .svil format and Include Macros" loading="lazy"><figcaption>Use the native format and include macros for your working backup. This dialog is shown in an offline example.</figcaption></figure><h3>Coming from an older configuration tool</h3>
+  <p>Keep your existing layout backup before changing firmware. You can open a legacy <code>.vil</code> file offline to inspect it, but Keybard blocks direct import of old-protocol layouts into connected Sval firmware when keycode migration is required. Renaming the file extension is not a conversion.</p>
+  <p>For Svalboard Vial-QMK <code>v2025-11-01</code> with the <code>vial</code> keymap, the firmware can migrate supported configuration on first boot. Follow the <a href="https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/release/launch.md#moving-from-vial-qmk">firmware upgrade instructions</a>, connect in Keybard, and verify layers, macros, modifier options, timing and pointing settings. Then export a fresh native <code>.svil</code>. Other old or custom builds are not covered; keep the old file as a reference and recreate anything not migrated. A supported firmware migration is different from importing a legacy file in the browser.</p>
+  <h3>Understand the editing target</h3>
+  <table><thead><tr><th>State</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td>Editing keyboard</td><td>Changes can be written to the connected device.</td></tr>
+    <tr><td>Offline draft</td><td>Changes affect the loaded file or example in this session. Export to keep them.</td></tr>
+    <tr><td>Pending changes</td><td>The editor has changes waiting to be written; the displayed layout may differ from the board.</td></tr>
+    <tr><td>Not saved</td><td>A write failed. Some writes may already have succeeded; follow the retry guidance.</td></tr>
+  </tbody></table>
+</section>
+
+<section id="first-edit" aria-labelledby="first-edit-title">
+  <h2 id="first-edit-title">3. Make and verify your first change</h2>
+  <figure><img src="assets/workspace.png" alt="Offline Keybard editor with navigation, layer tabs, and the Svalboard layout" loading="lazy"><figcaption>An offline example of the editing workspace: navigation on the left, layer selection above the layout.</figcaption></figure>
+  <p>Start with one easy-to-recognize binding on a known layer. Keep the keys you need for navigation and switching layers intact until you are comfortable restoring changes.</p>
+  <figure><img src="assets/toolbar-detail.png" alt="Actual Keybard connected controls showing Pending (1), the lightning update-mode control, and Apply 1 Change" loading="lazy"><figcaption>Actual toolbar with controlled test-board data. From the left: Pending, the update-mode lightning control, Apply, Undo, Import (down arrow), Export (up arrow), then Matrix Tester. No physical board was used.</figcaption></figure><h3>Choose when changes reach the board</h3>
+  <p><strong>Live Updating is on by default.</strong> While connected, ordinary queued edits are saved as you make them. For a controlled first experiment, use the lightning control labeled <strong>Switch to Manual Updates</strong>. You can then review pending edits before applying them.</p>
+  <table><thead><tr><th>Control</th><th>Effect</th></tr></thead><tbody>
+    <tr><td>Live Updating</td><td>Edits are saved as you make them; watch for saving or error messages.</td></tr>
+    <tr><td>Apply N Changes</td><td>Writes the pending changes in Manual mode.</td></tr>
+    <tr><td>Discard pending edits</td><td>Discards the current unsaved edits. It does not reverse changes already applied.</td></tr>
+    <tr><td>Switch to Live Updating</td><td>Applies pending changes before enabling Live Updating.</td></tr>
+  </tbody></table>
+  <ol><li>Select the layer you intend to edit.</li><li>Open <strong>Standard Keys</strong> and select a position on the displayed keyboard.</li><li>Choose its replacement from the palette. You can also drag a palette key onto the target.</li><li>Check the resulting legend. In connected Manual mode, open <strong>Pending (N)</strong> to review what will be written.</li><li>Choose <strong>Apply N Changes</strong> and wait for saving to finish. Do not assume a changed legend alone means the board was updated.</li><li>Deselect the key, switch to a text editor, activate the appropriate layer, and test the result.</li><li>Export the verified configuration as a new file.</li></ol>
+  <figure><img src="assets/standard-keys.png" alt="Standard Keys palette alongside an offline Svalboard layout" loading="lazy"><figcaption>The Standard Keys palette in an offline example. Choose a target position before selecting its replacement.</figcaption></figure>
+  <div class="warning"><strong>Typing can assign a key.</strong> <strong>Typing Binds a Key</strong> is enabled by default. With an editing target selected, pressing a physical key can assign that key, including modifiers, to the target. Deselect before testing normal typing, or turn this option off in <strong>Settings → General</strong>.</div>
+  <p>Dragging an existing layout key onto another position swaps bindings, including across layers. Use this deliberately: it is different from copying a palette key. If an <strong>Undo</strong> button appears, its tooltip identifies the operation it can reverse; do not treat it as unlimited editing history.</p>
+</section>
+
+<section id="layers" aria-labelledby="layers-title">
+  <h2 id="layers-title">4. Build a layout you can navigate</h2>
+  <p>A layer is another set of bindings for the same physical key positions. Editing a layer tab changes what you are looking at in Keybard; using a layer binding on the physical keyboard changes what the keyboard types.</p>
+  <table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td>Base/default layer</td><td>The starting layer used when no higher active layer provides a binding.</td></tr>
+    <tr><td>Transparent key</td><td>Looks through to a lower active layer for its binding.</td></tr>
+    <tr><td>Blank key</td><td>Produces no action at that position instead of falling through.</td></tr>
+    <tr><td>Momentary layer key</td><td>Activates another layer while held.</td></tr>
+    <tr><td>Layer-tap key</td><td>Types one action when tapped and activates a layer when held.</td></tr>
+  </tbody></table>
+  <p>Open <strong>Layer Keys</strong> for layer bindings. Start with a momentary key leading to a small navigation or symbols layer. Keep the activation key usable while that layer is active; a transparent binding at the corresponding position is often appropriate.</p>
+  <figure><img src="assets/layers.png" alt="Offline layer-editing example showing layer controls and bindings" loading="lazy"><figcaption>Layers let the same positions serve different purposes. This is an offline editing example.</figcaption></figure>
+  <h3>Build a simple navigation layer</h3><ol><li>Choose an unused layer, such as layer 1, and assign a small group of arrow keys from Standard Keys. Make the other positions transparent if they should inherit the base.</li><li>Return to the base layer and select a spare position for entering navigation.</li><li>Open <strong>Layer Keys</strong>, choose <strong>Momentary (MO)</strong>, and assign the tile for layer 1 to that position.</li><li>Review and apply the edits, then deselect the target. In a text editor, hold the new key and try the arrows. Release it and confirm normal typing returns.</li></ol><p>For a tap action on the same key, assign its desired tap key first, keep that position selected, then choose <strong>Layer Tap (LT)</strong> and its destination. The composer derives the tap action from the selected position.</p><table><thead><tr><th>Layer Keys choice</th><th>When to use it</th></tr></thead><tbody><tr><td>Momentary · MO</td><td>Activate a layer only while held.</td></tr><tr><td>Layer Tap · LT</td><td>Send a key on tap; activate a layer on hold.</td></tr><tr><td>Toggle Layer · TG</td><td>Turn a layer on or off with a tap. Keep a way to toggle it off.</td></tr><tr><td>Tap Toggle · TT</td><td>Hold momentarily, or tap the configured number of times to toggle.</td></tr><tr><td>One Shot Layer · OSL</td><td>Activate a layer for the next key.</td></tr><tr><td>To Layer · TO</td><td>Replace other active layers while retaining the default. Plan a return binding.</td></tr><tr><td>Default Layer · DF</td><td>Change the base for this power session.</td></tr><tr><td>Persistent Default Layer · PDF</td><td>Save the chosen base across power cycles.</td></tr></tbody></table><h3>Name, inspect, and reuse layers</h3>
+  <p>Click a layer name to rename it. Use its color control to make related layers easier to recognize. The layer's actions menu offers <strong>Copy Layer</strong>, <strong>Paste Layer</strong>, <strong>Make All Blank</strong>, <strong>Make All Transparent</strong>, and conversions between blank and transparent keys. Whole-layer operations affect many positions; check the target layer first.</p>
+  <p><strong>Show Multiple Layers</strong> helps compare layers. <strong>3D View</strong> changes their presentation. <strong>Hide All Transparent Keys</strong> helps inspect inherited bindings; it does not rewrite those transparent keys. <strong>Show All Layers</strong> reveals layers hidden by the transparent-layer filter.</p>
+  <ol><li>Open a layer's actions menu and choose <strong>Save Layer...</strong> to put a reusable copy in the local <strong>Layouts</strong> library.</li><li>Open <strong>Layouts</strong> and expand a saved or imported layout.</li><li>Drag the desired layer onto the destination layer in the editor.</li><li>Read the replacement confirmation and confirm only when the destination is correct.</li><li>Review and apply the resulting changes according to your update mode.</li></ol>
+  <figure><img src="assets/layouts.png" alt="Layouts library with reusable layer previews in an offline session" loading="lazy"><figcaption>The Layouts library holds reusable layers. Its Import control adds library content; it is separate from importing a configuration onto a board.</figcaption></figure>
+  <div class="callout"><strong>Local library, not a backup service.</strong> Saved layers and imported library items belong to this browser's local storage. Export important configurations to files; clearing browser data can remove local library content.</div>
+</section>
+
+<section id="files" aria-labelledby="files-title">
+  <h2 id="files-title">5. Back up and import with confidence</h2>
+  <p class="path">Editor toolbar → Export Layout or Import Layout</p>
+  <p>Use native <code>.svil</code> for your working backups. Keep <strong>Include Macros</strong> enabled unless you intentionally want to omit macro content. The legacy <code>.vil</code> export retains QMK settings, but does not preserve all Sval-specific hardware values and metadata, including names, colors, and cluster selections.</p>
+  <table><thead><tr><th>Operation</th><th>What it preserves or changes</th></tr></thead><tbody>
+    <tr><td>Export Layout</td><td>Downloads the editor's current configuration, including staged work.</td></tr>
+    <tr><td>Load File on welcome screen</td><td>Opens an offline draft; does not write a board.</td></tr>
+    <tr><td>Import Layout in editor toolbar</td><td>Reviews configuration changes for the current target.</td></tr>
+    <tr><td>Import in Layouts panel</td><td>Adds reusable layouts to the browser library.</td></tr>
+    <tr><td>Save Layer...</td><td>Saves one layer locally for reuse, not a complete device backup.</td></tr>
+  </tbody></table>
+  <h3>Import a compatible backup onto a connected keyboard</h3>
+  <ol><li>Connect the destination board and export its current configuration before making changes.</li><li>Apply or discard pending edits before beginning an import.</li><li>Choose <strong>Import Layout</strong>, select the file, and read <strong>Review layout import</strong>.</li><li>Check the destination, counts, warnings, and errors. <strong>Back up current layout</strong> is available in the review.</li><li>In Manual mode, choose <strong>Stage import</strong>, review pending changes, then <strong>Apply</strong>. In Live Updating, <strong>Apply import</strong> writes the changes. Offline, <strong>Open layout</strong> replaces the current draft.</li><li>Check the imported bindings and test important actions before relying on them.</li></ol>
+  <figure><img src="assets/import.png" alt="Review layout import dialog in an offline example" loading="lazy"><figcaption>An offline import review. A connected review identifies the keyboard destination and offers Stage import or Apply import according to the update mode.</figcaption></figure>
+  <p>Import is not a complete device-image restore. The current importer keeps the board's alt-repeat entries, leaders, one-shot configuration, layer colors, and fragment state. It reports unsupported fields and settings. Entries beyond the incoming file's layers and tables are kept rather than erased.</p>
+  <p>A file may be rejected for mismatched matrix dimensions, too many layers or table entries, incompatible keycodes, unsupported macro content, or capacity limits. Read the specific message instead of forcing the file through. Native backups preserve information even when a particular field cannot yet be restored automatically.</p>
+</section>
+
+<section id="returning" aria-labelledby="returning-title">
+  <h2 id="returning-title">6. Return to your work</h2>
+  <p>After a refresh, Keybard intentionally returns to the welcome screen. Previously permitted keyboards can appear under <strong>or reconnect without the chooser</strong>. Select the correct device to read its saved state again.</p>
+  <p>To continue offline work, choose <strong>Load File</strong> and reopen your exported draft. Browser preferences and the local Layouts library can persist, but they are not an automatic recovery copy of the current editor session.</p>
+  
+  <p>Before each editing session, check the target, update mode, selected layer, and whether a key is selected. Use a small naming convention for backups: one before a major change, one after verification. Keep both until the new layout is comfortable.</p>
+</section>
+
+<section id="troubleshooting" aria-labelledby="troubleshooting-title">
+  <h2 id="troubleshooting-title">7. Recover from common problems</h2>
+  <h3>I cannot connect</h3>
+  <p>Check WebHID browser support, the USB data connection, the chosen device, and compatible firmware. Close other configuration applications if they are holding the device, then reconnect. A previously granted browser permission is not proof that the cable, firmware, or current device connection is working.</p>
+  <h3>The layout changed, but typing did not</h3>
+  <p>Check whether you are editing an offline draft or have pending Manual changes. Confirm the physical keyboard is on the layer you edited. Transparent keys may inherit a different binding, and a layer-tap key waits to distinguish a tap from a hold.</p>
+  <h3>Typing unexpectedly changed a binding</h3>
+  <p>Deselect the target and check <strong>Typing Binds a Key</strong>. In Manual mode, inspect and discard unwanted pending edits. If a change was already applied, explicitly restore the previous binding; discarding does not undo saved writes.</p>
+  <h3>A save failed</h3>
+  <p>Read the <strong>Not saved</strong> message. Pending edits remain, and some earlier writes may already have succeeded. If still connected, use <strong>Retry</strong>. If the device disconnected, <strong>export the retained draft before reconnecting</strong>. Reconnection reads the board again and may discard pending edits. Compare that state with your saved draft, then review an import if appropriate, observing the restore limitations above.</p>
+  <h3>A name will not save</h3><p>Layer, macro and tap-dance names have a 16-byte UTF-8 limit on supported firmware. Accented characters and emoji can use several bytes each. Shorten the name and read the error. A board’s USB name is a separate setting with its own limits.</p><h3>Controls or layers seem missing</h3>
+  <p>Expand the navigation rail, reveal <strong>Show editor controls</strong> if the toolbar is collapsed, or use <strong>Show All Layers</strong>. Some settings depend on firmware capabilities and attached hardware; an offline example cannot demonstrate every connected-device function.</p>
+</section>

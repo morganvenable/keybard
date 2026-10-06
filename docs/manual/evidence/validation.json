@@ -1,0 +1,87 @@
+{
+  "checks": [
+    {
+      "check": "responsive/search/diagram/lightbox",
+      "passed": true,
+      "detail": {
+        "viewport_width": 360,
+        "console_errors": []
+      }
+    },
+    {
+      "check": "responsive/search/diagram/lightbox",
+      "passed": true,
+      "detail": {
+        "viewport_width": 390,
+        "console_errors": []
+      }
+    },
+    {
+      "check": "responsive/search/diagram/lightbox",
+      "passed": true,
+      "detail": {
+        "viewport_width": 768,
+        "console_errors": []
+      }
+    },
+    {
+      "check": "responsive/search/diagram/lightbox",
+      "passed": true,
+      "detail": {
+        "viewport_width": 1280,
+        "console_errors": []
+      }
+    },
+    {
+      "check": "responsive/search/diagram/lightbox",
+      "passed": true,
+      "detail": {
+        "viewport_width": 1600,
+        "console_errors": []
+      }
+    },
+    {
+      "check": "stable mobile deep link",
+      "passed": true,
+      "detail": {
+        "target": "settings",
+        "start": 105.015625,
+        "settled": 105.015625
+      }
+    },
+    {
+      "check": "stable mobile deep link",
+      "passed": true,
+      "detail": {
+        "target": "files",
+        "start": 104.6875,
+        "settled": 104.6875
+      }
+    },
+    {
+      "check": "stable mobile deep link",
+      "passed": true,
+      "detail": {
+        "target": "trainer",
+        "start": 104.5625,
+        "settled": 104.5625
+      }
+    },
+    {
+      "check": "local assets and links",
+      "passed": true,
+      "detail": 24
+    },
+    {
+      "check": "print PDF",
+      "passed": true,
+      "detail": "keybard-user-manual.pdf"
+    },
+    {
+      "check": "no-JavaScript reading",
+      "passed": true,
+      "detail": "All eleven chapters remain available"
+    }
+  ],
+  "all_passed": true
+}

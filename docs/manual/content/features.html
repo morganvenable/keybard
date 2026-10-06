@@ -1,0 +1,154 @@
+<section id="behaviors">
+  <p class="eyebrow">Build your shortcuts</p>
+  <h2>Give a key more than one job</h2>
+  <p><strong>Special Keys</strong> groups additional actions such as media and system controls; <strong>Layer Keys</strong> and <strong>Mouse Keys</strong> have their own palettes. Use the same select-and-assign or drag-and-drop interaction as Standard Keys.</p>
+  <p>A normal assignment sends a key. A behavior can send a sequence, distinguish a tap from a hold, or recognize several keys together. Start with one small example, verify it in an empty document, and then build on it. The maintained Svalboard firmware provides 256 slots each for macros, tap dances, combos, overrides, alternate-repeat mappings, and leader sequences. Available entries depend on the firmware or file you have loaded.</p>
+  <div class="callout"><strong>Editing and using are different steps.</strong> A macro or tap dance needs both a definition and a key that invokes it. Combos and overrides respond to their configured triggers. Leaders need a Leader key as well as a sequence. In <strong>Manual Updates</strong>, apply the queue with <strong>Apply N Changes</strong> before testing on the board. In Live Updating, supported edits reach the board as you make them. Close the binding editor, deselect the assignment target, and focus a disposable text document before testing: typing while an assignment target is selected may change the layout.</div>
+
+  <h3 id="macros">Macros: send a short sequence</h3>
+  <p class="path">Macro Keys → edit a slot</p>
+  <p>A macro runs its actions in order. Begin with something harmless, such as the text “hello”. You can author a macro in an offline layout; executing it requires assigning it on a connected board.</p>
+  <figure><a href="assets/macros.png"><img src="assets/macros.png" alt="Macro editor showing an ordered list of actions and controls for adding text, key events, and delays" loading="lazy"></a><figcaption>The Macro Keys editor. This is an offline example; it does not demonstrate a hardware write.</figcaption></figure>
+  <ol>
+    <li>Open <strong>Macro Keys</strong> and edit an unused numbered entry. In the compact bottom-panel presentation, the plus control opens an empty entry.</li>
+    <li>Add <strong>Text</strong> and enter <code>hello</code>. Give the macro a useful name by clicking its title where renaming is available.</li>
+    <li>Close the editor. Select a spare position in your layout, then choose that macro’s numbered key tile, or drag its tile onto the position.</li>
+    <li>Apply queued changes if necessary. Deselect the assignment and focus an empty document. Press the physical key once; it should type your text.</li>
+    <li>Return to the editor to add actions only after the small example works. Export a fresh backup when you are happy with it.</li>
+  </ol>
+  <p><strong>Key Tap</strong> presses and releases a key. <strong>Key Down</strong> holds it, and <strong>Key Up</strong> releases it. <strong>Delay</strong> inserts a pause in milliseconds. For a chord, use a modifier down, a key tap, and a matching modifier up. Always balance held keys with releases. Macro storage is shared across entries, rather than a separate fixed allowance for each macro.</p>
+  <p>Text macros send keyboard input, not clipboard contents. The operating system’s keyboard layout affects the resulting characters; do not assume arbitrary Unicode text will work. Start with simple text and test punctuation in your actual OS layout. Avoid using passwords or other secrets as examples: a macro and an exported configuration are not a secure secret store.</p>
+
+  <h3 id="tapdance">Tap dances: tap, hold, or tap twice</h3>
+  <p class="path">Tap Dance Keys → edit a slot</p>
+  <p>A tap dance gives one physical position several outputs. A simple learning example is <strong>Tap: A</strong> and <strong>Double-Tap: B</strong>, with unused actions left empty. This makes the difference easy to see in a scratch document.</p>
+  <figure><a href="assets/tap-dance.png"><img src="assets/tap-dance.png" alt="Tap dance editor with Tap, Hold, Tap-Hold, Double-Tap, and timing controls" loading="lazy"></a><figcaption>Each action has its own assignment slot. The timing field is called Milliseconds in the side panel and Hold Time (ms) in the bottom panel.</figcaption></figure>
+  <ol>
+    <li>Open an unused entry in <strong>Tap Dance Keys</strong>.</li>
+    <li>Select the <strong>Tap</strong> slot and assign A. Select <strong>Double-Tap</strong> and assign B. <strong>Hold</strong> is a sustained press; <strong>Tap-Hold</strong> is a tap followed by a held press.</li>
+    <li>Review the timing field and leave <strong>Enabled</strong> on. Avoid changing timing and every action at once.</li>
+    <li>Close the editor and assign the entry’s tap-dance tile to a spare keyboard position. Apply queued changes.</li>
+    <li>Deselect and test a single tap, then a quick double tap in an empty document. Adjust the timing if your deliberate double taps are being separated.</li>
+  </ol>
+  <p class="warning"><strong>Release before editing.</strong> Release a held tap-dance key before changing its action. The launch firmware has a known edge case where editing a held dance can leave its previous output held.</p>
+
+  <h3 id="combos">Combos: press a small chord</h3>
+  <p class="path">Combos → edit a slot</p>
+  <p>A combo recognizes up to four input keycodes pressed within its timing window, and emits an <strong>Output</strong>. For example, A and B together can send Escape. These are keycode triggers, not a named pair of physical positions: consider where those assignments appear in your layers.</p>
+  <figure><a href="assets/combos.png"><img src="assets/combos.png" alt="Combo editor showing input key slots and a separate output slot" loading="lazy"></a><figcaption>Define the inputs and output. A combo does not need a special combo key placed in the layout.</figcaption></figure>
+  <ol>
+    <li>Choose an unused combo. Fill the first two input slots with A and B and choose Escape for <strong>Output</strong>.</li>
+    <li>Leave the remaining input slots empty and enable the entry.</li>
+    <li>Apply changes. Deselect, focus a safe test window, and try each key separately before pressing them together.</li>
+    <li>If the chord is difficult to catch, review <strong>Combo Timeout</strong> in the Combos panel while connected. Increase it cautiously: a generous window may catch ordinary typing rolls.</li>
+  </ol>
+  <p>Choose combinations that are comfortable but uncommon in your normal text. After verifying the mechanics, replace the demonstration with your preferred inputs. There is no separate assignment step beyond having those input keycodes available on the keyboard.</p>
+
+  <h3 id="modifiers">Modifiers, mod-taps, and one-shots</h3>
+  <p class="path">Standard Keys → Modifiers → Mod, Mod-Tap, and One-Shot Mod</p>
+  <p>A modifier chord, a held modifier, and a mod-tap are different tools. A chord such as Ctrl+C sends a shortcut. A mod-tap can send A when tapped and hold Control when held. A one-shot modifier lets you tap Shift, release it, and then type a shifted key without holding both keys together.</p>
+  <ol>
+    <li>For the A/Control example, first assign A to the target position and keep that position selected.</li>
+    <li>In <strong>Standard Keys</strong>, select Control under <strong>Modifiers</strong>. The constructed keys use the currently selected position’s base assignment.</li>
+    <li>Choose the generated <strong>Mod-Tap</strong> tile. Do not choose the standalone modifier or one-shot tile by mistake.</li>
+    <li>Apply changes, deselect, and test a tap in a scratch document. Then hold the key while pressing another key to verify the modifier behavior.</li>
+  </ol>
+  <p>For a one-shot Shift, choose Shift and the generated one-shot tile instead. Test by tapping that key, releasing it, and typing a letter. Modifier controls include left/right choices; other composer presentations offer <strong>MEH</strong> (Control, Shift, Alt) and <strong>HYPER</strong> (those plus GUI). GUI is the Windows/Command-style modifier interpreted by your OS.</p>
+  <p>Use <strong>QMK Settings → One Shot Keys</strong> to review timeout and repeated-tap locking. Mod-tap decisions also depend on the Tap-Hold settings described below. Test typing rolls as well as isolated presses; a configuration that works slowly can feel different at speed.</p>
+
+  <h3 id="overrides">Overrides: change an action under a modifier</h3>
+  <p class="path">Overrides → edit a slot</p>
+  <p>An override replaces a trigger when its modifier and layer conditions match. A useful example is Shift+Backspace producing Delete. It changes how an existing assignment behaves, so you do not place an “override key” in your layout.</p>
+  <figure><a href="assets/overrides.png"><img src="assets/overrides.png" alt="Override editor with Trigger and Replacement keys, modifier condition tabs, and layer selection" loading="lazy"></a><figcaption>Keep the trigger key distinct from the Trigger modifier tab: one selects the key; the other selects the required modifiers.</figcaption></figure>
+  <ol>
+    <li>Set <strong>Trigger</strong> to Backspace and <strong>Replacement</strong> to Delete.</li>
+    <li>In the <strong>Trigger</strong> modifier tab, select the Shift modifier you use. Review handedness if you use both Shift keys.</li>
+    <li>Use <strong>Suspended</strong> for the triggering modifier you do not want included with the replacement. <strong>Negative</strong> specifies modifiers that prevent the override; leave it empty for this basic example.</li>
+    <li>Select the intended <strong>Layers</strong>, enable the entry, and keep advanced activation options at their existing defaults unless you have a reason to change them.</li>
+    <li>Apply, deselect, and test against expendable text: Backspace should retain its normal action, while the configured Shift combination should perform Delete.</li>
+  </ol>
+
+  <h3 id="leaders">Leaders: type an ordered sequence</h3>
+  <p class="path">Leaders → Leader key and sequence entries</p>
+  <p>A leader sequence is ordered input after a dedicated Leader key. Unlike a combo, its keys are typed in succession. For a harmless first example, Leader, A, B can trigger a macro that types “hello”.</p>
+  <figure><a href="assets/leaders.png"><img src="assets/leaders.png" alt="Leaders panel with a placeable Leader key, sequence entries, and their outputs" loading="lazy"></a><figcaption>A working leader setup needs both an assigned Leader key and an enabled sequence.</figcaption></figure>
+  <ol>
+    <li>Create and test the simple text macro first.</li>
+    <li>Open <strong>Leaders</strong>. Assign its <strong>Leader</strong> tile to a spare position.</li>
+    <li>Edit an unused sequence. Set its first two keys to A and B, and its <strong>Output</strong> to your macro. Enable it. Sequences allow up to five keys.</li>
+    <li>While connected, review <strong>Leader Timeout</strong>. <strong>Per-key timing</strong> resets that timeout after each key; otherwise the sequence shares its time allowance.</li>
+    <li>Apply, deselect, focus a scratch document, and press Leader followed by A then B within the allowance.</li>
+  </ol>
+
+  <h3 id="altrepeat">Alternate repeat: associate two actions</h3>
+  <p class="path">Alt-Repeat → edit a mapping</p>
+  <p>Alternate repeat uses the remembered key to choose an alternate action. For exploration, map A to B and assign the alternate-repeat action to a spare position. After typing A, invoke alternate repeat and inspect the result in a scratch document.</p>
+  <figure><a href="assets/alt-repeat.png"><img src="assets/alt-repeat.png" alt="Alternate-repeat editor with Trigger, Alternate, and mapping options" loading="lazy"></a><figcaption>The mapping and the key that invokes alternate repeat are separate parts of the setup.</figcaption></figure>
+  <ol>
+    <li>Choose an unused entry, set <strong>Trigger</strong> to A and <strong>Alternate</strong> to B, and enable it.</li>
+    <li>Assign the alternate-repeat action from the panel to a physical position. Apply the changes and deselect.</li>
+    <li>Test the simple mapping before exploring <strong>Bidirectional</strong>, <strong>Ignore mod handedness</strong>, or <strong>Default to alternate</strong>.</li>
+  </ol>
+  <p class="warning">The launch firmware has known defects involving modifier matching and default-alternate behavior. Treat custom mappings as something to verify, especially with modifiers; do not depend on an untested mapping for a critical shortcut.</p>
+</section>
+
+<section id="pointing">
+  <p class="eyebrow">Move and scroll</p>
+  <h2>Set up your pointing devices</h2>
+  <p class="path">Pointing Devices</p>
+  <p>Connect the board to see its sensor-specific controls. A loaded file can supply assignable pointing keys through the picker, but offline previews cannot demonstrate sensor behavior. The controls and ranges depend on the installed pointer, so your panel may differ from the example.</p>
+  <figure><a href="assets/pointing-controls.png"><img src="assets/pointing-controls.png" alt="Actual Pointing Devices controls with sensitivity, scrolling and automouse settings from controlled test-board data" loading="lazy"></a><figcaption>Actual connected UI with controlled test-board data. These illustrative values are not recommendations for your sensors.</figcaption></figure>
+  <ol>
+    <li>Start with ordinary pointer movement. Adjust the left or right sensitivity in small steps, applying queued edits as needed.</li>
+    <li>Test scrolling and its direction. Review per-side scrolling controls, axis lock, and natural scrolling where available.</li>
+    <li>Assign a <strong>Sniper</strong> hold key to try slower, precise movement. <strong>Boost</strong> does the opposite. The 2×, 3×, and 5× versions choose the factor; toggle versions stay active without holding the key.</li>
+    <li>If you use automouse, confirm its target layer contains useful mouse bindings and a comfortable way back to ordinary typing. Check which pointer may activate it, then tune threshold, decay, and timeout one at a time.</li>
+    <li>Verify normal movement, scrolling, and layer return before exporting a backup.</li>
+  </ol>
+  <p><strong>Mouse Keys</strong> are keyboard-generated mouse movement and button actions; they are not the same as physical sensor sensitivity. TrackPoint recalibration applies to TrackPoint hardware. Avoid copying a sensitivity number between different sensor types and expecting identical movement.</p>
+  <p class="warning">Known firmware edge cases include buffered scrolling, combinations of speed factors, and disabling an active automouse layer. Keep the first configuration simple and verify the behavior you actually use.</p>
+</section>
+
+<section id="settings">
+  <p class="eyebrow">Make it feel right</p>
+  <h2>Settings, timing, and board identity</h2>
+  <p class="path">Settings → General → QMK Settings…</p><figure><img src="assets/qmk-settings.png" alt="Actual QMK Settings Tap-Hold panel with controlled values for tapping behavior" loading="lazy"><figcaption>The QMK Settings panel with controlled test-board data. Check the values and supported controls reported by your own firmware.</figcaption></figure>
+  <figure><a href="assets/settings.png"><img src="assets/settings.png" alt="Keybard Settings panel showing general preferences and access to QMK settings" loading="lazy"></a><figcaption>Presentation preferences belong to the browser; supported keyboard settings belong to the board.</figcaption></figure>
+  <p>Browser choices include appearance, assignment behavior, and international palette selection. Choose a palette matching your OS keyboard layout; this does not change the OS layout itself. <strong>Settings → Fragments</strong> selects the finger and thumb assemblies used to draw your board. It describes the installed arrangement rather than rewiring it.</p>
+  <p>For timing, export a baseline first. Change one control, apply it, and test both slow deliberate presses and normal typing. <strong>Tapping Term</strong> influences tap-versus-hold decisions. <strong>Quick Tap Term</strong> affects repeated dual-role tapping. <strong>Permissive Hold (new)</strong>, <strong>Hold On Other Key Press</strong>, and <strong>Retro Tapping (new)</strong> control how other presses and releases affect that decision. <strong>Chordal Hold</strong> uses the hand relationship between keys; <strong>Flow Tap</strong> can favor taps during rapid typing and is off at zero.</p>
+  <p><strong>Tap Code Delay</strong> controls generated tap duration, <strong>Tap Hold Caps Delay</strong> handles generated Caps Lock taps, and <strong>Tapping Toggle</strong> controls TT’s tap count. Their launch defaults are 0 ms, 80 ms, and five taps; a stored toggle count of zero behaves as one. <strong>Grave Escape</strong> provides separate “Always send Escape” options for Alt, Control, GUI, and Shift.</p>
+  <p class="warning">A visible setting is not a guarantee that a firmware feature is enabled. Standard launch builds do not include Auto Shift, and some mouse-key settings have no runtime consumer. Use the launch notes for those limits rather than repeatedly adjusting an ineffective field.</p>
+  <p>Where supported, <strong>Board name</strong> changes how the keyboard appears to your computer. <strong>Save now</strong> writes immediately, even in manual mode; restart the keyboard for the USB name to change. Apply or export outstanding edits before restarting. Board identity is separate from a layout backup.</p>
+  <p><strong>Settings → Developer → Scan Lab…</strong> is for advanced scanning, power, and firmware diagnostics. Its timing application and bootloader controls can affect hardware immediately. For a simple “does this switch register?” check, use Matrix Tester instead. Power estimates are not battery-life measurements, and longer idle intervals can delay the first response after inactivity.</p>
+<h3 id="matrix-tester">Check every physical switch</h3><p class="path">Editor toolbar → Matrix Tester</p><ol><li>Connect the board and open <strong>Matrix Tester</strong> from the toolbar.</li><li>Press each finger direction and each thumb key, holding briefly so the polling display can see it. Compare the highlighted position with the one you pressed.</li><li>Use <strong>Clear Matrix</strong> to clear the visual test history and try again. It does not erase your layout or board settings.</li><li>Exit Matrix Tester to return to editing.</li></ol><p>This is a physical-switch check, not a monitor of the final text produced by macros, combos or tap dances. Very brief presses can fall between snapshots. If the matrix sees the switch but typing is wrong, inspect its layer and binding rather than assuming the switch failed.</p><h3 id="print-layout">Print a desk reference</h3><p>Open <strong>Settings → General → Print Layers…</strong>. Review the non-empty layers, then use the browser’s print dialog to print them or save a PDF. A printed diagram is a learning reference; export a <code>.svil</code> as well for an editable backup.</p></section>
+
+<section id="trainer">
+  <p class="eyebrow">Learn your layout</p>
+  <h2>Trainer and the desktop overlay</h2>
+  <p class="path">Trainer, directly below Layouts</p>
+  <p>Trainer previews the appearance and controls the optional desktop overlay. The browser is useful for choosing a style or reviewing an offline layout. Keybard Host supplies the native transparent window above your other applications and reads live board state directly. Its board operations are read-only.</p>
+  <figure><a href="assets/trainer.png"><img src="assets/trainer.png" alt="Trainer appearance controls beside a browser preview of the keyboard" loading="lazy"></a><figcaption>The browser preview, not a captured native desktop overlay. Light, Dark, and Busy test backgrounds help you judge contrast.</figcaption></figure>
+  <figure class="overlay-illustration"><p class="desk-copy">Keep your work in view.<br>Keep your layout nearby.</p><img src="assets/overlay-renderer.png" alt="The actual shared native overlay renderer displaying the bundled example as two groups of key clusters" loading="lazy"><figcaption>Illustration using the actual native renderer with simulated host state and the bundled example. The background is illustrative; this is not a capture of a running Windows desktop.</figcaption></figure><h3>Install and show the Windows overlay</h3>
+  <ol>
+    <li>Select <strong>Download for Windows</strong> at the top of Trainer. Extract the ZIP and run <strong>Start-Windows.cmd</strong>.</li>
+    <li>Allow the first launch to download its private runtime. It needs internet, but no administrator rights, system Python, or PATH changes.</li>
+    <li>The app opens Keybard. Connect your keyboard normally and select Trainer. If needed, use <strong>Connect to Keybard Host</strong> and allow the browser’s local-device access request. The install panel also links to local Keybard when Host is running.</li>
+    <li>Choose the board in the host selector and use <strong>Show overlay</strong>. Host remembers its selected board for reconnection.</li>
+    <li>Drag the overlay into place. In <strong>Overlay</strong>, optionally enable <strong>Click through keyboard</strong>; the small handle remains available for moving or hiding it. <strong>Place at bottom</strong> provides a convenient starting position.</li>
+  </ol>
+  <p>The companion stays in the system tray when you close the browser. Use <strong>Hide overlay</strong> or the overlay’s handle controls to get it out of the way. After editing the keyboard layout, choose <strong>Reload layout</strong> so the companion refreshes its cached copy. If reconnection fails, check the host board selection and USB connection rather than importing a different layout to mask the problem.</p>
+  <p class="callout">The Windows download is a portable preview, not a signed installer. Linux source launch is available, with Wayland limitations for placement, stacking, click-through, and modifier reporting. macOS remains unverified; equivalent validated packages for all platforms are not promised.</p>
+  <h3>Choose what you can see</h3>
+  <p>Start with an <strong>Appearance</strong> preset, then adjust <strong>Key fill</strong>, <strong>Outline</strong>, and <strong>Legend</strong> colors and opacity independently. Try <strong>Contrasting legend halo</strong> over busy backgrounds. Use <strong>Outline thickness</strong> for definition without making the fill more opaque. <strong>Hands</strong> and <strong>Overlay size</strong> are in Overlay.</p>
+  <p>In <strong>Feedback</strong>, choose <strong>Layer-change highlight</strong>: Off, Quick flash, or Short fade, and its duration. Enable <strong>Highlight held keys</strong> for a matrix-tester-like indication. Matrix polling can miss very brief taps and does not describe every generated macro or combo output. The preview’s <strong>Preview held keys</strong> button simulates a chord.</p>
+  <p>Current firmware reports active and default layers automatically, including changes during use. Older firmware may require <strong>Default layer (older firmware)</strong>. For offline previews, choose <strong>Default layer</strong> and <strong>Preview layer</strong>. <strong>Layout source</strong> distinguishes a loaded snapshot, editor draft, example, imported trainer layout, and a live read-only board. <strong>Import for trainer</strong> changes the preview source; it does not write that file to the keyboard.</p>
+  <h3>Practice recall without recording your typing</h3>
+  <figure><a href="assets/trainer-practice.png"><img src="assets/trainer-practice.png" alt="Trainer Practice tab with recall controls and familiar-binding options" loading="lazy"></a><figcaption>Practice is self-assessed: reveal the location, then tell Trainer whether you remembered it.</figcaption></figure>
+  <ol>
+    <li>Open <strong>Practice</strong> and enable <strong>Recall practice</strong>. Read the requested binding and hand, and decide where you would press.</li>
+    <li>Choose <strong>Reveal</strong>, then <strong>Remembered</strong> or <strong>Again</strong> to advance. This is not an automatic typing test.</li>
+    <li>For selective help, choose a key in the preview or the binding selector, click <strong>Mark familiar</strong>, and enable <strong>Hide familiar legends</strong>.</li>
+    <li>Turn practice off to return to ordinary reference. Closing the temporary controls also returns the desktop overlay to reference mode.</li>
+  </ol>
+  <p>Recall counts and familiar selections are temporary practice state, not a durable learning-history service. Appearance preferences are saved separately. When following the board, recall can also hide desktop legends; otherwise you are practicing against the selected preview layout.</p>
+</section>
