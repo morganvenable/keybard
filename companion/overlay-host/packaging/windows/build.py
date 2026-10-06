@@ -22,6 +22,9 @@ HOST = HERE.parents[1]
 ROOT = HOST.parents[1]
 BUILD = ROOT / 'build-windows'
 ICON = HOST / 'keybard_host' / 'assets' / 'svalboard.ico'
+# Code signing is off until configured (docs/code-signing.md). KEYBARD_SIGN_COMMAND is a
+# command line containing {file}; it is run once for each file to sign.
+SIGN_COMMAND = os.environ.get('KEYBARD_SIGN_COMMAND', '').strip()
 
 
 def find_iscc():
@@ -31,6 +34,24 @@ def find_iscc():
         if base and (Path(base) / 'Inno Setup 6' / 'ISCC.exe').is_file():
             return Path(base) / 'Inno Setup 6' / 'ISCC.exe'
     raise SystemExit('Inno Setup 6 (ISCC.exe) was not found.')
+
+
+def verify_signature(path):
+    """Fail the build unless Windows reports a valid, timestamped signature."""
+    literal = str(path).replace("'", "''")
+    script = (f"$s = Get-AuthenticodeSignature -LiteralPath '{literal}'; "
+              "if ($s.Status -ne 'Valid') { Write-Error \"$($s.Status): $($s.StatusMessage)\"; exit 1 }; "
+              "if (-not $s.TimeStamperCertificate) { Write-Error 'Signature is not timestamped'; exit 1 }; "
+              "Write-Output \"signed: $($s.SignerCertificate.Subject)\"")
+    subprocess.run(['powershell.exe', '-NoProfile', '-Command', script], check=True)
+
+
+def sign(path):
+    if not SIGN_COMMAND: return False
+    if '{file}' not in SIGN_COMMAND: raise SystemExit('KEYBARD_SIGN_COMMAND must contain {file}')
+    subprocess.run(SIGN_COMMAND.replace('{file}', f'"{path}"'), shell=True, check=True)
+    verify_signature(path)
+    return True
 
 
 def stage():
@@ -58,14 +79,22 @@ def freeze(staged):
     app = BUILD / 'dist' / 'Keybard Host'
     for required in ('Keybard Host.exe', '_internal/web/index.html', '_internal/web-paranoid/index.html', '_internal/keybard_host/assets/svalboard.png'):
         if not (app / required).is_file(): raise SystemExit(f'Frozen app is missing {required}')
+    sign(app / 'Keybard Host.exe')
     return app
 
 
 def installer(app, paranoid, version):
     numeric = '.'.join((re.findall(r'\d+', version) + ['0'] * 4)[:4])
-    subprocess.run([str(find_iscc()), f'/DAppVersion={version}', f'/DNumericVersion={numeric}', f'/DSourceDir={app}',
-                    f'/DParanoidFile={paranoid}', f'/DIconFile={ICON}', f'/DOutputDir={BUILD}', str(HERE / 'KeybardHost.iss')], check=True)
-    return BUILD / 'KeybardHostSetup.exe'
+    command = [str(find_iscc()), f'/DAppVersion={version}', f'/DNumericVersion={numeric}', f'/DSourceDir={app}',
+               f'/DParanoidFile={paranoid}', f'/DIconFile={ICON}', f'/DOutputDir={BUILD}']
+    if SIGN_COMMAND:
+        # Inno Setup signs the installer and the uninstaller it generates; $f is the quoted file.
+        command += ['/DSign', '/Skeybard=' + SIGN_COMMAND.replace('{file}', '$f')]
+    subprocess.run(command + [str(HERE / 'KeybardHost.iss')], check=True)
+    setup = BUILD / 'KeybardHostSetup.exe'
+    if SIGN_COMMAND: verify_signature(setup)
+    else: print('Not code signed: KEYBARD_SIGN_COMMAND is not set (see docs/code-signing.md).')
+    return setup
 
 
 def main():

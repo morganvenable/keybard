@@ -49,6 +49,11 @@ WizardStyle=modern
 ; Close a running Keybard Host before replacing or removing its files.
 CloseApplications=force
 RestartApplications=no
+#ifdef Sign
+; Signs the installer and its uninstaller with the command build.py passes as /Skeybard=.
+SignTool=keybard
+SignedUninstaller=yes
+#endif
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked

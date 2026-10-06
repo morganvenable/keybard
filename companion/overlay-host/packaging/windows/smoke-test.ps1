@@ -1,7 +1,7 @@
 # Install KeybardHostSetup.exe silently, check the installed app answers in
 # normal and paranoid mode, then uninstall and check it is gone. For CI runners;
 # it installs into a temporary folder for the current user.
-param([Parameter(Mandatory)][string]$Installer)
+param([Parameter(Mandatory)][string]$Installer, [switch]$ExpectSigned)
 $ErrorActionPreference = 'Stop'
 $dir = Join-Path ([IO.Path]::GetTempPath()) 'KeybardHostSmokeTest'
 $setup = Start-Process -FilePath $Installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$dir`"" -Wait -PassThru
@@ -15,6 +15,14 @@ foreach ($file in @($exe, 'keybard-paranoid.html', '_internal\web\index.html', '
 $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Keybard'
 foreach ($name in 'Keybard Host', 'Keybard Host (Paranoid)', 'Keybard Paranoid (offline)', 'Uninstall Keybard Host') {
     if (-not (Test-Path -LiteralPath (Join-Path $menu "$name.lnk"))) { throw "Start menu shortcut missing: $name" }
+}
+
+if ($ExpectSigned) {
+    foreach ($file in @($Installer, $exe, (Join-Path $dir 'unins000.exe'))) {
+        $sig = Get-AuthenticodeSignature -LiteralPath $file
+        if ($sig.Status -ne 'Valid' -or -not $sig.TimeStamperCertificate) { throw "Not validly signed and timestamped: $file ($($sig.Status))" }
+        "signed: $(Split-Path $file -Leaf) by $($sig.SignerCertificate.Subject)"
+    }
 }
 
 $env:QT_QPA_PLATFORM = 'offscreen'

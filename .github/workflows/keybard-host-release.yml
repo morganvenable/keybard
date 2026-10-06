@@ -79,6 +79,9 @@ jobs:
             choco install innosetup -y --no-progress
           }
       - name: Build installer
+        env:
+          # Code signing switches on when this secret exists (docs/code-signing.md); unsigned otherwise.
+          KEYBARD_SIGN_COMMAND: ${{ secrets.KEYBARD_SIGN_COMMAND }}
         run: python companion/overlay-host/packaging/windows/build.py --version "${{ inputs.tag }}"
       - name: Install, run and uninstall
         shell: pwsh
