@@ -57,8 +57,16 @@ def manual_apply(r):
  return 'Staged and applied a QMK setting through the real queue with an explicitly simulated write endpoint; no physical device'
 def printing(r):
  r.page.evaluate('window.print=()=>{window.documentationPrintRequested=true}')
- r.nav('Settings');r.nav('Print Layers...');r.page.wait_for_function('window.documentationPrintRequested===true');r.page.emulate_media(media='print');r.frame(1500)
- return 'Invoked Print Layers and displayed actual print CSS; native print dialog is outside the web capture'
+ r.nav('Settings');r.nav('Print Layers...')
+ dialog=r.page.get_by_role('dialog',name='Print Keyboard Layout',exact=True)
+ dialog.wait_for();r.frame(1200);r.click(dialog.get_by_role('button',name='Print',exact=True))
+ r.page.wait_for_function('window.documentationPrintRequested===true')
+ preview=r.page.locator('.printable-keymap-wrapper');preview.wait_for(state='visible')
+ assert preview.locator('.print-layer').count()>0
+ r.page.emulate_media(media='print');preview.wait_for(state='visible');r.page.evaluate('scrollTo(0,0)');r.frame(2200)
+ assert preview.locator('.print-layer').first.is_visible()
+ assert preview.locator('.print-title').inner_text().strip()
+ return 'Opened Print Layers review, clicked Print, and verified visible printable layers and title; native print dialog is outside web capture'
 def matrix(r):
  r.page.evaluate("""async()=>{const {keyboardService}=await import('/keybard-ng/services/keyboard.service.ts');window.documentationPressed=[];keyboardService.pollMatrix=async(kb)=>Array.from({length:kb.rows},(_,i)=>Array.from({length:kb.cols},(_,j)=>window.documentationPressed.some(([r,c])=>i===r&&j===c)));}""")
  r.nav('Matrix Tester')
