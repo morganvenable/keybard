@@ -28,7 +28,26 @@ python3 companion/overlay-host/scripts/package.py
 
 This creates `dist/KeybardHost-Windows.zip` with the web build, source runner, startup/bootstrap scripts, and pinned runtime manifest. Runtime downloads and user preferences are excluded. The ZIP is a local test distribution, not a signed installer.
 
-For Ubuntu/X11/Wayland investigation, copy `dist` web assets to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. Qt WebEngine needs the normal desktop system libraries. Wayland stacking/placement/click-through are compositor-dependent and unverified; this is not a layer-shell implementation. macOS is unverified.
+For Ubuntu/X11/Wayland investigation, copy `dist` web assets to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. Wayland stacking/placement/click-through are compositor-dependent and unverified; this is not a layer-shell implementation. macOS is unverified.
+
+### Linux setup
+
+Qt's X11 plugin and Qt WebEngine need these libraries. A full Ubuntu desktop has most of them; minimal installs and WSL do not. Qt reports any missing X11 library as `xcb-cursor0`, so install the whole list:
+
+```sh
+sudo apt install python3-venv libnss3 libasound2t64 libxkbfile1 libxcb-cursor0 libxcb-icccm4 \
+  libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxkbcommon-x11-0
+```
+
+The host reads the board through hidraw, which is root-only by default. Allow the `plugdev` group to use Svalboard HID nodes, then replug the board or trigger udev:
+
+```sh
+echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4044", MODE="0660", GROUP="plugdev"' \
+  | sudo tee /etc/udev/rules.d/60-svalboard.rules
+sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
+```
+
+Under WSL, attach the board with [usbipd-win](https://github.com/dorssel/usbipd-win) (`usbipd bind`, then `usbipd attach --wsl`); Windows loses the board until it is detached. If Wayland fails with `Failed to create wl_display`, set `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir`. WSLg does not show the overlay's windows under X11 (`QT_QPA_PLATFORM=xcb`); use Wayland there. If a Windows host already owns port 5178, start the Linux host with `--port 5179`. WSLg results are not evidence for native Ubuntu stacking, focus or click-through.
 
 ## Validation
 
