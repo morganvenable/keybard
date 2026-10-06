@@ -1,3 +1,4 @@
+import { BindingName } from "@/layout/SecondarySidebar/components/BindingName";
 import React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { Key } from "@/components/Key";
@@ -179,9 +180,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                                         disableTooltip={true}
                                     />
                                 </div>
-                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300 truncate">
-                                    {customName || `Macro ${i} `}
-                                </span>
+                                <BindingName kind="macro" index={i} name={customName} readOnly={isPicker} />
                             </div>
                             <div className="flex flex-row items-center gap-0.5 flex-wrap justify-center">
                                 {actions.slice(0, 4).map((action, idx) => (
@@ -263,7 +262,10 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                         >
-                            {rowChildren}
+                            <div className="flex flex-col min-w-0 w-full gap-1">
+                                <BindingName kind="macro" index={i} name={keyboard.cosmetic?.macros?.[i.toString()]} readOnly={isPicker} />
+                                {rowChildren}
+                            </div>
                         </SidebarItemRow>
                     );
                 })}
