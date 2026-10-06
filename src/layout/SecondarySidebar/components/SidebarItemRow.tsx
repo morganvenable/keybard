@@ -201,7 +201,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                 {/* Label Area / Children / Dotted Leader */}
                 <div
                     className={cn(
-                        "flex-grow flex flex-row items-center min-w-0 relative h-6 mr-3 ml-1",
+                        "flex-grow flex flex-row items-center min-w-0 relative min-h-6 mr-3 ml-1",
                         dimmed && "opacity-50"
                     )}
                 >
