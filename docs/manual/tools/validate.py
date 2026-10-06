@@ -25,6 +25,11 @@ with sync_playwright() as p:
   page.get_by_role('button',name='Base only',exact=True).click();assert page.locator('.demo-key span').all_text_contents()==['A','B','C']
   page.locator('figure .figure-button').first.click();assert page.locator('#image-dialog').is_visible();assert page.locator('#full-image').get_attribute('href')
   page.keyboard.press('Escape');assert not page.locator('#image-dialog').is_visible();assert page.locator('figure .figure-button').first.evaluate('(e)=>document.activeElement===e')
+  for control in page.locator('[data-animation]').all():
+   img=control.locator('xpath=ancestor::figure').locator('img')
+   assert img.get_attribute('src')==control.get_attribute('data-poster')
+   control.click();assert img.get_attribute('src')==control.get_attribute('data-animation')
+   control.click();assert img.get_attribute('src')==control.get_attribute('data-poster')
   assert not errors,errors
   record('responsive/search/diagram/lightbox',{'viewport_width':width,'console_errors':errors})
   if width in [390,1280]:

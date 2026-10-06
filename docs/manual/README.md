@@ -65,3 +65,9 @@ python3 docs/manual/tools/build.py
 Capture scripts use Playwright’s installed Chromium by default; set `CHROMIUM_PATH` to use another executable, `KEYBARD_CAPTURE_URL` for the running Keybard development server (default port 5188), and `MANUAL_URL` for the manual server (default port 5190). With Playwright installed, run captures in this order: `capture.py`, `capture-editors.py`, `capture-files.py`, `capture-connected.py`, `capture-native.py`. Then rebuild and validate. Connected captures block physical HID access and inject controlled device responses.
 
 Final acceptance passed at widths 360, 390, 768, 1280 and 1600 pixels, including search, mobile navigation, layer examples, image enlargement, keyboard focus, stable deep links, local links, JavaScript-disabled reading and PDF generation. All eleven chapters remain readable without JavaScript. The independent usability re-review found no remaining material blocker.
+
+## Action demonstrations
+
+`tools/capture-actions.py` uses Playwright and Pillow to record real mouse and typing interactions in the bundled offline example. It verifies the dropped key's keycode, the macro text and the downloaded backup JSON. The export capture disables the native save-picker API to exercise the real browser-download fallback; it does not mock file contents. GIFs show the actual application; an orange pointer ring is a recording aid. No hardware is accessed. `evidence/actions.json` records results and timing. Run with the same browser environment as the other capture scripts.
+
+The manual replaces three overview images with explicit Play/Stop demonstrations: dragging A onto Q, creating a text macro, and exporting a backup. They never autoplay; stills remain available without JavaScript and in print. Direct GIF links are provided.
