@@ -89,7 +89,7 @@
   },
   "print-action": {
     "title": "Prepare a printed layer reference",
-    "description": "Open Settings \u2192 Print Layers\u2026. The final frame shows Keybard\u2019s actual print layout; the native print dialog is outside this browser recording."
+    "description": "Open Print Layers, review the layer count, click Print, and show the verified printable keyboard layout."
   },
   "matrix-action": {
     "title": "Read and clear Matrix Tester history",
