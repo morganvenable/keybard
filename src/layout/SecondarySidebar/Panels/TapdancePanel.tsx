@@ -1,4 +1,3 @@
-import { BindingName } from "@/layout/SecondarySidebar/components/BindingName";
 import React from "react";
 import { Plus } from "lucide-react";
 import { Key } from "@/components/Key";
@@ -145,7 +144,9 @@ const TapdancePanel: React.FC = () => {
                                         disableTooltip={true}
                                     />
                                 </div>
-                                <BindingName kind="tapdance" index={i} name={customName} />
+                                <span className="text-xs font-bold text-slate-600 dark:text-neutral-300 truncate">
+                                    {customName || `Tap Dance ${i}`}
+                                </span>
                             </div>
                             <div className="grid grid-cols-2 gap-1">
                                 {stateContents.map((content, idx) => {
@@ -237,8 +238,6 @@ const TapdancePanel: React.FC = () => {
                             keyboard={keyboard}
                             keycode={keycode}
                             label={i.toString()}
-                            hasCustomName={!!keyboard.cosmetic?.tapdances?.[i.toString()]}
-                            customName={keyboard.cosmetic?.tapdances?.[i.toString()]}
                             keyContents={keyContents}
                             onEdit={handleEdit}
                             onAssignKeycode={assignKeycode}
@@ -247,10 +246,7 @@ const TapdancePanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                         >
-                            <div className="flex flex-col min-w-0 w-full gap-1">
-                                <BindingName kind="tapdance" index={i} name={keyboard.cosmetic?.tapdances?.[i.toString()]} />
-                                {rowChildren}
-                            </div>
+                            {rowChildren}
                         </SidebarItemRow>
                     );
                     })}
