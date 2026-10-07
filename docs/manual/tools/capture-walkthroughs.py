@@ -2,6 +2,7 @@
 import json,os,sys,traceback,re
 from playwright.sync_api import sync_playwright
 from action_recorder import Recorder,ROOT
+from env import FAILURES
 
 def tapdance(r):
  r.open_editor('Tap Dance Keys');r.assign(0,'a');r.assign(3,'b')
@@ -56,7 +57,7 @@ def trainer_feedback(r):
  r.nav('Trainer');r.click(r.page.get_by_role('tab',name='Feedback',exact=True));print(r.page.locator('body').inner_text()[-2000:],flush=True)
  r.select(r.page.get_by_label('Layer-change highlight',exact=True),'Short fade');r.nav('Preview held keys');return 'Selected Short fade and previewed held-key highlighting'
 def timing(r):
- r.nav('Settings');r.nav('QMK Settings...');r.fill(r.page.get_by_role('spinbutton').first,'210');assert r.page.get_by_role('button',name='Apply 1 Change',exact=True).count();r.click(r.page.get_by_text('Pending (1)',exact=True));return 'Changed tapping term to 210 ms and reviewed the pending setting; controlled board, no hardware write'
+ r.nav('Settings');r.nav('QMK Settings...');r.fill(r.page.get_by_role('spinbutton').first,'210',paste=True);assert r.page.get_by_role('button',name='Apply 1 Change',exact=True).count();r.move(r.page.get_by_text('Pending (1)',exact=True));r.frame(1000);return 'Changed tapping term to 210 ms; Pending (1) and Apply 1 Change appeared; controlled board, no hardware write'
 def pointing(r):
  r.nav('Pointing Devices');print(r.page.locator('body').inner_text()[-3000:],flush=True)
  r.click(r.page.get_by_role('combobox',name='DPI',exact=True).first);r.click(r.page.get_by_role('option',name='1200',exact=True));r.frame(1000);return 'Adjusted pointer sensitivity in controlled connected UI; no physical sensor test'
@@ -70,6 +71,6 @@ if __name__=='__main__':
    try:
     r.frame(700);result=fn(r);r.save(name,result);print('PASS',name,flush=True)
    except Exception as e:
-    print('FAIL',name,str(e),flush=True);traceback.print_exc();r.page.screenshot(path=f'/tmp/{name}-failure.png');Path=__import__('pathlib').Path;Path(f'/tmp/{name}-failure.html').write_text(r.page.content());failures.append(name);r.page.close()
+    print('FAIL',name,str(e),flush=True);traceback.print_exc();r.page.screenshot(path=f'{FAILURES}/{name}-failure.png');Path=__import__('pathlib').Path;Path(f'{FAILURES}/{name}-failure.html').write_text(r.page.content(),encoding='utf-8');failures.append(name);r.page.close()
   b.close()
  if failures:raise SystemExit('Failed: '+', '.join(failures))

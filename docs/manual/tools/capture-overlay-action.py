@@ -3,15 +3,16 @@ import os,json,io
 from pathlib import Path
 from PIL import Image
 from playwright.sync_api import sync_playwright
+from env import KEYBARD_URL,BASE
 ROOT=Path(__file__).resolve().parents[1]
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH'),args=['--no-sandbox'])
- page=b.new_page(viewport={'width':1200,'height':460});page.goto(os.environ.get('KEYBARD_CAPTURE_URL','http://127.0.0.1:5188/'))
- raw=(ROOT.parents[1]/'src/default-layouts/sval-default.svil').read_text()
- state=page.evaluate('''async raw=>{const {fileService}=await import('/keybard-ng/services/file.service.ts');const {DEFAULTS,PRESETS}=await import('/keybard-ng/features/trainer/core.ts');const board=fileService.parseContent(raw);return {apiVersion:1,config:{...DEFAULTS,appearance:PRESETS.Light,effect:'Short fade',duration:300,highlightPressed:true,manualDefault:1},revision:1,layoutRevision:1,board:{...board,trainerLabels:{}},selectedDevice:'manual-example',status:'Example',devices:[],active:0,default:1,valid:true,pressed:[],practiceHidden:[],practiceTarget:null,matrixAvailable:true,visible:true,arrange:true,session:'manual-example'};}''',raw)
+ page=b.new_page(viewport={'width':1200,'height':460});page.goto(KEYBARD_URL)
+ raw=(ROOT.parents[1]/'src/default-layouts/sval-default.svil').read_text(encoding='utf-8')
+ state=page.evaluate('''async ([raw,base])=>{const {fileService}=await import(base+'services/file.service.ts');const {DEFAULTS,PRESETS}=await import(base+'features/trainer/core.ts');const board=fileService.parseContent(raw);return {apiVersion:1,config:{...DEFAULTS,appearance:PRESETS.Light,effect:'Short fade',duration:300,highlightPressed:true,manualDefault:1},revision:1,layoutRevision:1,board:{...board,trainerLabels:{}},selectedDevice:'manual-example',status:'Example',devices:[],active:0,default:1,valid:true,pressed:[],practiceHidden:[],practiceTarget:null,matrixAvailable:true,visible:true,arrange:true,session:'manual-example'};}''',[raw,BASE])
  page.add_init_script('window.__keybardNativeState=true;setInterval(()=>dispatchEvent(new Event("keybard-host-heartbeat")),200)')
  page.route('**/api/host/**',lambda r:r.fulfill(json={'apiVersion':1,'token':'manual'} if '/bootstrap' in r.request.url else state))
- page.goto(os.environ.get('KEYBARD_CAPTURE_URL','http://127.0.0.1:5188/').rstrip('/')+'/?hostOverlay=1');page.wait_for_selector('svg[aria-label="Trainer keyboard preview"]')
+ page.goto(KEYBARD_URL+'?hostOverlay=1');page.wait_for_selector('svg[aria-label="Trainer keyboard preview"]')
  frames=[];texts=[]
  for active,pressed in [(0,[]),(2,[]),(4,[]),(0,[8,9,10]),(0,[])]:
   state.update(active=active,pressed=pressed);page.evaluate('(state)=>dispatchEvent(new CustomEvent("keybard-host-state",{detail:state}))',state)

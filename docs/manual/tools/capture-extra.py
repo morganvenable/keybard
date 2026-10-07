@@ -3,6 +3,7 @@ import os,sys,re,traceback,json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from action_recorder import Recorder,ROOT
+from env import BASE,FAILURES
 
 def pos(r,x='1',y='1.5'):return r.page.locator(f'[data-key-x="{x}"][data-key-y="{y}"]').first
 def layer(r,n):r.click(r.page.get_by_role('button',name=str(n),exact=True).first)
@@ -41,6 +42,21 @@ def reuse(r):
  print('REUSE',r.page.get_by_role('dialog').inner_text(),flush=True)
  r.click(r.page.get_by_role('dialog').get_by_role('button',name='OK',exact=True).last);r.page.wait_for_timeout(300)
  assert pos(r).get_attribute('data-keycode')=='KC_Q';return 'Dragged a saved base-layer preview onto layer 3 and confirmed replacement'
+def keycodes(r):return r.page.locator('[data-keycode]').evaluate_all('(es)=>es.map(e=>e.getAttribute("data-keycode"))')
+def bundled(r,n,query,name):
+ # Search the bundled layout groups, drag one layer onto the destination layer's name, confirm.
+ layer(r,n);before=keycodes(r);r.nav('Layouts');r.fill(r.page.get_by_label('Search layouts',exact=True),query)
+ source=r.page.get_by_role('button',name=f'Enlarge {name} preview',exact=True).locator('../..')
+ r.drag(source,r.page.get_by_role('button',name=f'Rename layer {n}: Layer {n}',exact=True));r.frame(1000)
+ dialog=r.page.get_by_role('dialog');text=dialog.inner_text();print('BUNDLED',text,flush=True)
+ r.click(dialog.get_by_role('button',name='OK',exact=True).last);r.page.wait_for_timeout(300);r.frame(900)
+ assert keycodes(r)!=before;return text
+def alt_alphas(r):
+ bundled(r,0,'Dvorak','Dvorak')
+ assert pos(r).get_attribute('data-keycode')!='KC_Q';return 'Searched Layouts for Dvorak and dragged the bundled Dvorak layer onto layer 0; the former Q position changed'
+def num_sym(r):
+ bundled(r,1,'tenkey','Left-hand tenkey + right-hand nav')
+ return 'Dragged the bundled left-hand tenkey + right-hand nav layer onto layer 1, replacing its numbers and symbols'
 def familiar(r):
  r.nav('Trainer');r.click(r.page.get_by_role('tab',name='Practice',exact=True));select=r.page.get_by_label('Familiar binding',exact=True);value=select.locator('option').nth(1).get_attribute('value');r.select(select,value);r.nav('Mark familiar');r.click(r.page.get_by_label('Hide familiar legends',exact=True));assert r.page.get_by_label('Hide familiar legends',exact=True).get_attribute('aria-checked')=='true';return 'Marked one binding familiar and hid its preview legend'
 def trainer_layers(r):
@@ -51,8 +67,8 @@ def fragments(r):
  r.click(control);r.click(r.page.get_by_role('option',name=before,exact=True));assert control.inner_text()==before
  return 'Changed the offline example’s first finger fragment and restored its original selection; no hardware change'
 def manual_apply(r):
- r.page.evaluate("""async()=>{const {qmkService}=await import('/keybard-ng/services/qmk.service.ts');const {keyboardService}=await import('/keybard-ng/services/keyboard.service.ts');window.documentationWrites=[];qmkService.push=async(kb,id)=>window.documentationWrites.push({id,value:kb.settings[id]});keyboardService.saveSvil=async()=>{};}""")
- r.nav('Settings');r.nav('QMK Settings...');r.fill(r.page.get_by_role('spinbutton').first,'210');r.click(r.page.get_by_text('Pending (1)',exact=True));r.frame(1000);r.click(r.page.get_by_text('Pending (1)',exact=True));r.nav('Apply 1 Change');r.page.wait_for_timeout(350)
+ r.page.evaluate("""async(base)=>{const {qmkService}=await import(base+'services/qmk.service.ts');const {keyboardService}=await import(base+'services/keyboard.service.ts');window.documentationWrites=[];qmkService.push=async(kb,id)=>window.documentationWrites.push({id,value:kb.settings[id]});keyboardService.saveSvil=async()=>{};}""",BASE)
+ r.nav('Settings');r.nav('QMK Settings...');r.fill(r.page.get_by_role('spinbutton').first,'210',paste=True);r.move(r.page.get_by_text('Pending (1)',exact=True));r.frame(1000);r.nav('Apply 1 Change');r.page.wait_for_timeout(350)
  assert r.page.evaluate('window.documentationWrites.length')==1;assert not r.page.get_by_text('Pending (1)',exact=True).count()
  return 'Staged and applied a QMK setting through the real queue with an explicitly simulated write endpoint; no physical device'
 def printing(r):
@@ -68,7 +84,7 @@ def printing(r):
  assert preview.locator('.print-title').inner_text().strip()
  return 'Opened Print Layers review, clicked Print, and verified visible printable layers and title; native print dialog is outside web capture'
 def matrix(r):
- r.page.evaluate("""async()=>{const {keyboardService}=await import('/keybard-ng/services/keyboard.service.ts');window.documentationPressed=[];keyboardService.pollMatrix=async(kb)=>Array.from({length:kb.rows},(_,i)=>Array.from({length:kb.cols},(_,j)=>window.documentationPressed.some(([r,c])=>i===r&&j===c)));}""")
+ r.page.evaluate("""async(base)=>{const {keyboardService}=await import(base+'services/keyboard.service.ts');window.documentationPressed=[];keyboardService.pollMatrix=async(kb)=>Array.from({length:kb.rows},(_,i)=>Array.from({length:kb.cols},(_,j)=>window.documentationPressed.some(([r,c])=>i===r&&j===c)));}""",BASE)
  r.nav('Matrix Tester')
  for keys in [[[0,0]],[[0,1]],[[0,2]],[]]:
   r.page.evaluate('(keys)=>window.documentationPressed=keys',keys);r.page.wait_for_timeout(160);r.frame(900)
@@ -77,7 +93,7 @@ def macro_full(r):
  r.open_editor('Macro Keys');r.nav('Text');r.fill(r.page.locator('textarea').first,'hello');r.nav('Close binding editor')
  r.drag(r.page.locator('.select-none').filter(has_text=re.compile('^0$')).filter(visible=True).first,pos(r))
  assert pos(r).get_attribute('data-keycode') in ['M0','MACRO(0)','QK_MACRO_0','MACRO00'];return 'Created hello text macro and assigned Macro 0 to the former Q position'
-CASES={'manual-apply':(manual_apply,True),'macro-full':(macro_full,False),'modtap-action':(modtap,False),'oneshot-action':(oneshot,False),'blank-transparent':(blank_transparent,False),'navigation-layer':(navigation,False),'layer-tap-action':(layertap,False),'swap-keys':(swap,False),'save-library':(library,False),'reuse-layer':(reuse,False),'trainer-familiar':(familiar,False),'trainer-layers':(trainer_layers,False),'fragments-action':(fragments,False),'print-action':(printing,False),'matrix-action':(matrix,True)}
+CASES={'manual-apply':(manual_apply,True),'macro-full':(macro_full,False),'modtap-action':(modtap,False),'oneshot-action':(oneshot,False),'blank-transparent':(blank_transparent,False),'navigation-layer':(navigation,False),'layer-tap-action':(layertap,False),'swap-keys':(swap,False),'save-library':(library,False),'reuse-layer':(reuse,False),'alt-alphas-action':(alt_alphas,False),'num-sym-action':(num_sym,False),'trainer-familiar':(familiar,False),'trainer-layers':(trainer_layers,False),'fragments-action':(fragments,False),'print-action':(printing,False),'matrix-action':(matrix,True)}
 if __name__=='__main__':
  failures=[]
  with sync_playwright() as p:
@@ -86,6 +102,6 @@ if __name__=='__main__':
    fn,connected=CASES[name];r=Recorder(b,connected)
    try:r.frame(700);r.save(name,fn(r));print('PASS',name,flush=True)
    except Exception as e:
-    print('FAIL',name,str(e),flush=True);traceback.print_exc();r.page.screenshot(path=f'/tmp/{name}-failure.png');Path(f'/tmp/{name}-failure.html').write_text(r.page.content());r.page.close();failures.append(name)
+    print('FAIL',name,str(e),flush=True);traceback.print_exc();r.page.screenshot(path=f'{FAILURES}/{name}-failure.png');Path(f'{FAILURES}/{name}-failure.html').write_text(r.page.content(),encoding='utf-8');r.page.close();failures.append(name)
   b.close()
  if failures:raise SystemExit('Failed: '+', '.join(failures))

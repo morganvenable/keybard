@@ -3,7 +3,7 @@ import json, os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
-URL=os.environ.get('MANUAL_URL','http://127.0.0.1:5190/')
+from env import MANUAL_URL as URL
 BROWSER=os.environ.get('CHROMIUM_PATH')
 checks=[]
 def record(name,detail):checks.append({'check':name,'passed':True,'detail':detail})

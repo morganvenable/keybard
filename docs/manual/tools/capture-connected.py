@@ -4,7 +4,7 @@ Run against Vite, not a production bundle. No USB chooser, real HID device,
 physical board reads, or writes are used. Browser module replacements die with
 this isolated page; production source is untouched.
 
-KEYBARD_CAPTURE_URL and CHROMIUM_PATH may override defaults.
+KEYBARD_CAPTURE_URL and CHROMIUM_PATH may override defaults (see env.py).
 Requires Python playwright plus an installed Chromium browser.
 """
 import json
@@ -13,7 +13,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-URL = os.environ.get('KEYBARD_CAPTURE_URL', 'http://127.0.0.1:5188/keybard-ng/')
+from env import KEYBARD_URL as URL, BASE
 CHROME = os.environ.get('CHROMIUM_PATH')
 
 with sync_playwright() as p:
@@ -28,36 +28,7 @@ with sync_playwright() as p:
     }, configurable:true});""")
     page.goto(URL)
     page.wait_for_timeout(600)
-    page.evaluate("""async (fixturePath) => {
-      const root = '/keybard-ng/';
-      const {fileService} = await import(root+'services/file.service.ts');
-      const {usbInstance} = await import(root+'services/usb.service.ts');
-      const {keyboardService} = await import(root+'services/keyboard.service.ts');
-      const {qmkService} = await import(root+'services/qmk.service.ts');
-      const {customValueService} = await import(root+'services/custom-value.service.ts');
-      const {keyService} = await import(root+'services/key.service.ts');
-      const {svalService} = await import(root+'services/sval.service.ts');
-      const {SVALBOARD_POINTING_MENU} = await import(root+'@fs'+fixturePath);
-      const content = await (await fetch(root+'default-layouts/sval-default.svil')).text();
-      const fixture = await fileService.loadFile(new File([content], 'controlled-example.svil'));
-      fixture.name = 'test board'; fixture.svil_proto = 3;
-      fixture.menus = SVALBOARD_POINTING_MENU;
-      fixture.settings = Object.fromEntries(Array.from({length:29}, (_,i)=>[i+1,0]).filter(([i])=>i!==8));
-      Object.assign(fixture.settings, {1:200,2:50,4:5000,7:200,19:80,20:5,25:200,28:300});
-      fixture.custom_values = customValueService.extractAllItemsWithRefs(fixture.menus).map(({ref}) => ({...ref, data:[({id_left_dpi:3,id_right_dpi:3,id_automouse_timeout:3,id_automouse_threshold:100,id_automouse_decay:10,id_left_automouse:1,id_right_automouse:1})[ref.key] || 0]}));
-      svalService.setupCosmeticLayerNames(fixture); keyService.generateAllKeycodes(fixture);
-      usbInstance.open = async () => true;
-      usbInstance.close = async () => {};
-      usbInstance.getDeviceName = () => 'test board';
-      usbInstance.getAllLayerColors = async () => [];
-      usbInstance.send = usbInstance.sendSvil = async () => {throw new Error('Unmocked HID command blocked');};
-      keyboardService.init = async () => {};
-      keyboardService.load = async () => structuredClone(fixture);
-      keyboardService.getActiveLayerIndex = async () => 0;
-      qmkService.get = async (keyboard) => {keyboard.settings = {...fixture.settings};};
-      customValueService.loadAllMenuValues = async () => structuredClone(fixture.custom_values);
-      window.documentationFixture = {source:'bundled QWERTY + pointing-menu test fixture', realHID:false};
-    }""", str(ROOT.parents[1]/'tests/fixtures/pointing-menu.fixture.ts'))
+    page.evaluate((ROOT/'tools/connected-fixture.js').read_text(encoding='utf-8'), [(ROOT.parents[1]/'tests/fixtures/pointing-menu.fixture.ts').as_posix(), BASE])
     page.get_by_role('button', name='Connect Keyboard', exact=True).click()
     page.get_by_role('button', name='Switch to Manual Updates', exact=True).wait_for()
     page.get_by_role('button', name='Switch to Manual Updates', exact=True).click()

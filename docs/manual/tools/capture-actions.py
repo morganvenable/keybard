@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
-URL=os.environ.get('KEYBARD_CAPTURE_URL','http://127.0.0.1:5188/')
+from env import KEYBARD_URL as URL
 evidence=[]
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH'),args=['--no-sandbox'])
@@ -48,6 +48,6 @@ with sync_playwright() as p:
  print(page.get_by_role('dialog').inner_text(),flush=True)
  export=page.get_by_role('dialog').get_by_role('button',name='Export',exact=True)
  with page.expect_download() as download:click(export)
- d=download.value;assert d.suggested_filename.endswith('.svil');data=json.loads(Path(d.path()).read_text());assert data
+ d=download.value;assert d.suggested_filename.endswith('.svil');data=json.loads(Path(d.path()).read_text(encoding='utf-8'));assert data
  save('export-backup','Export downloaded a nonempty .svil JSON file')
  (ROOT/'evidence/actions.json').write_text(json.dumps(evidence,indent=2));b.close()
