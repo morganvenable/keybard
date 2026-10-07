@@ -9,6 +9,7 @@ import ThemeSync from "./components/ThemeSync";
 import ExploreLayoutsPage from "./pages/ExploreLayoutsPage";
 import { ProofSheetPage } from "./pages/ProofSheet";
 
+import { BackupProvider } from "./contexts/BackupContext";
 import { ChangesProvider } from "./contexts/ChangesContext";
 import { DragProvider } from "./contexts/DragContext";
 import { KeyBindingProvider } from "./contexts/KeyBindingContext";
@@ -109,13 +110,15 @@ function App() {
             <SettingsProvider>
                 <ThemeSync />
                 <ChangesProviderWithKeyboard>
-                    <KeyBindingProvider>
-                        <LayoutLibraryProvider>
-                            <NavigationProvider>
-                                <AppContent />
-                            </NavigationProvider>
-                        </LayoutLibraryProvider>
-                    </KeyBindingProvider>
+                    <BackupProvider>
+                        <KeyBindingProvider>
+                            <LayoutLibraryProvider>
+                                <NavigationProvider>
+                                    <AppContent />
+                                </NavigationProvider>
+                            </LayoutLibraryProvider>
+                        </KeyBindingProvider>
+                    </BackupProvider>
                 </ChangesProviderWithKeyboard>
             </SettingsProvider>
         </KeyboardProvider>
