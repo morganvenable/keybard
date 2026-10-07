@@ -46,14 +46,22 @@ export interface LayerEntry {
 }
 
 /**
+ * A layer entry as saved (browser storage, library files): the keymap holds
+ * keycode names. Version 1 files and older saves hold numbers.
+ */
+export interface StoredLayerEntry extends Omit<LayerEntry, 'keymap'> {
+    keymap: (string | number)[];
+}
+
+/**
  * Database file structure
  */
 export interface LayerDatabase {
-    /** Database version */
+    /** Database version: 2 stores keycodes by name, 1 by number */
     version: number;
 
     /** Array of layer entries */
-    layers: LayerEntry[];
+    layers: StoredLayerEntry[];
 }
 
 /**
@@ -158,6 +166,11 @@ export interface ImportedLayer {
  * localStorage structure for imported layouts
  */
 export interface ImportedLayoutsStorage {
-    /** Array of imported layout groups */
-    layouts: LayoutGroup[];
+    /** Array of imported layout groups; layer keymaps hold keycode names (numbers in older saves) */
+    layouts: StoredLayoutGroup[];
+}
+
+/** A layout group as saved: its layers' keymaps hold keycode names. */
+export interface StoredLayoutGroup extends Omit<LayoutGroup, 'layers'> {
+    layers: (Omit<ImportedLayer, 'keymap'> & { keymap: (string | number)[] })[];
 }
