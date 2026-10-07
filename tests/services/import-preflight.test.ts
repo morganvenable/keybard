@@ -44,6 +44,46 @@ describe('import preflight', () => {
         expect(review.warnings.join(' ')).toMatch(/99.*skipped/);
         expect(review.warnings.join(' ')).toMatch(/unknown.*skipped/);
     });
+    it('restores alt-repeat keys and leaders from the file and keeps entries beyond its tables', () => {
+        const ark = (arkid: number, keycode: string, alt_keycode: string) => ({ arkid, keycode, alt_keycode, allowed_mods: 0, options: 8 });
+        const leader = (ldrid: number, sequence: string[], output: string) => ({ ldrid, sequence, output, options: 0x8000 });
+        const current = board({
+            alt_repeat_keys: [ark(0, 'KC_A', 'KC_B'), ark(1, 'KC_C', 'KC_D')], alt_repeat_key_count: 2,
+            leaders: [leader(0, ['KC_E'], 'KC_F'), leader(1, ['KC_G'], 'KC_H')], leader_count: 2,
+        });
+        const review = prepareImport(board({ alt_repeat_keys: [ark(0, 'KC_X', 'KC_Y')], leaders: [leader(0, ['KC_Q', 'KC_W'], 'KC_Z')] }), current);
+        expect(review.errors).toEqual([]);
+        expect(review.warnings.join(' ')).not.toMatch(/alt repeat keys|leaders/);
+        expect(review.keyboard.alt_repeat_keys).toEqual([ark(0, 'KC_X', 'KC_Y'), ark(1, 'KC_C', 'KC_D')]);
+        expect(review.keyboard.leaders).toEqual([leader(0, ['KC_Q', 'KC_W'], 'KC_Z'), leader(1, ['KC_G'], 'KC_H')]);
+        expect(review.summary).toEqual(expect.arrayContaining(['1 alt-repeat keys', '1 leader sequences']));
+    });
+    it('keeps alt-repeat keys and leaders when the file has none', () => {
+        const current = board({
+            alt_repeat_keys: [{ arkid: 0, keycode: 'KC_A', alt_keycode: 'KC_B', allowed_mods: 0, options: 8 }], alt_repeat_key_count: 1,
+            leaders: [{ ldrid: 0, sequence: ['KC_E'], output: 'KC_F', options: 0x8000 }], leader_count: 1,
+        });
+        const review = prepareImport(board(), current);
+        expect(review.errors).toEqual([]);
+        expect(review.keyboard.alt_repeat_keys).toEqual(current.alt_repeat_keys);
+        expect(review.keyboard.leaders).toEqual(current.leaders);
+    });
+    it('blocks alt-repeat keys and leaders the keyboard cannot store', () => {
+        const current = board({ alt_repeat_keys: [], alt_repeat_key_count: 1, leaders: [], leader_count: 1 });
+        const review = prepareImport(board({
+            alt_repeat_keys: [
+                { arkid: 0, keycode: 'NOT_A_KEY', alt_keycode: 'KC_B', allowed_mods: 0, options: 8 },
+                { arkid: 1, keycode: 'KC_A', alt_keycode: 'KC_B', allowed_mods: 256, options: 8 },
+            ],
+            leaders: [{ ldrid: 0, sequence: ['KC_A', 'KC_B', 'KC_C', 'KC_D', 'KC_E', 'KC_F'], output: 'KC_G', options: 70000 }],
+        }), current);
+        const errors = review.errors.join(' ');
+        expect(errors).toMatch(/alt_repeat_keys: file has 2 entries; keyboard supports 1/);
+        expect(errors).toMatch(/alt-repeat key contains an unrecognized keycode/);
+        expect(errors).toMatch(/Alt-repeat key modifiers and options/);
+        expect(errors).toMatch(/more than 5 keys/);
+        expect(errors).toMatch(/Leader options/);
+    });
     it('recognizes Vial version 1 without silently treating it as Sval', () => {
         const legacy = fileService.parseContent(JSON.stringify({ uid: 123, version: 1, vial_protocol: 6, layout: [[['KC_A', 'KC_B']]], macro: [], tap_dance: [[4,5,6,7,250]] }));
         expect(legacy.rows).toBe(1);

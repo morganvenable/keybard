@@ -17,6 +17,8 @@ export interface ImportReview {
 export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): ImportReview {
     const errors: string[] = [], warnings: string[] = [];
     const summary = [`${file.layers ?? 0} layers`, `${file.macros?.length ?? 0} macros`, `${file.combos?.length ?? 0} combos`, `${file.tapdances?.length ?? 0} tap dances`, `${file.key_overrides?.length ?? 0} overrides`];
+    if (file.alt_repeat_keys?.length) summary.push(`${file.alt_repeat_keys.length} alt-repeat keys`);
+    if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
     if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
     const next = structuredClone(current);
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
@@ -31,7 +33,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (vial?.unassigned_custom_keycodes) warnings.push(`${vial.unassigned_custom_keycodes} key${vial.unassigned_custom_keycodes === 1 ? ' uses a custom keycode' : 's use custom keycodes'} that Svalboard's Vial firmware left unassigned; ${vial.unassigned_custom_keycodes === 1 ? 'it' : 'they'} did nothing there and will be set to KC_NO.`);
     if (vial?.svalboard) warnings.push('Vial layout files do not include pointing and hardware settings (DPI, scrolling, automouse, layer colors). Set them again after importing.');
     next.keymap = current.keymap?.map((layer, index) => file.keymap?.[index] ? [...file.keymap[index]] : [...layer]);
-    for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count']] as const) {
+    for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count'], ['alt_repeat_keys','alt_repeat_key_count'], ['leaders','leader_count']] as const) {
         const incoming = file[field];
         if (!incoming) continue;
         if (incoming.length > (current[count] ?? 0)) errors.push(`${field}: file has ${incoming.length} entries; keyboard supports ${current[count] ?? 0}.`);
@@ -59,12 +61,16 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.tapdances?.some(td => [td.tap, td.hold, td.doubletap, td.taphold].some(key => !validKey(key)))) errors.push('A tap dance contains an unrecognized keycode.');
     if (file.tapdances?.some(td => !Number.isInteger(td.tapping_term) || td.tapping_term < 0 || td.tapping_term > 32767)) errors.push('Tap dance timing must be whole milliseconds between 0 and 32767.');
     if (file.key_overrides?.some(override => [override.trigger, override.replacement].some(key => !validKey(key)))) errors.push('An override contains an unrecognized keycode.');
+    if (file.alt_repeat_keys?.some(ark => [ark.keycode, ark.alt_keycode].some(key => !validKey(key)))) errors.push('An alt-repeat key contains an unrecognized keycode.');
+    if (file.alt_repeat_keys?.some(ark => [ark.allowed_mods, ark.options].some(value => !Number.isInteger(value) || value < 0 || value > 255))) errors.push('Alt-repeat key modifiers and options must be whole numbers between 0 and 255.');
+    if (file.leaders?.some(leader => !Array.isArray(leader.sequence) || leader.sequence.length > 5 || [...leader.sequence, leader.output].some(key => !validKey(key)))) errors.push('A leader sequence contains an unrecognized keycode or more than 5 keys.');
+    if (file.leaders?.some(leader => !Number.isInteger(leader.options) || leader.options < 0 || leader.options > 65535)) errors.push('Leader options must be whole numbers between 0 and 65535.');
     if (Object.values(file.settings ?? {}).some(value => !Number.isInteger(value) || value < 0)) errors.push('QMK settings must contain non-negative integer values.');
     if (file.macros?.length) {
         try { new MacroService(usbInstance).dump(current.macros_size ?? 0, next.macros ?? []); }
         catch { errors.push('The imported macros do not fit the keyboard’s macro buffer or contain invalid actions.'); }
     }
-    for (const field of ['alt_repeat_keys', 'leaders', 'one_shot', 'layer_colors', 'fragmentState'] as const) {
+    for (const field of ['one_shot', 'layer_colors', 'fragmentState'] as const) {
         if (file[field] && JSON.stringify(file[field]) !== JSON.stringify(current[field])) warnings.push(`${field.replace(/_/g, ' ')} will be kept from the keyboard; restoring this feature is not supported yet.`);
     }
     next.settings = { ...current.settings };

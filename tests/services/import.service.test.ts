@@ -22,6 +22,8 @@ describe('ImportService', () => {
             updateTapdance: ReturnType<typeof vi.fn>;
             updateKeyoverride: ReturnType<typeof vi.fn>;
             updateQMKSetting: ReturnType<typeof vi.fn>;
+            updateAltRepeatKey: ReturnType<typeof vi.fn>;
+            updateLeader: ReturnType<typeof vi.fn>;
         };
     };
 
@@ -45,6 +47,8 @@ describe('ImportService', () => {
                 updateTapdance: vi.fn().mockResolvedValue(undefined),
                 updateKeyoverride: vi.fn().mockResolvedValue(undefined),
                 updateQMKSetting: vi.fn().mockResolvedValue(undefined),
+                updateAltRepeatKey: vi.fn().mockResolvedValue(undefined),
+                updateLeader: vi.fn().mockResolvedValue(undefined),
             },
         };
     });
@@ -64,6 +68,25 @@ describe('ImportService', () => {
         for (const write of staged) await write.cb();
         expect(mockServices.keyboardService.saveSvil).toHaveBeenCalledTimes(1);
         expect(mockServices.keyboardService.saveSvil.mock.invocationCallOrder[0]).toBeGreaterThan(mockServices.keyboardService.updateKey.mock.invocationCallOrder[0]);
+    });
+
+    it('writes only changed alt-repeat keys and leaders, before the persistent save', async () => {
+        const ark = (arkid: number, alt_keycode: string) => ({ arkid, keycode: 'KC_A', alt_keycode, allowed_mods: 0, options: 8 });
+        const leader = (ldrid: number, output: string) => ({ ldrid, sequence: ['KC_E'], output, options: 0x8000 });
+        const currentKb = createTestKeyboardInfo({ rows: 1, cols: 1, layers: 1, keymap: [[4]], alt_repeat_keys: [ark(0, 'KC_B'), ark(1, 'KC_C')], leaders: [leader(0, 'KC_F'), leader(1, 'KC_G')] });
+        const imported = { ...currentKb, alt_repeat_keys: [ark(0, 'KC_B'), ark(1, 'KC_X')], leaders: [leader(0, 'KC_Y'), leader(1, 'KC_G')] };
+        const staged: Array<{ cb: () => Promise<void>; key: string }> = [];
+        await service.syncWithKeyboard(imported, currentKb, async (_desc, cb, metadata) => { staged.push({ cb, key: metadata?.writeKey ?? '' }); }, mockServices);
+        expect(staged.map(write => write.key)).toEqual(['altrepeat:1', 'leader:0', 'save-svil']);
+        for (const write of staged) await write.cb();
+        expect(mockServices.keyboardService.updateAltRepeatKey).toHaveBeenCalledExactlyOnceWith(imported, 1);
+        expect(mockServices.keyboardService.updateLeader).toHaveBeenCalledExactlyOnceWith(imported, 0);
+    });
+
+    it('writes nothing when alt-repeat keys and leaders are unchanged', async () => {
+        const currentKb = createTestKeyboardInfo({ rows: 1, cols: 1, layers: 1, keymap: [[4]], alt_repeat_keys: [{ arkid: 0, keycode: 'KC_A', alt_keycode: 'KC_B', allowed_mods: 0, options: 8 }], leaders: [{ ldrid: 0, sequence: ['KC_E'], output: 'KC_F', options: 0x8000 }] });
+        await service.syncWithKeyboard(structuredClone(currentKb), currentKb, mockQueue, mockServices);
+        expect(mockQueue).not.toHaveBeenCalled();
     });
 
     it('propagates a refused persistent save so it remains retryable', async () => {

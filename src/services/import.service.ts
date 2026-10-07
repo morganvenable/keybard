@@ -114,6 +114,26 @@ export class ImportService {
             }
         }
 
+        // 4b. Sync Alt Repeat Keys and Leader sequences
+        for (const [field, kind, label, update] of [
+            ["alt_repeat_keys", "altrepeat", "Alt Repeat Key", "updateAltRepeatKey"],
+            ["leaders", "leader", "Leader", "updateLeader"],
+        ] as const) {
+            const entries = newKb[field];
+            const oldEntries = currentKb[field];
+            if (!entries || !oldEntries) continue;
+            for (let idx = 0; idx < entries.length; idx++) {
+                if (JSON.stringify(entries[idx]) === JSON.stringify(oldEntries[idx])) continue;
+                await queue(
+                    `Update ${label} ${idx}`,
+                    async () => {
+                        await services.keyboardService[update](newKb, idx);
+                    },
+                    { type: "key", writeKey: `${kind}:${idx}` }
+                );
+            }
+        }
+
         // 5. Sync Key Overrides
         const newOverrides = newKb.key_overrides;
         const currentOverrides = currentKb.key_overrides;
