@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { layerLibraryService } from "@/services/layer-library.service";
+import { isStaleBundledLayoutName } from "@/lib/bundled-layouts";
 import type { LayoutGroup, ImportedLayer } from "@/types/layer-library";
 
 // Dynamically discover all layout files placed in src/default-layouts
@@ -60,8 +61,9 @@ const LayoutsPanel: FC = () => {
         const loadInitialLayouts = async () => {
             let currentLayouts = layerLibraryService.getImportedLayouts();
 
-            // Earlier Keybard Paranoid builds named these after their data: URL; drop those copies.
-            for (const broken of currentLayouts.filter(l => /;base64,/.test(l.name))) {
+            // Earlier builds named these after their asset URL; drop those copies.
+            const bundledNames = DEFAULT_LAYOUTS.map(l => l.name);
+            for (const broken of currentLayouts.filter(l => isStaleBundledLayoutName(l.name, bundledNames))) {
                 layerLibraryService.deleteImportedLayout(broken.id);
             }
             currentLayouts = layerLibraryService.getImportedLayouts();
