@@ -1,0 +1,3870 @@
+{
+  "standard-keys": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nAdd Keys to Standard Keys\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "None",
+        "label": null,
+        "title": "Clear modifiers"
+      },
+      {
+        "text": "SHIFT",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "CTRL",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "ALT",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "GUI",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "layer-keys": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nLayer Keys\nMO\nDF\nPDF\nTG\nTT\nOSL\nTO\nLT\nMomentary\nMomentarily activates the layer. As soon as you let go of the key, the layer is deactivated.\n0\nMO\n0\n1\nMO\n1\n2\nMO\n2\n3\nMO\n3\n4\nMO\n4\n5\nMO\n5\n6\nMO\n6\n7\nMO\n7\n8\nMO\n8\n9\nMO\n9\n10\nMO\n10\n11\nMO\n11\n12\nMO\n12\n13\nMO\n13\n14\nMO\n14\n15\nMO\n15\nAdd Keys to Layer Keys\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "MO",
+        "label": null,
+        "title": "Momentary"
+      },
+      {
+        "text": "DF",
+        "label": null,
+        "title": "Default Layer"
+      },
+      {
+        "text": "PDF",
+        "label": null,
+        "title": "Persistent Default Layer"
+      },
+      {
+        "text": "TG",
+        "label": null,
+        "title": "Toggle Layer"
+      },
+      {
+        "text": "TT",
+        "label": null,
+        "title": "Tap Toggle"
+      },
+      {
+        "text": "OSL",
+        "label": null,
+        "title": "One Shot Layer"
+      },
+      {
+        "text": "TO",
+        "label": null,
+        "title": "To Layer"
+      },
+      {
+        "text": "LT",
+        "label": null,
+        "title": "Layer Tap"
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "tap-dance": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nTap Dance Keys\nAllows a single key to perform multiple, different actions based on the number of times it is tapped in sequence (e.g., tap once for 'A', twice for 'B', or hold for a modifier).\nTap\nHold\nTap-Hold\nDouble-Tap\n0\n0\n1\n1\n2\n2\n3\n3\n4\n4\n5\n5\n6\n6\n7\n7\n8\n8\n9\n9\n10\n10\n11\n11\n12\n12\n13\n13\n14\n14\n15\n15\n16\n16\n17\n17\n18\n18\n19\n19\n20\n20\n21\n21\n22\n22\n23\n23\n24\n24\n25\n25\n26\n26\n27\n27\n28\n28\n29\n29\n30\n30\n31\n31\n32\n32\n33\n33\n34\n34\n35\n35\n36\n36\n37\n37\n38\n38\n39\n39\n40\n40\n41\n41\n42\n42\n43\n43\n44\n44\n45\n45\n46\n46\n47\n47\n48\n48\n49\n49\nAdd Keys to Tap Dance Keys\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "macros": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nMacro Keys\nSend customizable sequences of keystrokes to trigger text strings, complex shortcuts, or automated actions with a single keypress.\n0\nMacro 0\n0\n1\nMacro 1\n1\n2\nMacro 2\n2\n3\nMacro 3\n3\n4\nMacro 4\n4\n5\nMacro 5\n5\n6\nMacro 6\n6\n7\nMacro 7\n7\n8\nMacro 8\n8\n9\nMacro 9\n9\n10\nMacro 10\n10\n11\nMacro 11\n11\n12\nMacro 12\n12\n13\nMacro 13\n13\n14\nMacro 14\n14\n15\nMacro 15\n15\n16\nMacro 16\n16\n17\nMacro 17\n17\n18\nMacro 18\n18\n19\nMacro 19\n19\n20\nMacro 20\n20\n21\nMacro 21\n21\n22\nMacro 22\n22\n23\nMacro 23\n23\n24\nMacro 24\n24\n25\nMacro 25\n25\n26\nMacro 26\n26\n27\nMacro 27\n27\n28\nMacro 28\n28\n29\nMacro 29\n29\n30\nMacro 30\n30\n31\nMacro 31\n31\n32\nMacro 32\n32\n33\nMacro 33\n33\n34\nMacro 34\n34\n35\nMacro 35\n35\n36\nMacro 36\n36\n37\nMacro 37\n37\n38\nMacro 38\n38\n39\nMacro 39\n39\n40\nMacro 40\n40\n41\nMacro 41\n41\n42\nMacro 42\n42\n43\nMacro 43\n43\n44\nMacro 44\n44\n45\nMacro 45\n45\n46\nMacro 46\n46\n47\nMacro 47\n47\n48\nMacro 48\n\",\"\n48\n49\nMacro 49\n49\nAdd Keys to Macro Keys\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Macro 0",
+        "label": "Rename Macro 0",
+        "title": ""
+      },
+      {
+        "text": "Macro 1",
+        "label": "Rename Macro 1",
+        "title": ""
+      },
+      {
+        "text": "Macro 2",
+        "label": "Rename Macro 2",
+        "title": ""
+      },
+      {
+        "text": "Macro 3",
+        "label": "Rename Macro 3",
+        "title": ""
+      },
+      {
+        "text": "Macro 4",
+        "label": "Rename Macro 4",
+        "title": ""
+      },
+      {
+        "text": "Macro 5",
+        "label": "Rename Macro 5",
+        "title": ""
+      },
+      {
+        "text": "Macro 6",
+        "label": "Rename Macro 6",
+        "title": ""
+      },
+      {
+        "text": "Macro 7",
+        "label": "Rename Macro 7",
+        "title": ""
+      },
+      {
+        "text": "Macro 8",
+        "label": "Rename Macro 8",
+        "title": ""
+      },
+      {
+        "text": "Macro 9",
+        "label": "Rename Macro 9",
+        "title": ""
+      },
+      {
+        "text": "Macro 10",
+        "label": "Rename Macro 10",
+        "title": ""
+      },
+      {
+        "text": "Macro 11",
+        "label": "Rename Macro 11",
+        "title": ""
+      },
+      {
+        "text": "Macro 12",
+        "label": "Rename Macro 12",
+        "title": ""
+      },
+      {
+        "text": "Macro 13",
+        "label": "Rename Macro 13",
+        "title": ""
+      },
+      {
+        "text": "Macro 14",
+        "label": "Rename Macro 14",
+        "title": ""
+      },
+      {
+        "text": "Macro 15",
+        "label": "Rename Macro 15",
+        "title": ""
+      },
+      {
+        "text": "Macro 16",
+        "label": "Rename Macro 16",
+        "title": ""
+      },
+      {
+        "text": "Macro 17",
+        "label": "Rename Macro 17",
+        "title": ""
+      },
+      {
+        "text": "Macro 18",
+        "label": "Rename Macro 18",
+        "title": ""
+      },
+      {
+        "text": "Macro 19",
+        "label": "Rename Macro 19",
+        "title": ""
+      },
+      {
+        "text": "Macro 20",
+        "label": "Rename Macro 20",
+        "title": ""
+      },
+      {
+        "text": "Macro 21",
+        "label": "Rename Macro 21",
+        "title": ""
+      },
+      {
+        "text": "Macro 22",
+        "label": "Rename Macro 22",
+        "title": ""
+      },
+      {
+        "text": "Macro 23",
+        "label": "Rename Macro 23",
+        "title": ""
+      },
+      {
+        "text": "Macro 24",
+        "label": "Rename Macro 24",
+        "title": ""
+      },
+      {
+        "text": "Macro 25",
+        "label": "Rename Macro 25",
+        "title": ""
+      },
+      {
+        "text": "Macro 26",
+        "label": "Rename Macro 26",
+        "title": ""
+      },
+      {
+        "text": "Macro 27",
+        "label": "Rename Macro 27",
+        "title": ""
+      },
+      {
+        "text": "Macro 28",
+        "label": "Rename Macro 28",
+        "title": ""
+      },
+      {
+        "text": "Macro 29",
+        "label": "Rename Macro 29",
+        "title": ""
+      },
+      {
+        "text": "Macro 30",
+        "label": "Rename Macro 30",
+        "title": ""
+      },
+      {
+        "text": "Macro 31",
+        "label": "Rename Macro 31",
+        "title": ""
+      },
+      {
+        "text": "Macro 32",
+        "label": "Rename Macro 32",
+        "title": ""
+      },
+      {
+        "text": "Macro 33",
+        "label": "Rename Macro 33",
+        "title": ""
+      },
+      {
+        "text": "Macro 34",
+        "label": "Rename Macro 34",
+        "title": ""
+      },
+      {
+        "text": "Macro 35",
+        "label": "Rename Macro 35",
+        "title": ""
+      },
+      {
+        "text": "Macro 36",
+        "label": "Rename Macro 36",
+        "title": ""
+      },
+      {
+        "text": "Macro 37",
+        "label": "Rename Macro 37",
+        "title": ""
+      },
+      {
+        "text": "Macro 38",
+        "label": "Rename Macro 38",
+        "title": ""
+      },
+      {
+        "text": "Macro 39",
+        "label": "Rename Macro 39",
+        "title": ""
+      },
+      {
+        "text": "Macro 40",
+        "label": "Rename Macro 40",
+        "title": ""
+      },
+      {
+        "text": "Macro 41",
+        "label": "Rename Macro 41",
+        "title": ""
+      },
+      {
+        "text": "Macro 42",
+        "label": "Rename Macro 42",
+        "title": ""
+      },
+      {
+        "text": "Macro 43",
+        "label": "Rename Macro 43",
+        "title": ""
+      },
+      {
+        "text": "Macro 44",
+        "label": "Rename Macro 44",
+        "title": ""
+      },
+      {
+        "text": "Macro 45",
+        "label": "Rename Macro 45",
+        "title": ""
+      },
+      {
+        "text": "Macro 46",
+        "label": "Rename Macro 46",
+        "title": ""
+      },
+      {
+        "text": "Macro 47",
+        "label": "Rename Macro 47",
+        "title": ""
+      },
+      {
+        "text": "Macro 48",
+        "label": "Rename Macro 48",
+        "title": ""
+      },
+      {
+        "text": "Macro 49",
+        "label": "Rename Macro 49",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "alt-repeat": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nAlt-Repeat Keys\nAlt-Repeat keys remap what happens when you press Alt-Repeat after a specific key. Click on a key slot to assign a keycode.\nALT-REP\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\nAdd Keys to Alt-Repeat Keys\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "leaders": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nLeader Sequences\nLeader sequences trigger an output when you press a specific sequence of keys after the Leader key. Click on a key slot to assign a keycode.\nLEADER\n0\n...\n1\n...\n2\n...\n3\n...\n4\n...\n5\n...\n6\n...\n7\n...\n8\n...\n9\n...\n10\n...\n11\n...\n12\n...\n13\n...\n14\n...\n15\n...\n16\n...\n17\n...\n18\n...\n19\n...\n20\n...\n21\n...\n22\n...\n23\n...\n24\n...\n25\n...\n26\n...\n27\n...\n28\n...\n29\n...\n30\n...\n31\n...\nAdd Keys to Leader Sequences\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "combos": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nCombos\nA chording type solution for adding custom actions. It lets you hit multiple keys at once and produce a different effect. For instance, hitting A and B within the combo term would hit ESC instead, or have it perform even more complex tasks.\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\nAdd Keys to Combos\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "overrides": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nOverrides\nReconfiguration of modifier-key combinations to send a different modifier-key combination or perform completely custom actions. e.g. Send delete when pressing shift + backspace\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\nAdd Keys to Overrides\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "layouts": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nLayouts\nDrag and drop to apply a layout to one of your layers or drag and drop individual keys. Default layouts are provided by Svalboard. You can save any of your own layers here, or import any .svil file.\nImport\nsval-num-sym-layers\n2 layers\n0\nHome-row numbers (default NavNAS)\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nEND\n% 5\n$ 4\n$\n%\nPAGE\nDOWN\n-\n# 3\n#\n+\nPAGE\nUP\n.\n@ 2\n@\n\u25bd\nHOME\n=\n! 1\n!\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n^\n& 7\n&\n^ 6\n* 8\n*\n_\n( 9\n(\nINSERT\n) 0\n)\n~\n1\nLeft-hand tenkey + right-hand nav\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n( 9\n% 5\n$ 4\n$\n-\n* 8\n) 0\n# 3\n#\n.\n& 7\n+\n@ 2\n@\n,\n^ 6\n(\n! 1\n!\n=\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nHOME\n_\n& 7\n-\nPAGE\nUP\n%\n* 8\n^\nPAGE\nDOWN\nINSERT\nEND\nPRINT\nSCREEN\n)\nsval-default\n4 layers\n0\nLayer 0\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nLT1\nENTER\nCAPS\nLOCK\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n1\nLayer 1\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nEND\n% 5\n$ 4\n$\n%\nPAGE\nDOWN\n-\n# 3\n#\n+\nPAGE\nUP\n.\n@ 2\n@\n\u25bd\nHOME\n=\n! 1\n!\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n^\n& 7\n&\n^ 6\n* 8\n*\n_\n( 9\n(\nINSERT\n) 0\n)\n~\n2\nLayer 2\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nF14\nF5\nF4\nF24\nF15\nF13\nF10\nF3\nF23\nF12\nF2\nF22\nF11\nF1\nF21\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nF17\nF16\nF7\nF6\nF18\nF8\nF19\nF9\nF20\nF10\n15\nLayer 15\n\u25bd\n2\n\u25bd\n1\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n1\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n3\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n2\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\n\u25bd\nsval-alt-alphas\n5 layers\n0\nDvorak\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nLT1\nENTER\nCAPS\nLOCK\nK\nI\nU\nP\nY\nJ\nTAB\nLSFT\nE\n.\n`\nQ\nX\nO\n,\nESC\n;\n\\\nA\n'\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nMO\n2\nM\nF\nH\nG\nD\nW\n]\nT\nC\n[\nV\nLT14\nN\nR\nB\nZ\n-\nS\nL\n/\n1\nColemak\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nLT1\nENTER\nCAPS\nLOCK\nV\nG\nT\nP\n\"\nC\nD\nS\nF\n`\nX\nB\nR\nW\nESC\nZ\n[\nA\nQ\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nN\nL\nH\n,\n:\nE\nU\nK\n.\nLT14\nI\nY\nJ\n/\n\\\nO\n;\n]\n2\nHD Promethium\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nR\nLT1\nENTER\nCAPS\nLOCK\nL\nK\nH\nM\nD\nJ\nT\nG\n`\nP\nX\nN\nW\nESC\nF\nZ\nS\nV\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nMO\n2\nU\nA\n.\n,\nO\n:\nE\n/\n;\nY\nLT14\nI\n\"\n-\nB\n\\\nC\n'\nQ\n3\nHD Neu\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nLT1\nENTER\nCAPS\nLOCK\nD\nB\nT\nP\nL\nV\nN\nM\n`\nC\nG\nS\nF\nESC\nX\n[\nR\nW\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nMO\n2\nU\nJ\nA\n.\n,\nO\n:\nE\nQ\n/\nY\nLT14\nI\n\"\n-\nK\n\\\nH\n'\nZ\n4\nGraphite\nLCTRL\nLGUI_T\nTAB\nLSHIFT\nLT1\nENTER\nCAPS\nLOCK\nC\nG\nS\nW\nV\nM\nZ\nT\nD\n`\nL\nR\nX\nESC\nB\n[\nN\nQ\nDEL\nLALT\nBKSP\nMO\n1\nSPACE\nREPEAT\nMO\n2\nP\nK\nH\nF\nY\n.\n;\nA\nO\n'\n-\nLT14\nE\nU\n/\n,\nI\nJ\n]\nAdd Keys to Layouts\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Import",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "sval-num-sym-layers\n2 layers",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Delete layout"
+      },
+      {
+        "text": "",
+        "label": "Enlarge Home-row numbers (default NavNAS) preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Home-row numbers (default NavNAS)",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Home-row numbers (default NavNAS)",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Left-hand tenkey + right-hand nav preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Left-hand tenkey + right-hand nav",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Left-hand tenkey + right-hand nav",
+        "title": ""
+      },
+      {
+        "text": "sval-default\n4 layers",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Delete layout"
+      },
+      {
+        "text": "",
+        "label": "Enlarge Layer 0 preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Layer 1 preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Layer 1",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Layer 1",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Layer 2 preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Layer 2",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Layer 2",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Layer 15 preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Layer 15",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Layer 15",
+        "title": ""
+      },
+      {
+        "text": "sval-alt-alphas\n5 layers",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Delete layout"
+      },
+      {
+        "text": "",
+        "label": "Enlarge Dvorak preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Dvorak",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Dvorak",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Colemak preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Colemak",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Colemak",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge HD Promethium preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete HD Promethium",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy HD Promethium",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge HD Neu preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete HD Neu",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy HD Neu",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Enlarge Graphite preview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Delete Graphite",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Copy Graphite",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "pointing": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nPointing Devices\nConnect keyboard to view pointing devices settings.\nAdd Keys to Pointing Devices\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "settings": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nSettings\nGeneral\nFragments\nBackups\nDeveloper\nAppearance\nSystem\nLight\nDark\nTyping Binds a Key\nSelect a key, then type to assign it. You can include held modifiers.\nON\nOFF\nSerial Assignment\nNone\nDown columns then rows\nAcross rows then columns\nSvalboard by key direction\nInternational Keyboards\nEnglish (US)\nEnglish (UK)\nBrazilian\nCanadian (CSA)\nColemak\nCroatian (QWERTZ)\nDanish\nEuroKey\nFrench (AZERTY)\nFrench (Mac)\nGerman (QWERTZ)\nHebrew (Standard)\nHungarian (QWERTZ)\nItalian\nJapanese\nLatin American\nNorwegian\nRussian\nSlovak\nSpanish\nSwedish\nSwedish (SWERTY)\nSwiss (QWERTZ)\nTurkish\nQMK Settings...\n\u203a\nPrint Layers...\nPrint all non-empty keyboard layers to PDF\n\u203a\nAdd Keys to Settings\nStandard Keys\nEnglish (US)\nEnglish (UK)\nGerman\nFrench\nSpanish\nItalian\nPortuguese (Brazil)\nDanish\nSwiss\nArabic\nRussian\nChinese (Pinyin)\nChinese (Zhuyin)\nFrench (Canada)\nFrench (Mac)\nJapanese\nKorean\nPortuguese\nSpanish (Latin America)\nTurkish\nUkrainian\nESC\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\n`\n1\n2\n3\n4\n5\n6\n7\n8\n9\n0\n-\n=\nBACKSP\nTAB\nQ\nW\nE\nR\nT\nY\nU\nI\nO\nP\n[\n]\n\\\nCAPS\nA\nS\nD\nF\nG\nH\nJ\nK\nL\n;\n'\nENTER\nSHIFT\nZ\nX\nC\nV\nB\nN\nM\n,\n.\n/\nSHIFT\nCTRL\nALT\nGUI\nSPACE\nGUI\nALT\nCTRL\nModifiers\nNone\nSHIFT\nCTRL\nALT\nGUI\nMod, Mod-Tap, and One-Shot Mod\nMOD\nMT\nMT\nOSM\nOSM\nBlank and Transparent\n\u25bd\nNumpad\nPRTSC\nSCRLK\nPAUSE\nNUMLK\n=\n/\n*\nINS\nHOME\nPGUP\n7\n8\n9\n-\nDEL\nEND\nPGDN\n4\n5\n6\n+\n1\n2\n3\nENTER\n0\n.\nFunction Keys\nF1\nF2\nF3\nF4\nF5\nF6\nF7\nF8\nF9\nF10\nF11\nF12\nF13\nF14\nF15\nF16\nF17\nF18\nF19\nF20\nF21\nF22\nF23\nF24\nOffline draft: QWERTY example (demo)No keyboard writes. Export to keep edits.\nConnect\n\u25bd\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\nmouse\nLayer 0\nCTRL\nLGUI_T\nTAB\nSHIFT\nLT1\nENTER\nCAPS\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nESC\nZ\n[\nA\nQ\nDEL\nALT\nBACKSP\nMO\n1\nSPACE\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\n\nNo key selected\n\nNORMAL\nMEDIUM\nSMALL\nAUTO\nAUTO\nBranch: main",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Close details panel",
+        "title": ""
+      },
+      {
+        "text": "General",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Fragments",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Backups",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Developer",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "ON",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "OFF",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "QMK Settings...\n\u203a",
+        "label": "QMK Settings...",
+        "title": ""
+      },
+      {
+        "text": "Print Layers...\nPrint all non-empty keyboard layers to PDF\n\u203a",
+        "label": "Print Layers...",
+        "title": ""
+      },
+      {
+        "text": "Connect",
+        "label": null,
+        "title": "Offline draft: QWERTY example (demo). Export to keep edits. Click to connect."
+      },
+      {
+        "text": "",
+        "label": "Import Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Export Layout",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Matrix Tester",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Show Multiple Layers",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "3D View",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Thumbs",
+        "title": ""
+      },
+      {
+        "text": "\u25bd",
+        "label": "Hide All Transparent Keys",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Overview",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Hide Transparent Layers",
+        "title": ""
+      },
+      {
+        "text": "0",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "1",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "2",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "3",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "4",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "5",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "6",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "7",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "8",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "9",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "10",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "11",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "12",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "13",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "14",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "mouse",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Reverse Layer Order",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Change color for layer 0",
+        "title": ""
+      },
+      {
+        "text": "Layer 0",
+        "label": "Rename layer 0: Layer 0",
+        "title": "Click to rename layer"
+      },
+      {
+        "text": "",
+        "label": "Actions for layer 0",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": "Add keyboard layer view",
+        "title": ""
+      },
+      {
+        "text": "",
+        "label": null,
+        "title": "Show Key Info"
+      },
+      {
+        "text": "NORMAL",
+        "label": null,
+        "title": "Set key size to default"
+      },
+      {
+        "text": "MEDIUM",
+        "label": null,
+        "title": "Set key size to medium"
+      },
+      {
+        "text": "SMALL",
+        "label": null,
+        "title": "Set key size to small"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto size based on window"
+      },
+      {
+        "text": "",
+        "label": "Sidebar layout",
+        "title": "Sidebar layout"
+      },
+      {
+        "text": "",
+        "label": "Bottom bar layout",
+        "title": "Bottom bar layout"
+      },
+      {
+        "text": "AUTO",
+        "label": null,
+        "title": "Auto-switch layout based on window size"
+      }
+    ]
+  },
+  "trainer": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nTrainer\nUse Trainer on your desktop\n\nInstall Keybard Host to show the overlay above your other apps.\n\nDownload for Windows\n\nExtract the ZIP, then run Start-Windows.cmd. First launch needs internet to install its local runtime. No administrator access needed.\n\nThe app opens Keybard in your browser. Connect your board, then select Trainer. The overlay stays running in the system tray.\n\nIs Keybard Host running? Connect this page to it. If your browser asks to let this site access apps on your device, allow it.\n\nConnect to Keybard Host\nAlready running? Open local Keybard\nRelease notes\nControl\nLGui_T\nTab\nShift\nLT1\nEnter\nCaps\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nEscape\nZ\n[\nA\nQ\nDelete\nAlt\nBackspace\nMO\n1\nSpace\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\nPreview background\nLight\nDark\nBusy\nLayout source\nLoaded snapshot\nEditor draft\nQWERTY example\nImport for trainer\nDefault layer\n0 \u00b7 Layer 0\n1 \u00b7 Layer 1\n2 \u00b7 Layer 2\n3 \u00b7 Layer 3\n4 \u00b7 Layer 4\n5 \u00b7 Layer 5\n6 \u00b7 Layer 6\n7 \u00b7 Layer 7\n8 \u00b7 Layer 8\n9 \u00b7 Layer 9\n10 \u00b7 Layer 10\n11 \u00b7 Layer 11\n12 \u00b7 Layer 12\n13 \u00b7 Layer 13\n14 \u00b7 Layer 14\n15 \u00b7 Layer 15\nPreview layer\n0 \u00b7 Layer 0\n1 \u00b7 Layer 1\n2 \u00b7 Layer 2\n3 \u00b7 Layer 3\n4 \u00b7 Layer 4\n5 \u00b7 Layer 5\n6 \u00b7 Layer 6\n7 \u00b7 Layer 7\n8 \u00b7 Layer 8\n9 \u00b7 Layer 9\n10 \u00b7 Layer 10\n11 \u00b7 Layer 11\n12 \u00b7 Layer 12\n13 \u00b7 Layer 13\n14 \u00b7 Layer 14\n15 \u00b7 Layer 15\nOverlay\nAppearance\nFeedback\nPractice\nPreset\nCustom\nDark\nSubtle\nOutline only\nLight\nHigh contrast\nKey fill\n0%\nOutline\n86%\nLegend\n100%\nOutline thickness\n1 px\nContrasting legend halo\nLayer change\nPressed key",
+    "buttons": [
+      {
+        "text": "",
+        "label": "Collapse navigation",
+        "title": ""
+      },
+      {
+        "text": "Standard Keys",
+        "label": "Standard Keys",
+        "title": ""
+      },
+      {
+        "text": "Pointing Devices",
+        "label": "Pointing Devices",
+        "title": ""
+      },
+      {
+        "text": "Special Keys",
+        "label": "Special Keys",
+        "title": ""
+      },
+      {
+        "text": "Layer Keys",
+        "label": "Layer Keys",
+        "title": ""
+      },
+      {
+        "text": "Mouse Keys",
+        "label": "Mouse Keys",
+        "title": ""
+      },
+      {
+        "text": "Tap Dance Keys",
+        "label": "Tap Dance Keys",
+        "title": ""
+      },
+      {
+        "text": "Macro Keys",
+        "label": "Macro Keys",
+        "title": ""
+      },
+      {
+        "text": "Alt-Repeat",
+        "label": "Alt-Repeat",
+        "title": ""
+      },
+      {
+        "text": "Leaders",
+        "label": "Leaders",
+        "title": ""
+      },
+      {
+        "text": "Combos",
+        "label": "Combos",
+        "title": ""
+      },
+      {
+        "text": "Overrides",
+        "label": "Overrides",
+        "title": ""
+      },
+      {
+        "text": "Layouts",
+        "label": "Layouts",
+        "title": ""
+      },
+      {
+        "text": "Trainer",
+        "label": "Trainer",
+        "title": ""
+      },
+      {
+        "text": "Quick Start",
+        "label": "Quick Start",
+        "title": ""
+      },
+      {
+        "text": "About",
+        "label": "About",
+        "title": ""
+      },
+      {
+        "text": "Settings",
+        "label": "Settings",
+        "title": ""
+      },
+      {
+        "text": "Connect to Keybard Host",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Light",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Dark",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Busy",
+        "label": null,
+        "title": ""
+      },
+      {
+        "text": "Import for trainer",
+        "label": null,
+        "title": ""
+      }
+    ]
+  },
+  "trainer-practice": {
+    "text": "PR #18 \u00b7 8d01073 \u00b7 Merge pull request #18 from svalboard/fix/host-release-link\nStandard Keys\nPointing Devices\nSpecial Keys\nLayer Keys\nMouse Keys\nTap Dance Keys\nMacro Keys\nAlt-Repeat\nLeaders\nCombos\nOverrides\nLayouts\nTrainer\nQuick Start\nManual\nAbout\nSettings\nTrainer\nUse Trainer on your desktop\n\nInstall Keybard Host to show the overlay above your other apps.\n\nDownload for Windows\n\nExtract the ZIP, then run Start-Windows.cmd. First launch needs internet to install its local runtime. No administrator access needed.\n\nThe app opens Keybard in your browser. Connect your board, then select Trainer. The overlay stays running in the system tray.\n\nIs Keybard Host running? Connect this page to it. If your browser asks to let this site access apps on your device, allow it.\n\nConnect to Keybard Host\nAlready running? Open local Keybard\nRelease notes\nControl\nLGui_T\nTab\nShift\nLT1\nEnter\nCaps\nV\nG\nF\nR\n\"\nC\nT\nD\nE\n`\nX\nB\nS\nW\nEscape\nZ\n[\nA\nQ\nDelete\nAlt\nBackspace\nMO\n1\nSpace\nMO\n2\nM\n'\nJ\nU\nH\n,\n:\nK\nI\nY\n.\nLT14\nL\nO\nN\n/\n\\\n;\nP\n]\nPreview background\nLight\nDark\nBusy\nLayout source\nLoaded snapshot\nEditor draft\nQWERTY example\nImport for trainer\nDefault layer\n0 \u00b7 Layer 0\n1 \u00b7 Layer 1\n2 \u00b7 Layer 2\n3 \u00b7 Layer 3\n4 \u00b7 Layer 4\n5 \u00b7 Layer 5\n6 \u00b7 Layer 6\n7 \u00b7 Layer 7\n8 \u00b7 Layer 8\n9 \u00b7 Layer 9\n10 \u00b7 Layer 10\n11 \u00b7 Layer 11\n12 \u00b7 Layer 12\n13 \u00b7 Layer 13\n14 \u00b7 Layer 14\n15 \u00b7 Layer 15\nPreview layer\n0 \u00b7 Layer 0\n1 \u00b7 Layer 1\n2 \u00b7 Layer 2\n3 \u00b7 Layer 3\n4 \u00b7 Layer 4\n5 \u00b7 Layer 5\n6 \u00b7 Layer 6\n7 \u00b7 Layer 7\n8 \u00b7 Layer 8\n9 \u00b7 Layer 9\n10 \u00b7 Layer 10\n11 \u00b7 Layer 11\n12 \u00b7 Layer 12\n13 \u00b7 Layer 13\n14 \u00b7 Layer 14\n15 \u00b7 Layer 15\nOverlay\nAppearance\nFeedback\nPractice\nRecall practice\n\nSelf-assessed practice. Nothing is recorded from your typing. While following the board, recall also hides the desktop legends. Closing these controls returns the overlay to reference mode.\n\nFamiliar bindings\n\nSelect a key in the preview to mark its current binding familiar.\n\nSelect a binding\nLeft \u00b7 Control \u00b7 0\nLeft \u00b7 LGui_T Tab \u00b7 1\nLeft \u00b7 Shift \u00b7 2\nLeft \u00b7 LT1 Enter \u00b7 3\nLeft \u00b7 Caps \u00b7 5\nLeft \u00b7 V \u00b7 6\nLeft \u00b7 G \u00b7 7\nLeft \u00b7 F \u00b7 8\nLeft \u00b7 R \u00b7 9\nLeft \u00b7 \" \u00b7 10\nLeft \u00b7 C \u00b7 12\nLeft \u00b7 T \u00b7 13\nLeft \u00b7 D \u00b7 14\nLeft \u00b7 E \u00b7 15\nLeft \u00b7 ` \u00b7 16\nLeft \u00b7 X \u00b7 18\nLeft \u00b7 B \u00b7 19\nLeft \u00b7 S \u00b7 20\nLeft \u00b7 W \u00b7 21\nLeft \u00b7 Escape \u00b7 22\nLeft \u00b7 Z \u00b7 24\nLeft \u00b7 [ \u00b7 25\nLeft \u00b7 A \u00b7 26\nLeft \u00b7 Q \u00b7 27\nLeft \u00b7 Delete \u00b7 28\nRight \u00b7 Alt \u00b7 30\nRight \u00b7 Backspace \u00b7 31\nRight \u00b7 MO(1) \u00b7 32\nRight \u00b7 Space \u00b7 33\nRight \u00b7 MO(2) \u00b7 35\nRight \u00b7 M \u00b7 36\nRight \u00b7 ' \u00b7 37\nRight \u00b7 J \u00b7 38\nRight \u00b7 U \u00b7 39\nRight \u00b7 H \u00b7 40\nRight \u00b7 , \u00b7 42\nRight \u00b7 : \u00b7 43\nRight \u00b7 K \u00b7 44\nRight \u00b7 I \u00b7 45\nRight \u00b7 Y \u00b7 46\nRight \u00b7 . \u00b7 48\nRight \u00b7 LT14 \u00b7 49\nRight \u00b7 L \u00b7 50\nRight \u00b7 O \u00b7 51\nRight \u00b7 N \u00b7 52\nRight \u00b7 / \u00b7 54\nRight \u00b7 \\ \u00b7 55\nRight \u00b7 ; \u00b7 56\nRight \u00b7 P \u00b7 57\nRight \u00b7 ] \u00b7 58\nMark familiar\nClear\nHide familiar legends"
+  }
+}

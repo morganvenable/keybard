@@ -1,0 +1,29 @@
+[
+  {
+    "clip": "drag-key",
+    "verifiedResult": "Former Q position now reports KC_A and displays A",
+    "frames": 33,
+    "durationMs": 6120,
+    "physicalHID": false,
+    "exportMode": "Browser download fallback (native save picker unavailable)",
+    "source": "Real Keybard UI, bundled offline QWERTY example; pointer ring added for visibility"
+  },
+  {
+    "clip": "create-macro",
+    "verifiedResult": "Macro 0 Text action contains Hello from my Svalboard.; assignment to a key is a separate step",
+    "frames": 49,
+    "durationMs": 10650,
+    "physicalHID": false,
+    "exportMode": "Browser download fallback (native save picker unavailable)",
+    "source": "Real Keybard UI, bundled offline QWERTY example; pointer ring added for visibility"
+  },
+  {
+    "clip": "export-backup",
+    "verifiedResult": "Export downloaded a nonempty .svil JSON file",
+    "frames": 24,
+    "durationMs": 5900,
+    "physicalHID": false,
+    "exportMode": "Browser download fallback (native save picker unavailable)",
+    "source": "Real Keybard UI, bundled offline QWERTY example; pointer ring added for visibility"
+  }
+]

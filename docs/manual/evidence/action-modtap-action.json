@@ -1,0 +1,8 @@
+{
+  "clip": "modtap-action",
+  "verifiedResult": "Assigned A on tap / Control on hold using the modifier composer",
+  "frames": 44,
+  "durationMs": 10160,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

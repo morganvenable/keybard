@@ -1,0 +1,8 @@
+{
+  "clip": "swap-keys",
+  "verifiedResult": "Swapped Q and A by dragging existing layout keys, then dragged them back",
+  "frames": 42,
+  "durationMs": 9100,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

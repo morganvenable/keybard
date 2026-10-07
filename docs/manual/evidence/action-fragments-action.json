@@ -1,0 +1,8 @@
+{
+  "clip": "fragments-action",
+  "verifiedResult": "Changed the offline example\u2019s first finger fragment and restored its original selection; no hardware change",
+  "frames": 45,
+  "durationMs": 11360,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

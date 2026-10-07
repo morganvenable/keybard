@@ -1,0 +1,15 @@
+{
+  "clip": "backup-snapshot",
+  "verifiedResult": "Staged one key in Manual mode; ten seconds later a new Edited backup listed \"1 key\" and Unsent (1) above the earlier history",
+  "frames": 44,
+  "durationMs": 10530,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid",
+  "rows": [
+    "Today 10:30 AMEdited\n1 keyUnsent (1)\nRestore",
+    "Yesterday 06:40 PMConnected\n1 key, 1 setting\nRestore",
+    "Oct 3, 2026 02:05 PMEdited\n2 keys\nRestore",
+    "Sep 20, 2026 09:15 AMConnected\nAs loaded\nRestore"
+  ],
+  "clock": "Fake browser clock; history seeded on 2026-09-20 and 2026-10-03 through the real backup service"
+}

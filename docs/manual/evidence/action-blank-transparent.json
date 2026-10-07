@@ -1,0 +1,8 @@
+{
+  "clip": "blank-transparent",
+  "verifiedResult": "Assigned Transparent, then Blank, on layer 3; returning to base confirms A is unchanged",
+  "frames": 53,
+  "durationMs": 14270,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

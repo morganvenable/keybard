@@ -1,9 +1,12 @@
 # KeyBard
 
-[![Test Coverage](https://img.shields.io/codecov/c/github/svalboard/keybard-ng?style=flat-square&label=coverage)](https://codecov.io/gh/svalboard/keybard-ng)
-[![Tests](https://img.shields.io/github/actions/workflow/status/svalboard/keybard-ng/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/svalboard/keybard-ng/actions/workflows/test.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/svalboard/keybard/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/svalboard/keybard/actions/workflows/test.yml)
 
 A modern Vite-based keyboard configuration UI built with React and TypeScript.
+
+## User manual
+
+The illustrated user manual, at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/), walks through connecting, editing, layers, behaviors, backups and Trainer. Its source is in [docs/manual](docs/manual/README.md), with a printable PDF; that README covers regenerating the screenshots and the review record. The production build copies it to `dist/manual/` (see `build/manual.ts`).
 
 ## Quick Start
 
