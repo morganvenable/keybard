@@ -4,6 +4,7 @@ import { getClosestPresetColor } from "../utils/color-conversion";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
 import { keyService } from "./key.service";
+import { activeKeycodeVersion } from '@/constants/keycode-numbering';
 import { KleService } from "./kle.service";
 
 // Default template for KBINFO if needed (simplified from SVALBOARD)
@@ -27,6 +28,19 @@ const DEFAULT_KB_INFO: any = {
     name: "Unknown",
     layout_options: -1
 };
+
+/** Keycodes a layout file stores as numbers instead of names (layout ints, "0x…" strings). */
+function countRawKeycodes(js: any): number {
+    let count = 0;
+    const visit = (value: unknown): void => {
+        if (typeof value === "string") { if (/^0x[0-9a-f]{1,4}$/i.test(value)) count++; }
+        else if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") Object.values(value).forEach(visit);
+    };
+    for (const layer of js.layout ?? []) for (const row of layer) for (const key of row) if (typeof key === "number" && key > 0) count++;
+    for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
+    return count;
+}
 
 export class FileService {
     private static readonly MAX_FILE_SIZE = 1048576; // 1MB
@@ -184,6 +198,11 @@ export class FileService {
         } else {
             throw new Error('Unknown file format. Expected .svil (or legacy .viable) or .vil file.');
         }
+
+        // Keycodes saved as numbers rather than names are only meaningful in the
+        // numbering the file was written in; the import check warns when it differs.
+        kbinfo.keycode_version = typeof js.keycode_version === "string" ? js.keycode_version : undefined;
+        kbinfo.raw_keycode_count = countRawKeycodes(js);
 
         // Restore precise UID (JSON.parse loses precision on large integers)
         if (rawUidStr && kbinfo) {
@@ -368,6 +387,9 @@ export class FileService {
             layout_options: -1,
             macro: macros,
             svil_protocol: kbinfo.svil_proto || 1,
+            // Keycodes are written by name; a keycode with no name is written as a
+            // number, which only means something in this numbering.
+            keycode_version: activeKeycodeVersion(),
             via_protocol: kbinfo.via_proto || 12,
             tap_dance: tapDances,
             combo: combos,

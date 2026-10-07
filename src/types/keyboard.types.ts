@@ -29,6 +29,8 @@ export interface KeyboardInfo {
     alt_repeat_key_count?: number;           // NEW
     leader_count?: number;                   // NEW
     feature_flags?: number;                  // NEW: Svil feature flags
+    keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
+    raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
 
     // Fragment composition (modular layouts)
     fragments?: Record<string, FragmentDefinition>;  // Fragment definitions

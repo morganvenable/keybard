@@ -1,6 +1,7 @@
 import { LabelService } from "./label.service";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
+import { activeKeycodeVersion, applyKeycodeNumbering, UNREPORTED_KEYCODE_VERSION } from '@/constants/keycode-numbering';
 import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
 
@@ -111,7 +112,11 @@ export class KeyboardService {
         // Load keyboard information
         await this.getKeyboardInfo(kbinfo);
 
-        // Register custom keycodes (SV_...) from the keyboard definition
+        // Number keycodes the way this board does, then register its custom
+        // keycodes (SV_...) from the keyboard definition on top.
+        if (!applyKeycodeNumbering(kbinfo.keycode_version!)) {
+            console.warn(`Keybard has no keycode numbering for QMK keycodes ${kbinfo.keycode_version}; using ${activeKeycodeVersion()}. Keycodes QMK renumbered since then may be wrong.`);
+        }
         keyService.generateAllKeycodes(kbinfo);
 
         // Populate keylayout using KLE service if payload exists
@@ -208,12 +213,16 @@ export class KeyboardService {
         });
 
         // Parse Svil info response:
-        // Response format after wrapper stripped: [cmd_echo][protocol_version:4][uid:8][feature_flags:1]
+        // Response format after wrapper stripped:
+        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
         // Table and label requests switch to 2-byte indices from v2 on
         this.usb.svilProtocolVersion = kbinfo.svil_proto;
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
+        // The QMK keycode numbering the board uses; older firmware sends zeros.
+        const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
+        kbinfo.keycode_version = keycodeVersion.some(Boolean) ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
 
         // Extract UID as hex string for kbid
         // UID is stored as little-endian 64-bit integer, so reverse bytes for hex string
