@@ -17,6 +17,8 @@ const DEFAULT_TTL_SECS = 120;
 const CLIENT_ID_RENEW_SECS = 50;
 // Wrapper error frame: [0xDD][client_id:4][0xFF][error_code]
 const CLIENT_ERROR_PROTOCOL = 0xff;
+import { toHidOpenError } from "../utils/linux-hid-access";
+
 export const CLIENT_ERR_INVALID_ID = 0x01;
 export const CLIENT_ERR_NO_IDS = 0x02;
 export const CLIENT_ERR_UNKNOWN_PROTO = 0x03;
@@ -218,7 +220,11 @@ export class SvilUSB {
   async openDevice(device: HIDDevice): Promise<boolean> {
     this.device = device;
     if (!this.device.opened) {
-      await this.device.open();
+      try {
+        await this.device.open();
+      } catch (error) {
+        throw toHidOpenError(error, device);
+      }
     }
     await this.initListener();
     navigator.hid.addEventListener("disconnect", this.handleDisconnect);
