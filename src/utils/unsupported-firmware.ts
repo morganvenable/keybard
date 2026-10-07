@@ -1,3 +1,5 @@
+import { MIN_SVIL_PROTO } from "../constants/firmware";
+
 /**
  * The keyboard doesn't speak the Sval protocol Keybard needs. Raised while
  * connecting, before any of its replies are parsed as Sval data, so the user gets
@@ -43,4 +45,13 @@ export class UnsupportedFirmwareError extends Error {
         this.name = "UnsupportedFirmwareError";
         this.info = info;
     }
+}
+
+/**
+ * Throw unless GET_INFO's Sval protocol version is one Keybard can use
+ * (protocol 0 is what an echoed request reads as).
+ */
+export function assertSupportedSvilProto(svilProto: number): void {
+    if (!svilProto) throw new UnsupportedFirmwareError({ kind: "unknown" });
+    if (svilProto < MIN_SVIL_PROTO) throw new UnsupportedFirmwareError({ kind: "outdated-sval", svilProto });
 }

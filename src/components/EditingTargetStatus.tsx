@@ -5,7 +5,7 @@ import { FirmwareUpdateNote, UnsupportedFirmwareCard } from "@/components/Firmwa
 
 /** Announce target changes without reserving a row in the editor. */
 export default function EditingTargetStatus() {
-    const { keyboard, isConnected, loadedFrom, connectionState, connectionError, connectionFirmware, isChangingTarget } = useKeyboard();
+    const { keyboard, isConnected, loadedFrom, connectionState, connectionError, connectionFirmware, dismissConnectionError, isChangingTarget } = useKeyboard();
     if (!keyboard) return null;
     const unknownKeycodes = isConnected && keyboard.keycode_version && !isKnownKeycodeVersion(keyboard.keycode_version);
     const firmwareNotice = isConnected ? firmwareUpdateNotice(keyboard) : null;
@@ -29,7 +29,7 @@ export default function EditingTargetStatus() {
                 </div>
             )}
             {connectionFirmware
-                ? <UnsupportedFirmwareCard info={connectionFirmware} className="absolute right-4 top-full z-50 max-w-sm whitespace-normal shadow-sm" />
+                ? <UnsupportedFirmwareCard info={connectionFirmware} onDismiss={dismissConnectionError} className="absolute right-4 top-full z-50 max-w-sm whitespace-normal shadow-sm" />
                 : connectionError && <p role="alert" className="absolute right-4 top-full z-50 max-w-sm whitespace-normal rounded-md border border-red-200 dark:border-red-900 bg-kb-surface p-3 text-sm text-red-700 dark:text-red-400 shadow-sm">{connectionError}</p>}
         </>
     );

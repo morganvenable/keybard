@@ -36,7 +36,7 @@ const FlashSteps = ({ fromVial }: { fromVial: boolean }) => (
 );
 
 /** Why the keyboard couldn't connect, and how to get it onto firmware Keybard can use. */
-export function UnsupportedFirmwareCard({ info, className }: { info: UnsupportedFirmwareInfo; className?: string }) {
+export function UnsupportedFirmwareCard({ info, className, onDismiss }: { info: UnsupportedFirmwareInfo; className?: string; onDismiss?: () => void }) {
     let title: string;
     let body: React.ReactNode;
     switch (info.kind) {
@@ -87,7 +87,12 @@ export function UnsupportedFirmwareCard({ info, className }: { info: Unsupported
         <div role="alert" aria-label={title} className={cn("rounded-md border border-kb-gray-border bg-kb-surface p-4 text-left text-sm text-kb-ink", className)}>
             <p className="mb-2 flex items-center gap-2 font-semibold text-kb-red">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                {title}
+                <span className="flex-1">{title}</span>
+                {onDismiss && (
+                    <button type="button" onClick={onDismiss} aria-label="Dismiss" title="Dismiss" className="rounded p-0.5 text-kb-ink hover:bg-kb-gray-medium cursor-pointer">
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
             </p>
             <div className="space-y-2">{body}</div>
         </div>

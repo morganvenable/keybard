@@ -202,3 +202,34 @@ describe('SvilUSB firmware detection', () => {
         expect((failure as Error).message).toContain('old Vial firmware (v2025-11-01)');
     });
 });
+
+describe('SvilUSB.checkFirmware (before switching the editing target)', () => {
+    /** Svalboard QMK answering the bootstrap, then GET_INFO with the given protocol version. */
+    const svalQmk = (proto: number) => (msg: Uint8Array) => {
+        if (msg[0] !== 0xdd) return svalQmkUnwrapped(msg);
+        if (msg[1] === 0 && msg[2] === 0 && msg[3] === 0 && msg[4] === 0) return bootstrapReply(msg, [0x01, 0x00, 0x01, 0x00]);
+        if (msg[5] === 0xdf && msg[6] === 0x00) return padded([0xdd, 1, 0, 1, 0, 0xdf, 0x00, proto, 0, 0, 0]);
+        return null;
+    };
+
+    it('passes current Svalboard QMK and closes its own connection', async () => {
+        const { device } = makeDevice(svalQmk(3));
+        await expect(SvilUSB.checkFirmware(device as unknown as HIDDevice)).resolves.toBeUndefined();
+        expect(device.close).toHaveBeenCalled();
+        expect(device.opened).toBe(false);
+    });
+
+    it('rejects the old Vial firmware and still closes', async () => {
+        const { device } = makeDevice(vialEcho);
+        const failure = await SvilUSB.checkFirmware(device as unknown as HIDDevice).catch((e: unknown) => e);
+        expect(failure).toBeInstanceOf(UnsupportedFirmwareError);
+        expect((failure as UnsupportedFirmwareError).info.kind).toBe('svalboard-vial');
+        expect(device.opened).toBe(false);
+    });
+
+    it('rejects a pre-release Sval protocol build', async () => {
+        const { device } = makeDevice(svalQmk(2));
+        const failure = await SvilUSB.checkFirmware(device as unknown as HIDDevice).catch((e: unknown) => e);
+        expect((failure as UnsupportedFirmwareError).info).toEqual({ kind: 'outdated-sval', svilProto: 2 });
+    });
+});

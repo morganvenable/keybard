@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import EditingTargetStatus from '../../src/components/EditingTargetStatus';
-const state = vi.hoisted(() => ({keyboard: {name: 'Board'} as {name: string; keycode_version?: string; svil_proto?: number; feature_flags?: number; keycode_version_reported?: boolean}, isConnected: false, loadedFrom: 'layout.svil', connectionState: 'offline', connectionError: null as string | null, connectionFirmware: null as {kind: 'svalboard-vial'} | null, isChangingTarget: false}));
+const state = vi.hoisted(() => ({keyboard: {name: 'Board'} as {name: string; keycode_version?: string; svil_proto?: number; feature_flags?: number; keycode_version_reported?: boolean}, isConnected: false, loadedFrom: 'layout.svil', connectionState: 'offline', connectionError: null as string | null, connectionFirmware: null as {kind: 'svalboard-vial'} | null, dismissConnectionError: vi.fn(), isChangingTarget: false}));
 vi.mock('@/contexts/KeyboardContext', () => ({useKeyboard: () => state}));
 describe('editing target status', () => {
     beforeEach(() => {state.keyboard = {name: 'Board'}; state.isConnected = false; state.connectionError = null; state.connectionFirmware = null; state.isChangingTarget = false; localStorage.clear();});
@@ -41,6 +41,14 @@ describe('editing target status', () => {
         state.connectionFirmware = {kind: 'svalboard-vial'};
         render(<EditingTargetStatus />);
         expect(screen.getByRole('alert')).toHaveTextContent('File > Save current layout');
+    });
+    it('lets the firmware card be dismissed while the draft or board stays open', () => {
+        state.isConnected = true;
+        state.connectionError = 'old Vial firmware';
+        state.connectionFirmware = {kind: 'svalboard-vial'};
+        render(<EditingTargetStatus />);
+        fireEvent.click(screen.getByRole('button', {name: 'Dismiss'}));
+        expect(state.dismissConnectionError).toHaveBeenCalled();
     });
     it('says nothing about a keycode numbering it knows', () => {
         state.isConnected = true;

@@ -18,7 +18,7 @@ const CLIENT_ID_RENEW_SECS = 50;
 // Wrapper error frame: [0xDD][client_id:4][0xFF][error_code]
 const CLIENT_ERROR_PROTOCOL = 0xff;
 import { toHidOpenError } from "../utils/linux-hid-access";
-import { UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
+import { assertSupportedSvilProto, UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
 import { SVALBOARD_VIAL_UID } from "../constants/svalboard-vial";
 
 // Unwrapped probes for identifying firmware that doesn't speak the wrapper. All read-only.
@@ -262,9 +262,38 @@ export class SvilUSB {
   };
 
   async open(filters: HIDDeviceFilter[]): Promise<boolean> {
+    const device = await SvilUSB.requestDevice(filters);
+    return device ? this.openDevice(device) : false;
+  }
+
+  /** Show the browser's device chooser; null when the user picks nothing. */
+  static async requestDevice(filters: HIDDeviceFilter[]): Promise<HIDDevice | null> {
     const devices = await navigator.hid.requestDevice({ filters });
-    if (devices.length !== 1) return false;
-    return this.openDevice(devices[0]);
+    return devices.length === 1 ? devices[0] : null;
+  }
+
+  /** Whether this connection currently has the given device open. */
+  hasDevice(device: HIDDevice): boolean {
+    return this.device === device;
+  }
+
+  /**
+   * Check that a device runs firmware Keybard can use before anything switches
+   * over to it: bootstrap a client ID (which identifies Vial and other non-Sval
+   * firmware) and read the Sval protocol version. It runs on its own short-lived
+   * connection, so whatever is being edited now (a connected board or an offline
+   * draft) is untouched. Throws UnsupportedFirmwareError, or the open error.
+   */
+  static async checkFirmware(device: HIDDevice): Promise<void> {
+    const probe = new SvilUSB();
+    try {
+      await probe.openDevice(device);
+      const info = await probe.sendSvil(SvilUSB.CMD_SVIL_GET_INFO, [], { uint8: true }) as Uint8Array;
+      // [cmd_echo][protocol_version:4]...
+      assertSupportedSvilProto(info[1] | (info[2] << 8) | (info[3] << 16) | (info[4] << 24));
+    } finally {
+      await probe.close().catch(() => undefined);
+    }
   }
 
   /**

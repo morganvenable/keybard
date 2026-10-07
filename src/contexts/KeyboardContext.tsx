@@ -5,7 +5,7 @@ import { svalService } from "../services/sval.service";
 import { fileService } from "../services/file.service";
 import { keyService } from "../services/key.service";
 import { qmkService } from "../services/qmk.service";
-import { usbInstance } from "../services/usb.service";
+import { SvilUSB, usbInstance } from "../services/usb.service";
 import { customValueService } from "../services/custom-value.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/keyboard.types";
@@ -27,6 +27,8 @@ interface KeyboardContextType {
     connectionFix: string | null;
     /** Set when connectionError is the keyboard running firmware Keybard can't use. */
     connectionFirmware: UnsupportedFirmwareInfo | null;
+    /** Clear connectionError (and its fix and firmware details) without touching the connection. */
+    dismissConnectionError: () => void;
     isChangingTarget: boolean;
     runDeviceMaintenance: <T>(operation: () => Promise<T>) => Promise<T>;
     registerTargetChangeGuard: (guard: () => Promise<(discardPending?: boolean) => void>) => () => void;
@@ -88,6 +90,11 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
         setConnectionFirmware(failure instanceof UnsupportedFirmwareError ? failure.info : null);
         setConnectionState("error");
+    }, []);
+    const dismissConnectionError = useCallback(() => {
+        setConnectionError(null);
+        setConnectionFix(null);
+        setConnectionFirmware(null);
     }, []);
     const [connectionSessionId, setConnectionSessionId] = useState(0);
     const sessionRef = useRef(0);
@@ -162,30 +169,27 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return success;
     }, [nextSession]);
 
-    const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
-        if (!confirmTargetChange()) return false;
+    // Switch the editing target to a device. Its firmware is checked first, on a
+    // separate connection, so a board Keybard can't use leaves whatever is being
+    // edited (an offline draft, or another connected board) exactly as it was,
+    // and only a usable board gets as far as the "discard your edits?" prompt.
+    const switchTo = useCallback(async (device: HIDDevice) => {
         setConnectionError(null);
         setConnectionFix(null);
         setConnectionFirmware(null);
-        setConnectionState("connecting");
-        let release: ((discardPending?: boolean) => void) | undefined;
-        let changed = false;
-        try {
-            release = await beginTargetChange();
-            changed = await usbInstance.open(filters || DEFAULT_HID_FILTERS);
-            return afterOpen(changed);
-        } catch (error) {
-            console.error("Failed to connect to keyboard:", error);
-            reportConnectionFailure(error);
-            return false;
-        } finally { release?.(changed); }
-    }, [afterOpen, confirmTargetChange, beginTargetChange, reportConnectionFailure]);
-
-    const connectDevice = useCallback(async (device: HIDDevice) => {
+        if (!usbInstance.hasDevice(device)) {
+            try {
+                await SvilUSB.checkFirmware(device);
+            } catch (error) {
+                console.error("Keyboard failed the firmware check:", error);
+                const failure = error instanceof Error ? error : new Error(String(error));
+                setConnectionError(failure.message);
+                setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
+                setConnectionFirmware(failure instanceof UnsupportedFirmwareError ? failure.info : null);
+                return false;
+            }
+        }
         if (!confirmTargetChange()) return false;
-        setConnectionError(null);
-        setConnectionFix(null);
-        setConnectionFirmware(null);
         setConnectionState("connecting");
         let release: ((discardPending?: boolean) => void) | undefined;
         let changed = false;
@@ -194,11 +198,26 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             changed = await usbInstance.openDevice(device);
             return afterOpen(changed);
         } catch (error) {
-            console.error("Failed to open permitted keyboard:", error);
+            console.error("Failed to connect to keyboard:", error);
             reportConnectionFailure(error);
             return false;
         } finally { release?.(changed); }
     }, [afterOpen, confirmTargetChange, beginTargetChange, reportConnectionFailure]);
+
+    const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
+        let device: HIDDevice | null;
+        try {
+            device = await SvilUSB.requestDevice(filters || DEFAULT_HID_FILTERS);
+        } catch (error) {
+            console.error("Failed to choose a keyboard:", error);
+            setConnectionError(error instanceof Error ? error.message : String(error));
+            return false;
+        }
+        // Closing the chooser changes nothing.
+        return device ? switchTo(device) : false;
+    }, [switchTo]);
+
+    const connectDevice = switchTo;
 
     const disconnect = useCallback(async () => {
         const release = await beginTargetChange();
@@ -457,6 +476,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         connectionError,
         connectionFix,
         connectionFirmware,
+        dismissConnectionError,
         connectionSessionId,
         registerTargetChangeGuard,
         isChangingTarget,

@@ -6,8 +6,7 @@ import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus,
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
-import { MIN_SVIL_PROTO } from "@/constants/firmware";
-import { UnsupportedFirmwareError } from "@/utils/unsupported-firmware";
+import { assertSupportedSvilProto } from "@/utils/unsupported-firmware";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyboard.types";
 
 // Svil feature flags (from protocol info response)
@@ -238,9 +237,7 @@ export class KeyboardService {
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
         kbinfo.keycode_version = kbinfo.keycode_version_reported ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
         // Nothing past here is safe on a board that isn't speaking Sval protocol 3+
-        // (protocol 0 is what an echoed request reads as).
-        if (!kbinfo.svil_proto) throw new UnsupportedFirmwareError({ kind: "unknown" });
-        if (kbinfo.svil_proto < MIN_SVIL_PROTO) throw new UnsupportedFirmwareError({ kind: "outdated-sval", svilProto: kbinfo.svil_proto });
+        assertSupportedSvilProto(kbinfo.svil_proto);
 
         // Extract UID as hex string for kbid
         // UID is stored as little-endian 64-bit integer, so reverse bytes for hex string
