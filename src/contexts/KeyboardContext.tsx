@@ -11,6 +11,7 @@ import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/keyboard.types";
 import { PARANOID, userIsLooking } from "../lib/paranoid";
 import { LinuxHidAccessError } from "../utils/linux-hid-access";
+import { UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
 
 interface KeyboardContextType {
     keyboard: KeyboardInfo | null;
@@ -24,6 +25,8 @@ interface KeyboardContextType {
     connectionError: string | null;
     /** Shell commands that would fix connectionError, when there are any (the Linux udev rule). */
     connectionFix: string | null;
+    /** Set when connectionError is the keyboard running firmware Keybard can't use. */
+    connectionFirmware: UnsupportedFirmwareInfo | null;
     isChangingTarget: boolean;
     runDeviceMaintenance: <T>(operation: () => Promise<T>) => Promise<T>;
     registerTargetChangeGuard: (guard: () => Promise<(discardPending?: boolean) => void>) => () => void;
@@ -78,6 +81,14 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [connectionState, setConnectionState] = useState<KeyboardContextType["connectionState"]>("idle");
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [connectionFix, setConnectionFix] = useState<string | null>(null);
+    const [connectionFirmware, setConnectionFirmware] = useState<UnsupportedFirmwareInfo | null>(null);
+    const reportConnectionFailure = useCallback((error: unknown) => {
+        const failure = error instanceof Error ? error : new Error(String(error));
+        setConnectionError(failure.message);
+        setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
+        setConnectionFirmware(failure instanceof UnsupportedFirmwareError ? failure.info : null);
+        setConnectionState("error");
+    }, []);
     const [connectionSessionId, setConnectionSessionId] = useState(0);
     const sessionRef = useRef(0);
     const targetChangeGuard = useRef<(() => Promise<(discardPending?: boolean) => void>) | null>(null);
@@ -143,6 +154,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setIsConnected(false);
                 setConnectionState("offline");
                 setConnectionError("Keyboard disconnected. Your local edits are retained; export a backup before reconnecting if needed.");
+                setConnectionFirmware(null);
             };
         }
         setIsConnected(success);
@@ -154,6 +166,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!confirmTargetChange()) return false;
         setConnectionError(null);
         setConnectionFix(null);
+        setConnectionFirmware(null);
         setConnectionState("connecting");
         let release: ((discardPending?: boolean) => void) | undefined;
         let changed = false;
@@ -163,18 +176,16 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return afterOpen(changed);
         } catch (error) {
             console.error("Failed to connect to keyboard:", error);
-            const failure = error instanceof Error ? error : new Error(String(error));
-            setConnectionError(failure.message);
-            setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
-            setConnectionState("error");
+            reportConnectionFailure(error);
             return false;
         } finally { release?.(changed); }
-    }, [afterOpen, confirmTargetChange, beginTargetChange]);
+    }, [afterOpen, confirmTargetChange, beginTargetChange, reportConnectionFailure]);
 
     const connectDevice = useCallback(async (device: HIDDevice) => {
         if (!confirmTargetChange()) return false;
         setConnectionError(null);
         setConnectionFix(null);
+        setConnectionFirmware(null);
         setConnectionState("connecting");
         let release: ((discardPending?: boolean) => void) | undefined;
         let changed = false;
@@ -184,13 +195,10 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return afterOpen(changed);
         } catch (error) {
             console.error("Failed to open permitted keyboard:", error);
-            const failure = error instanceof Error ? error : new Error(String(error));
-            setConnectionError(failure.message);
-            setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
-            setConnectionState("error");
+            reportConnectionFailure(error);
             return false;
         } finally { release?.(changed); }
-    }, [afterOpen, confirmTargetChange, beginTargetChange]);
+    }, [afterOpen, confirmTargetChange, beginTargetChange, reportConnectionFailure]);
 
     const disconnect = useCallback(async () => {
         const release = await beginTargetChange();
@@ -284,6 +292,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setKeyboard(loadedInfo);
                 setConnectionState("connected");
                 setConnectionError(null);
+                setConnectionFirmware(null);
                 // Store original state for revert functionality
                 setOriginalKeyboard(structuredClone(loadedInfo));
                 // Set loadedFrom to device product name
@@ -291,8 +300,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setLoadedFrom(deviceName || loadedInfo.kbid || "Connected Device");
             } catch (error) {
                 if (session === sessionRef.current) {
-                    setConnectionError(error instanceof Error ? error.message : String(error));
-                    setConnectionState("error");
+                    reportConnectionFailure(error);
                     try { await usbInstance.close(); } catch (closeError) { console.error("Failed to close connection after load error", closeError); }
                 }
                 throw error;
@@ -304,7 +312,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         };
         void loadPromise.then(clearLoad, clearLoad);
         return loadPromise;
-    }, [isConnected]);
+    }, [isConnected, reportConnectionFailure]);
 
     useEffect(() => {
         if (isConnected) {
@@ -331,6 +339,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             nextSession();
             changed = true;
             setConnectionError(null);
+            setConnectionFirmware(null);
             setConnectionState("offline");
             setKeyboard(kbinfo);
             // Store original state for revert functionality
@@ -447,6 +456,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         connectionState,
         connectionError,
         connectionFix,
+        connectionFirmware,
         connectionSessionId,
         registerTargetChangeGuard,
         isChangingTarget,

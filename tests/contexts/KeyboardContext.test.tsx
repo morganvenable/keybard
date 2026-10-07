@@ -40,6 +40,7 @@ vi.mock('../../src/services/usb.service', () => ({
 import { fileService } from '../../src/services/file.service';
 import { usbInstance } from '../../src/services/usb.service';
 import { LinuxHidAccessError, udevRuleCommand } from '../../src/utils/linux-hid-access';
+import { UnsupportedFirmwareError } from '../../src/utils/unsupported-firmware';
 import { KeyboardService, keyboardService } from '../../src/services/keyboard.service';
 
 describe('KeyboardContext - File Loading', () => {
@@ -332,6 +333,19 @@ describe('KeyboardContext - File Loading', () => {
     expect(result.current.isConnected).toBe(false);
     expect(keyboardService.load).toHaveBeenCalledTimes(1);
     expect(usbInstance.close).toHaveBeenCalled();
+  });
+
+  it('exposes old firmware found while loading, and clears it on the next attempt', async () => {
+    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(keyboardService.load).mockRejectedValueOnce(new UnsupportedFirmwareError({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' }));
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    await waitFor(() => expect(result.current.connectionState).toBe('error'));
+    expect(result.current.connectionFirmware).toEqual({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' });
+    expect(result.current.connectionError).toContain('old Vial firmware (v2025-11-01)');
+    vi.mocked(usbInstance.open).mockRejectedValueOnce(new Error('Device busy'));
+    await act(async () => { await result.current.connect(); });
+    expect(result.current.connectionFirmware).toBeNull();
   });
 
   it('waits for the previous write guard before opening another transport', async () => {

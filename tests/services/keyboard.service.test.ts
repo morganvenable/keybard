@@ -1,4 +1,5 @@
 import { LabelService } from "../../src/services/label.service";
+import { UnsupportedFirmwareError } from '../../src/utils/unsupported-firmware';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { KeyboardService } from '../../src/services/keyboard.service';
 import { SvilUSB } from '../../src/services/usb.service';
@@ -220,6 +221,32 @@ describe('KeyboardService', () => {
       });
 
       await expect(keyboardService.getKeyboardInfo(kbinfo)).rejects.toThrow('Invalid payload size');
+    });
+
+    it('refuses firmware older than Sval protocol 3 before reading the definition', async () => {
+      for (const [proto, kind] of [[0, 'unknown'], [1, 'outdated-sval'], [2, 'outdated-sval']] as const) {
+        mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
+          SvilUSB.CMD_SVIL_GET_INFO, proto, 0, 0, 0, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x00,
+        ])));
+        const failure = await keyboardService.getKeyboardInfo(createTestKeyboardInfo()).catch((e: unknown) => e);
+        expect(failure).toBeInstanceOf(UnsupportedFirmwareError);
+        expect((failure as UnsupportedFirmwareError).info.kind).toBe(kind);
+      }
+      expect(mockUSB.sendSvil).not.toHaveBeenCalledWith(SvilUSB.CMD_SVIL_DEFINITION_SIZE, expect.anything(), expect.anything());
+    });
+
+    it('notes whether the board reported its keycode numbering', async () => {
+      const kbinfo = createTestKeyboardInfo();
+      await keyboardService.getKeyboardInfo(kbinfo);
+      expect(kbinfo.keycode_version_reported).toBe(false);
+    });
+
+    it('rejects an empty or garbled definition instead of handing it to the LZMA decoder', async () => {
+      for (const bytes of [new Uint8Array(0), new Uint8Array(4), new Uint8Array(32).fill(0xff)]) {
+        definitionBytes = bytes;
+        await expect(keyboardService.getKeyboardInfo(createTestKeyboardInfo())).rejects.toThrow(/Invalid payload size|unreadable keyboard definition/);
+      }
+      expect(LZMA.decompressFile).not.toHaveBeenCalled();
     });
 
     it('should handle USB disconnection during info retrieval', async () => {

@@ -18,6 +18,18 @@ const CLIENT_ID_RENEW_SECS = 50;
 // Wrapper error frame: [0xDD][client_id:4][0xFF][error_code]
 const CLIENT_ERROR_PROTOCOL = 0xff;
 import { toHidOpenError } from "../utils/linux-hid-access";
+import { UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
+import { SVALBOARD_VIAL_UID } from "../constants/svalboard-vial";
+
+// Unwrapped probes for identifying firmware that doesn't speak the wrapper. All read-only.
+const PROBE_TIMEOUT_MS = 300;
+const VIAL_GET_KEYBOARD_ID = [VIA_PREFIX, 0x00]; // -> [vial_proto:4 LE][uid:8 LE]
+const VIA_GET_PROTOCOL_VERSION = [0x01];         // -> [0x01][version:2 BE]
+// Svalboard's Vial firmware (v25.02 on) has its own 0xEE protocol
+const SVAL_VIAL_GET_PROTO = [0xee, 0x01];        // -> "sval"[version:4 LE]
+const SVAL_VIAL_GET_FIRMWARE = [0xee, 0x02];     // -> QMK_VERSION, NUL-terminated
+const SVAL_MAGIC = [0x73, 0x76, 0x61, 0x6c];     // "sval"
+const QMK_UNHANDLED = 0xff;                      // QMK's id_unhandled reply prefix
 
 export const CLIENT_ERR_INVALID_ID = 0x01;
 export const CLIENT_ERR_NO_IDS = 0x02;
@@ -88,6 +100,21 @@ export class SvilCommandRefusedError extends Error {
  */
 export function checkSvilStatus(cmd: number, resp: Uint8Array): void {
   if (resp[1] !== 0) throw new SvilCommandRefusedError(cmd, resp[1]);
+}
+
+/** Whether a reply repeats our request from `from` on (client ID and nonce). */
+function isOurRequest(response: Uint8Array, request: Uint8Array, from: number): boolean {
+  for (let i = from; i < 5 + NONCE_SIZE; i++) {
+    if (response[i] !== request[i]) return false;
+  }
+  return true;
+}
+
+/** A NUL-terminated string from a reply, or undefined if it isn't printable text. */
+function printableString(bytes: Uint8Array): string | undefined {
+  const end = bytes.indexOf(0);
+  const text = new TextDecoder().decode(bytes.slice(0, end < 0 ? bytes.length : end)).trim();
+  return text && /^[ -~]+$/.test(text) ? text : undefined;
 }
 
 // Generate cryptographically random nonce
@@ -191,6 +218,7 @@ export class SvilUSB {
   private clientIdExpiry: number = 0;
   private renewalTimer?: ReturnType<typeof setTimeout>;
   private bootstrapPromise?: Promise<void>; // Prevent concurrent bootstraps
+  private bootstrapped = false; // This connection has had a client ID before
 
   // Sval protocol version of the connected keyboard, from CMD_SVIL_GET_INFO
   // (set while connecting). Assume version 1 until the keyboard says otherwise.
@@ -219,6 +247,7 @@ export class SvilUSB {
    */
   async openDevice(device: HIDDevice): Promise<boolean> {
     this.device = device;
+    this.bootstrapped = false;
     if (!this.device.opened) {
       try {
         await this.device.open();
@@ -308,6 +337,12 @@ export class SvilUSB {
 
         console.log("Bootstrap response:", Array.from(response.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' '));
 
+        // QMK without the wrapper answers [0xFF][rest of our request] (id_unhandled)
+        if (response[0] === QMK_UNHANDLED && isOurRequest(response, message, 1)) {
+          console.warn("Bootstrap request unhandled: not Sval firmware");
+          throw new UnsupportedFirmwareError(await this.identifyFirmware());
+        }
+
         // Validate wrapper prefix
         if (response[0] !== WRAPPER_PREFIX) {
           console.log("Unexpected response prefix, reading again...");
@@ -340,6 +375,15 @@ export class SvilUSB {
           (response[27] << 16) |
           (response[28] << 24);
 
+        // Firmware never issues the bootstrap ID 0. Getting it back means the
+        // keyboard echoed our request: Svalboard's Vial firmware does that with
+        // every packet it doesn't know, so later commands would "answer" with
+        // our own requests.
+        if (newClientId === 0) {
+          console.warn("Bootstrap request echoed back: not Sval firmware");
+          throw new UnsupportedFirmwareError(await this.identifyFirmware());
+        }
+
         // Check for error
         if (newClientId === 0xFFFFFFFF) {
           const errorCode = response[29];
@@ -358,12 +402,59 @@ export class SvilUSB {
         // Schedule renewal
         this.scheduleRenewal();
 
+        this.bootstrapped = true;
         console.log(`Svil client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
         return;
       }
     }
 
-    throw new Error("Bootstrap failed after all retries");
+    // Nothing answered. On a board that has answered before, that's a hiccup;
+    // on a fresh connection it's firmware that ignores the wrapper.
+    if (this.bootstrapped) throw new Error("Bootstrap failed after all retries");
+    throw new UnsupportedFirmwareError(await this.identifyFirmware());
+  }
+
+  /**
+   * Work out what a keyboard that didn't take the client-ID bootstrap is running,
+   * with unwrapped read-only requests, so the error can say what to do.
+   */
+  private async identifyFirmware(): Promise<UnsupportedFirmwareInfo> {
+    // Svalboard Vial firmware v25.02 and later: "sval" protocol, with its QMK version
+    const proto = await this.probe(SVAL_VIAL_GET_PROTO);
+    if (proto && SVAL_MAGIC.every((b, i) => proto[i] === b)) {
+      const version = await this.probe(SVAL_VIAL_GET_FIRMWARE);
+      return { kind: "svalboard-vial", reportedVersion: version ? printableString(version) : undefined };
+    }
+    // Any Vial firmware reports its keyboard UID; Svalboard's is known
+    const id = await this.probe(VIAL_GET_KEYBOARD_ID);
+    if (id && id[0] !== QMK_UNHANDLED && id[0] !== VIA_PREFIX) {
+      const uid = id.slice(4, 12).reduce((acc, b, i) => acc | (BigInt(b) << BigInt(8 * i)), 0n);
+      return { kind: uid === SVALBOARD_VIAL_UID ? "svalboard-vial" : "other-qmk" };
+    }
+    // Plain VIA firmware
+    const via = await this.probe(VIA_GET_PROTOCOL_VERSION);
+    if (via && via[0] === VIA_GET_PROTOCOL_VERSION[0]) return { kind: "other-qmk" };
+    return { kind: "unknown" };
+  }
+
+  /** Send one unwrapped request and return the first reply that isn't wrapped traffic. */
+  private async probe(request: number[]): Promise<Uint8Array | null> {
+    if (!this.device) return null;
+    const message = new Uint8Array(MSG_LEN);
+    message.set(request);
+    try {
+      await this.device.sendReport(0, message as BufferSource);
+    } catch (e) {
+      console.warn("Firmware probe failed to send:", e);
+      return null;
+    }
+    const deadline = Date.now() + PROBE_TIMEOUT_MS;
+    for (let left = PROBE_TIMEOUT_MS; left > 0; left = deadline - Date.now()) {
+      const response = await this.readWithTimeout(left);
+      if (!response) return null;
+      if (response[0] !== WRAPPER_PREFIX) return response;
+    }
+    return null;
   }
 
   /**
@@ -422,6 +513,7 @@ export class SvilUSB {
     }
     this.clientId = 0;
     this.clientIdExpiry = 0;
+    this.bootstrapped = false;
     this.svilProtocolVersion = 1;
 
     if (this.device) {
