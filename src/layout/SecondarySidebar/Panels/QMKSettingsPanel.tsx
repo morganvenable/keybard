@@ -15,6 +15,45 @@ import type { QMKSettingsField } from "@/types/qmk";
 // settings are fully tested in their respective feature panels (CombosPanel, LeadersPanel).
 // These duplicates exist temporarily to allow side-by-side comparison during testing.
 
+// Holds what the user types and saves it on Enter or blur. Saving on every keystroke
+// clamped partial values and disabled the field mid-edit, which dropped focus.
+const IntegerSettingInput: React.FC<{
+    title: string;
+    value: number;
+    min: number;
+    max: number;
+    onCommit: (value: number) => void;
+    className?: string;
+}> = ({ title, value, min, max, onCommit, className }) => {
+    const [draft, setDraft] = useState<string | null>(null);
+
+    const commit = () => {
+        if (draft === null) return;
+        const parsed = parseInt(draft, 10);
+        setDraft(null);
+        if (Number.isNaN(parsed)) return;
+        const clamped = Math.max(min, Math.min(max, parsed));
+        if (clamped !== value) onCommit(clamped);
+    };
+
+    return (
+        <Input
+            type="number"
+            aria-label={title}
+            value={draft ?? value}
+            min={min}
+            max={max}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+                if (e.key === "Enter") commit();
+                if (e.key === "Escape") setDraft(null);
+            }}
+            className={className}
+        />
+    );
+};
+
 const QMKSettingsPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useKeyboard();
     const { queue } = useChanges();
@@ -175,17 +214,12 @@ const QMKSettingsPanel: React.FC = () => {
                             Range: {field.min} - {field.max}
                         </span>
                     </div>
-                    <Input
-                        type="number"
-                        aria-label={field.title}
+                    <IntegerSettingInput
+                        title={field.title}
                         value={value}
                         min={field.min}
                         max={field.max}
-                        onChange={(e) => {
-                            const newVal = parseInt(e.target.value) || 0;
-                            handleIntChange(field.qsid, newVal, field.min, field.max);
-                        }}
-                        disabled={isSaving}
+                        onCommit={(newVal) => handleIntChange(field.qsid, newVal, field.min, field.max)}
                         className={cn("w-24 text-right select-text", isSaving && "opacity-50")}
                     />
                 </div>
