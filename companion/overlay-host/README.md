@@ -40,7 +40,26 @@ Paranoid mode is a separate way to run Keybard Host, for people who want Keybard
 
 ## Linux and macOS
 
-Linux: copy the web build to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. It needs the usual Qt desktop libraries. On Wayland, placement, stacking and click-through depend on the compositor. macOS hasn't been tested.
+Linux: copy the web build to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. On Wayland, placement, stacking and click-through depend on the compositor. macOS hasn't been tested.
+
+### Linux setup
+
+Qt's X11 plugin and Qt WebEngine need these libraries. A full Ubuntu desktop has most of them; minimal installs and WSL do not. Qt reports any missing X11 library as `xcb-cursor0`, so install the whole list:
+
+```sh
+sudo apt install python3-venv libnss3 libasound2t64 libxkbfile1 libxcb-cursor0 libxcb-icccm4 \
+  libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxkbcommon-x11-0
+```
+
+The Host reads the board through hidraw, which only root can open by default. Give the logged-in user access to Svalboard HID devices, then replug the board. The rule matches the USB IDs rather than the serial number, because current firmware no longer reports the serial that Vial's udev rule looks for.
+
+```sh
+echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4044", MODE="0660", TAG+="uaccess"' \
+  | sudo tee /etc/udev/rules.d/60-svalboard.rules
+sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
+```
+
+Under WSL, attach the board with [usbipd-win](https://github.com/dorssel/usbipd-win) (`usbipd bind`, then `usbipd attach --wsl`); Windows loses the board until it is detached. If Wayland fails with `Failed to create wl_display`, set `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir`. WSLg doesn't show the overlay under X11 (`QT_QPA_PLATFORM=xcb`), so use Wayland there. If a Windows Host already uses port 5178, start the Linux Host with `--port 5179`. What works under WSLg says nothing about stacking, focus or click-through on native Ubuntu.
 
 ## For developers
 

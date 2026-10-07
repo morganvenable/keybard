@@ -1,6 +1,7 @@
 """Strictly read-only Sval v2/v3 client with the mandatory client wrapper."""
 from dataclasses import dataclass, replace
 import secrets
+import sys
 import time
 
 from .board_layout import decode_definition, geometry_from_definition
@@ -36,6 +37,16 @@ class UnsupportedCommand(ProtocolError):
 
 class Cancelled(Exception):
     pass
+
+
+def hid_backend(platform=sys.platform):
+    # The hidapi wheel's default Linux backend is libusb, which reports no usage
+    # pages and can detach the kernel keyboard driver. Use hidraw there.
+    if platform.startswith("linux"):
+        import hidraw
+        return hidraw
+    import hid
+    return hid
 
 
 def candidates(hid_module):

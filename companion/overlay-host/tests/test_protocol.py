@@ -1,7 +1,10 @@
 import unittest
 import json
 import lzma
-from keybard_host.device.protocol import SvalReader, ProtocolError, candidates, READ_COMMANDS, LayerSnapshot, DEFAULT_LAYER_STATE_FLAG
+import sys
+import types
+from unittest import mock
+from keybard_host.device.protocol import SvalReader, ProtocolError, candidates, hid_backend, READ_COMMANDS, LayerSnapshot, DEFAULT_LAYER_STATE_FLAG
 
 
 class FakeDevice:
@@ -226,6 +229,14 @@ class ProtocolTests(unittest.TestCase):
                         {"usage_page": 1, "usage": 6, "path": b"keyboard"},
                         {"usage_page": 1, "usage": 2, "path": b"pointer"}]
         self.assertEqual([d["path"] for d in candidates(HID())], [b"sval"])
+
+    def test_linux_uses_hidraw_backend(self):
+        # libusb, the hidapi wheel's default on Linux, reports usage page 0 for every interface.
+        hid, hidraw = types.ModuleType("hid"), types.ModuleType("hidraw")
+        with mock.patch.dict(sys.modules, {"hid": hid, "hidraw": hidraw}):
+            self.assertIs(hid_backend("linux"), hidraw)
+            self.assertIs(hid_backend("win32"), hid)
+            self.assertIs(hid_backend("darwin"), hid)
 
 
 if __name__ == "__main__":
