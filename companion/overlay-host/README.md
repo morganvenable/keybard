@@ -39,10 +39,10 @@ sudo apt install python3-venv libnss3 libasound2t64 libxkbfile1 libxcb-cursor0 l
   libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxkbcommon-x11-0
 ```
 
-The host reads the board through hidraw, which is root-only by default. Allow the `plugdev` group to use Svalboard HID nodes, then replug the board or trigger udev:
+The host reads the board through hidraw, which is root-only by default. Grant the logged-in user access to Svalboard HID nodes, then replug the board or trigger udev. The rule matches the USB IDs, not the serial number: current firmware no longer reports the Vial serial that Vial's udev rule matches.
 
 ```sh
-echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4044", MODE="0660", GROUP="plugdev"' \
+echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4044", MODE="0660", TAG+="uaccess"' \
   | sudo tee /etc/udev/rules.d/60-svalboard.rules
 sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
 ```
