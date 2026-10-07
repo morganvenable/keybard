@@ -129,6 +129,19 @@ export class FileService {
         });
     }
 
+    /** Save .svil text that is already serialized (e.g. a stored backup). */
+    async downloadSvilText(svil: string, suggestedName: string): Promise<void> {
+        await this.downloadTEXT(svil, {
+            suggestedName,
+            types: [{
+                description: 'Svalboard layout files',
+                accept: {
+                    'application/json': ['.svil'],
+                },
+            }],
+        });
+    }
+
     async downloadKeymapH(_kbinfo: KeyboardInfo): Promise<void> {
         // TODO: Implement kbinfoToCKeymap logic here or import it if available
         // For now, leaving as placeholder or assuming global exists (which we should avoid)

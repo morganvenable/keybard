@@ -1,0 +1,122 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import SettingsPanel from '../../src/layout/SecondarySidebar/Panels/SettingsPanel';
+import type { SnapshotMeta } from '../../src/services/backup/store';
+
+const now = Date.now();
+const snap = (over: Partial<SnapshotMeta>): SnapshotMeta => ({
+    id: 'a', boardKey: 'sval:AAAA', boardName: 'Desk', savedAt: now, kind: 'edited', fingerprint: 'f',
+    includesPending: false, pendingCount: 0, summary: '', size: 10, ...over,
+});
+
+const mocks = vi.hoisted(() => ({
+    mode: 'sidebar',
+    instant: false,
+    keyboard: { rows: 1, cols: 1, layers: 1, keymap: [[4]], name: 'Test', macros: [], macro_count: 0, settings: {} },
+    queue: vi.fn(), sync: vi.fn(), commit: vi.fn(), upload: vi.fn(), download: vi.fn(),
+    backups: {} as Record<string, unknown>,
+}));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: mocks.keyboard, setKeyboard: vi.fn(), isConnected: true, loadFromFile: vi.fn(), setIsImporting: vi.fn() }) }));
+vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ queue: mocks.queue, todo: {}, isInstant: mocks.instant, isSaving: false, commit: mocks.commit, setInstant: vi.fn() }) }));
+vi.mock('@/contexts/BackupContext', () => ({ useBackups: () => mocks.backups }));
+vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ layoutMode: mocks.mode }) }));
+vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ setActivePanel: vi.fn() }) }));
+vi.mock('@/App', () => ({ useNavigation: () => ({ navigateTo: vi.fn() }) }));
+vi.mock('@/contexts/SettingsContext', () => ({ useSettings: () => ({
+    getSetting: vi.fn(), updateSetting: vi.fn(), settingsDefinitions: [],
+    settingsCategories: [{ name: 'general', label: 'General', settings: [] }, { name: 'backups', label: 'Backups', settings: [] }],
+}) }));
+vi.mock('@/services/file.service', () => ({ fileService: { uploadFile: mocks.upload, downloadSvil: vi.fn(), downloadSvilText: mocks.download } }));
+vi.mock('@/services/import.service', () => ({ importService: { syncWithKeyboard: mocks.sync } }));
+vi.mock('@/services/keyboard.service', () => ({ keyboardService: {} }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/BoardIdentitySection', () => ({ default: () => null }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/FragmentsPanel', () => ({ default: () => null }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/DynamicMenuPanel', () => ({ default: () => null }));
+
+const backups = (over: Record<string, unknown> = {}) => ({
+    available: true,
+    folderSupported: true,
+    folder: { state: 'none', name: null, error: null },
+    board: { key: 'sval:BBBB', name: 'Travel' },
+    snapshots: [
+        snap({ id: 'old', boardKey: 'sval:AAAA', boardName: 'Desk', savedAt: now - 1000 }),
+        snap({ id: 'conn', boardKey: 'sval:BBBB', boardName: 'Travel', kind: 'connected', savedAt: now - 5000 }),
+        snap({ id: 'edit', boardKey: 'sval:BBBB', boardName: 'Travel', savedAt: now - 2000, summary: '3 keys, 1 macro', includesPending: true, pendingCount: 4 }),
+    ],
+    getSvil: vi.fn(async (id: string) => `svil-${id}`),
+    deleteSnapshot: vi.fn(async () => undefined),
+    chooseFolder: vi.fn(async () => undefined),
+    resumeFolder: vi.fn(async () => undefined),
+    stopFolder: vi.fn(async () => undefined),
+    ...over,
+});
+
+const openBackups = () => { render(<SettingsPanel />); fireEvent.click(screen.getByRole('button', { name: 'Backups' })); };
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.instant = false;
+    mocks.backups = backups();
+    mocks.upload.mockResolvedValue({ ...mocks.keyboard, keymap: [[5]] });
+});
+
+describe('Settings > Backups', () => {
+    it.each(['sidebar', 'bottombar'])('lists snapshots by board, connected board first (%s)', (mode) => {
+        mocks.mode = mode;
+        openBackups();
+        const groups = screen.getAllByRole('region');
+        expect(groups[0]).toHaveAccessibleName('Backups of Travel');
+        expect(groups[1]).toHaveAccessibleName('Backups of Desk');
+        const rows = within(groups[0]).getAllByTestId('backup-row');
+        expect(rows[0]).toHaveTextContent('3 keys, 1 macro');
+        expect(rows[0]).toHaveTextContent('Unsent (4)');
+        expect(rows[1]).toHaveTextContent('Connected');
+        expect(rows[1]).not.toHaveTextContent('Unsent');
+    });
+
+    it('restores through the import review, staging changes for Apply', async () => {
+        openBackups();
+        const travel = screen.getAllByRole('region')[0];
+        fireEvent.click(within(travel).getAllByRole('button', { name: /Restore backup/ })[0]);
+        expect(await screen.findByRole('dialog')).toBeVisible();
+        expect(mocks.upload).toHaveBeenCalledTimes(1);
+        const file = mocks.upload.mock.calls[0][0] as File;
+        expect(file.name).toMatch(/^Travel .*\.svil$/);
+        expect(mocks.sync).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Stage import' }));
+        await waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
+        expect(mocks.commit).not.toHaveBeenCalled();
+    });
+
+    it('downloads and deletes', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        openBackups();
+        fireEvent.click(screen.getAllByRole('button', { name: /Download backup/ })[0]);
+        await waitFor(() => expect(mocks.download).toHaveBeenCalledWith('svil-edit', expect.stringMatching(/\.svil$/)));
+        fireEvent.click(screen.getAllByRole('button', { name: /Delete backup/ })[0]);
+        await waitFor(() => expect((mocks.backups.deleteSnapshot as any)).toHaveBeenCalledWith('edit'));
+    });
+
+    it('offers to choose a folder', () => {
+        openBackups();
+        fireEvent.click(screen.getByRole('button', { name: 'Choose backup folder' }));
+        expect(mocks.backups.chooseFolder).toHaveBeenCalled();
+    });
+
+    it('offers Resume only while paused', () => {
+        mocks.backups = backups({ folder: { state: 'paused', name: 'Keybard backups', error: null } });
+        openBackups();
+        expect(screen.getByText('Keybard backups')).toBeVisible();
+        fireEvent.click(screen.getByRole('button', { name: 'Resume backups' }));
+        expect(mocks.backups.resumeFolder).toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Stop using folder' }));
+        expect(mocks.backups.stopFolder).toHaveBeenCalled();
+    });
+
+    it('shows Choose again when the folder was lost', () => {
+        mocks.backups = backups({ folder: { state: 'lost', name: null, error: null } });
+        openBackups();
+        expect(screen.getByRole('button', { name: 'Choose backup folder' })).toBeVisible();
+        expect(screen.queryByRole('button', { name: 'Resume backups' })).toBeNull();
+    });
+});
