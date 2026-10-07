@@ -14,7 +14,11 @@ describe('UnsupportedFirmwareCard', () => {
         const card = screen.getByRole('alert');
         expect(card).toHaveTextContent('old Vial firmware (v2025-11-01)');
         expect(card).toHaveTextContent('File > Save current layout');
-        expect(card).toHaveTextContent('flash both halves');
+        expect(card).toHaveTextContent('Flash both halves');
+        expect(card).toHaveTextContent('RPI-RP2');
+        // The saved layout goes back in through the import control, after connecting
+        expect(card).toHaveTextContent('Import Layout above the keyboard and choose your saved .vil file');
+        expect(card).not.toHaveTextContent('Load File');
         const link = screen.getByRole('link');
         expect(link).toHaveAttribute('href', SVALBOARD_FIRMWARE_URL);
         expect(link).toHaveAttribute('target', '_blank');
@@ -25,6 +29,14 @@ describe('UnsupportedFirmwareCard', () => {
         expect(screen.getByRole('alert')).toHaveTextContent("doesn't run Svalboard firmware");
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(screen.queryByText(/Save current layout/)).not.toBeInTheDocument();
+    });
+
+    it('tells a keyboard that never answered to retry, not to reflash', () => {
+        render(<UnsupportedFirmwareCard info={{ kind: 'no-response' }} />);
+        const card = screen.getByRole('alert', { name: "The keyboard didn't respond" });
+        expect(card).toHaveTextContent('Unplug the keyboard');
+        expect(card).not.toHaveTextContent(/Vial firmware|uf2|Flash/);
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
     it('shows the download address as text in Keybard Paranoid', () => {

@@ -64,6 +64,12 @@ const viaBoard = (msg: Uint8Array) => (msg[0] === 0x01 ? padded([0x01, 0x00, 0x0
 const otherVial = (msg: Uint8Array) =>
     msg[0] === 0xfe && msg[1] === 0x00 ? padded([6, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8]) : viaBoard(msg);
 
+/** Current Svalboard QMK, unwrapped: only VIA's own commands answer. */
+const svalQmkUnwrapped = (msg: Uint8Array) => (msg[0] === 0x01 ? padded([0x01, 0x00, 0x0c], msg) : unhandled(msg));
+
+/** Svalboard QMK's bootstrap reply: our request with a client ID and TTL 120. */
+const bootstrapReply = (msg: Uint8Array, clientId: number[]) => padded([0xdd, 0, 0, 0, 0, ...msg.slice(5, 25), ...clientId, 120, 0]);
+
 async function bootstrapFailure(answer: (msg: Uint8Array) => Uint8Array | null) {
     const { device, sent } = makeDevice(answer);
     const usb = new SvilUSB();
@@ -97,14 +103,79 @@ describe('SvilUSB firmware detection', () => {
         expect((failure as Error).message).toContain("doesn't run Svalboard firmware");
     });
 
-    it('reports a keyboard that never answers as unknown firmware', async () => {
+    it('reports a keyboard that never answers as not responding, not as old firmware', async () => {
         vi.useFakeTimers();
         const { device } = makeDevice(() => null);
         const usb = new SvilUSB();
         await usb.openDevice(device as unknown as HIDDevice);
         const failure = usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, []).catch((e: unknown) => e);
         await vi.advanceTimersByTimeAsync(10_000);
-        expect(((await failure) as UnsupportedFirmwareError).info).toEqual({ kind: 'unknown' });
+        expect(((await failure) as UnsupportedFirmwareError).info).toEqual({ kind: 'no-response' });
+    });
+
+    it('retries a current-firmware board that misses the first bootstraps instead of calling it another keyboard', async () => {
+        vi.useFakeTimers();
+        let bootstraps = 0;
+        const { device } = makeDevice((msg) => {
+            if (msg[0] !== 0xdd) return svalQmkUnwrapped(msg);
+            const clientId = msg[1] | (msg[2] << 8) | (msg[3] << 16) | (msg[4] << 24);
+            if (clientId === 0) return ++bootstraps <= 5 ? null : bootstrapReply(msg, [0x1d, 0x03, 0x05, 0x00]);
+            return padded([0xdd, ...msg.slice(1, 6), 0x01, 0x00, 0x0c]);
+        });
+        const usb = new SvilUSB();
+        await usb.openDevice(device as unknown as HIDDevice);
+        const result = usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], { unpack: 'B>H', index: 1 }).catch((e: unknown) => e);
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(await result).toBe(0x0c);
+        expect(bootstraps).toBe(6);
+        await usb.close();
+    });
+
+    it('reports current firmware that answers VIA but never the bootstrap as not responding', async () => {
+        vi.useFakeTimers();
+        const { device } = makeDevice((msg) => (msg[0] === 0xdd ? null : svalQmkUnwrapped(msg)));
+        const usb = new SvilUSB();
+        await usb.openDevice(device as unknown as HIDDevice);
+        const failure = usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, []).catch((e: unknown) => e);
+        await vi.advanceTimersByTimeAsync(20_000);
+        expect(((await failure) as UnsupportedFirmwareError).info).toEqual({ kind: 'no-response' });
+    });
+
+    it('asks again when current firmware hands out client ID 0', async () => {
+        let bootstraps = 0;
+        const { device } = makeDevice((msg) => {
+            const clientId = msg[1] | (msg[2] << 8) | (msg[3] << 16) | (msg[4] << 24);
+            if (clientId === 0) return bootstrapReply(msg, ++bootstraps === 1 ? [0, 0, 0, 0] : [0x01, 0, 0, 0]);
+            return padded([0xdd, ...msg.slice(1, 6), 0x01, 0x00, 0x0c]);
+        });
+        const usb = new SvilUSB();
+        await usb.openDevice(device as unknown as HIDDevice);
+        await expect(usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], { unpack: 'B>H', index: 1 })).resolves.toBe(0x0c);
+        expect(bootstraps).toBe(2);
+        await usb.close();
+    });
+
+    it('matches each probe to its own reply when a reply arrives late', async () => {
+        // The "sval" reply misses its probe's window and lands during the next one
+        const { device } = makeDevice(() => null);
+        const listeners = () => (device.addEventListener.mock.calls.map(c => c[1]));
+        const deliver = (bytes: Uint8Array) => {
+            const buf = new Uint8Array(32); buf.set(bytes.slice(0, 32));
+            for (const l of new Set(listeners())) l({ data: new DataView(buf.buffer) });
+        };
+        vi.useFakeTimers();
+        device.sendReport.mockImplementation(async (_id: number, data: BufferSource) => {
+            const msg = new Uint8Array(data as ArrayBuffer).slice();
+            if (msg[0] === 0xdd) { setTimeout(() => deliver(msg), 0); return; } // echo, like Vial
+            if (msg[0] === 0xee && msg[1] === 0x01) { setTimeout(() => deliver(vialEcho(msg)), 400); return; }
+            setTimeout(() => deliver(vialEcho(msg)), 200); // the keyboard ID comes after the late "sval"
+        });
+        const usb = new SvilUSB();
+        await usb.openDevice(device as unknown as HIDDevice);
+        const failure = usb.send(SvilUSB.CMD_VIA_GET_PROTOCOL_VERSION, []).catch((e: unknown) => e);
+        await vi.advanceTimersByTimeAsync(10_000);
+        // The late "sval" reply must not be read as the Vial keyboard-ID answer
+        expect(((await failure) as UnsupportedFirmwareError).info).toEqual({ kind: 'svalboard-vial' });
     });
 
     it('connects to current firmware without probing', async () => {

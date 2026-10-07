@@ -11,7 +11,7 @@ export function FirmwareLink() {
     if (PARANOID) return <code className="select-all break-all font-mono text-xs">{SVALBOARD_FIRMWARE_URL}</code>;
     return (
         <a href={SVALBOARD_FIRMWARE_URL} target="_blank" rel="noreferrer" className="font-medium text-kb-primary underline">
-            github.com/svalboard/qmk/releases
+            the latest Svalboard firmware release
         </a>
     );
 }
@@ -20,13 +20,18 @@ const FlashSteps = ({ fromVial }: { fromVial: boolean }) => (
     <ol className="list-decimal space-y-1 pl-5">
         {fromVial && (
             <li>
-                Keep your layout: in Vial, choose <strong>File &gt; Save current layout</strong>. After updating, load that .vil file here with <strong>Load File</strong> and write it to the keyboard.
+                Keep your layout: in Vial, choose <strong>File &gt; Save current layout</strong> to save a .vil file.
             </li>
         )}
         <li>
-            Download the firmware for your board from <FirmwareLink /> and flash both halves.
+            Download the <span className="font-mono">.uf2</span> files from <FirmwareLink />: pick the image that matches each half's sensor type and side (left or right).
         </li>
-        <li>Connect again.</li>
+        <li>
+            Flash both halves: double-tap a half's reset button so it shows up as a drive named <span className="font-mono">RPI-RP2</span>, then copy its <span className="font-mono">.uf2</span> onto that drive. Repeat for the other half.
+        </li>
+        <li>
+            Connect again.{fromVial && <> Then click <strong>Import Layout</strong> above the keyboard and choose your saved .vil file.</>}
+        </li>
     </ol>
 );
 
@@ -58,6 +63,16 @@ export function UnsupportedFirmwareCard({ info, className }: { info: Unsupported
         case "other-qmk":
             title = "Not a Svalboard firmware";
             body = <p>This keyboard doesn't run Svalboard firmware. Keybard only configures keyboards running Svalboard QMK; use VIA or Vial for this one.</p>;
+            break;
+        case "no-response":
+            title = "The keyboard didn't respond";
+            body = (
+                <ol className="list-decimal space-y-1 pl-5">
+                    <li>Close other apps that may be using the keyboard: Vial, VIA, or another Keybard tab or window.</li>
+                    <li>Unplug the keyboard, plug it back in, and wait a few seconds.</li>
+                    <li>Connect again.</li>
+                </ol>
+            );
             break;
         default:
             title = "Keyboard firmware not recognized";

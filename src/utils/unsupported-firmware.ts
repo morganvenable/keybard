@@ -6,9 +6,11 @@
  * - svalboard-vial: a Svalboard still on its old Vial firmware (svalboard/vial-qmk).
  * - other-qmk: some other VIA/Vial keyboard.
  * - outdated-sval: Svalboard QMK from before Sval protocol 3 (pre-release builds).
- * - unknown: no Sval reply and nothing else recognisable.
+ * - unknown: refused or echoed the Sval bootstrap, and nothing else recognisable.
+ * - no-response: didn't answer the bootstrap at all. Vial always answers, so this
+ *   is a busy or stuck board (or one held by another app), not old firmware.
  */
-export type UnsupportedFirmwareKind = "svalboard-vial" | "other-qmk" | "outdated-sval" | "unknown";
+export type UnsupportedFirmwareKind = "svalboard-vial" | "other-qmk" | "outdated-sval" | "unknown" | "no-response";
 
 export interface UnsupportedFirmwareInfo {
     kind: UnsupportedFirmwareKind;
@@ -26,6 +28,8 @@ function describe({ kind, reportedVersion, svilProto }: UnsupportedFirmwareInfo)
             return `This Svalboard runs a pre-release Svalboard QMK build (Sval protocol ${svilProto ?? "?"}). Update its firmware, then connect again.`;
         case "other-qmk":
             return "This keyboard doesn't run Svalboard firmware. Keybard only configures keyboards running Svalboard QMK.";
+        case "no-response":
+            return "The keyboard didn't respond. Close other apps that use it (Vial, VIA, other Keybard tabs), unplug it and plug it back in, then connect again.";
         default:
             return "The keyboard didn't answer like Svalboard QMK firmware. If it is a Svalboard, update its firmware and connect again.";
     }

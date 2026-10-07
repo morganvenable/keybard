@@ -105,7 +105,7 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         const card = screen.getByRole('alert', { name: "Update your Svalboard's firmware" });
         expect(card).toHaveTextContent('old Vial firmware (v2025-11-01)');
         expect(card).toHaveTextContent('File > Save current layout');
-        expect(screen.getByRole('link', { name: /svalboard\/qmk/ })).toHaveAttribute('href', 'https://github.com/svalboard/qmk/releases/latest');
+        expect(screen.getByRole('link', { name: /latest Svalboard firmware release/ })).toHaveAttribute('href', 'https://github.com/svalboard/qmk/releases/latest');
         expect(screen.getAllByRole('alert')).toHaveLength(1);
         await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
     });
