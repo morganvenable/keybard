@@ -1,0 +1,8 @@
+{
+  "clip": "alt-repeat-action",
+  "verifiedResult": "Enabled A-to-B alternate-repeat mapping and assigned the Alt-Rep key",
+  "frames": 78,
+  "durationMs": 16180,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

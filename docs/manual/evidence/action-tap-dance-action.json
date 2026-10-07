@@ -1,0 +1,8 @@
+{
+  "clip": "tap-dance-action",
+  "verifiedResult": "Tap A, double-tap B configured and tap dance 0 assigned to the former Q position",
+  "frames": 78,
+  "durationMs": 16180,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

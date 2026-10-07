@@ -1,5 +1,7 @@
 // Key service - keycode parsing and stringifying
 import { CODEMAP, KEYMAP, KEYALIASES } from '../constants/keygen';
+// Numbers the tables above for the newest known QMK keycode version on import.
+import '../constants/keycode-numbering';
 import type { KeyString, KeyMapEntry } from '../types/keymap';
 import type { KeyboardInfo } from '../types/keyboard.types';
 

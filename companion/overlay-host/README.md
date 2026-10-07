@@ -1,34 +1,46 @@
-# Keybard Host — native tray preview
+# Keybard Host
 
-A per-user, read-only Svalboard companion. The desktop overlay is the same React/SVG renderer as Keybard's Trainer preview, hosted in a transparent Qt WebEngine window. The existing Sval Trainer and Windows context companion are unchanged.
+Keybard Host shows your Svalboard layout as a transparent overlay on your desktop. It follows the layer you're on, so you can glance at it while you type in any app. It runs in the system tray and only reads from the keyboard: it never changes your layout or flashes firmware.
 
-## Windows
+You choose what the overlay looks like in the **Trainer** panel of [Keybard](https://keybard.svalboard.com).
 
-Run `Start-Windows.cmd`. First launch downloads a separate, pinned Python/Qt runtime into this directory; no admin rights, PATH changes, or persistent PowerShell changes. The WebEngine dependency makes this preview substantially larger than a future optimized native shell. Settings live in Qt's per-user `Keybard Host` application-data directory, not the source checkout. The Svalboard mark identifies the tray icon and application.
+## Install (Windows)
 
-The tray offers Open Keybard, Show overlay, Drag to reposition, Place at bottom, Reload layout, and Quit. Closing the browser keeps the host and overlay running. Quit through the tray to stop it. A second launch opens the existing control page instead of starting another device worker.
+1. Download `KeybardHost-Windows.zip` from [Releases](https://github.com/svalboard/keybard/releases) and extract the whole ZIP to a folder you'll keep.
+2. Run `Start-Windows.cmd`. The first launch downloads its own copy of Python and Qt, so you need to be online. No admin rights or system changes are needed.
 
-Open **http://127.0.0.1:5178/** in a WebHID-capable browser and use Keybard’s normal Connect Keyboard flow. Then select Trainer below Layouts. Pick the intended overlay board in Trainer when multiple devices are attached. Successful connections remember serial and definition UID; reconnect never substitutes an unrelated board. The host reads geometry, all keymap layers, and labels. Automatic defaults are used only when firmware advertises support; older firmware retains a manual default selector. Held-key highlighting is opt-in, performs read-only matrix queries, and may miss short taps.
+Keybard Host is now in your system tray, and it opens Trainer on [keybard.svalboard.com](https://keybard.svalboard.com) in your browser.
 
-Dragging starts on and stays on until you explicitly enable Click through keyboard in the Overlay tab or the overlay menu. The small grip/menu beside the overlay stays clickable in either mode; drag the grip to reposition it, or use its menu to hide the overlay and open Keybard. Restore a hidden overlay from the tray or Keybard. Colors, opacity, outline, halo, hands, scale, and transition timing are saved on this computer and apply to the native overlay. Recall/familiar-key masking is transient; when the web controls disappear its lease expires and the desktop returns to reference mode. Offline/imported previews do not replace the board's live layout.
+## Set up the overlay
 
-Keybard retains its original WebHID connection and editor transport. The companion is a separate read-only client using the firmware’s multi-client protocol. The browser does not substitute an offline snapshot for a connection. Reload the companion layout after changing the device keymap.
+1. In Trainer, connect your keyboard if it isn't already, and click **Connect to Keybard Host**. If the browser asks whether the site can access apps on this device, allow it. Next time it reconnects on its own.
+2. Pick the board to show, if you have more than one, and set the overlay's colors, size and other options. They're saved on this computer.
 
-No keyboard writes, flashing, app-context layer switching, or key logging. Desktop controls communicate only with this host's loopback server. POST operations require its token, exact local Origin/Host, bounded JSON, command allowlisting, and revision checks for persistent configuration.
+Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Trainer. Offline, the Host's built-in copy of Keybard at `http://127.0.0.1:5178/` works the same way.
 
-## Building
+## Using it
 
-From the Keybard repository root:
+- **Place it:** the overlay starts out draggable. Once it's where you want it, turn on **Click through keyboard** in Trainer or in the overlay's small menu. The grip next to the overlay stays clickable either way.
+- **Tray menu:** show or hide the overlay, drag or place it at the bottom of the screen, reload the layout, open Keybard's Trainer, or quit. Closing the browser leaves the overlay running.
+- **After you edit your layout**, choose **Reload layout** from the tray so the overlay shows the change.
+- **Held keys:** optionally highlight the keys you're holding. Very short taps can be missed.
+- **Shift and Caps Lock** change the letters and symbols shown, using the keyboard language chosen in Keybard. This doesn't work on Wayland.
 
-```sh
-npm ci
-VITE_BASE_PATH=/ npm run build
-python3 companion/overlay-host/scripts/package.py
-```
+## What it doesn't do
 
-This creates `dist/KeybardHost-Windows.zip` with the web build, source runner, startup/bootstrap scripts, and pinned runtime manifest. Runtime downloads and user preferences are excluded. The ZIP is a local test distribution, not a signed installer.
+Keybard Host never writes to the keyboard, flashes firmware or records what you type. Its control page listens only on your own computer. It takes commands only from its built-in Keybard and from keybard.svalboard.com, and each change needs a per-session token.
 
-For Ubuntu/X11/Wayland investigation, copy `dist` web assets to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. Wayland stacking/placement/click-through are compositor-dependent and unverified; this is not a layer-shell implementation. macOS is unverified.
+## Updating
+
+Quit Keybard Host from the tray, extract the new release to a new folder, and run `Start-Windows.cmd` there. Your settings are kept, because they're stored in your user profile rather than in the app folder.
+
+## Paranoid mode
+
+Paranoid mode is a separate way to run Keybard Host, for people who want Keybard to have no network access at all. `Start-Paranoid.cmd` starts the Host with Keybard Paranoid, a single-file build of Keybard that can't reach the network. It ignores all websites, keybard.svalboard.com included, and opens its own Keybard in a separate browser profile that can only reach your own computer. `Open-Paranoid.cmd` opens Keybard Paranoid on its own, without the overlay. See `docs/paranoid.md` for exactly what it protects.
+
+## Linux and macOS
+
+Linux: copy the web build to `companion/overlay-host/web`, then run `bash companion/overlay-host/start-linux.sh`. On Wayland, placement, stacking and click-through depend on the compositor. macOS hasn't been tested.
 
 ### Linux setup
 
@@ -39,7 +51,7 @@ sudo apt install python3-venv libnss3 libasound2t64 libxkbfile1 libxcb-cursor0 l
   libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxkbcommon-x11-0
 ```
 
-The host reads the board through hidraw, which is root-only by default. Grant the logged-in user access to Svalboard HID nodes, then replug the board or trigger udev. The rule matches the USB IDs, not the serial number: current firmware no longer reports the Vial serial that Vial's udev rule matches.
+The Host reads the board through hidraw, which only root can open by default. Give the logged-in user access to Svalboard HID devices, then replug the board. The rule matches the USB IDs rather than the serial number, because current firmware no longer reports the serial that Vial's udev rule looks for.
 
 ```sh
 echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4044", MODE="0660", TAG+="uaccess"' \
@@ -47,29 +59,38 @@ echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idP
 sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
 ```
 
-Under WSL, attach the board with [usbipd-win](https://github.com/dorssel/usbipd-win) (`usbipd bind`, then `usbipd attach --wsl`); Windows loses the board until it is detached. If Wayland fails with `Failed to create wl_display`, set `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir`. WSLg does not show the overlay's windows under X11 (`QT_QPA_PLATFORM=xcb`); use Wayland there. If a Windows host already owns port 5178, start the Linux host with `--port 5179`. WSLg results are not evidence for native Ubuntu stacking, focus or click-through.
+Under WSL, attach the board with [usbipd-win](https://github.com/dorssel/usbipd-win) (`usbipd bind`, then `usbipd attach --wsl`); Windows loses the board until it is detached. If Wayland fails with `Failed to create wl_display`, set `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir`. WSLg doesn't show the overlay under X11 (`QT_QPA_PLATFORM=xcb`), so use Wayland there. If a Windows Host already uses port 5178, start the Linux Host with `--port 5179`. What works under WSLg says nothing about stacking, focus or click-through on native Ubuntu.
 
-## Validation
+## For developers
+
+### Build
+
+From the repository root:
+
+```sh
+npm ci
+VITE_BASE_PATH=/ npm run build
+python3 companion/overlay-host/scripts/package.py
+```
+
+This makes `dist/KeybardHost-Windows.zip`, a local test build. It isn't signed, and it doesn't include downloaded runtimes or anyone's settings.
+
+### Test
 
 ```sh
 npm test
 PYTHONPATH=companion/overlay-host python3 -m unittest discover -s companion/overlay-host/tests -v
 ```
 
-The read-only reader and worker originated in Sval Trainer commit `7bfef64`; the companion polling loop now targets an 8 ms cycle, with protocol/definition regression coverage. They are deliberately isolated from the existing context companion's write-capable protocol. Native window movement, focus/click-through, fullscreen, and hardware layer/held-key transitions still need interactive host acceptance.
+These don't cover moving the window, focus, click-through, fullscreen, or live layer and held-key changes on real hardware. Check those by hand.
 
-### Live legends and command icons
+### Publish a Windows preview
 
-The native overlay uses Keybard's layer, tap dance, macro, mouse and other action icons, with separate hold/tap labels. Control names use readable casing (Escape, Delete, Shift, Control, Alt, Caps). Appearance colors and opacity also apply to the icons.
+1. Update `RELEASE-NOTES.md`.
+2. Run the tests above and a Windows smoke test.
+3. Build with `npm run build:svalboard`, then run `python3 companion/overlay-host/scripts/package.py`.
+4. In `dist`, run `sha256sum KeybardHost-Windows.zip > SHA256SUMS.txt`.
+5. Tag the commit `keybard-host-vX.Y.Z-preview.N` and publish a GitHub prerelease with the ZIP and the checksum.
+6. Point `HOST_RELEASE` in `src/features/trainer/HostInstall.tsx` at the new release, so Trainer's install link finds it. Link the tag itself, not GitHub's `latest` redirect, which skips prereleases.
 
-Shift and Caps Lock update character legends from local host modifier flags, sampled every 16 ms and delivered directly to the native renderer. Letters use Shift XOR Caps Lock; Shift changes punctuation using the keyboard language selected in Keybard. A modifier assigned to a mod-tap hold does not shift its tap legend by itself. Browser previews and unavailable modifier sources retain static uppercase keycaps.
-
-Windows uses User32 key flags, macOS uses CoreGraphics session flags, and Linux X11 uses XKB state. Wayland currently retains static legends: XWayland state cannot faithfully represent modifiers in other Wayland applications. These flags describe the host's combined keyboard state, not a guessed Svalboard matrix state. Pending firmware one-shot modifiers and application-specific text transformations are not visible before the firmware sends them to the host. No input is captured or injected, and no firmware update is needed.
-
-## Publishing Windows previews
-
-Public Windows downloads live in `svalboard/keybard` GitHub Releases. The Trainer install prompt uses a versioned release asset and release-notes link in `src/features/trainer/HostInstall.tsx`; update both by changing `HOST_RELEASE` for each new version. Do not use GitHub's `latest` redirect for prereleases.
-
-Before releasing, update `RELEASE-NOTES.md`, run the web/native checks and Windows smoke tests, build with `npm run build:svalboard`, then run `python3 companion/overlay-host/scripts/package.py`. Generate `SHA256SUMS.txt` in `dist` using `sha256sum KeybardHost-Windows.zip`. Tag that exact source commit as `keybard-host-vX.Y.Z-preview.N` and publish a GitHub prerelease containing the ZIP and checksum. Never include local runtimes or preferences.
-
-The manually dispatched **Package Keybard Host preview** workflow accepts an existing version tag, validates/builds that source and creates a draft prerelease with both assets. Validate the Windows package before publishing the draft. The workflow becomes available for dispatch when merged into the repository's default branch. The portable preview launcher installs the pinned runtime on first launch; signing and a native installer remain future distribution work.
+Instead of steps 3–5, you can run the **Package Keybard Host preview** workflow with an existing tag. It builds a draft prerelease with both files; test the ZIP before you publish it.

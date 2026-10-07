@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SvilUSB, CLIENT_ERR_INVALID_ID } from '../../src/services/usb.service';
+import { LinuxHidAccessError } from '../../src/utils/linux-hid-access';
 
 const WRAPPER = 0xdd;
 const VIA = 0xfe;
@@ -101,5 +102,21 @@ describe('SvilUSB client-ID lease', () => {
         await Promise.all([usb.customValueGet(0x53, 0x10, 1), usb.customValueGet(0x53, 0x11, 1), usb.customValueGet(0x53, 0x10, 1)]);
         expect(issued.length).toBe(1);
         await usb.close();
+    });
+});
+
+describe('SvilUSB openDevice on Linux', () => {
+    it('reports a refused open as LinuxHidAccessError with the udev fix', async () => {
+        const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (X11; Linux x86_64) Chrome/140.0.0.0');
+        try {
+            const { device } = makeDevice(() => {});
+            device.open.mockRejectedValueOnce(new DOMException('Failed to open the device.', 'NotAllowedError'));
+            const usb = new SvilUSB();
+            const failure = await usb.openDevice(device as unknown as HIDDevice).catch((e: unknown) => e);
+            expect(failure).toBeInstanceOf(LinuxHidAccessError);
+            expect((failure as LinuxHidAccessError).udevCommand).toContain('ATTRS{idProduct}=="4044"');
+        } finally {
+            ua.mockRestore();
+        }
     });
 });

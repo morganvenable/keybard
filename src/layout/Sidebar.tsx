@@ -1,4 +1,4 @@
-import { HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Settings } from "lucide-react";
+import { BookOpen, HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Settings } from "lucide-react";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -25,6 +25,7 @@ import {
 import { usePanels } from "@/contexts/PanelsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
+import { PARANOID } from "@/lib/paranoid";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
@@ -40,6 +41,8 @@ export type SidebarItem = {
     title: string;
     url: string;
     icon: LucideIcon | React.FC<React.SVGProps<SVGSVGElement>>;
+    /** A page opened in a new tab instead of a panel. */
+    href?: string;
 };
 
 // Top section items (Keyboard and Pointing Devices, before the spacer)
@@ -86,6 +89,9 @@ const layoutSidebarItems: SidebarItem[] = [
 
 const footerItems: SidebarItem[] = [
     { title: "Quick Start", url: "quickstart", icon: GraduationCapIcon },
+    // The user manual is published beside the app (see build/manual.ts). Keybard
+    // Paranoid is a single offline file, so it has no manual to link to.
+    ...(PARANOID ? [] : [{ title: "Manual", url: "manual", icon: BookOpen, href: `${import.meta.env.BASE_URL}manual/` }]),
     { title: "About", url: "about", icon: HelpCircle },
     { title: "Settings", url: "settings", icon: Settings },
 ];
@@ -128,14 +134,25 @@ const SidebarNavItem = ({
                 (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400 dark:text-neutral-400"
             )}
         >
-            <button type="button" aria-label={item.title} aria-pressed={isActive} onClick={() => onClick(item)} className="flex w-full items-center justify-start">
-                <div className={cn(ICON_GUTTER_CLASSES, "h-full")}>
-                    <item.icon className="h-5 w-5 shrink-0" />
-                </div>
-                <span className={cn("truncate", isCollapsed && "hidden")}>
-                    {item.title}
-                </span>
-            </button>
+            {item.href ? (
+                <a href={item.href} target="_blank" rel="noopener" aria-label={item.title} className="flex w-full items-center justify-start">
+                    <div className={cn(ICON_GUTTER_CLASSES, "h-full")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                    </div>
+                    <span className={cn("truncate", isCollapsed && "hidden")}>
+                        {item.title}
+                    </span>
+                </a>
+            ) : (
+                <button type="button" aria-label={item.title} aria-pressed={isActive} onClick={() => onClick(item)} className="flex w-full items-center justify-start">
+                    <div className={cn(ICON_GUTTER_CLASSES, "h-full")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                    </div>
+                    <span className={cn("truncate", isCollapsed && "hidden")}>
+                        {item.title}
+                    </span>
+                </button>
+            )}
         </SidebarMenuButton>
     </SidebarMenuItem>
 );
@@ -370,7 +387,7 @@ const AppSidebar = () => {
                         </SidebarMenu>
                     </div>
 
-                    {/* Footer section - About, Matrix Tester, Settings */}
+                    {/* Footer section - Quick Start, Manual, About, Settings */}
                     <div className="py-2 mb-3">
                         <SidebarMenu className="relative">
                             {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}

@@ -137,6 +137,18 @@ describe('KeyboardService', () => {
   });
 
   describe('getKeyboardInfo', () => {
+    it('reads the QMK keycode numbering the board reports, assuming 0.0.9 when it reports none', async () => {
+      const info = (tail: number[]) => mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
+        SvilUSB.CMD_SVIL_GET_INFO, 0x03, 0x00, 0x00, 0x00, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x00, ...tail,
+      ])));
+      for (const [tail, expected] of [[[0, 0, 9], '0.0.9'], [[0, 0, 12], '0.0.12'], [[0, 0, 0], '0.0.9'], [[], '0.0.9']] as const) {
+        info([...tail]);
+        const kbinfo = createTestKeyboardInfo();
+        await keyboardService.getKeyboardInfo(kbinfo);
+        expect(kbinfo.keycode_version).toBe(expected);
+      }
+    });
+
     it('should retrieve protocol, id, and matrix from svil definition', async () => {
       const kbinfo = createTestKeyboardInfo();
 

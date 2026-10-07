@@ -49,7 +49,8 @@ describe('import preflight', () => {
         expect(legacy.rows).toBe(1);
         expect(legacy.cols).toBe(2);
         expect(legacy.tapdances?.[0].tapping_term).toBe(250);
-        expect(prepareImport(legacy, board()).errors.join(' ')).toMatch(/keycode migration/);
+        expect(legacy.vial_proto).toBe(6);
+        expect(legacy.vial_import?.svalboard).toBe(false);
     });
     it('rejects malformed matrices and raw kbi snapshots with useful errors', () => {
         expect(() => fileService.parseContent(JSON.stringify({ uid: 1, layout: [[['KC_A']], [['KC_A', 'KC_B']]] }))).toThrow(/rectangular/);

@@ -1,0 +1,8 @@
+{
+  "clip": "override-action",
+  "verifiedResult": "Backspace trigger, Delete replacement, Shift trigger and suspended modifier configured",
+  "frames": 72,
+  "durationMs": 15400,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

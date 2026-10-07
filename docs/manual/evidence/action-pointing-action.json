@@ -1,0 +1,8 @@
+{
+  "clip": "pointing-action",
+  "verifiedResult": "Adjusted pointer sensitivity in controlled connected UI; no physical sensor test",
+  "frames": 24,
+  "durationMs": 7230,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid"
+}

@@ -1,0 +1,15 @@
+{
+  "clip": "backup-folder",
+  "verifiedResult": "Chose a folder; Keybard wrote latest.svil and one file per day with backups into a folder named after the board",
+  "frames": 25,
+  "durationMs": 8530,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid",
+  "files": [
+    "test board (sval-0123456789ABCDEF)/2026-09-20.svil",
+    "test board (sval-0123456789ABCDEF)/2026-10-03.svil",
+    "test board (sval-0123456789ABCDEF)/2026-10-06.svil",
+    "test board (sval-0123456789ABCDEF)/latest.svil"
+  ],
+  "clock": "Fake browser clock; history seeded on 2026-09-20 and 2026-10-03 through the real backup service"
+}

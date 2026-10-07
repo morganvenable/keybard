@@ -1,0 +1,8 @@
+{
+  "clip": "combo-action",
+  "verifiedResult": "Combo input slots A and B, output Escape",
+  "frames": 65,
+  "durationMs": 14090,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}

@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
+import { AlertTriangle, Check, Copy, PlugZap, Unplug } from "lucide-react";
 
 import { useKeyboard, listPermittedDevices } from "@/contexts/KeyboardContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
-    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError } = useKeyboard();
+    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError, connectionFix } = useKeyboard();
+    const [fixCopied, setFixCopied] = useState(false);
     const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const connectButtonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => setFixCopied(false), [connectionFix]);
 
     useEffect(() => {
         if (!isConnected && !loading && connectButtonRef.current) {
@@ -228,6 +231,25 @@ const ConnectKeyboard = () => {
                     >
                         <AlertTriangle className="w-5 h-5" />
                         <p className="font-medium">{error || connectionError}</p>
+                    </div>
+                )}
+
+                {!error && connectionFix && (
+                    <div className="mt-3 w-full max-w-2xl text-left">
+                        <div className="relative rounded-md border border-kb-gray-border bg-kb-gray">
+                            <pre aria-label="udev rule commands" className="overflow-x-auto p-3 pr-10 font-mono text-xs text-kb-ink whitespace-pre">{connectionFix}</pre>
+                            <button
+                                type="button"
+                                aria-label={fixCopied ? "Copied" : "Copy commands"}
+                                title={fixCopied ? "Copied" : "Copy commands"}
+                                onClick={() => {
+                                    navigator.clipboard?.writeText(connectionFix).then(() => setFixCopied(true), () => setFixCopied(false));
+                                }}
+                                className="absolute right-2 top-2 rounded p-1 text-kb-ink hover:bg-kb-gray-medium cursor-pointer"
+                            >
+                                {fixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

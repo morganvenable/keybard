@@ -1,0 +1,134 @@
+{
+  "offline-edit": {
+    "title": "Open an example and make a first edit",
+    "description": "Open QWERTY Example, open Standard Keys and drag A onto Q."
+  },
+  "macro-full": {
+    "title": "Create and assign a text macro",
+    "description": "Add a Text action containing hello, close the editor, and drag Macro 0 onto Q. Both the definition and the invoking key are now in the offline draft."
+  },
+  "tap-dance-action": {
+    "title": "Configure and assign a tap dance",
+    "description": "Enable entry 0, assign A to Tap and B to Double-Tap, then drag its tile onto Q. The recording shows configuration; test physical tap timing on your board."
+  },
+  "combo-action": {
+    "title": "Make A + B send Escape",
+    "description": "Enable a combo, choose A and B as its first two inputs, then set Output to Escape. No separate combo key is needed."
+  },
+  "override-action": {
+    "title": "Make Shift + Backspace send Delete",
+    "description": "Enable the entry, choose Backspace and Delete, and select Shift in both Trigger and Suspended. Suspending Shift means the replacement is Delete without Shift."
+  },
+  "leader-action": {
+    "title": "Set up Leader, A, B",
+    "description": "Enable the A-then-B sequence with Macro 0 as its output, then assign the Leader key. Create the hello macro in the preceding example first."
+  },
+  "alt-repeat-action": {
+    "title": "Map A to B and assign alternate repeat",
+    "description": "Enable the A-to-B mapping, then place the Alt-Rep key in the layout. This records configuration, not firmware execution."
+  },
+  "preferences-action": {
+    "title": "Change appearance and turn off typing assignment",
+    "description": "Try Dark, return to Light, and switch Typing Binds a Key off. These preferences belong to this browser."
+  },
+  "compare-layers": {
+    "title": "Compare layers together",
+    "description": "Use Show Multiple Layers, then 3D View to change the presentation. Viewing a layer does not activate it on the keyboard."
+  },
+  "rename-layer": {
+    "title": "Give a layer a useful name",
+    "description": "Click Layer 0, enter Base, and leave the field to save the name in this offline layout."
+  },
+  "reopen-layout": {
+    "title": "Return to a saved file",
+    "description": "Choose Load File on the welcome screen and open a .svil file. The operating-system file chooser is not included in this browser recording."
+  },
+  "import-action": {
+    "title": "Review and open an imported layout",
+    "description": "Use Import Layout, read the offline review, then choose Open layout. On a connected board the review and write controls differ; see the steps below."
+  },
+  "pointing-action": {
+    "title": "Adjust one pointer setting",
+    "description": "Change the left pointer from 800 to 1200 DPI. This uses controlled test-board data to demonstrate the controls; it is not a recommended sensitivity or a sensor test."
+  },
+  "timing-action": {
+    "title": "Stage a timing change and inspect it",
+    "description": "Change Tapping Term from 200 to 210 ms and open Pending (1). Controlled test-board data; the recording does not write physical hardware."
+  },
+  "modtap-action": {
+    "title": "Make one key A on tap and Control on hold",
+    "description": "Assign A, select the position again, choose CTRL, then choose the generated mod-tap tile. Assignment can clear selection, so reselect before composing."
+  },
+  "oneshot-action": {
+    "title": "Assign one-shot Shift",
+    "description": "Select a position, choose SHIFT, and select the OSM tile. On your board, tap and release this key before typing the letter you want shifted."
+  },
+  "blank-transparent": {
+    "title": "Choose Transparent or Blank in Keybard",
+    "description": "On layer 3, set the A position to Transparent, then Blank. Return to base: A is still there. The comparison below explains what happens when the upper layer is active."
+  },
+  "navigation-layer": {
+    "title": "Build a small navigation layer",
+    "description": "On unused layer 3, select three positions and press Left, Down, and Right to assign them using Typing Binds a Key. Return to base and assign MO(3). The remaining layer-3 positions inherit through Transparent."
+  },
+  "layer-tap-action": {
+    "title": "Combine a tap key with a layer hold",
+    "description": "Assign A, select it again, choose Layer Keys \u2192 LT, then choose layer 3. The resulting key is A on tap and layer 3 on hold."
+  },
+  "swap-keys": {
+    "title": "Swap two existing keys",
+    "description": "Drag Q onto A to exchange their bindings, then drag them back to restore the original layout. Palette-to-layout dragging assigns; layout-to-layout dragging swaps."
+  },
+  "save-library": {
+    "title": "Save a reusable layer",
+    "description": "Open the layer actions, choose Save Layer\u2026, give it a name, and find it in Layouts. This is local browser storage, not a complete backup file."
+  },
+  "reuse-layer": {
+    "title": "Apply a layer from the library",
+    "description": "Choose destination layer 3, drag the library\u2019s Layer 0 preview onto it, read the replacement confirmation, and choose OK. Check the destination before confirming."
+  },
+  "print-action": {
+    "title": "Prepare a printed layer reference",
+    "description": "Open Print Layers, review the layer count, click Print, and show the verified printable keyboard layout."
+  },
+  "matrix-action": {
+    "title": "Read and clear Matrix Tester history",
+    "description": "Open Matrix Tester, see three switch reports, then use Clear Matrix. Reports are simulated test-board data; this is not a physical switch test."
+  },
+  "fragments-action": {
+    "title": "Inspect the board\u2019s fragment arrangement",
+    "description": "Open Settings \u2192 Fragments to review the available cluster controls. Only change these to match the hardware you actually have."
+  },
+  "trainer-appearance": {
+    "title": "Choose a readable overlay style",
+    "description": "Apply High contrast, then try the Busy background to judge readability. This is the browser appearance preview."
+  },
+  "trainer-feedback": {
+    "title": "Preview highlighting",
+    "description": "Choose Short fade and use Preview held keys to see a simulated chord. The browser preview does not measure native overlay latency."
+  },
+  "trainer-practice-action": {
+    "title": "Practice one recall prompt",
+    "description": "Enable Recall practice, decide where the requested binding lives, Reveal it, then choose Remembered to advance. Grading is your own assessment."
+  },
+  "trainer-familiar": {
+    "title": "Hide a binding you already know",
+    "description": "Select a familiar binding, choose Mark familiar, and enable Hide familiar legends. The preview hides that binding\u2019s legend."
+  },
+  "trainer-layers": {
+    "title": "Look at different layers in Trainer",
+    "description": "Change Preview layer from base to symbols to function keys, then return to base. This only changes the preview."
+  },
+  "manual-apply": {
+    "title": "Review and apply a queued change",
+    "description": "Change one setting in Manual Updates, inspect Pending (1), then choose Apply 1 Change. The write endpoint is simulated test-board data; no physical keyboard is changed."
+  },
+  "overlay-layers": {
+    "title": "See the overlay respond to layer changes",
+    "description": "The actual shared native renderer receives controlled reports: base, symbols, function keys, then base with held-key highlighting. This demonstrates rendering; it is not a Windows desktop recording or a hardware latency test."
+  },
+  "opening-drag": {
+    "title": "Open the panel and drag a letter",
+    "description": "Open Standard Keys, drag A onto Q without selecting the destination first, and verify A."
+  }
+}

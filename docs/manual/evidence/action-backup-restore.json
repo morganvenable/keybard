@@ -1,0 +1,12 @@
+{
+  "clip": "backup-restore",
+  "verifiedResult": "Restore opened the import review for the October 3 backup; Stage import queued its differences as pending changes without writing the board",
+  "frames": 39,
+  "durationMs": 12440,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid",
+  "review": "Review layout import\n\ntest board 2026-10-03 1405.svil \u2014 replace matching entries on test board.\n\n16 layers\n50 macros\n50 combos\n50 tap dances\n30 overrides\nEntries beyond the file\u2019s layers and tables will be kept from the keyboard.\n\nThis will stage changes in Manual mode. Nothing is written until you use Apply.\n\nBack up current layout\nCancel\nStage import\nClose",
+  "apply": "Apply 17 Changes",
+  "status": "Import staged. Use Apply to save it to the keyboard.",
+  "clock": "Fake browser clock; history seeded on 2026-09-20 and 2026-10-03 through the real backup service"
+}

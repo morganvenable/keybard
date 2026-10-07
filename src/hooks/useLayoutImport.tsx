@@ -19,6 +19,11 @@ export function useLayoutImport() {
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file) return;
+        await reviewFile(file);
+    };
+
+    /** Open the import review for a layout file (also used to restore backups). */
+    const reviewFile = async (file: File) => {
         setFileError(null);
         setFileStatus(null);
         if (Object.keys(todo).length || isSaving) {
@@ -84,5 +89,5 @@ export function useLayoutImport() {
         </Dialog>
     </>;
 
-    return { handleFileImport, importReview, fileError, setFileError };
+    return { handleFileImport, reviewFile, importReview, fileError, setFileError };
 }

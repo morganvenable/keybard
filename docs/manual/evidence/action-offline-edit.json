@@ -1,0 +1,8 @@
+{
+  "clip": "offline-edit",
+  "verifiedResult": "Opened Standard Keys, dragged A directly onto Q, and verified the changed binding without selecting a target first",
+  "frames": 36,
+  "durationMs": 8320,
+  "physicalHID": false,
+  "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
+}
