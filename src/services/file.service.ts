@@ -4,6 +4,8 @@ import { getClosestPresetColor } from "../utils/color-conversion";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
 import { keyService } from "./key.service";
+import { activeKeycodeVersion } from '@/constants/keycode-numbering';
+import { SVALBOARD_VIAL_CUSTOM_KEYCODES, SVALBOARD_VIAL_UID } from '@/constants/svalboard-vial';
 import { KleService } from "./kle.service";
 
 // Default template for KBINFO if needed (simplified from SVALBOARD)
@@ -27,6 +29,19 @@ const DEFAULT_KB_INFO: any = {
     name: "Unknown",
     layout_options: -1
 };
+
+/** Keycodes a layout file stores as numbers instead of names (layout ints, "0x…" strings). */
+function countRawKeycodes(js: any): number {
+    let count = 0;
+    const visit = (value: unknown): void => {
+        if (typeof value === "string") { if (/^0x[0-9a-f]{1,4}$/i.test(value)) count++; }
+        else if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") Object.values(value).forEach(visit);
+    };
+    for (const layer of js.layout ?? []) for (const row of layer) for (const key of row) if (typeof key === "number" && key > 0) count++;
+    for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
+    return count;
+}
 
 export class FileService {
     private static readonly MAX_FILE_SIZE = 1048576; // 1MB
@@ -114,6 +129,19 @@ export class FileService {
         });
     }
 
+    /** Save .svil text that is already serialized (e.g. a stored backup). */
+    async downloadSvilText(svil: string, suggestedName: string): Promise<void> {
+        await this.downloadTEXT(svil, {
+            suggestedName,
+            types: [{
+                description: 'Svalboard layout files',
+                accept: {
+                    'application/json': ['.svil'],
+                },
+            }],
+        });
+    }
+
     async downloadKeymapH(_kbinfo: KeyboardInfo): Promise<void> {
         // TODO: Implement kbinfoToCKeymap logic here or import it if available
         // For now, leaving as placeholder or assuming global exists (which we should avoid)
@@ -185,10 +213,17 @@ export class FileService {
             throw new Error('Unknown file format. Expected .svil (or legacy .viable) or .vil file.');
         }
 
+        // Keycodes saved as numbers rather than names are only meaningful in the
+        // numbering the file was written in; the import check warns when it differs.
+        kbinfo.keycode_version = typeof js.keycode_version === "string" ? js.keycode_version : undefined;
+        kbinfo.raw_keycode_count = countRawKeycodes(js);
+
         // Restore precise UID (JSON.parse loses precision on large integers)
         if (rawUidStr && kbinfo) {
             kbinfo.kbid = BigInt(rawUidStr).toString(16);
         }
+        // Some tools wrote Svalboard Vial files with the UID already rounded.
+        if (kbinfo?.vial_import?.svalboard) kbinfo.kbid = SVALBOARD_VIAL_UID.toString(16);
 
         // Deserialize layout using KLE logic
         // We assume convertVIL layout to keymap handled key codes, 
@@ -368,6 +403,9 @@ export class FileService {
             layout_options: -1,
             macro: macros,
             svil_protocol: kbinfo.svil_proto || 1,
+            // Keycodes are written by name; a keycode with no name is written as a
+            // number, which only means something in this numbering.
+            keycode_version: activeKeycodeVersion(),
             via_protocol: kbinfo.via_proto || 12,
             tap_dance: tapDances,
             combo: combos,
@@ -483,67 +521,77 @@ export class FileService {
     }
 
     vilToKBINFO(vil: any): KeyboardInfo {
-        // Start with default structure
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
-        // Update counts
+        // Vial names a board's custom keycodes by position (USER03). From
+        // Svalboard's Vial firmware, give each its name, which Svalboard QMK
+        // shares; a position Vial left unassigned did nothing there.
+        // JSON parsing rounds the 64-bit UID, so compare it at that precision.
+        const svalboard = Number(vil.uid) === Number(SVALBOARD_VIAL_UID);
+        let unassigned = 0, foreign = 0;
+        const named = (key: any): any => {
+            const user = typeof key === 'string' ? /^USER(\d+)$/.exec(key) : null;
+            if (!user) return key;
+            if (!svalboard) { foreign++; return key; }
+            const custom = SVALBOARD_VIAL_CUSTOM_KEYCODES[Number(user[1])];
+            if (custom) return custom.name;
+            unassigned++;
+            return 'KC_NO';
+        };
+        if (svalboard) {
+            kbinfo.custom_keycodes = SVALBOARD_VIAL_CUSTOM_KEYCODES.map(custom => ({ ...custom }));
+            keyService.generateAllKeycodes(kbinfo);
+        }
+        const used = (key: any) => key !== 'KC_NO' && key !== 'KC_TRNS' && key !== -1 && key !== 0;
+
         kbinfo.key_override_count = vil.key_override?.length || 0;
         kbinfo.combo_count = vil.combo?.length || 0;
         kbinfo.macro_count = vil.macro?.length || 0;
         kbinfo.tapdance_count = vil.tap_dance?.length || 0;
 
-        // Update values
-        kbinfo.combos = vil.combo;
-        kbinfo.key_overrides = vil.key_override;
-        kbinfo.macros = vil.macro.map((macro: any[], mid: number) => {
+        // Vial combos have no enable flag or timing of their own: a combo with
+        // keys is on and uses the global combo term (0).
+        kbinfo.combos = (vil.combo || []).map((combo: any[], cmbid: number) => {
+            const keys = combo.slice(0, 4).map(named);
+            return { cmbid, keys, output: named(combo[4]), options: used(keys[0]) ? ComboOptions.ENABLED : 0 };
+        });
+        kbinfo.key_overrides = (vil.key_override || []).map((ko: any, koid: number) => ({
+            koid,
+            trigger: named(ko.trigger),
+            replacement: named(ko.replacement),
+            layers: ko.layers ?? 0xFFFF,
+            trigger_mods: ko.trigger_mods || 0,
+            negative_mod_mask: ko.negative_mod_mask || 0,
+            suppressed_mods: ko.suppressed_mods || 0,
+            options: ko.options || 0, // bit 7 = enabled, in both firmwares
+        }));
+        // A .vil macro action is [type, value, value...]; split it into [type, value] pairs.
+        kbinfo.macros = (vil.macro || []).map((macro: any[], mid: number) => {
             const actions: any[] = [];
             for (const act of macro) {
-                // Format: [type, param1, param2...] - varies by macro type
-                // In simple text macros often structure is [[type, val], ...]
-                // We need to match what files.js expects: { actions: [[type, val]...], mid }
-                // The incoming VIL macro is array of actions.
-                // Actually, original code says:
-                /*
-                   for (const act of macro) {
-                       for (let i = 1; i < act.length; i++) {
-                       actions.push([act[0], act[i]]);
-                       }
-                   }
-                */
-                // Wait, this looks like it flattens [type, val1, val2] into [type, val1], [type, val2]?
-                // This seems specific to how VIL stores macros. I'll copy the logic.
-                if (Array.isArray(act)) {
-                    for (let i = 1; i < act.length; i++) {
-                        actions.push([act[0], act[i]]);
-                    }
+                if (!Array.isArray(act)) continue;
+                for (let i = 1; i < act.length; i++) {
+                    actions.push([act[0], ['tap', 'down', 'up'].includes(act[0]) ? named(act[i]) : act[i]]);
                 }
             }
-            return { actions: actions, mid: mid };
+            return { actions, mid };
         });
 
         kbinfo.vial_proto = vil.vial_protocol || 6;
         kbinfo.settings = vil.settings;
-        kbinfo.tapdances = vil.tap_dance.map((td: any[], tdid: number) => {
-            return {
-                idx: tdid,
-                tap: td[0],
-                hold: td[1],
-                doubletap: td[2],
-                taphold: td[3],
-                tapping_term: td[4]
-            };
+        // A Vial tap dance with any action is on.
+        kbinfo.tapdances = (vil.tap_dance || []).map((td: any[], idx: number) => {
+            const [tap, hold, doubletap, taphold] = td.slice(0, 4).map(named);
+            return { idx, enabled: [tap, hold, doubletap, taphold].some(used), tap, hold, doubletap, taphold, tapping_term: td[4] };
         });
 
-        // Convert layout to keymap
-        // vil.layout is [layer][row][col] -> string
+        // vil.layout is [layer][row][col]; -1 marks an unused position.
         const km: number[][] = [];
         const keylayout: any[] = [];
         if (vil.layout) {
-            // Determine rows/cols from layout if not set
             const layers = vil.layout.length;
             const rows = vil.layout[0]?.length || 0;
             const cols = vil.layout[0]?.[0]?.length || 0;
-
             kbinfo.layers = layers;
             kbinfo.rows = rows;
             kbinfo.cols = cols;
@@ -552,28 +600,10 @@ export class FileService {
                 km.push([]);
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
-                        const keyStr = vil.layout[l][r][c];
-                        // Handle -1 as KC_NO (unused key position)
-                        let keycode: number;
-                        if (keyStr === -1) {
-                            keycode = 0; // KC_NO
-                        } else if (typeof keyStr === 'string') {
-                            keycode = keyService.parse(keyStr);
-                        } else {
-                            keycode = keyStr;
-                        }
-                        km[l][(r * cols) + c] = keycode;
-
-                        // Generate default keylayout (only need once, e.g. for layer 0)
+                        const keyStr = named(vil.layout[l][r][c]);
+                        km[l][(r * cols) + c] = keyStr === -1 ? 0 : typeof keyStr === 'string' ? keyService.parse(keyStr) : keyStr;
                         if (l === 0) {
-                            keylayout.push({
-                                x: c,
-                                y: r,
-                                w: 1,
-                                h: 1,
-                                label: "",
-                                matrix: [(r * cols) + c] // simplified matrix mapping
-                            });
+                            keylayout.push({ x: c, y: r, w: 1, h: 1, label: "", matrix: [(r * cols) + c] });
                         }
                     }
                 }
@@ -582,6 +612,7 @@ export class FileService {
         kbinfo.keymap = km;
         (kbinfo as any).keylayout = keylayout;
         kbinfo.kbid = '' + vil.uid;
+        kbinfo.vial_import = { svalboard, unassigned_custom_keycodes: unassigned, foreign_custom_keycodes: foreign };
 
         return kbinfo;
     }

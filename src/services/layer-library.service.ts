@@ -14,9 +14,12 @@ import type {
     LayoutGroup,
     ImportedLayer,
     ImportedLayoutsStorage,
+    StoredLayerEntry,
+    StoredLayoutGroup,
 } from '../types/layer-library';
 import type { KeyboardInfo } from '../types/keyboard.types';
 import { fileService } from './file.service';
+import { keymapFromStored, keymapToNames, type StoredKeymap } from '@/utils/stored-keymap';
 
 // localStorage key for user-added layers
 const STORAGE_KEY = 'keybard-layer-library';
@@ -31,9 +34,40 @@ const KC_TRNS = 1;
 // Path to bundled layers
 const BUNDLED_LAYERS_PATH = `${import.meta.env.BASE_URL}layer-library/layers.json`;
 
+// Library files store keycodes by name from version 2 on.
+const LAYER_DATABASE_VERSION = 2;
+
+/**
+ * Saved keymaps hold keycode names. Saves from before that hold numbers, which
+ * were written with this same keycode table, so naming them now is exact.
+ */
+function namedKeymap(keymap: StoredKeymap): string[] {
+    return keymap.map(key => typeof key === 'number' ? keymapToNames([key])[0] : key);
+}
+
+function namesChanged(keymap: StoredKeymap): boolean {
+    return keymap.some(key => typeof key === 'number');
+}
+
+/**
+ * Resolve a saved keymap to keycodes, or null if a name is unknown right now.
+ * Board-specific names (custom keycodes) only resolve once that board is
+ * connected, so an unresolved entry is kept in storage and skipped for now.
+ */
+function resolvedKeymap(keymap: StoredKeymap, label: string): number[] | null {
+    try {
+        return keymapFromStored(keymap);
+    } catch (e) {
+        console.warn(`Layer "${label}" not shown: ${(e as Error).message}`);
+        return null;
+    }
+}
+
 export class LayerLibraryService {
-    private bundledLayers: LayerEntry[] = [];
-    private userLayers: LayerEntry[] = [];
+    // Kept as saved (keycode names) and resolved to keycodes when read, so a
+    // name that resolves only once its board is connected is never lost.
+    private bundledLayers: StoredLayerEntry[] = [];
+    private userLayers: StoredLayerEntry[] = [];
     private isLoaded = false;
 
     /**
@@ -76,8 +110,12 @@ export class LayerLibraryService {
         try {
             const stored = appStorage.getItem(STORAGE_KEY);
             if (stored) {
-                const data = JSON.parse(stored) as LayerEntry[];
-                this.userLayers = Array.isArray(data) ? data : [];
+                const data = JSON.parse(stored) as StoredLayerEntry[];
+                this.userLayers = Array.isArray(data) ? data.filter(layer => Array.isArray(layer?.keymap)) : [];
+                if (this.userLayers.some(layer => namesChanged(layer.keymap))) {
+                    this.userLayers = this.userLayers.map(layer => ({ ...layer, keymap: namedKeymap(layer.keymap) }));
+                    this.saveUserLayers();
+                }
             }
         } catch (e) {
             console.warn('Failed to load user layers:', e);
@@ -101,7 +139,12 @@ export class LayerLibraryService {
      */
     getAllLayers(): LayerEntry[] {
         // User layers first (most recent), then bundled
-        return [...this.userLayers, ...this.bundledLayers];
+        const layers: LayerEntry[] = [];
+        for (const layer of [...this.userLayers, ...this.bundledLayers]) {
+            const keymap = resolvedKeymap(layer.keymap, layer.name);
+            if (keymap) layers.push({ ...layer, keymap });
+        }
+        return layers;
     }
 
     /**
@@ -166,7 +209,7 @@ export class LayerLibraryService {
         await this.loadLayers();
 
         // Add to beginning of user layers
-        this.userLayers.unshift(layer);
+        this.userLayers.unshift({ ...layer, keymap: keymapToNames(layer.keymap) });
         this.saveUserLayers();
     }
 
@@ -224,8 +267,8 @@ export class LayerLibraryService {
     async exportAllLayers(): Promise<string> {
         await this.loadLayers();
         const database: LayerDatabase = {
-            version: 1,
-            layers: this.getAllLayers(),
+            version: LAYER_DATABASE_VERSION,
+            layers: [...this.userLayers, ...this.bundledLayers].map(layer => ({ ...layer, keymap: namedKeymap(layer.keymap) })),
         };
         return JSON.stringify(database, null, 2);
     }
@@ -235,8 +278,8 @@ export class LayerLibraryService {
      */
     exportUserLayers(): string {
         const database: LayerDatabase = {
-            version: 1,
-            layers: this.userLayers,
+            version: LAYER_DATABASE_VERSION,
+            layers: this.userLayers.map(layer => ({ ...layer, keymap: namedKeymap(layer.keymap) })),
         };
         return JSON.stringify(database, null, 2);
     }
@@ -310,11 +353,29 @@ export class LayerLibraryService {
      * Get all imported layouts from localStorage
      */
     getImportedLayouts(): LayoutGroup[] {
+        return this.readImportedLayouts().map(layout => ({
+            ...layout,
+            layers: layout.layers.flatMap(layer => {
+                const keymap = resolvedKeymap(layer.keymap, `${layout.name}: ${layer.name}`);
+                return keymap ? [{ ...layer, keymap }] : [];
+            }),
+        }));
+    }
+
+    /** Imported layouts as saved, with keycode names */
+    private readImportedLayouts(): StoredLayoutGroup[] {
         try {
             const stored = appStorage.getItem(IMPORTED_LAYOUTS_KEY);
             if (stored) {
                 const data = JSON.parse(stored) as ImportedLayoutsStorage;
-                return data.layouts || [];
+                const layouts = data.layouts || [];
+                if (layouts.some(layout => layout.layers.some(layer => namesChanged(layer.keymap)))) {
+                    this.saveImportedLayouts(layouts);
+                }
+                return layouts.map(layout => ({
+                    ...layout,
+                    layers: layout.layers.map(layer => ({ ...layer, keymap: namedKeymap(layer.keymap) })),
+                }));
             }
         } catch (e) {
             console.warn('Failed to load imported layouts:', e);
@@ -326,7 +387,7 @@ export class LayerLibraryService {
      * Save an imported layout to localStorage
      */
     private saveImportedLayout(layout: LayoutGroup): void {
-        const layouts = this.getImportedLayouts();
+        const layouts = this.readImportedLayouts();
         layouts.unshift(layout);
         this.saveImportedLayouts(layouts);
     }
@@ -334,9 +395,14 @@ export class LayerLibraryService {
     /**
      * Save all imported layouts to localStorage
      */
-    private saveImportedLayouts(layouts: LayoutGroup[]): void {
+    private saveImportedLayouts(layouts: (LayoutGroup | StoredLayoutGroup)[]): void {
         try {
-            const storage: ImportedLayoutsStorage = { layouts };
+            const storage: ImportedLayoutsStorage = {
+                layouts: layouts.map(layout => ({
+                    ...layout,
+                    layers: layout.layers.map(layer => ({ ...layer, keymap: namedKeymap(layer.keymap) })),
+                })),
+            };
             appStorage.setItem(IMPORTED_LAYOUTS_KEY, JSON.stringify(storage));
         } catch (e) {
             console.error('Failed to save imported layouts:', e);
@@ -347,7 +413,7 @@ export class LayerLibraryService {
      * Delete an imported layout by ID
      */
     deleteImportedLayout(id: string): boolean {
-        const layouts = this.getImportedLayouts();
+        const layouts = this.readImportedLayouts();
         const index = layouts.findIndex(l => l.id === id);
         if (index >= 0) {
             layouts.splice(index, 1);
@@ -362,7 +428,7 @@ export class LayerLibraryService {
      * If the layout becomes empty, delete the layout as well.
      */
     deleteImportedLayer(layoutId: string, layerIndex: number): boolean {
-        const layouts = this.getImportedLayouts();
+        const layouts = this.readImportedLayouts();
         const layout = layouts.find(l => l.id === layoutId);
         if (!layout) return false;
 

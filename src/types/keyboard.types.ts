@@ -4,7 +4,7 @@
 export interface KeyboardInfo {
     via_proto?: number;
     svil_proto?: number;  // Svil protocol version
-    vial_proto?: number;    // Present only on imported legacy .vil files; used to require migration.
+    vial_proto?: number;    // Present only on loaded .vil files
     kbid?: string;
     name?: string;          // Keyboard name from definition
     payload?: KeyboardPayload;
@@ -29,6 +29,13 @@ export interface KeyboardInfo {
     alt_repeat_key_count?: number;           // NEW
     leader_count?: number;                   // NEW
     feature_flags?: number;                  // NEW: Svil feature flags
+    keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
+    raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
+    vial_import?: {                          // Loaded .vil files
+        svalboard: boolean;                  // written by Svalboard's Vial firmware
+        unassigned_custom_keycodes: number;  // USERnn positions Vial left unassigned (now KC_NO)
+        foreign_custom_keycodes: number;     // USERnn from another keyboard's Vial firmware
+    };
 
     // Fragment composition (modular layouts)
     fragments?: Record<string, FragmentDefinition>;  // Fragment definitions
