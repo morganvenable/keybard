@@ -14,7 +14,7 @@ with sync_playwright() as p:
   page.goto(URL);page.wait_for_timeout(250)
   assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
   assert page.locator('main>.chapter').count()==11
-  assert page.locator('main figure').first.get_attribute('data-animation')=='assets/opening-drag.gif'
+  assert page.locator('main figure').first.get_attribute('data-animation')=='assets/opening-drag.webp'
   ids=page.locator('[id]').evaluate_all('(es)=>es.map(e=>e.id)');assert len(ids)==len(set(ids))
   bad=page.locator('img[src$=".png"]').evaluate_all('(es)=>es.filter(e=>!e.hasAttribute("width")||!e.hasAttribute("height")).map(e=>e.src)');assert not bad,bad
   if width<761:page.locator('#menu-toggle').click()

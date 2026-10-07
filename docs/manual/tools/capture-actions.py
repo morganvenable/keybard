@@ -29,7 +29,7 @@ with sync_playwright() as p:
  def save(name,result):
   frame(1800)
   frames[-1].save(ROOT/f'assets/{name}-still.png')
-  frames[0].save(ROOT/f'assets/{name}.gif',save_all=True,append_images=frames[1:],duration=durations,loop=0,optimize=True)
+  frames[0].save(ROOT/f'assets/{name}.webp',save_all=True,append_images=frames[1:],duration=durations,loop=0,lossless=True,quality=100,method=6)
   evidence.append({'clip':name,'verifiedResult':result,'frames':len(frames),'durationMs':sum(durations),'physicalHID':False,'exportMode':'Browser download fallback (native save picker unavailable)','source':'Real Keybard UI, bundled offline QWERTY example; pointer ring added for visibility'})
   page.close()
  setup();page.get_by_role('button',name='Standard Keys',exact=True).click();page.wait_for_timeout(300)

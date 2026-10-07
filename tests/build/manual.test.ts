@@ -14,7 +14,7 @@ describe('published user manual', () => {
         out = mkdtempSync(path.join(tmpdir(), 'keybard-manual-'));
         copyManual(source, out);
         for (const name of MANUAL_FILES) expect(existsSync(path.join(out, 'manual', name))).toBe(true);
-        expect(existsSync(path.join(out, 'manual', 'assets', 'opening-drag.gif'))).toBe(true);
+        expect(existsSync(path.join(out, 'manual', 'assets', 'opening-drag.webp'))).toBe(true);
         for (const name of ['tools', 'evidence', 'README.md']) expect(existsSync(path.join(out, 'manual', name))).toBe(false);
     });
 

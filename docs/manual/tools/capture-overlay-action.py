@@ -21,5 +21,5 @@ with sync_playwright() as p:
   texts.append(page.locator('svg[aria-label="Trainer keyboard preview"]').text_content())
  assert texts[0]!=texts[1] and texts[1]!=texts[2]
  frames[-1].save(ROOT/'assets/overlay-layers-still.png');palette=frames[0].quantize(colors=192);frames=[f.quantize(palette=palette,dither=Image.Dither.NONE) for f in frames]
- frames[0].save(ROOT/'assets/overlay-layers.gif',save_all=True,append_images=frames[1:],duration=100,loop=0,optimize=True)
+ frames[0].save(ROOT/'assets/overlay-layers.webp',save_all=True,append_images=frames[1:],duration=100,loop=0,lossless=True,quality=100,method=6)
  (ROOT/'evidence/action-overlay-layers.json').write_text(json.dumps({'clip':'overlay-layers','physicalHID':False,'source':'Actual HostOverlay renderer with controlled layer and matrix reports; not a captured desktop or hardware test','verifiedResult':'Base, symbols and function reports produced distinct resolved legend sets; held-key report then cleared','frames':len(frames)},indent=2)+'\n');b.close()
