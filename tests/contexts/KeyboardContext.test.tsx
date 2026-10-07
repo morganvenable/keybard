@@ -39,6 +39,7 @@ vi.mock('../../src/services/usb.service', () => ({
 
 import { fileService } from '../../src/services/file.service';
 import { usbInstance } from '../../src/services/usb.service';
+import { LinuxHidAccessError, udevRuleCommand } from '../../src/utils/linux-hid-access';
 import { KeyboardService, keyboardService } from '../../src/services/keyboard.service';
 
 describe('KeyboardContext - File Loading', () => {
@@ -305,6 +306,20 @@ describe('KeyboardContext - File Loading', () => {
     expect(result.current.keyboard).not.toBeNull();
     expect(usbInstance.close).not.toHaveBeenCalled();
     vi.mocked(KeyboardService.isWebHIDSupported).mockReturnValue(true);
+  });
+
+  it('offers the udev fix when Linux refuses to open the device, and clears it on retry', async () => {
+    vi.mocked(usbInstance.open).mockRejectedValueOnce(new LinuxHidAccessError(0x303a, 0x4044));
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    expect(result.current.connectionState).toBe('error');
+    expect(result.current.connectionError).toMatch(/udev rule/);
+    expect(result.current.connectionFix).toBe(udevRuleCommand(0x303a, 0x4044));
+
+    vi.mocked(usbInstance.open).mockRejectedValueOnce(new Error('Device busy'));
+    await act(async () => { await result.current.connect(); });
+    expect(result.current.connectionError).toBe('Device busy');
+    expect(result.current.connectionFix).toBeNull();
   });
 
   it('loads once automatically and exposes failures without a writable connection', async () => {

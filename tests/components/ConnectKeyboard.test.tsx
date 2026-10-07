@@ -11,6 +11,8 @@ const keyboardContext = {
     disconnect: vi.fn(),
     loadKeyboard: vi.fn(),
     loadFromFile: vi.fn(),
+    connectionError: null as string | null,
+    connectionFix: null as string | null,
 };
 
 vi.mock('@/contexts/KeyboardContext', async (importOriginal) => {
@@ -46,6 +48,8 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         vi.clearAllMocks();
         keyboardContext.isConnected = false;
         keyboardContext.isWebHIDSupported = true;
+        keyboardContext.connectionError = null;
+        keyboardContext.connectionFix = null;
     });
 
     it('lists permitted keyboards and opens one without the chooser', async () => {
@@ -74,6 +78,20 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         expect(screen.getByRole('button', {name: 'Connect Keyboard'})).toBeDisabled();
         expect(screen.getByRole('button', {name: 'Load File'})).toBeEnabled();
         expect(screen.getByRole('button', {name: 'QWERTY Example'})).toBeEnabled();
+        await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
+    });
+
+    it('shows the udev commands with a copy button when Linux blocks the device', async () => {
+        keyboardContext.connectionError = 'Linux blocked access to the keyboard.';
+        keyboardContext.connectionFix = 'echo rule | sudo tee /etc/udev/rules.d/60-svalboard.rules';
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+        render(<ConnectKeyboard />);
+        expect(screen.getByRole('alert')).toHaveTextContent('Linux blocked access');
+        expect(screen.getByLabelText('udev rule commands')).toHaveTextContent('60-svalboard.rules');
+        fireEvent.click(screen.getByRole('button', { name: 'Copy commands' }));
+        expect(writeText).toHaveBeenCalledWith(keyboardContext.connectionFix);
+        expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
         await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
     });
 

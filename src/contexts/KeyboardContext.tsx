@@ -10,6 +10,7 @@ import { customValueService } from "../services/custom-value.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/keyboard.types";
 import { PARANOID, userIsLooking } from "../lib/paranoid";
+import { LinuxHidAccessError } from "../utils/linux-hid-access";
 
 interface KeyboardContextType {
     keyboard: KeyboardInfo | null;
@@ -21,6 +22,8 @@ interface KeyboardContextType {
     connectionSessionId: number;
     connectionState: "idle" | "connecting" | "loading" | "connected" | "offline" | "error";
     connectionError: string | null;
+    /** Shell commands that would fix connectionError, when there are any (the Linux udev rule). */
+    connectionFix: string | null;
     isChangingTarget: boolean;
     runDeviceMaintenance: <T>(operation: () => Promise<T>) => Promise<T>;
     registerTargetChangeGuard: (guard: () => Promise<(discardPending?: boolean) => void>) => () => void;
@@ -74,6 +77,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [isConnected, setIsConnected] = useState(false);
     const [connectionState, setConnectionState] = useState<KeyboardContextType["connectionState"]>("idle");
     const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [connectionFix, setConnectionFix] = useState<string | null>(null);
     const [connectionSessionId, setConnectionSessionId] = useState(0);
     const sessionRef = useRef(0);
     const targetChangeGuard = useRef<(() => Promise<(discardPending?: boolean) => void>) | null>(null);
@@ -149,6 +153,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
         if (!confirmTargetChange()) return false;
         setConnectionError(null);
+        setConnectionFix(null);
         setConnectionState("connecting");
         let release: ((discardPending?: boolean) => void) | undefined;
         let changed = false;
@@ -160,6 +165,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             console.error("Failed to connect to keyboard:", error);
             const failure = error instanceof Error ? error : new Error(String(error));
             setConnectionError(failure.message);
+            setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
             setConnectionState("error");
             return false;
         } finally { release?.(changed); }
@@ -168,6 +174,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const connectDevice = useCallback(async (device: HIDDevice) => {
         if (!confirmTargetChange()) return false;
         setConnectionError(null);
+        setConnectionFix(null);
         setConnectionState("connecting");
         let release: ((discardPending?: boolean) => void) | undefined;
         let changed = false;
@@ -179,6 +186,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             console.error("Failed to open permitted keyboard:", error);
             const failure = error instanceof Error ? error : new Error(String(error));
             setConnectionError(failure.message);
+            setConnectionFix(failure instanceof LinuxHidAccessError ? failure.udevCommand : null);
             setConnectionState("error");
             return false;
         } finally { release?.(changed); }
@@ -438,6 +446,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getKeyboardSnapshot,
         connectionState,
         connectionError,
+        connectionFix,
         connectionSessionId,
         registerTargetChangeGuard,
         isChangingTarget,
