@@ -1,7 +1,7 @@
 import { Download, ExternalLink, PlugZap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export const HOST_RELEASE = 'https://github.com/svalboard/keybard/releases/tag/keybard-host-v0.1.0-preview.1';
+export const HOST_RELEASE = 'https://github.com/svalboard/keybard/releases/tag/keybard-host-v0.1.0-preview.6';
 export const HOST_DOWNLOAD = HOST_RELEASE.replace('/tag/', '/download/') + '/KeybardHost-Windows.zip';
 
 export function HostInstall({ onConnect }: { onConnect?: () => void }) {
