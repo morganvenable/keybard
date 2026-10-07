@@ -12,14 +12,14 @@ Read the [first-release launch notes](launch.md), explore the features below, re
 - **Make every position do more:** tap dances, combos, macros, overrides, repeat mappings, and leader sequences are configurable without compiling firmware.
 - **Build around your pointing devices:** independent pointer controls, automatic mouse-layer activation, precision Sniper keys, and faster Boost keys.
 - **Try changes as you go:** apply edits live or queue them for review, reuse saved layers, and print a layout reference.
-- **Keep your setup:** compatible firmware updates preserve settings; supported shipped Vial configurations migrate automatically; native layout files provide a portable backup.
+- **Keep your setup:** the board stores your configuration in two verified copies, Keybard backs it up automatically, compatible firmware updates preserve it, and native layout files bring a Vial setup across.
 - **Recognize your board:** a saved name and stable serial distinguish your keyboard and preserve its identity across updates.
 
 ## Start here
 
 1. Open Keybard in a desktop browser with WebHID support and connect your Svalboard.
 2. Choose your Svalboard when the browser asks for permission. Your layout and settings will appear in the editor.
-3. Export a **`.svil`** backup before experimenting. This is the native format for the complete Svalboard setup.
+3. Export a **`.svil`** backup before experimenting. This is the native format for the complete Svalboard setup. Keybard also keeps automatic snapshots under **Settings → Backups**, but an exported file is the copy you control.
 4. Drag a key from a panel onto your layout, or select a position and type its new assignment. With Live Updating enabled, supported edits go straight to the board. With Manual Changes, use **Update** to apply queued edits or **Revert** to discard them.
 5. Add a behavior in its editor, tune the pointers, or save a layer in the Layouts panel. Close Keybard when finished: the keyboard runs its saved configuration itself.
 
@@ -79,8 +79,9 @@ Hold a Sniper or Boost key for a temporary adjustment, or toggle it on for a lon
 ### Layouts you can keep, reuse, and learn
 
 - **Layouts library:** browse bundled layers and your locally saved layers, preview them, search them, and drag a whole layer or an individual key into your working layout.
-- **Reusable personal layers:** save a layer from its contextual menu, or import a layout file to use its layers as building blocks. Your personal library stays in this browser. Export a file to share it or move it to another computer.
+- **Reusable personal layers:** save a layer from its contextual menu (layers are stored by keycode name, so they survive firmware updates), or import a layout file to use its layers as building blocks. Your personal library stays in this browser. Export a file to share it or move it to another computer.
 - **Native `.svil` files:** export and import layouts, macros, supported dynamic behaviors, QMK settings, custom hardware values, cosmetic metadata, and fragment selections. `.vil` is available for legacy exchange but cannot represent every Sval-specific field.
+- **Automatic backups:** while your board is connected, Keybard snapshots its configuration on connect and after you finish editing, and keeps a dated history for each board. Restore any snapshot from **Settings → Backups** through the normal import review, or download it as a `.svil`. Choose a backup folder to also keep plain `.svil` files on disk.
 - **Import for your board:** bring a saved layout onto your connected Svalboard while retaining its hardware-specific limits.
 - **Fragment composition:** select supported finger/thumb cluster fragments in Settings to make the drawing match the board's physical arrangement. Choose the clusters installed on your board.
 - **Printed layers:** print non-empty layers through the browser, including saving a PDF where the browser offers it. A desk reference makes a new layout easier to learn.
@@ -104,7 +105,6 @@ Editing tap dances, combos, key overrides, alternate-repeat keys, macros and QMK
 | More room | 256 entries each for tap dances, combos, key overrides, alternate-repeat keys and macros (Vial: 30–50), and more macro storage. |
 | Leader sequences | Trigger an action with a short sequence of keys, editable in Keybard. |
 | Settings kept across updates | A compatible layout survives firmware updates instead of resetting with each new build. |
-| Vial migration | Your existing Svalboard setup imports automatically on first boot. |
 | Persistent board identity | Name each board and keep its serial number through updates. |
 | More pointing control | Sniper toggles, Boost keys, per-pointer automouse with threshold and decay, natural scrolling. |
 | Layer colors in Keybard | Choose each layer's lighting color in the editor. |
@@ -120,9 +120,9 @@ The **Trainer overlay** is available as a separate Windows companion preview, co
 
 ## Updating from Vial and choosing firmware
 
-Automatic migration supports Svalboards running **`svalboard/vial-qmk v2025-11-01` with the `vial` keymap**. It imports the layout, macros, programmable behaviors, and supported settings. Export a backup first, and check your modifier preferences, timing settings, and macros after upgrading.
+Svalboard QMK does not read the configuration Vial stored on the board: after flashing, the board starts with the default layout. Before flashing, **export a `.vil` backup with Vial**; after flashing, import it in Keybard. Layout files store keycodes by name, so Keybard can map them onto the new firmware; it brings across the layout, macros, tap dances, combos, key overrides and QMK settings. Pointing and hardware settings (DPI, scrolling, automouse, layer colors) are not in `.vil` files, so set them again in Keybard. Check your modifier preferences, timing settings, and macros after importing.
 
-Other older firmware versions may start with default settings. Updates that change the storage layout can also require a reset, so keep an exported backup even when moving between Svalboard QMK versions.
+A bad read no longer resets the board: Svalboard QMK keeps your settings in two verified copies and never erases them on its own. Updates that change the storage layout or QMK's keycode numbering do reset the stored configuration, so keep an exported backup even when moving between Svalboard QMK versions.
 
 Firmware downloads are available for the left and right sides of:
 

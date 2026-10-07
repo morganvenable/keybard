@@ -6,9 +6,9 @@ Drag keys into place, compare layers in flat or 3D views, and create shortcuts w
 
 Pointing is part of your layout too. Tune each side independently, choose which pointer activates the mouse layer, and assign Sniper or Boost keys for precise work or faster movement.
 
-Try edits as you go, or queue them and apply them together. Reuse layers from your library, export a `.svil` backup, and print a reference while learning a new layout. Matrix Tester helps you check that each physical key registers.
+Try edits as you go, or queue them and apply them together. Reuse layers from your library, export a `.svil` backup, and print a reference while learning a new layout. Keybard also backs up your board automatically while it is connected. Matrix Tester helps you check that each physical key registers.
 
-Compatible firmware updates preserve your setup, and supported Svalboard Vial configurations can migrate into the new firmware. Give each board its own name to make it easy to recognize when you connect.
+Your setup is stored in two verified copies on the board, so a bad read can no longer wipe it. Compatible firmware updates preserve it, and a Vial backup file brings your existing Svalboard configuration into the new firmware. Give each board its own name to make it easy to recognize when you connect.
 
 The two-way Sval protocol also opens the door to companion apps that follow your layout and layers. The Trainer panel configures a desktop layout overlay through the separate Keybard Host Windows preview. App-aware layer switching remains experimental. [Read about the protocol and what comes next.](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/protocol.md)
 

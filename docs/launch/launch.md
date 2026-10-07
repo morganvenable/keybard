@@ -14,12 +14,13 @@ These notes describe the move from Svalboard's Vial-QMK firmware to Svalboard-QM
 | Programmable capacity | 50 tap dances, 50 combos, 30 key overrides and 50 macros | 256 entries each for tap dances, combos, key overrides, macros, alternate-repeat mappings and leader sequences |
 | Leader sequences | Not part of this Svalboard configuration | Editable sequences of up to five keys, each triggering an action |
 | Tap-hold assistance | Achordion | QMK Chordal Hold, enabled by default, plus configurable Flow Tap |
-| Firmware updates | Build-date changes could invalidate the saved configuration | Compatible builds preserve it; explicit storage and keycode versions govern migration |
+| Firmware updates | Build-date changes could invalidate the saved configuration | Compatible builds preserve it; explicit storage and keycode versions decide when it is reset |
+| Settings storage | One copy in flash; a failed read or checksum could reset the board to defaults | Two verified copies; a bad read falls back to the other, and the board never erases its own settings |
 | Board identity | Previous identification scheme | Persistent identity and a user-set board name |
 | Pointing | Per-side DPI and scrolling, axis lock, Sniper hold, automouse and TrackPoint recalibration | Those controls carry over, with Sniper toggles, Boost, per-pointer automouse selection, threshold/decay and natural scrolling |
 | Layer lighting | Supported in firmware | Layer colors are editable directly in Keybard |
 | Learning your layout | Static references and existing third-party tools | Keybard Trainer preview and an optional native desktop overlay that follows the board |
-| Backups | Vial `.vil` files | Native `.svil` backups, with legacy `.vil` exchange subject to format and keycode limits |
+| Backups | Vial `.vil` files, exported by hand | Automatic snapshots in Keybard, optionally kept in a folder, plus native `.svil` exports; Vial `.vil` files import by keycode name |
 
 Tap dances, combos, macros, key overrides, alternate repeat, mod-taps, one-shots and layered layouts are not new inventions in this release. They carry forward from QMK and Svalboard's Vial firmware. The changes are their integration, capacity, controls, persistence and accessibility through Keybard.
 
@@ -108,17 +109,21 @@ Linux source launch instructions are available, but Wayland window placement, st
 
 **Native `.svil` exports** carry the layout, macros, supported dynamic behaviors, settings, custom hardware values, names, cosmetic metadata and fragment selections. Use them as your portable backup and when moving between computers.
 
-The **Layouts library** lets you browse bundled layers, save personal layers, preview them, search them, and bring a whole layer or an individual key into your working layout. Personal libraries and presentation preferences remain in browser storage; export files to move or share them.
+**Automatic backups** happen while a board is connected. Keybard snapshots its full configuration when it connects and again shortly after you stop editing, and keeps a history for each board, identified by its serial: everything from the last day, one per day for a month, then one per month. **Settings → Backups** lists them. Restore goes through the same review as Import, so nothing is written until you confirm. Snapshots are kept in this browser; choose a backup folder to also keep plain `.svil` files there (`latest.svil` plus one per day with changes) that you can open, copy or back up yourself.
+
+The **Layouts library** lets you browse bundled layers, save personal layers (stored by keycode name), preview them, search them, and bring a whole layer or an individual key into your working layout. Personal libraries and presentation preferences remain in browser storage; export files to move or share them.
 
 **Printed layers** provide a paper reference or a PDF through the browser's print facilities. Matrix Tester shows which physical keys are registering for troubleshooting.
 
-Legacy `.vil` files remain useful for exchange with the older ecosystem, but they cannot represent every Sval-specific field. Old keycodes may require migration: a legacy backup is not automatically safe to write unchanged to the new firmware. Keybard checks for this rather than silently applying incompatible keycodes.
+Legacy `.vil` files remain useful for exchange with the older ecosystem, but they cannot represent every Sval-specific field. Layout files store keycodes by name, so Keybard maps them onto the connected firmware's numbering and checks for keycodes it cannot represent rather than silently applying them.
 
 ## Updates, migration and board identity
 
-Svalboard-QMK replaces build-date invalidation with configuration-layout and keycode version checks. Compatible firmware updates preserve saved settings. Supported keycode-number changes can be translated; changes to the storage layout can still require a reset and restore.
+Svalboard-QMK replaces build-date invalidation with configuration-layout and keycode version checks. Compatible firmware updates preserve saved settings. Stored keycodes are never translated between numberings: when QMK's keycode numbering or the storage layout changes, the stored configuration is reset and is restored from a layout file. The board reports its keycode numbering, and Keybard numbers every keycode it writes to match.
 
-Automatic first-boot migration supports **Svalboard Vial-QMK `v2025-11-01` with the `vial` keymap**. It transfers the supported keymap, macros, behavior tables, pointing preferences and settings into the new store, retaining the old Vial store as a migration source. Other old or custom builds are not covered by that promise. Retaining the source does not make switching back a bidirectional synchronization mechanism.
+Settings are kept in **two independently verified flash banks**. Each change is written to a checksummed journal and read back before it counts, and a replacement snapshot is committed to the other bank before the old one is retired. At startup the board uses the newest copy that checks out and falls back to the other if it does not. If neither copy can be read, the board does not erase them: it keeps running with changes held only in memory and reports read-only storage, so you can export what you need before resetting deliberately. The first boot after updating from an earlier Svalboard-QMK build imports its settings once, without modifying the old copy.
+
+Svalboard-QMK does not read the configuration Vial-QMK stored on the board. It keeps its settings in a separate region, so a board flashed from Vial starts with the default layout and the Vial store is left untouched. A Vial `.vil` backup, imported through Keybard, brings the layout, macros, tap dances, combos, key overrides and QMK settings across. Pointing and hardware settings (DPI, scrolling, automouse, layer colors) are not stored in `.vil` files and must be set again.
 
 Each board has a persistent identity and can be given a name in Keybard. Save the name and restart the board for the USB device list to display it. Names and serial identity are stored separately from layout backups. This helps distinguish multiple Svalboards and lets compatible updates preserve their identity.
 
@@ -128,7 +133,7 @@ Each board has a persistent identity and can be given a name in Keybard. Save th
 2. Download the Svalboard-QMK image matching the **sensor family and side** of each half. Use the `sval` keymap for the normal setup.
 3. Double-tap reset within 500 ms to enter the RP2040 bootloader, then copy the matching UF2 to the `RPI-RP2` drive. Update the other half with its own matching image as needed.
 4. Open [Keybard](https://keybard.svalboard.com/) in Chrome or Edge and connect through its normal keyboard chooser. Svalboard-QMK is configured through Keybard, not the Vial or VIA configurator.
-5. Check every layer, important macros, modifier preferences, tap-hold behavior and pointing settings. Supported migration transfers substantial configuration, but the checks and limitations below matter.
+5. Import the `.vil` backup in Keybard. Then check every layer, important macros, modifier preferences, tap-hold behavior and pointing settings; the checks and limitations below matter.
 6. Export a fresh **`.svil` backup** once the new setup is verified. Install Keybard Host separately if you want the desktop overlay.
 
 ### Firmware variants
@@ -162,9 +167,10 @@ The firmware also contains an **experimental app-context layer contribution**: a
 
 ## Known limitations and upgrade checks
 
-- **Migration:** check modifier swaps, GUI/Caps remapping, NKRO and one-shot choices after upgrading. The current migration's settings initialization can overwrite copied core options. Legacy macros containing unsupported custom actions can acquire incorrect boundaries; verify those macros against the original backup.
-- **Interrupted upgrades:** retaining the old migration source and retrying migration does not guarantee recovery at every write boundary. Interrupted in-place keycode-number upgrades have a known recovery defect. Keep the pre-upgrade backup.
+- **Moving from Vial:** check modifier swaps, GUI/Caps remapping, NKRO and one-shot choices after importing a Vial backup. Verify macros that used custom actions against the original backup.
 - **Reset:** restart the board after a configuration reset before making new edits; otherwise those edits can be discarded at startup.
+- **Storage:** both settings copies are on the same flash chip, so they protect against interrupted writes and bad reads, not a failed chip. Permanent damage to one bank can roll back edits made since the last fallback snapshot. In read-only storage, changes do not survive a restart; export before resetting. Power loss during writes has been tested exhaustively in simulation but not yet by cutting power on hardware. See [durable settings](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/durable-settings.md).
+- **Automatic backups:** they are made only while Keybard is open with the board connected, and they stay in that browser unless you choose a backup folder. Keep an exported `.svil` as well.
 - **Alternate repeat:** modifier matching and default-alternate behavior have known defects. Verify custom mappings.
 - **Held tap dances:** release a tap-dance key before changing its action to avoid leaving the previous output held.
 - **Pointing edge cases:** the firmware review records issues involving buffered scrolling, stacked speed factors, disabling an active automouse layer and PS/2 button-state retention. The timing validation does not resolve or validate those paths.
@@ -177,11 +183,14 @@ These are documented limitations of the implementation used to prepare these not
 
 The runtime-settings validation built all 12 release targets and a representative non-Sval RP2040 target. **1,106 QMK tests and 17 Svalboard host tests passed.** An instrumented PMW3389-left test board passed **84 checks** for tapping toggle, tap-code delay, Caps Lock delay and Grave Escape overrides, including persistence across reboot. Its original configuration was restored and verified.
 
+Durable storage was tested with the real storage engine on a flash simulator under AddressSanitizer and UndefinedBehaviorSanitizer, including every one of the 529 points at which a snapshot write can be interrupted. On a test board, upgrading preserved all 131,072 bytes of the stored configuration; a deliberately damaged newest copy recovered from the other; and with both copies damaged, neither was rewritten. A Svalboard Vial `.vil` imported through Keybard matched the file on every key and setting and survived a reboot.
+
 Those results establish the behavior covered by those tests. They do not establish physical hardware validation of every sensor variant, every migration path, idle/wake behavior or every feature in this launch overview.
 
 - [Everyday Keybard feature guide](README.md)
 - [Firmware additions compared with Vial](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/firmware-changes.md)
 - [Protocol and companion applications](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/protocol.md)
+- [Durable settings storage](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/durable-settings.md)
 - [Runtime-settings validation, commands and results](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/reviews/2026-10-05-runtime-tap-settings-validation.md)
 - [Firmware source and downloads](https://github.com/svalboard/qmk)
 - [Keybard source and companion downloads](https://github.com/svalboard/keybard)
