@@ -175,6 +175,7 @@ class Host(QObject):
         self.bridge.command.connect(self.command)
         # Paranoid mode trusts no website, only the Keybard this host serves itself.
         self.paranoid = paranoid
+        self.keybard_url = KEYBARD_URL
         self.server = make_server(state, assets, self.bridge.command.emit, port, set() if paranoid else REMOTE_ORIGINS | set(remote_origins), paranoid, page)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f'http://127.0.0.1:{self.server.server_port}/'
@@ -245,7 +246,7 @@ class Host(QObject):
     def open_controls(self):
         if self.paranoid: return open_paranoid(self.url)
         from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(self.url))
+        QDesktopServices.openUrl(QUrl(controls_url(False, self.url, self.keybard_url)))
 
     def size_surface(self):
         screen = self.surface.screen() or self.app.primaryScreen()
@@ -407,6 +408,15 @@ def refuse(message):
     QMessageBox.critical(None, 'Keybard Host (paranoid mode)', message)
 
 
+KEYBARD_URL = 'https://keybard.svalboard.com/#trainer'
+
+
+def controls_url(paranoid, local_url, keybard_url=KEYBARD_URL):
+    """Where Open Keybard goes: the website's Trainer, or in paranoid mode the
+    Keybard Paranoid this host serves itself, since paranoid mode trusts no website."""
+    return local_url if paranoid else keybard_url
+
+
 def open_paranoid(url):
     profile = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation)) / 'paranoid-browser-profile'
     if not open_contained(url, profile):
@@ -421,6 +431,7 @@ def main():
     parser.add_argument('--settings', type=Path)
     parser.add_argument('--allow-origin', action='append', default=[], help='extra hosted Keybard origin allowed to use the host API (testing)')
     parser.add_argument('--paranoid', action='store_true', help='serve Keybard Paranoid and accept no website origins')
+    parser.add_argument('--keybard-url', default=KEYBARD_URL, help='Keybard page that Open Keybard opens (testing)')
     args = parser.parse_args()
     if args.paranoid:
         if args.allow_origin: parser.error('--paranoid accepts no extra origins')
@@ -439,7 +450,7 @@ def main():
         # A paranoid host only ever opens in the contained browser profile.
         if running_mode(url) is True: return open_paranoid(url)
         from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(url)); return
+        QDesktopServices.openUrl(QUrl(controls_url(False, url, args.keybard_url))); return
     if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
     page = None
     if args.paranoid:
@@ -447,6 +458,7 @@ def main():
         except (OSError, ValueError) as e: return refuse(f'Paranoid mode will not start: {e}.')
     state = HostState(args.settings or folder / 'preferences.json')
     host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid, page)
+    host.keybard_url = args.keybard_url
     if not args.no_open: host.open_controls()
     sys.exit(app.exec())
 

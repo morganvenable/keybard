@@ -7,11 +7,9 @@ This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed instal
 ## Get started
 
 1. Download **KeybardHost-Windows.zip** and extract the whole ZIP to a folder you'll keep.
-2. Run **Start-Windows.cmd**. The first launch downloads its own copy of Python and Qt, so you need to be online. No admin rights or system changes are needed. Keybard Host then sits in your system tray.
-3. Open [keybard.svalboard.com](https://keybard.svalboard.com) in Chrome or Edge, connect your keyboard, open **Trainer**, and click **Connect to Keybard Host**. If the browser asks whether the site can access apps on this device, allow it.
+2. Run **Start-Windows.cmd**. The first launch downloads its own copy of Python and Qt, so you need to be online. No admin rights or system changes are needed. Keybard Host then sits in your system tray and opens Trainer on [keybard.svalboard.com](https://keybard.svalboard.com).
+3. In Trainer (Chrome or Edge), connect your keyboard and click **Connect to Keybard Host**. If the browser asks whether the site can access apps on this device, allow it.
 4. Set up the overlay in Trainer. Use the tray icon to show, move or hide it, or to quit.
-
-Keybard Host also opens its own built-in copy of Keybard when it starts. Setting up the overlay works the same there.
 
 ## What it does
 
@@ -20,11 +18,6 @@ Keybard Host also opens its own built-in copy of Keybard when it starts. Setting
 - Stays on top, can be dragged into place, and lets clicks pass through once it's placed.
 - Adjustable color, outline, opacity and halo.
 - Highlights layer changes and, optionally, the keys you're holding. Includes recall practice.
-
-## New in this preview
-
-- **Preview 3:** paranoid mode, below.
-- **Preview 2:** set up the overlay from keybard.svalboard.com. The built-in Keybard also gains dark mode (Settings → General → Appearance).
 
 ## Paranoid mode
 
