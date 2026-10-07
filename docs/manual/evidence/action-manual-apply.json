@@ -1,8 +1,8 @@
 {
   "clip": "manual-apply",
   "verifiedResult": "Staged and applied a QMK setting through the real queue with an explicitly simulated write endpoint; no physical device",
-  "frames": 47,
-  "durationMs": 12110,
+  "frames": 38,
+  "durationMs": 9990,
   "physicalHID": false,
   "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid"
 }

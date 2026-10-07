@@ -2,160 +2,8 @@
   "allDecoded": true,
   "recordings": [
     {
-      "file": "assets/opening-drag.gif",
-      "frames": 28,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/offline-edit.gif",
-      "frames": 35,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/export-backup.gif",
-      "frames": 23,
-      "size": [
-        1200,
-        850
-      ]
-    },
-    {
-      "file": "assets/manual-apply.gif",
-      "frames": 40,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/drag-key.gif",
-      "frames": 33,
-      "size": [
-        1200,
-        850
-      ]
-    },
-    {
-      "file": "assets/swap-keys.gif",
-      "frames": 38,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/navigation-layer.gif",
-      "frames": 65,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/layer-tap-action.gif",
+      "file": "assets/alt-alphas-action.gif",
       "frames": 50,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/rename-layer.gif",
-      "frames": 16,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/compare-layers.gif",
-      "frames": 16,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/save-library.gif",
-      "frames": 36,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/reuse-layer.gif",
-      "frames": 41,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/blank-transparent.gif",
-      "frames": 50,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/macro-full.gif",
-      "frames": 57,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/tap-dance-action.gif",
-      "frames": 73,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/combo-action.gif",
-      "frames": 60,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/modtap-action.gif",
-      "frames": 43,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/oneshot-action.gif",
-      "frames": 30,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/override-action.gif",
-      "frames": 67,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/leader-action.gif",
-      "frames": 96,
       "size": [
         1200,
         792
@@ -170,16 +18,200 @@
       ]
     },
     {
-      "file": "assets/pointing-action.gif",
-      "frames": 21,
+      "file": "assets/backup-folder.gif",
+      "frames": 22,
       "size": [
         1200,
         792
       ]
     },
     {
-      "file": "assets/timing-action.gif",
-      "frames": 31,
+      "file": "assets/backup-restore.gif",
+      "frames": 35,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/backup-snapshot.gif",
+      "frames": 42,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/blank-transparent.gif",
+      "frames": 50,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/combo-action.gif",
+      "frames": 60,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/compare-layers.gif",
+      "frames": 15,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/create-macro.gif",
+      "frames": 49,
+      "size": [
+        1200,
+        850
+      ]
+    },
+    {
+      "file": "assets/drag-key.gif",
+      "frames": 33,
+      "size": [
+        1200,
+        850
+      ]
+    },
+    {
+      "file": "assets/export-backup.gif",
+      "frames": 23,
+      "size": [
+        1200,
+        850
+      ]
+    },
+    {
+      "file": "assets/fragments-action.gif",
+      "frames": 41,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/import-action.gif",
+      "frames": 16,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/layer-tap-action.gif",
+      "frames": 50,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/leader-action.gif",
+      "frames": 96,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/macro-full.gif",
+      "frames": 57,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/manual-apply.gif",
+      "frames": 37,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/matrix-action.gif",
+      "frames": 19,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/modtap-action.gif",
+      "frames": 43,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/navigation-layer.gif",
+      "frames": 65,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/num-sym-action.gif",
+      "frames": 50,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/offline-edit.gif",
+      "frames": 35,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/oneshot-action.gif",
+      "frames": 29,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/opening-drag.gif",
+      "frames": 28,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/overlay-layers.gif",
+      "frames": 11,
+      "size": [
+        1200,
+        460
+      ]
+    },
+    {
+      "file": "assets/override-action.gif",
+      "frames": 67,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/pointing-action.gif",
+      "frames": 21,
       "size": [
         1200,
         792
@@ -194,22 +226,6 @@
       ]
     },
     {
-      "file": "assets/fragments-action.gif",
-      "frames": 41,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/matrix-action.gif",
-      "frames": 20,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
       "file": "assets/print-action.gif",
       "frames": 21,
       "size": [
@@ -218,8 +234,56 @@
       ]
     },
     {
-      "file": "assets/import-action.gif",
+      "file": "assets/rename-layer.gif",
       "frames": 17,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/reopen-layout.gif",
+      "frames": 10,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/reuse-layer.gif",
+      "frames": 42,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/save-library.gif",
+      "frames": 36,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/swap-keys.gif",
+      "frames": 38,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/tap-dance-action.gif",
+      "frames": 73,
+      "size": [
+        1200,
+        792
+      ]
+    },
+    {
+      "file": "assets/timing-action.gif",
+      "frames": 30,
       "size": [
         1200,
         792
@@ -234,11 +298,11 @@
       ]
     },
     {
-      "file": "assets/overlay-layers.gif",
-      "frames": 11,
+      "file": "assets/trainer-familiar.gif",
+      "frames": 32,
       "size": [
         1200,
-        460
+        792
       ]
     },
     {
@@ -259,23 +323,7 @@
     },
     {
       "file": "assets/trainer-practice-action.gif",
-      "frames": 34,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/trainer-familiar.gif",
-      "frames": 32,
-      "size": [
-        1200,
-        792
-      ]
-    },
-    {
-      "file": "assets/reopen-layout.gif",
-      "frames": 10,
+      "frames": 33,
       "size": [
         1200,
         792

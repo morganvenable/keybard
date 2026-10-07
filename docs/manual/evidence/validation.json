@@ -43,15 +43,15 @@
     {
       "check": "autoplay with either motion preference and no control rows",
       "passed": true,
-      "detail": 35
+      "detail": 40
     },
     {
       "check": "stable mobile deep link",
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.203125,
-        "settled": 105.203125
+        "start": 105.21875,
+        "settled": 105.21875
       }
     },
     {
@@ -59,8 +59,8 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 105.484375,
-        "settled": 105.484375
+        "start": 104.796875,
+        "settled": 104.796875
       }
     },
     {
@@ -68,14 +68,14 @@
       "passed": true,
       "detail": {
         "target": "trainer",
-        "start": 105.375,
-        "settled": 105.375
+        "start": 105.28125,
+        "settled": 105.28125
       }
     },
     {
       "check": "local assets and links",
       "passed": true,
-      "detail": 40
+      "detail": 44
     },
     {
       "check": "print PDF",

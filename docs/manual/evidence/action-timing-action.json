@@ -1,8 +1,8 @@
 {
   "clip": "timing-action",
-  "verifiedResult": "Changed tapping term to 210 ms and reviewed the pending setting; controlled board, no hardware write",
-  "frames": 32,
-  "durationMs": 8490,
+  "verifiedResult": "Changed tapping term to 210 ms; Pending (1) and Apply 1 Change appeared; controlled board, no hardware write",
+  "frames": 31,
+  "durationMs": 8680,
   "physicalHID": false,
   "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid"
 }

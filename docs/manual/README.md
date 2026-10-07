@@ -1,12 +1,12 @@
-# Keybard launch user manual
+# Keybard user manual
 
-Open [index.html](index.html), or serve this directory with `python3 -m http.server 5190 --directory docs/manual` from the repository root. The manual needs no JavaScript framework, package install, external font, or network connection to read. All essential instructions remain visible without JavaScript; search, image enlargement and recording playback are enhancements. Use Print / Save as PDF for a paper copy.
+Published at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/). Locally, open [index.html](index.html), or serve this directory with `python3 -m http.server 5190 --directory docs/manual` from the repository root. The manual needs no JavaScript framework, package install, external font, or network connection to read. All essential instructions remain visible without JavaScript; search, image enlargement and recording playback are enhancements. Use Print / Save as PDF for a paper copy.
 
 ## Scope and product baseline
 
-Launch Keybard `6d9bd1f` and Svalboard-QMK launch notes at firmware `9331eacc46`. This is an end-user walkthrough, not a claim that every firmware control, sensor, migration path or native platform has been hardware-validated.
+Keybard `8d01073` (main, 2026-10-07) and Svalboard-QMK launch notes at firmware `9331eacc46`. This is an end-user walkthrough, not a claim that every firmware control, sensor, migration path or native platform has been hardware-validated.
 
-The guide covers first-time offline exploration, a safe first connected edit, migration from supported Vial firmware, returning users, layers, behavior authoring/assignment, pointing, settings/diagnostics, files/library/printing, and the read-only Trainer companion. It distinguishes board state, pending draft state and exported files throughout.
+The guide covers first-time offline exploration, a safe first connected edit, migration from supported Vial firmware, returning users, layers and the bundled layout groups, behavior authoring/assignment, pointing, settings/diagnostics, automatic backups, files/library/printing, and the read-only Trainer companion. It distinguishes board state, pending draft state and exported files throughout.
 
 ## Planned process
 
@@ -27,6 +27,9 @@ The guide covers first-time offline exploration, a safe first connected edit, mi
 | Save queue, retry and partial writes | `src/contexts/ChangesContext.tsx` |
 | Import limits and retained fields | `src/services/import-preflight.ts`, `src/services/import.service.ts` |
 | Backup formats | `src/services/file.service.ts` |
+| Automatic backups, retention, backup folder | `src/services/backup/`, `src/contexts/BackupContext.tsx`, `src/layout/SecondarySidebar/Panels/BackupsSection.tsx` |
+| Restore review | `src/hooks/useLayoutImport.tsx` |
+| Bundled layout groups | `src/default-layouts/sval-alt-alphas.svil`, `src/default-layouts/sval-num-sym-layers.svil` |
 | Local layer library | `src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx` |
 | Behavior workflows | `src/layout/SecondarySidebar/components/BindingEditor/` and `Panels/` |
 | Immediate board identity operations | `src/layout/SecondarySidebar/Panels/BoardIdentitySection.tsx` |
@@ -62,16 +65,22 @@ python3 docs/manual/tools/build.py
 
 `index.html` is committed so the manual can be opened directly. The builder uses only the Python standard library. Capture scripts require Playwright and a Chromium installation; adjust their environment/path settings for your machine. Screenshot captions distinguish offline examples and simulated connected/native state. Re-run `tools/validate.py` after changes to content, images or navigation.
 
-Capture scripts use Playwright’s installed Chromium by default; set `CHROMIUM_PATH` to use another executable, `KEYBARD_CAPTURE_URL` for the running Keybard development server (default port 5188), and `MANUAL_URL` for the manual server (default port 5190). With Playwright installed, run captures in this order: `capture.py`, `capture-editors.py`, `capture-files.py`, `capture-connected.py`, `capture-native.py`. Then rebuild and validate. Connected captures block physical HID access and inject controlled device responses.
+Capture scripts use Playwright’s installed Chromium by default; set `CHROMIUM_PATH` to use another executable. `tools/env.py` holds the shared settings: `KEYBARD_CAPTURE_URL` is the running Keybard development server including its base path (default `http://127.0.0.1:5173/keybard-ng/`, which `npm run dev` serves on most branches; `vite.config.ts` assigns 5170 to `main`), and `MANUAL_URL` is the manual server (default port 5190). Fixture modules are imported from the same base path. For a neutral build label in screenshots, start the dev server with `GIT_BRANCH=main` and the documented commit in `GIT_SHA`. With Playwright installed, run captures in this order: `capture.py`, `capture-editors.py`, `capture-files.py`, `capture-connected.py`, `capture-native.py`. Then rebuild and validate. Connected captures block physical HID access and inject controlled device responses.
 
 Final acceptance passed at widths 360, 390, 768, 1280 and 1600 pixels, including search, mobile navigation, layer comparison, image enlargement, keyboard focus, stable deep links, local links, JavaScript-disabled reading and PDF generation. All eleven chapters remain readable without JavaScript. The independent usability re-review found no remaining material blocker.
 
 ## Action demonstrations
 
-The manual includes 35 recordings of actual browser interactions, including an opening flow that opens Standard Keys and drags A directly onto Q. Recordings autoplay while visible and stop offscreen. There are no separate Pause or Open GIF controls; click-to-enlarge remains available. GIFs are the default HTML image source, and playback is enabled with either system motion preference, as requested. Print uses stills when JavaScript is enabled. Script and stylesheet URLs carry content hashes to avoid stale cached behavior.
+The manual includes 40 recordings of actual browser interactions, including an opening flow that opens Standard Keys and drags A directly onto Q. Recordings autoplay while visible and stop offscreen. There are no separate Pause or Open GIF controls; click-to-enlarge remains available. GIFs are the default HTML image source, and playback is enabled with either system motion preference, as requested. Print uses stills when JavaScript is enabled. Script and stylesheet URLs carry content hashes to avoid stale cached behavior.
 
-Capture scripts require Playwright, Pillow and Chromium. Run `capture-actions.py`, `capture-walkthroughs.py`, `capture-extra.py` and `capture-overlay-action.py`; the walkthrough and extra scripts accept individual case names. `action_recorder.py` supplies pointer movement and encoding. Each outcome is verified before saving, and evidence records the source and simulated-device boundaries. `connected-fixture.js` blocks real USB access. Native OS choosers, Windows installation and physical hardware testing remain outside browser capture.
+Capture scripts require Playwright, Pillow and Chromium. Run `capture-actions.py`, `capture-walkthroughs.py`, `capture-extra.py`, `capture-overlay-action.py` and `capture-backups.py`; the walkthrough, extra and backups scripts accept individual case names. `action_recorder.py` supplies pointer movement and encoding. Each outcome is verified before saving, and evidence records the source and simulated-device boundaries. `connected-fixture.js` blocks real USB access. Native OS choosers, Windows installation and physical hardware testing remain outside browser capture.
 
 Recording the workflows corrected the mod-tap and layer-tap instructions: assignment can clear selection, so reselect before composing. The Transparent/Blank explanation now compares the same A position in two cases and states exactly what is typed.
 
-The Pending review now uses a portaled popover. Component tests use the real change queue to verify descriptions, counts, superseded edits, clearing, and partial-save failures. `tools/check-pending-popover.py` checks the actual staged setting, unchanged toolbar scroll dimensions, viewport bounds and Escape focus at two widths. The associated walkthroughs show the fixed popover. All 14 targeted queue/component tests and the production build pass.
+On `main`, the Pending (N) list opens inside the scrolling toolbar and can be clipped, so the recordings show the Pending count and Apply N Changes without opening the list.
+
+`capture-backups.py` records Settings → Backups with the controlled test board and a fake browser clock. Two earlier snapshots are seeded through the real backup service so the list has a history; the change summaries, Unsent marker, restore review and folder writes are the application's own. The folder recording replaces the system folder chooser with an in-memory folder and checks the files Keybard writes. The native folder chooser and the browser's permission prompts (including Allow on every visit) are outside browser capture.
+
+## Publishing
+
+`build/manual.ts` copies `index.html`, `content/`, `assets/`, `manual.css`, `manual.js` and the PDF into `dist/manual/` after each Vite build, so the production deploy publishes it at `keybard.svalboard.com/manual/`. This README, `tools/` and `evidence/` are not published. The dev server serves the same files at `<base>manual/`. Keybard Paranoid is a single offline file and does not include the manual. The **Manual** item in Keybard's navigation opens it in a new tab.
