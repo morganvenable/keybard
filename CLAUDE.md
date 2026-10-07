@@ -6,66 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Git Workflow Guidelines
 
-**NEVER work directly on `main`.** Always create a feature branch for any changes:
+**Work in your fork of `svalboard/keybard`, never directly in `svalboard/keybard`.** A local clone of `svalboard/keybard` is a read-only reference: don't branch, commit or push there.
 
 ```bash
-git checkout -b feature/description-of-work
+# In a clone of your fork, with svalboard/keybard as the `upstream` remote
+git fetch upstream
+git checkout -b feature/description-of-work upstream/main
 # ... make changes ...
 git push -u origin feature/description-of-work
-# Create PR to merge into main
+gh pr create --repo svalboard/keybard --base main --head <your-github-user>:feature/description-of-work
 ```
 
-This applies to all work, no matter how small. Feature branches allow for:
-- Code review before merging
-- Easy rollback if needed
-- Clean commit history on main
+This applies to all work, no matter how small. **Pushing `svalboard/keybard` `main` deploys production** (`.github/workflows/svalboard-deploy.yml` → https://keybard.svalboard.com), so changes only reach `main` through a reviewed PR.
 
-**ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first.
-
----
-
-## IMPORTANT: This is a Git Worktree
-
-**This directory is a git worktree**, not the main repository.
-
-| Property | Value |
-|----------|-------|
-| **Branch** | `feature/explore-layouts` |
-| **Dev Server Port** | 5172 |
-| **URL** | http://localhost:5172/keybard-ng/ |
-| **Main Repo** | `../keybard-ng/` (branch: `main`) |
-| **Svil Repo** | `../keybard-ng-viable/` (branch: `viable-protocol-migration`) |
-
-### Quick Start
-
-```bash
-npm run dev    # Starts on port 5172 automatically
-```
-
-### Branch Indicator
-
-In dev mode, "feature/explore-layouts" appears in the sidebar footer (bottom left, small gray text).
-
-### Feature Being Developed: Explore Layouts
-
-This branch implements a layout library/browser feature:
-- Browse pre-made keyboard layouts
-- Preview layouts before importing
-- Selectively import layers or full layouts
-
-**Key Files for this feature:**
-- `src/contexts/LayoutLibraryContext.tsx` - State management
-- `src/components/LayoutCard.tsx` - Layout preview card
-- `src/components/LayoutPreviewModal.tsx` - Full preview modal
-- `src/layout/SecondarySidebar/Panels/ExploreLayoutsPanel.tsx` - Main panel
-- `src/services/layout-library.service.ts` - Backend service
-- `src/types/layout-library.d.ts` - TypeScript types
-
-### Removing This Worktree
-
-```bash
-cd ../keybard-ng && git worktree remove ../keybard-ng-explore
-```
+**ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first. If you touch anything that could reach the network, also run `npm run build:paranoid`.
 
 ---
 
@@ -73,20 +27,20 @@ cd ../keybard-ng && git worktree remove ../keybard-ng-explore
 
 | Repository | Branch | Purpose |
 |------------|--------|---------|
-| `sval-qmk` (GitHub repo, formerly `viable-qmk`; local dir may still be `viable-qmk`) | `svalboard` | QMK firmware with Svil protocol |
-| `viable-gui` | `viable` | Reference Python GUI implementation |
-| `keybard-ng` (upstream) | `main` | Original Vial-compatible GUI |
+| `svalboard/qmk` | `svalboard` | Svalboard QMK firmware, the source of truth for the Sval protocol. Releases: https://github.com/svalboard/qmk/releases |
+| `svalboard/vial-qmk` | `vial` | The old Vial firmware. Customers who haven't updated still run it; Keybard detects it and asks them to update |
+| `svalboard/keybard-ng` | `main` | Archived earlier lineage of this app. Don't use it |
 
 ## Project Overview
 
-KeyBard-NG is a React 19 + TypeScript web application for configuring Svil-compatible keyboards (especially Svalboard) via WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.
+Keybard (https://keybard.svalboard.com) is a React 19 + TypeScript web application for configuring Svalboard keyboards running Svalboard QMK, via the WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.
 
-**Note:** This project uses the Sval protocol. The Svil protocol uses a client ID wrapper (`0xDD`) for multi-client concurrent access and adds features like alt-repeat keys, leader sequences, and one-shot settings.
+**Note:** Keybard speaks the Sval protocol (`0xDF`), with VIA commands passed through, all inside a client ID wrapper (`0xDD`) for multi-client concurrent access. Older code and docs call it "Svil" or "Viable" (e.g. `SvilUSB`); those identifiers are kept, but the protocol and firmware are Sval / Svalboard QMK.
 
 ## Development Commands
 
 ```bash
-npm run dev            # Start dev server at http://localhost:5173
+npm run dev            # Dev server at http://localhost:5173/keybard-ng/ (port per branch in vite.config.ts; main uses 5170)
 npm run build          # Production build (TypeScript check + Vite build)
 npm test               # Run all tests
 npm run test:watch     # Watch mode for development
@@ -308,37 +262,46 @@ Comprehensive docs in `/docs/`:
 - `COMPONENTS.md` - Component hierarchy and patterns
 - `TYPES.md` - TypeScript type reference
 
-## Svil Protocol Migration
+## Sval Protocol
 
 ### Protocol Differences from Vial
 
-| Aspect | Vial | Svil |
+| Aspect | Vial | Sval |
 |--------|------|--------|
 | **Wrapper** | None | `0xDD` client ID wrapper |
-| **Protocol Prefix** | `0xFE` | `0xDF` (Svil) / `0xFE` (VIA, wrapped) |
+| **Protocol Prefix** | `0xFE` | `0xDF` (Sval) / `0xFE` (VIA, wrapped) |
 | **Client Auth** | None | 20-byte nonce bootstrap, TTL-based renewal |
-| **Detection** | HID filter | `viable:` prefix in USB serial |
+| **Detection** | HID filter | Raw HID usage page plus the bootstrap handshake (WebHID can't read the USB serial number) |
 
 ### Message Format
 
 ```
 Bootstrap:  [0xDD][0x00000000][nonce:20] → [0xDD][0x00000000][nonce:20][client_id:4][ttl:2]
-Svil cmd: [0xDD][client_id:4][0xDF][cmd][args...] → [0xDD][client_id:4][0xDF][response...]
+Sval cmd: [0xDD][client_id:4][0xDF][cmd][args...] → [0xDD][client_id:4][0xDF][response...]
 VIA cmd:    [0xDD][client_id:4][0xFE][via_cmd...] → [0xDD][client_id:4][0xFE][response...]
 ```
 
-### Svil Command IDs (0xDF protocol)
+### Sval Command IDs (0xDF protocol)
 
-- `0x00` - get_info (protocol version, UID, feature flags)
+`src/services/usb.service.ts` (`SvilUSB.CMD_SVIL_*`) is the authoritative list.
+
+- `0x00` - get_info (protocol version, UID, feature flags, QMK keycode numbering)
 - `0x01/0x02` - tap_dance get/set
 - `0x03/0x04` - combo get/set
 - `0x05/0x06` - key_override get/set
-- `0x07/0x08` - alt_repeat_key get/set (NEW)
-- `0x09/0x0A` - one_shot get/set (NEW)
+- `0x07/0x08` - alt_repeat_key get/set
+- `0x09/0x0A` - one_shot get/set
 - `0x0B` - save, `0x0C` - reset
 - `0x0D/0x0E` - definition size/chunk
 - `0x10-0x13` - QMK settings query/get/set/reset
-- `0x14/0x15` - leader get/set (NEW)
+- `0x14/0x15` - leader get/set
+- `0x16/0x17` - layer state get/set
+- `0x18-0x1A` - fragments: hardware, get/set selections
+- `0x1B-0x1D` - labels (layer, tap dance, macro names) get/set/clear
+- `0x1E-0x20` - macro buffer size/get/set (32-bit offsets)
+- `0x21` - table scan
+
+Protocol versions: v2 widened table indices to 2 bytes (256 entries); v3 added the macro buffer commands and table scan. Released firmware (vRC0 onward) is v3.
 
 ## VIA3 Custom UI System
 
@@ -400,94 +363,13 @@ The keyboard definition JSON includes a `menus` array that defines dynamic, keyb
 }
 ```
 
-### Implementation Plan for Svalboard Settings Panel
-
-1. **Parse menus from keyboard definition** during `loadKeyboard()`
-2. **Create dynamic UI renderer** that maps menu structure to React components
-3. **Implement value get/set** via `CMD_VIA_GET_KEYBOARD_VALUE` / `CMD_VIA_SET_KEYBOARD_VALUE` with custom channel routing
-4. **Add showIf evaluator** for conditional UI visibility
-5. **Persist changes** via `id_custom_save` command
-
-## Migration Status: keybard-ng → viable-gui Feature Parity
-
-This section tracks progress toward full feature parity with viable-gui.
-
-### Feature Implementation Status
-
-| Feature | Protocol | Backend | UI Panel | Live Update | Status |
-|---------|----------|---------|----------|-------------|--------|
-| Keymaps | VIA | ✅ | ✅ | ✅ | Complete |
-| Macros | VIA | ✅ | ✅ | ❌ | UI works, no live update |
-| Tap Dances | 0x01/0x02 | ✅ | ✅ | ⚠️ Stub | Need to wire callback |
-| Combos | 0x03/0x04 | ✅ | ✅ | ⚠️ Stub | Need to wire callback |
-| Key Overrides | 0x05/0x06 | ✅ | ✅ | ⚠️ Stub | Need to wire callback |
-| **Alt-Repeat Keys** | 0x07/0x08 | ✅ | ❌ | ❌ | **Needs UI panel** |
-| **One-Shot Settings** | 0x09/0x0A | ✅ | ❌ | ❌ | **Needs UI panel** |
-| QMK Settings | 0x10-0x13 | ✅ | ✅ | N/A | Complete |
-| **Leader Sequences** | 0x14/0x15 | ✅ | ❌ | ❌ | **Needs UI panel** |
-| Layer State | 0x16/0x17 | ❌ | ❌ | ❌ | Not implemented |
-| Fragments | 0x18-0x1A | ✅ | ✅ | N/A | Complete |
-| Print Layers | N/A | ✅ | ✅ | N/A | Complete |
-
-### Priority Tasks
-
-#### HIGH - Missing UI Panels
-1. **Alt-Repeat Keys Panel** - Create `AltRepeatPanel.tsx`
-   - List entries: keycode → alternate keycode
-   - Support allowed modifiers and enabled toggle
-   - Wire to `keyboardService.updateAltRepeatKey()`
-
-2. **Leader Sequences Panel** - Create `LeadersPanel.tsx`
-   - List entries: sequence (up to 5 keys) → output keycode
-   - Support enabled toggle
-   - Wire to `keyboardService.updateLeader()`
-
-3. **One-Shot Settings** - Add to Settings or QMK Settings panel
-   - Timeout slider (ms)
-   - Tap-toggle count input
-   - Wire to `keyboardService.updateOneShot()`
-
-#### MEDIUM - Fix Live Updating
-4. **Fix Combo live update** - `KeyBindingContext.tsx:223`
-   - Replace stub with `comboService.push()`
-
-5. **Fix Tap Dance live update** - `KeyBindingContext.tsx:240`
-   - Replace stub with `tapdanceService.push()`
-
-6. **Fix Override live update** - `KeyBindingContext.tsx:257`
-   - Replace stub with `overrideService.push()`
-
-#### LOW - Future Enhancements
-7. **VIA3 Dynamic Menus** - See implementation plan above
-8. **Layer State Commands** - Protocol 0x16/0x17
-9. **Undo/Redo** - Deferred (large lift)
-10. **One-Shot Modifier display cleanup** - OSM keys currently render showing only the modifier (e.g., "LCTL") without indicating they're placed over another key. Unclear if this matches actual QMK behavior (where OSM is a standalone key, not a mod-tap). Investigate whether OSM in QMK is always a single key (just the modifier, applied once to the next keypress) or if it wraps another keycode. If standalone, the display may be correct but should visually distinguish from regular modifiers. See `Key.tsx` type="OSM" rendering and `keys.ts:190` OSM parsing.
-
-### Key Files Reference
-
-**Service Layer (Backend):**
-- `src/services/keyboard.service.ts` - Alt-repeat, leader, one-shot methods
-- `src/services/usb.service.ts` - All Svil command IDs defined
-
-**Type Definitions:**
-- `src/types/keyboard.types.ts` - AltRepeatKeyEntry, LeaderEntry, OneShotSettings
-
-**UI Patterns to Follow:**
-- `src/layout/SecondarySidebar/Panels/TapdancePanel.tsx` - List + editor pattern
-- `src/layout/SecondarySidebar/Panels/CombosPanel.tsx` - Multi-key sequence UI
-- `src/layout/SecondarySidebar/Panels/OverridesPanel.tsx` - Toggle UI pattern
-
-**Live Updating:**
-- `src/contexts/KeyBindingContext.tsx:223-270` - Stub callbacks to fix
-- `src/contexts/ChangesContext.tsx` - Queue system infrastructure
-
 ## Browser-Based Test Plan (Claude-in-Chrome)
 
 This test plan can be executed autonomously via Claude-in-Chrome browser automation against `http://localhost:5173/keybard-ng/`. Tests are organized by feature area and include expected results.
 
 ### Prerequisites
 - Dev server running: `npm run dev`
-- Browser tab open to KeyBard application
+- Browser tab open to Keybard
 - Keyboard data loaded (file import or connected keyboard)
 
 ### Test Suite 1: Sidebar Navigation
