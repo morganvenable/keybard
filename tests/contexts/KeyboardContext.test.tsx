@@ -30,21 +30,31 @@ vi.mock('../../src/services/qmk.service', () => ({
 
 vi.mock('../../src/services/usb.service', () => ({
   usbInstance: {
-    open: vi.fn(),
+    openDevice: vi.fn(),
+    hasDevice: vi.fn(() => false),
     close: vi.fn().mockResolvedValue(undefined),
     getDeviceName: vi.fn(),
     getAllLayerColors: vi.fn().mockResolvedValue([]),
   },
+  SvilUSB: {
+    requestDevice: vi.fn(),
+    checkFirmware: vi.fn(),
+  },
 }));
 
 import { fileService } from '../../src/services/file.service';
-import { usbInstance } from '../../src/services/usb.service';
+import { SvilUSB, usbInstance } from '../../src/services/usb.service';
 import { LinuxHidAccessError, udevRuleCommand } from '../../src/utils/linux-hid-access';
+import { UnsupportedFirmwareError } from '../../src/utils/unsupported-firmware';
 import { KeyboardService, keyboardService } from '../../src/services/keyboard.service';
+
+const chosenDevice = { productName: 'Svalboard' } as HIDDevice;
 
 describe('KeyboardContext - File Loading', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(SvilUSB.requestDevice).mockResolvedValue(chosenDevice);
+    vi.mocked(SvilUSB.checkFirmware).mockResolvedValue(undefined);
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -53,13 +63,13 @@ describe('KeyboardContext - File Loading', () => {
 
   it('uses the real USB connection even on a host-served page', async () => {
     document.documentElement.dataset.keybardHost = 'true';
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(keyboardService.init).mockResolvedValue(undefined);
     vi.mocked(keyboardService.load).mockResolvedValue({ rows: 10, cols: 6, keymap: [Array(60).fill(4)] });
     const { result } = renderHook(() => useKeyboard(), { wrapper });
     try {
       await act(async () => { await result.current.connect(); });
-      expect(usbInstance.open).toHaveBeenCalledTimes(1);
+      expect(usbInstance.openDevice).toHaveBeenCalledTimes(1);
       expect(result.current.isConnected).toBe(true);
       expect(keyboardService.load).toHaveBeenCalled();
     } finally { delete document.documentElement.dataset.keybardHost; }
@@ -164,7 +174,7 @@ describe('KeyboardContext - File Loading', () => {
       kbid: 'device-keyboard',
     };
 
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
     vi.mocked(keyboardService.init).mockResolvedValue(undefined);
     vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
@@ -188,7 +198,7 @@ describe('KeyboardContext - File Loading', () => {
       kbid: 'device-keyboard',
     };
 
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
     vi.mocked(keyboardService.init).mockResolvedValue(undefined);
     vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
@@ -230,7 +240,7 @@ describe('KeyboardContext - File Loading', () => {
       kbid: 'device-keyboard',
     };
 
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
     vi.mocked(keyboardService.init).mockResolvedValue(undefined);
     vi.mocked(keyboardService.load).mockResolvedValue(mockDeviceInfo);
@@ -275,7 +285,7 @@ describe('KeyboardContext - File Loading', () => {
     await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
     act(() => result.current.setKeyboard(kb => ({...kb!, name: 'edited'})));
     await act(async () => { await result.current.connect(); });
-    expect(usbInstance.open).not.toHaveBeenCalled();
+    expect(usbInstance.openDevice).not.toHaveBeenCalled();
     expect(result.current.keyboard?.name).toBe('edited');
     confirm.mockRestore();
   });
@@ -309,21 +319,21 @@ describe('KeyboardContext - File Loading', () => {
   });
 
   it('offers the udev fix when Linux refuses to open the device, and clears it on retry', async () => {
-    vi.mocked(usbInstance.open).mockRejectedValueOnce(new LinuxHidAccessError(0x303a, 0x4044));
+    vi.mocked(usbInstance.openDevice).mockRejectedValueOnce(new LinuxHidAccessError(0x303a, 0x4044));
     const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.connect(); });
     expect(result.current.connectionState).toBe('error');
     expect(result.current.connectionError).toMatch(/udev rule/);
     expect(result.current.connectionFix).toBe(udevRuleCommand(0x303a, 0x4044));
 
-    vi.mocked(usbInstance.open).mockRejectedValueOnce(new Error('Device busy'));
+    vi.mocked(usbInstance.openDevice).mockRejectedValueOnce(new Error('Device busy'));
     await act(async () => { await result.current.connect(); });
     expect(result.current.connectionError).toBe('Device busy');
     expect(result.current.connectionFix).toBeNull();
   });
 
   it('loads once automatically and exposes failures without a writable connection', async () => {
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(keyboardService.load).mockRejectedValueOnce(new Error('Definition read failed'));
     const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.connect(); });
@@ -334,17 +344,32 @@ describe('KeyboardContext - File Loading', () => {
     expect(usbInstance.close).toHaveBeenCalled();
   });
 
+  it('exposes old firmware found while loading, and clears it on the next attempt', async () => {
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
+    vi.mocked(keyboardService.load).mockRejectedValueOnce(new UnsupportedFirmwareError({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' }));
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    await waitFor(() => expect(result.current.connectionState).toBe('error'));
+    expect(result.current.connectionFirmware).toEqual({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' });
+    expect(result.current.connectionError).toContain('old Vial firmware (v2025-11-01)');
+    vi.mocked(usbInstance.openDevice).mockRejectedValueOnce(new Error('Device busy'));
+    await act(async () => { await result.current.connect(); });
+    expect(result.current.connectionFirmware).toBeNull();
+  });
+
   it('waits for the previous write guard before opening another transport', async () => {
-    vi.mocked(usbInstance.open).mockResolvedValue(false);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(false);
     const { result } = renderHook(() => useKeyboard(), { wrapper });
     let finish!: (release: (discard?: boolean) => void) => void;
     const release = vi.fn();
     result.current.registerTargetChangeGuard(() => new Promise(resolve => { finish = resolve; }));
     let connecting!: Promise<boolean>;
     act(() => { connecting = result.current.connect(); });
-    expect(usbInstance.open).not.toHaveBeenCalled();
+    // The guard is reached once the board is chosen and has passed the firmware check.
+    await waitFor(() => expect(finish).toBeDefined());
+    expect(usbInstance.openDevice).not.toHaveBeenCalled();
     await act(async () => { finish(release); await connecting; });
-    expect(usbInstance.open).toHaveBeenCalledOnce();
+    expect(usbInstance.openDevice).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledWith(false);
   });
 
@@ -358,7 +383,7 @@ describe('KeyboardContext - File Loading', () => {
   });
 
   it('serializes maintenance with queued writes and preserves pending callbacks', async () => {
-    vi.mocked(usbInstance.open).mockResolvedValue(true);
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
     vi.mocked(keyboardService.load).mockResolvedValue({rows: 1, cols: 1});
     const { result } = renderHook(() => useKeyboard(), { wrapper });
     await act(async () => { await result.current.connect(); });
@@ -371,6 +396,95 @@ describe('KeyboardContext - File Loading', () => {
     expect(operation).not.toHaveBeenCalled();
     await act(async () => { finish(release); expect(await maintenance).toBe('saved'); });
     expect(release).toHaveBeenCalledWith(false);
+  });
+
+  describe('checks the firmware before changing the editing target', () => {
+    const vial = new UnsupportedFirmwareError({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' });
+
+    it('keeps an offline draft, and never asks to discard it, when the board runs old firmware', async () => {
+      vi.mocked(fileService.loadFile).mockResolvedValue({ rows: 1, cols: 1 });
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const { result } = renderHook(() => useKeyboard(), { wrapper });
+      await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
+      act(() => result.current.setKeyboard(kb => ({ ...kb!, name: 'edited' })));
+      const session = result.current.connectionSessionId;
+
+      vi.mocked(SvilUSB.checkFirmware).mockRejectedValueOnce(vial);
+      let connected: boolean | undefined;
+      await act(async () => { connected = await result.current.connect(); });
+
+      expect(connected).toBe(false);
+      expect(SvilUSB.checkFirmware).toHaveBeenCalledWith(chosenDevice);
+      expect(confirm).not.toHaveBeenCalled();
+      expect(usbInstance.openDevice).not.toHaveBeenCalled();
+      expect(result.current.keyboard?.name).toBe('edited');
+      expect(result.current.loadedFrom).toBe('draft.svil');
+      expect(result.current.connectionState).toBe('offline');
+      expect(result.current.connectionSessionId).toBe(session);
+      expect(result.current.connectionFirmware).toEqual({ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' });
+      confirm.mockRestore();
+    });
+
+    it('stays connected to the current board when another board runs old firmware', async () => {
+      vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
+      vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
+      vi.mocked(keyboardService.load).mockResolvedValue({ rows: 5, cols: 12, kbid: 'first' });
+      const { result } = renderHook(() => useKeyboard(), { wrapper });
+      await act(async () => { await result.current.connect(); });
+      await waitFor(() => expect(result.current.isConnected).toBe(true));
+
+      const other = { productName: 'Other' } as HIDDevice;
+      vi.mocked(SvilUSB.checkFirmware).mockRejectedValueOnce(vial);
+      await act(async () => { await result.current.connectDevice(other); });
+
+      expect(usbInstance.openDevice).toHaveBeenCalledTimes(1);
+      expect(result.current.isConnected).toBe(true);
+      expect(result.current.keyboard?.kbid).toBe('first');
+      expect(result.current.connectionFirmware?.kind).toBe('svalboard-vial');
+    });
+
+    it('changes nothing when the chooser is closed without picking a board', async () => {
+      vi.mocked(fileService.loadFile).mockResolvedValue({ rows: 1, cols: 1 });
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const { result } = renderHook(() => useKeyboard(), { wrapper });
+      await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
+      act(() => result.current.setKeyboard(kb => ({ ...kb!, name: 'edited' })));
+
+      vi.mocked(SvilUSB.requestDevice).mockResolvedValueOnce(null);
+      await act(async () => { await result.current.connect(); });
+
+      expect(SvilUSB.checkFirmware).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+      expect(result.current.keyboard?.name).toBe('edited');
+      expect(result.current.connectionState).toBe('offline');
+      confirm.mockRestore();
+    });
+
+    it('asks to discard edits only after the board passes the check', async () => {
+      vi.mocked(fileService.loadFile).mockResolvedValue({ rows: 1, cols: 1 });
+      const order: string[] = [];
+      vi.mocked(SvilUSB.checkFirmware).mockImplementationOnce(async () => { order.push('check'); });
+      const confirm = vi.spyOn(window, 'confirm').mockImplementation(() => { order.push('confirm'); return false; });
+      const { result } = renderHook(() => useKeyboard(), { wrapper });
+      await act(async () => { await result.current.loadFromFile(new File(['{}'], 'draft.svil')); });
+      act(() => result.current.setKeyboard(kb => ({ ...kb!, name: 'edited' })));
+
+      await act(async () => { await result.current.connect(); });
+
+      expect(order).toEqual(['check', 'confirm']);
+      expect(usbInstance.openDevice).not.toHaveBeenCalled();
+      expect(result.current.keyboard?.name).toBe('edited');
+      confirm.mockRestore();
+    });
+
+    it('skips the separate check when reopening the board already connected', async () => {
+      vi.mocked(usbInstance.hasDevice).mockReturnValueOnce(true);
+      vi.mocked(usbInstance.openDevice).mockResolvedValue(false);
+      const { result } = renderHook(() => useKeyboard(), { wrapper });
+      await act(async () => { await result.current.connectDevice(chosenDevice); });
+      expect(SvilUSB.checkFirmware).not.toHaveBeenCalled();
+      expect(usbInstance.openDevice).toHaveBeenCalledWith(chosenDevice);
+    });
   });
 
 });

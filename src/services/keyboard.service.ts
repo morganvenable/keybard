@@ -6,6 +6,7 @@ import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus,
 import { LE16 } from "./utils";
 
 import LZMA from "js-lzma";
+import { assertSupportedSvilProto } from "@/utils/unsupported-firmware";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyboard.types";
 
 // Svil feature flags (from protocol info response)
@@ -50,8 +51,19 @@ class LZMAOutStream {
     }
 }
 
+// Raw LZMA header: properties byte, 4-byte dictionary size, 8-byte uncompressed size
+const LZMA_HEADER_SIZE = 13;
+// The properties byte is (pb * 5 + lp) * 9 + lc with lc <= 8, lp <= 4, pb <= 4
+const LZMA_MAX_PROPERTIES = 9 * 5 * 5 - 1;
+
 // LZMA decompression helper
 async function decompress(buffer: ArrayBuffer): Promise<string> {
+    // js-lzma doesn't validate the header: an empty or garbage buffer sends it
+    // into an endless loop that ends in V8's "Too many properties to enumerate".
+    const header = new Uint8Array(buffer);
+    if (header.length < LZMA_HEADER_SIZE || header[0] > LZMA_MAX_PROPERTIES) {
+        throw new Error(`The keyboard sent an unreadable keyboard definition (${header.length} bytes). Reconnect the keyboard; if this keeps happening, update its firmware.`);
+    }
     try {
         const compressed = new Uint8Array(buffer);
         const inStream = new LZMAInStream(compressed);
@@ -222,7 +234,10 @@ export class KeyboardService {
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
-        kbinfo.keycode_version = keycodeVersion.some(Boolean) ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
+        kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
+        kbinfo.keycode_version = kbinfo.keycode_version_reported ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
+        // Nothing past here is safe on a board that isn't speaking Sval protocol 3+
+        assertSupportedSvilProto(kbinfo.svil_proto);
 
         // Extract UID as hex string for kbid
         // UID is stored as little-endian 64-bit integer, so reverse bytes for hex string
@@ -237,7 +252,7 @@ export class KeyboardService {
         });
         const payload_size = sizeResp as number;
 
-        if (payload_size > 50 * 1024 * 1024) { // Safety sanity check (50MB)
+        if (payload_size < LZMA_HEADER_SIZE || payload_size > 50 * 1024 * 1024) { // Safety sanity check (50MB)
             throw new Error(`Invalid payload size: ${payload_size}`);
         }
 

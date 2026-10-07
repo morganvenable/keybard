@@ -3,10 +3,11 @@ import { AlertTriangle, Check, Copy, PlugZap, Unplug } from "lucide-react";
 
 import { useKeyboard, listPermittedDevices } from "@/contexts/KeyboardContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
+import { UnsupportedFirmwareCard } from "@/components/FirmwareUpdate";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const ConnectKeyboard = () => {
-    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError, connectionFix } = useKeyboard();
+    const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError, connectionFix, connectionFirmware } = useKeyboard();
     const [fixCopied, setFixCopied] = useState(false);
     const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
@@ -224,7 +225,9 @@ const ConnectKeyboard = () => {
                         </div>
                     </>
 
-                {(error || connectionError) && (
+                {!error && connectionFirmware ? (
+                    <UnsupportedFirmwareCard info={connectionFirmware} className="mt-8" />
+                ) : (error || connectionError) && (
                     <div
                         className="mt-8 flex flex-row items-center justify-center gap-2 text-kb-red"
                         role="alert"

@@ -18,6 +18,18 @@ const CLIENT_ID_RENEW_SECS = 50;
 // Wrapper error frame: [0xDD][client_id:4][0xFF][error_code]
 const CLIENT_ERROR_PROTOCOL = 0xff;
 import { toHidOpenError } from "../utils/linux-hid-access";
+import { assertSupportedSvilProto, UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
+import { SVALBOARD_VIAL_UID } from "../constants/svalboard-vial";
+
+// Unwrapped probes for identifying firmware that doesn't speak the wrapper. All read-only.
+const PROBE_TIMEOUT_MS = 300;
+const VIAL_GET_KEYBOARD_ID = [VIA_PREFIX, 0x00]; // -> [vial_proto:4 LE][uid:8 LE]
+const VIA_GET_PROTOCOL_VERSION = [0x01];         // -> [0x01][version:2 BE]
+// Svalboard's Vial firmware (v25.02 on) has its own 0xEE protocol
+const SVAL_VIAL_GET_PROTO = [0xee, 0x01];        // -> "sval"[version:4 LE]
+const SVAL_VIAL_GET_FIRMWARE = [0xee, 0x02];     // -> QMK_VERSION, NUL-terminated
+const SVAL_MAGIC = [0x73, 0x76, 0x61, 0x6c];     // "sval"
+const QMK_UNHANDLED = 0xff;                      // QMK's id_unhandled reply prefix
 
 export const CLIENT_ERR_INVALID_ID = 0x01;
 export const CLIENT_ERR_NO_IDS = 0x02;
@@ -88,6 +100,48 @@ export class SvilCommandRefusedError extends Error {
  */
 export function checkSvilStatus(cmd: number, resp: Uint8Array): void {
   if (resp[1] !== 0) throw new SvilCommandRefusedError(cmd, resp[1]);
+}
+
+/** Whether a reply repeats our request from `from` on (client ID and nonce). */
+function isOurRequest(response: Uint8Array, request: Uint8Array, from: number): boolean {
+  for (let i = from; i < 5 + NONCE_SIZE; i++) {
+    if (response[i] !== request[i]) return false;
+  }
+  return true;
+}
+
+/** A reply starting with the "sval" magic of Svalboard Vial's 0xEE protocol. */
+function isSvalMagic(reply: Uint8Array): boolean {
+  return SVAL_MAGIC.every((b, i) => reply[i] === b);
+}
+
+/** Vial's keyboard-ID reply: [vial_proto:4 LE][uid:8 LE], where vial_proto is a small number. */
+function isVialKeyboardId(reply: Uint8Array): boolean {
+  return reply[0] !== QMK_UNHANDLED && reply[0] !== VIA_PREFIX && reply[0] !== WRAPPER_PREFIX &&
+    reply[1] === 0 && reply[2] === 0 && reply[3] === 0;
+}
+
+/**
+ * What the unwrapped probes found. "via-only": only the VIA protocol version was
+ * answered (Svalboard QMK answers it too). "silent": nothing answered.
+ */
+type ProbedFirmware = UnsupportedFirmwareInfo | { kind: "via-only" } | { kind: "silent" };
+
+/**
+ * Firmware kind for a keyboard that has shown it doesn't speak the wrapper
+ * (id_unhandled or an echo): there a VIA answer does mean some other QMK board.
+ */
+function knownNotSval(probed: ProbedFirmware): UnsupportedFirmwareInfo {
+  if (probed.kind === "via-only") return { kind: "other-qmk" };
+  if (probed.kind === "silent") return { kind: "unknown" };
+  return probed;
+}
+
+/** A NUL-terminated string from a reply, or undefined if it isn't printable text. */
+function printableString(bytes: Uint8Array): string | undefined {
+  const end = bytes.indexOf(0);
+  const text = new TextDecoder().decode(bytes.slice(0, end < 0 ? bytes.length : end)).trim();
+  return text && /^[ -~]+$/.test(text) ? text : undefined;
 }
 
 // Generate cryptographically random nonce
@@ -191,6 +245,7 @@ export class SvilUSB {
   private clientIdExpiry: number = 0;
   private renewalTimer?: ReturnType<typeof setTimeout>;
   private bootstrapPromise?: Promise<void>; // Prevent concurrent bootstraps
+  private bootstrapped = false; // This connection has had a client ID before
 
   // Sval protocol version of the connected keyboard, from CMD_SVIL_GET_INFO
   // (set while connecting). Assume version 1 until the keyboard says otherwise.
@@ -207,9 +262,38 @@ export class SvilUSB {
   };
 
   async open(filters: HIDDeviceFilter[]): Promise<boolean> {
+    const device = await SvilUSB.requestDevice(filters);
+    return device ? this.openDevice(device) : false;
+  }
+
+  /** Show the browser's device chooser; null when the user picks nothing. */
+  static async requestDevice(filters: HIDDeviceFilter[]): Promise<HIDDevice | null> {
     const devices = await navigator.hid.requestDevice({ filters });
-    if (devices.length !== 1) return false;
-    return this.openDevice(devices[0]);
+    return devices.length === 1 ? devices[0] : null;
+  }
+
+  /** Whether this connection currently has the given device open. */
+  hasDevice(device: HIDDevice): boolean {
+    return this.device === device;
+  }
+
+  /**
+   * Check that a device runs firmware Keybard can use before anything switches
+   * over to it: bootstrap a client ID (which identifies Vial and other non-Sval
+   * firmware) and read the Sval protocol version. It runs on its own short-lived
+   * connection, so whatever is being edited now (a connected board or an offline
+   * draft) is untouched. Throws UnsupportedFirmwareError, or the open error.
+   */
+  static async checkFirmware(device: HIDDevice): Promise<void> {
+    const probe = new SvilUSB();
+    try {
+      await probe.openDevice(device);
+      const info = await probe.sendSvil(SvilUSB.CMD_SVIL_GET_INFO, [], { uint8: true }) as Uint8Array;
+      // [cmd_echo][protocol_version:4]...
+      assertSupportedSvilProto(info[1] | (info[2] << 8) | (info[3] << 16) | (info[4] << 24));
+    } finally {
+      await probe.close().catch(() => undefined);
+    }
   }
 
   /**
@@ -219,6 +303,7 @@ export class SvilUSB {
    */
   async openDevice(device: HIDDevice): Promise<boolean> {
     this.device = device;
+    this.bootstrapped = false;
     if (!this.device.opened) {
       try {
         await this.device.open();
@@ -290,7 +375,35 @@ export class SvilUSB {
 
     console.log("Bootstrap request:", Array.from(message.slice(0, 30)).map(b => b.toString(16).padStart(2, '0')).join(' '));
 
-    // Send bootstrap request and wait for OUR response (might get other clients' responses first)
+    // Send bootstrap request and wait for OUR response (might get other clients' responses first).
+    // A fresh connection that gets no answer probes the board once and, if it
+    // answers unwrapped VIA, tries the bootstrap again before giving up.
+    for (let round = 0; ; round++) {
+      if (await this.bootstrapRound(message, nonce)) return;
+
+      // Nothing answered. On a board that has answered before, that's a hiccup.
+      if (this.bootstrapped) throw new Error("Bootstrap failed after all retries");
+
+      // Silence is never Vial (Vial firmware answers every packet), so only
+      // report a firmware kind the probes positively identify.
+      const probed = await this.identifyFirmware();
+      if (probed.kind === "via-only" && round === 0) {
+        console.warn("Keyboard answers VIA but not the bootstrap yet; retrying");
+        continue;
+      }
+      if (probed.kind === "via-only" || probed.kind === "silent") {
+        throw new UnsupportedFirmwareError({ kind: "no-response" });
+      }
+      throw new UnsupportedFirmwareError(probed);
+    }
+  }
+
+  /**
+   * Send the bootstrap request up to 5 times. Returns true once we hold a client
+   * ID, false if nothing answered; throws UnsupportedFirmwareError when the
+   * keyboard shows it doesn't speak the wrapper (id_unhandled or an echo).
+   */
+  private async bootstrapRound(message: Uint8Array, nonce: Uint8Array): Promise<boolean> {
     const maxAttempts = 5;
     const maxReadsPerAttempt = 50;
 
@@ -307,6 +420,12 @@ export class SvilUSB {
         }
 
         console.log("Bootstrap response:", Array.from(response.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+        // QMK without the wrapper answers [0xFF][rest of our request] (id_unhandled)
+        if (response[0] === QMK_UNHANDLED && isOurRequest(response, message, 1)) {
+          console.warn("Bootstrap request unhandled: not Sval firmware");
+          throw new UnsupportedFirmwareError(knownNotSval(await this.identifyFirmware()));
+        }
 
         // Validate wrapper prefix
         if (response[0] !== WRAPPER_PREFIX) {
@@ -340,6 +459,23 @@ export class SvilUSB {
           (response[27] << 16) |
           (response[28] << 24);
 
+        // Extract TTL (bytes 29-30, little-endian)
+        const ttl = response[29] | (response[30] << 8);
+
+        if (newClientId === 0) {
+          // Our request came back unchanged: Svalboard's Vial firmware echoes
+          // every packet it doesn't know, so later commands would "answer" with
+          // our own requests. Sval firmware always sends a non-zero TTL.
+          if (ttl === 0) {
+            console.warn("Bootstrap request echoed back: not Sval firmware");
+            throw new UnsupportedFirmwareError(knownNotSval(await this.identifyFirmware()));
+          }
+          // Sval firmware can hand out ID 0 (timer high half and counter both 0)
+          // but rejects it as a client ID. Ask again.
+          console.log("Got client ID 0, which the keyboard won't accept; asking again...");
+          break;
+        }
+
         // Check for error
         if (newClientId === 0xFFFFFFFF) {
           const errorCode = response[29];
@@ -347,9 +483,7 @@ export class SvilUSB {
         }
 
         this.clientId = newClientId;
-
-        // Extract TTL (bytes 29-30, little-endian)
-        this.clientTtl = response[29] | (response[30] << 8);
+        this.clientTtl = ttl;
 
         // Renew at 90% of the advertised TTL, but never later than the firmware's
         // coarse expiry floor (see CLIENT_ID_RENEW_SECS).
@@ -358,12 +492,67 @@ export class SvilUSB {
         // Schedule renewal
         this.scheduleRenewal();
 
+        this.bootstrapped = true;
         console.log(`Svil client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
-        return;
+        return true;
       }
     }
+    return false;
+  }
 
-    throw new Error("Bootstrap failed after all retries");
+  /**
+   * Work out what a keyboard that didn't take the client-ID bootstrap is running,
+   * with unwrapped read-only requests, so the error can say what to do.
+   * "via-only" means only the VIA protocol request was answered, which current
+   * Svalboard QMK does too; "silent" means nothing answered.
+   */
+  private async identifyFirmware(): Promise<ProbedFirmware> {
+    // Svalboard Vial firmware v25.02 and later: "sval" protocol, with its QMK version
+    const proto = await this.probe(SVAL_VIAL_GET_PROTO, isSvalMagic);
+    if (proto && isSvalMagic(proto)) {
+      const version = await this.probe(SVAL_VIAL_GET_FIRMWARE, r => !isSvalMagic(r) && printableString(r) !== undefined);
+      return { kind: "svalboard-vial", reportedVersion: version ? printableString(version) : undefined };
+    }
+    // Any Vial firmware reports its keyboard UID; Svalboard's is known
+    const id = await this.probe(VIAL_GET_KEYBOARD_ID, isVialKeyboardId);
+    if (id && isVialKeyboardId(id)) {
+      const uid = id.slice(4, 12).reduce((acc, b, i) => acc | (BigInt(b) << BigInt(8 * i)), 0n);
+      return { kind: uid === SVALBOARD_VIAL_UID ? "svalboard-vial" : "other-qmk" };
+    }
+    // VIA answers this: Vial, plain VIA and Svalboard QMK alike
+    const isViaVersion = (r: Uint8Array) => r[0] === VIA_GET_PROTOCOL_VERSION[0];
+    const via = await this.probe(VIA_GET_PROTOCOL_VERSION, isViaVersion);
+    if (via && isViaVersion(via)) return { kind: "via-only" };
+    return { kind: "silent" };
+  }
+
+  /**
+   * Send one unwrapped request and return its reply: one that `fits` the expected
+   * answer, or the keyboard's id_unhandled [0xFF][request] or echo of it. Anything
+   * else (wrapped traffic, a late reply to an earlier request) is skipped.
+   */
+  private async probe(request: number[], fits: (reply: Uint8Array) => boolean): Promise<Uint8Array | null> {
+    if (!this.device) return null;
+    const message = new Uint8Array(MSG_LEN);
+    message.set(request);
+    try {
+      await this.device.sendReport(0, message as BufferSource);
+    } catch (e) {
+      console.warn("Firmware probe failed to send:", e);
+      return null;
+    }
+    const answersRequest = (r: Uint8Array) =>
+      request.every((b, i) => r[i] === b) ||
+      (r[0] === QMK_UNHANDLED && request.every((b, i) => r[i + 1] === b));
+    const deadline = Date.now() + PROBE_TIMEOUT_MS;
+    for (let left = PROBE_TIMEOUT_MS; left > 0; left = deadline - Date.now()) {
+      const response = await this.readWithTimeout(left);
+      if (!response) return null;
+      if (response[0] === WRAPPER_PREFIX) continue;
+      if (fits(response) || answersRequest(response)) return response;
+      console.log("Skipping a reply that doesn't answer this probe");
+    }
+    return null;
   }
 
   /**
@@ -422,6 +611,7 @@ export class SvilUSB {
     }
     this.clientId = 0;
     this.clientIdExpiry = 0;
+    this.bootstrapped = false;
     this.svilProtocolVersion = 1;
 
     if (this.device) {

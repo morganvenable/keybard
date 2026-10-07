@@ -30,6 +30,7 @@ export interface KeyboardInfo {
     leader_count?: number;                   // NEW
     feature_flags?: number;                  // NEW: Svil feature flags
     keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
+    keycode_version_reported?: boolean;      // Connected boards: whether GET_INFO reported the numbering (vLaunch on)
     raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
     vial_import?: {                          // Loaded .vil files
         svalboard: boolean;                  // written by Svalboard's Vial firmware

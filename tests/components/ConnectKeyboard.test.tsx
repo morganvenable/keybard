@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ConnectKeyboard from '../../src/components/ConnectKeyboard';
 import { listPermittedDevices } from '../../src/contexts/KeyboardContext';
+import type { UnsupportedFirmwareInfo } from '../../src/utils/unsupported-firmware';
 
 const keyboardContext = {
     isConnected: false,
@@ -13,6 +14,7 @@ const keyboardContext = {
     loadFromFile: vi.fn(),
     connectionError: null as string | null,
     connectionFix: null as string | null,
+    connectionFirmware: null as UnsupportedFirmwareInfo | null,
 };
 
 vi.mock('@/contexts/KeyboardContext', async (importOriginal) => {
@@ -50,6 +52,7 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         keyboardContext.isWebHIDSupported = true;
         keyboardContext.connectionError = null;
         keyboardContext.connectionFix = null;
+        keyboardContext.connectionFirmware = null;
     });
 
     it('lists permitted keyboards and opens one without the chooser', async () => {
@@ -92,6 +95,18 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Copy commands' }));
         expect(writeText).toHaveBeenCalledWith(keyboardContext.connectionFix);
         expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+        await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
+    });
+
+    it('explains old Vial firmware with update steps instead of the raw error', async () => {
+        keyboardContext.connectionError = 'This Svalboard is running the old Vial firmware (v2025-11-01).';
+        keyboardContext.connectionFirmware = { kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' };
+        render(<ConnectKeyboard />);
+        const card = screen.getByRole('alert', { name: "Update your Svalboard's firmware" });
+        expect(card).toHaveTextContent('old Vial firmware (v2025-11-01)');
+        expect(card).toHaveTextContent('File > Save current layout');
+        expect(screen.getByRole('link', { name: /latest Svalboard firmware release/ })).toHaveAttribute('href', 'https://github.com/svalboard/qmk/releases/latest');
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
         await waitFor(() => expect(navigator.hid.getDevices).toHaveBeenCalled());
     });
 
