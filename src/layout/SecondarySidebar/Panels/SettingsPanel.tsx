@@ -23,6 +23,7 @@ import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { fileService } from "@/services/file.service";
 import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
+import BackupsSection from "./BackupsSection";
 import BoardIdentitySection from "./BoardIdentitySection";
 import FragmentsPanel from "./FragmentsPanel";
 import DynamicMenuPanel from "./DynamicMenuPanel";
@@ -56,7 +57,7 @@ const SettingsPanel = () => {
         updateSetting(name, checked);
     };
 
-    const { handleFileImport, importReview, fileError, setFileError } = useLayoutImport();
+    const { handleFileImport, reviewFile, importReview, fileError, setFileError } = useLayoutImport();
 
     const handleExport = async () => {
         if (!keyboard) {
@@ -201,6 +202,10 @@ const SettingsPanel = () => {
             <div className=" flex flex-col gap-2">
                 {activeCategory === "fragments" ? (
                     <FragmentsPanel />
+                ) : activeCategory === "backups" ? (
+                    <div className="flex flex-col px-1 gap-2">
+                        <BackupsSection onRestore={reviewFile} />
+                    </div>
                 ) : (
                     <div className="flex flex-col px-1 gap-2">
                         {activeCategory === "general" && <BoardIdentitySection />}
