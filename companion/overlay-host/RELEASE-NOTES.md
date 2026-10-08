@@ -4,7 +4,11 @@ Keybard Host shows your Svalboard layout as a transparent overlay on your deskto
 
 This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer.
 
-## New in this preview
+## New in vLaunch2.1
+
+- **Works with Keybard's preview site.** Trainer on [next.keybard.svalboard.com](https://next.keybard.svalboard.com), the bleeding-edge Keybard built from every change, can now connect to Keybard Host, as keybard.svalboard.com can.
+
+## New in vLaunch2
 
 - **The overlay keeps up with your edits.** When Keybard saves a change to the keyboard, the overlay updates about a second later, without going blank. Before, you had to choose **Reload layout** from the tray.
 - **The bundled Keybard is current:** it can reorder layers by dragging their tabs, shows and sets the default layer, and warns when the keyboard couldn't save a setting.

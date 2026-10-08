@@ -28,7 +28,7 @@ Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Trainer.
 
 ## What it doesn't do
 
-Keybard Host never writes to the keyboard, flashes firmware or records what you type. Its control page listens only on your own computer. It takes commands only from its built-in Keybard and from keybard.svalboard.com, and each change needs a per-session token.
+Keybard Host never writes to the keyboard, flashes firmware or records what you type. Its control page listens only on your own computer. It takes commands only from its built-in Keybard, keybard.svalboard.com and the preview site next.keybard.svalboard.com, and each change needs a per-session token.
 
 ## Updating
 
