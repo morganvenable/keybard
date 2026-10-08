@@ -150,8 +150,9 @@ describe('KeyboardService', () => {
       }
     });
 
-    it('reads the second feature byte after the keycode version, zero when absent', async () => {
-      for (const [tail, expected] of [[[0, 0, 9, 1], 1], [[0, 0, 9, 0], 0], [[0, 0, 9], 0]] as const) {
+    it('reads the second feature byte after the storage flags, zero when absent', async () => {
+      // The storage-reset byte comes first and must not be taken for the feature byte.
+      for (const [tail, expected] of [[[0, 0, 9, 0, 1], 1], [[0, 0, 9, 1, 0], 0], [[0, 0, 9, 1], 0], [[0, 0, 9], 0]] as const) {
         mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
           SvilUSB.CMD_SVIL_GET_INFO, 0x03, 0x00, 0x00, 0x00, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x40, ...tail,
         ])));
