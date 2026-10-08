@@ -48,6 +48,8 @@ interface KeyboardContextType {
     pollMatrix: () => Promise<boolean[][]>;
     lastHeartbeat: number;
     activeLayerIndex: number | null;
+    /** The board's default layer, when it reports one. */
+    defaultLayerIndex: number | null;
 }
 
 const serializeDraft = (value: unknown) => JSON.stringify(value, (_key, item) => item instanceof Map ? { __map: [...item.entries()] } : item);
@@ -120,6 +122,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [isImporting, setIsImporting] = useState(false);
     const [lastHeartbeat, setLastHeartbeat] = useState<number>(0);
     const [activeLayerIndex, setActiveLayerIndex] = useState<number | null>(null);
+    const [defaultLayerIndex, setDefaultLayerIndex] = useState<number | null>(null);
     const isWebHIDSupported = KeyboardService.isWebHIDSupported();
 
     // Tracks the in-flight loadKeyboard promise. Multiple components mounted
@@ -413,15 +416,17 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 // Paranoid: don't watch the board while Keybard isn't in front of you.
             } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
-                    const activeLayer = await keyboardService.getActiveLayerIndex();
+                    const { active, defaultLayer } = await keyboardService.getLayerIndexes(keyboard);
                     if (isActive) {
-                        setActiveLayerIndex(activeLayer);
+                        setActiveLayerIndex(active);
+                        setDefaultLayerIndex(defaultLayer);
                     }
                 } catch (error) {
                     console.warn("Layer state polling error:", error);
                 }
             } else if (isActive) {
                 setActiveLayerIndex(null);
+                setDefaultLayerIndex(null);
             }
 
             if (isActive) {
@@ -496,6 +501,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pollMatrix,
         lastHeartbeat,
         activeLayerIndex,
+        defaultLayerIndex,
     };
 
     return <KeyboardContext.Provider value={value}>{children}</KeyboardContext.Provider>;

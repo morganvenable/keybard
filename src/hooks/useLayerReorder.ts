@@ -33,7 +33,7 @@ export interface LayerReorderReview {
  * onMoved gets each old layer's new number, so the caller can keep its selection on the moved layer.
  */
 export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
-    const { keyboard, setKeyboard, isConnected } = useKeyboard();
+    const { keyboard, setKeyboard, isConnected, defaultLayerIndex } = useKeyboard();
     const { queue, todo, isInstant, commit, isSaving, registerUndo } = useChanges();
     const [review, setReview] = useState<LayerReorderReview | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -42,8 +42,17 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
     current.current = keyboard;
     const name = (kb: KeyboardInfo) => (layer: number) => svalService.getLayerName(kb, layer);
 
-    /** Without a report from the board, layer 0 and every layer a DF or PDF key selects could be the default. */
-    const guessConstraints = (kb: KeyboardInfo): LayerMoveConstraints => ({ fixed: defaultLayerCandidates(kb), defaultLayer: null, movable: false });
+    /**
+     * What's known before asking the board again: the default layer from the layer-state polling,
+     * or, without a report, layer 0 and every layer a DF or PDF key selects.
+     */
+    const guessConstraints = (kb: KeyboardInfo): LayerMoveConstraints => {
+        if (isConnected && defaultLayerIndex != null) {
+            const movable = ((kb.feature_flags2 ?? 0) & 0x01) !== 0;
+            return { fixed: movable ? [] : [defaultLayerIndex], defaultLayer: defaultLayerIndex, movable };
+        }
+        return { fixed: defaultLayerCandidates(kb), defaultLayer: null, movable: false };
+    };
 
     /** Asks the board for its default layer. The default can move only if the board can also set it. */
     const loadConstraints = async (kb: KeyboardInfo): Promise<LayerMoveConstraints> => {
@@ -97,7 +106,7 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
                 await keyboardService.setLayerStateMask(permuteLayerMask(active, plan.order));
             }, { writeKey: 'layer-state' });
             if (defaultLayer !== null && newOf[defaultLayer] !== defaultLayer) {
-                await staged(`Default layer is now ${newOf[defaultLayer]}`, () => keyboardService.setDefaultLayer(newOf[defaultLayer]), { writeKey: 'default-layer' });
+                await staged(`Default layer is now ${newOf[defaultLayer]}`, () => keyboardService.setDefaultLayerChecked(base, newOf[defaultLayer]), { writeKey: 'default-layer' });
             }
             if (isInstant && !await commit()) throw new Error('Some changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.');
         }
@@ -128,8 +137,23 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
         } finally { setApplying(false); }
     };
 
+    /** Whether the connected board can change its saved default layer. */
+    const canSetDefault = isConnected && ((keyboard?.feature_flags2 ?? 0) & 0x01) !== 0;
+
+    /** Makes layer the board's saved default, as a PDF(layer) key would. Undo restores the previous one. */
+    const makeDefault = async (layer: number, previous: number | null = defaultLayerIndex) => {
+        if (!keyboard || !canSetDefault) return;
+        setError(null);
+        const kb = keyboard;
+        const { keyboardService } = await import('@/services/keyboard.service');
+        await queue(`Default layer is now ${layer}`, () => keyboardService.setDefaultLayerChecked(kb, layer), { writeKey: 'default-layer' });
+        if (previous !== null && previous !== layer) {
+            registerUndo('default layer', () => makeDefault(previous, layer));
+        }
+    };
+
     return {
-        guessConstraints, loadConstraints, prepare, apply, review, applying, error,
+        guessConstraints, loadConstraints, prepare, apply, review, applying, error, canSetDefault, makeDefault,
         cancel: () => { setReview(null); setError(null); },
     };
 }

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     connected: true,
     instant: true,
     todo: {} as Record<string, unknown>,
+    defaultLayerIndex: null as number | null,
     setKeyboard: vi.fn(),
     queue: vi.fn(),
     commit: vi.fn(),
@@ -20,11 +21,12 @@ const mocks = vi.hoisted(() => ({
         getLayerStateMasks: vi.fn(),
         setLayerStateMask: vi.fn(),
         setDefaultLayer: vi.fn(),
+        setDefaultLayerChecked: vi.fn(),
         canSetDefaultLayer: (kb: any) => ((kb.feature_flags2 ?? 0) & 1) !== 0,
         getActiveLayerIndexFromMask: (mask: number) => (mask ? 31 - Math.clz32(mask) : 0),
     },
 }));
-vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected, defaultLayerIndex: mocks.defaultLayerIndex }) }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ queue: mocks.queue, todo: mocks.todo, isInstant: mocks.instant, isSaving: false, commit: mocks.commit, registerUndo: mocks.registerUndo }) }));
 vi.mock('@/services/import.service', () => ({ importService: { syncWithKeyboard: mocks.sync } }));
 vi.mock('@/services/keyboard.service', () => ({ keyboardService: mocks.keyboardService }));
@@ -53,6 +55,7 @@ describe('layer reorder confirmation', () => {
         mocks.connected = true;
         mocks.instant = true;
         mocks.todo = {};
+        mocks.defaultLayerIndex = null;
         mocks.commit.mockResolvedValue(true);
         mocks.keyboardService.getLayerStateMasks.mockResolvedValue({ active: 0b0011, default: 0b0001 });
     });
@@ -100,14 +103,14 @@ describe('layer reorder confirmation', () => {
         await waitFor(() => expect(mocks.registerUndo).toHaveBeenCalled());
         const write = mocks.queue.mock.calls.find(([, , metadata]) => metadata?.writeKey === 'default-layer');
         await write[1]();
-        expect(mocks.keyboardService.setDefaultLayer).toHaveBeenCalledWith(2);
+        expect(mocks.keyboardService.setDefaultLayerChecked).toHaveBeenCalledWith(expect.anything(), 2);
 
         mocks.queue.mockClear();
         mocks.keyboard = mocks.setKeyboard.mock.calls[0][0];
         await mocks.registerUndo.mock.calls[0][1]();
         const undoWrite = mocks.queue.mock.calls.find(([, , metadata]) => metadata?.writeKey === 'default-layer');
         await undoWrite[1]();
-        expect(mocks.keyboardService.setDefaultLayer).toHaveBeenLastCalledWith(0);
+        expect(mocks.keyboardService.setDefaultLayerChecked).toHaveBeenLastCalledWith(expect.anything(), 0);
     });
 
     it('treats layer 0 and DF targets as the default when the board does not report it', async () => {
@@ -118,6 +121,33 @@ describe('layer reorder confirmation', () => {
         const constraints = await hook.loadConstraints(mocks.keyboard);
         expect(constraints).toEqual({ fixed: [0, 2], defaultLayer: null, movable: false });
         expect(hook.guessConstraints(mocks.keyboard)).toEqual(constraints);
+    });
+
+    it('makes a layer the default, with undo back to the previous one', async () => {
+        mocks.keyboard.feature_flags2 = 1;
+        mocks.defaultLayerIndex = 0;
+        render(<Harness />);
+        expect(hook.canSetDefault).toBe(true);
+        expect(hook.guessConstraints(mocks.keyboard)).toEqual({ fixed: [], defaultLayer: 0, movable: true });
+        await act(() => hook.makeDefault(2));
+        const [desc, write, metadata] = mocks.queue.mock.calls[0];
+        expect(desc).toBe('Default layer is now 2');
+        expect(metadata).toEqual({ writeKey: 'default-layer' });
+        await write();
+        expect(mocks.keyboardService.setDefaultLayerChecked).toHaveBeenCalledWith(mocks.keyboard, 2);
+        expect(mocks.registerUndo).toHaveBeenCalledWith('default layer', expect.any(Function));
+        await act(() => mocks.registerUndo.mock.calls[0][1]());
+        await mocks.queue.mock.calls[1][1]();
+        expect(mocks.keyboardService.setDefaultLayerChecked).toHaveBeenLastCalledWith(mocks.keyboard, 0);
+    });
+
+    it('cannot set the default on firmware without the command', async () => {
+        mocks.defaultLayerIndex = 0;
+        render(<Harness />);
+        expect(hook.canSetDefault).toBe(false);
+        expect(hook.guessConstraints(mocks.keyboard)).toEqual({ fixed: [0], defaultLayer: 0, movable: false });
+        await act(() => hook.makeDefault(2));
+        expect(mocks.queue).not.toHaveBeenCalled();
     });
 
     it('asks for pending changes to be applied first', async () => {

@@ -526,6 +526,28 @@ export class KeyboardService {
         checkSvilStatus(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, resp);
     }
 
+    /** Sets the default layer, then reads it back: a default that didn't change is an error, not a silent miss. */
+    async setDefaultLayerChecked(kbinfo: KeyboardInfo, layer: number): Promise<void> {
+        await this.setDefaultLayer(layer);
+        const { defaultLayer } = await this.getLayerIndexes(kbinfo);
+        if (defaultLayer !== null && defaultLayer !== layer) {
+            throw new Error(`The keyboard's default layer is ${defaultLayer}, not ${layer} as Keybard asked. Set it again from the layer's menu.`);
+        }
+    }
+
+    /**
+     * The layer the board is showing and its default layer (null unless the board reports it).
+     * QMK shows the highest layer that is on, counting the default layer, so with no other
+     * layer on the board shows its default, which needn't be layer 0.
+     */
+    async getLayerIndexes(kbinfo: KeyboardInfo): Promise<{ active: number; defaultLayer: number | null }> {
+        const masks = await this.getLayerStateMasks(kbinfo);
+        return {
+            active: this.getActiveLayerIndexFromMask(masks.active | (masks.default ?? 0)),
+            defaultLayer: masks.default === null ? null : this.getActiveLayerIndexFromMask(masks.default),
+        };
+    }
+
     /** Sets the live layer state. QMK doesn't save it. */
     async setLayerStateMask(mask: number): Promise<void> {
         const m = mask >>> 0;

@@ -16,6 +16,7 @@ vi.mock('../../src/services/keyboard.service', () => ({
     load: vi.fn(),
     updateKey: vi.fn(),
     getActiveLayerIndex: vi.fn().mockResolvedValue(0),
+    getLayerIndexes: vi.fn().mockResolvedValue({ active: 0, defaultLayer: null }),
   },
   KeyboardService: {
     isWebHIDSupported: vi.fn(() => true),

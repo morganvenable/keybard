@@ -9,14 +9,17 @@ const reorder = vi.hoisted(() => ({
     loadConstraints: async () => ({ fixed: [0], defaultLayer: 0, movable: false }),
     prepare: (() => undefined) as (...args: unknown[]) => void,
     apply: async () => true, cancel: () => undefined, review: null, error: null, applying: false,
+    canSetDefault: false,
+    makeDefault: (() => undefined) as (...args: unknown[]) => void,
 }));
+const board = vi.hoisted(() => ({ isConnected: false, defaultLayerIndex: null as number | null }));
 vi.mock("@/hooks/useLayerReorder", () => ({ useLayerReorder: () => reorder }));
 vi.mock("@/components/LayerReorderDialog", () => ({ LayerReorderDialog: () => null }));
 vi.mock("@/hooks/useLayerClipboardActions", () => ({ useLayerClipboardActions: () => ({ copy: vi.fn(), paste: vi.fn() }) }));
 vi.mock("@/contexts/KeyboardContext", () => ({
     useKeyboard: () => ({
         keyboard: { rows: 1, cols: 1, layers: 6, keymap: [[4], [5], [6], [7], [8], [9]], cosmetic: { layer: {}, layer_colors: {} } },
-        activeLayerIndex: 0, isConnected: false,
+        activeLayerIndex: 0, isConnected: board.isConnected, defaultLayerIndex: board.defaultLayerIndex,
     }),
 }));
 vi.mock("@/contexts/KeyBindingContext", () => ({ useKeyBinding: () => ({ clearSelection: vi.fn() }) }));
@@ -32,8 +35,9 @@ vi.mock("@/components/ui/tooltip", () => ({
 vi.mock("@/components/ui/context-menu", () => ({
     ContextMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
     ContextMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-    ContextMenuContent: () => null,
-    ContextMenuItem: () => null,
+    ContextMenuContent: ({ children }: { children: ReactNode }) => <div role="menu">{children}</div>,
+    ContextMenuItem: ({ children, disabled, onSelect }: { children: ReactNode; disabled?: boolean; onSelect: () => void }) =>
+        <div role="menuitem" aria-disabled={disabled} onClick={onSelect}>{children}</div>,
     ContextMenuSeparator: () => null,
 }));
 vi.mock("@/services/sval.service", () => ({
@@ -55,6 +59,8 @@ const dragAt = (target: Element, type: "dragOver" | "drop", clientX: number) => 
 describe("dragging a layer tab between two others", () => {
     let prepare: ReturnType<typeof vi.fn>;
     beforeEach(() => {
+        board.isConnected = false;
+        board.defaultLayerIndex = null;
         prepare = vi.fn();
         reorder.prepare = prepare;
         vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { callback(0); return 0; });
@@ -99,6 +105,24 @@ describe("dragging a layer tab between two others", () => {
         dragAt(row, "drop", 100);
         expect(prepare).toHaveBeenCalledWith(4, 2, { fixed: [0], defaultLayer: 0, movable: false });
         expect(row.querySelectorAll("span[aria-hidden]")).toHaveLength(0);
+    });
+
+    it("marks the default layer and offers to make another layer the default", () => {
+        board.isConnected = true;
+        board.defaultLayerIndex = 2;
+        reorder.canSetDefault = true;
+        const makeDefault = vi.fn();
+        reorder.makeDefault = makeDefault;
+        renderTabs();
+        expect(screen.getByRole("button", { name: "2, default layer" })).toBeTruthy();
+        const items = screen.getAllByRole("menuitem").filter((item) => /Default Layer/.test(item.textContent ?? ""));
+        expect(items.map((item) => [item.textContent, item.getAttribute("aria-disabled")])).toContainEqual(["Default Layer", "true"]);
+        fireEvent.click(items.find((item) => item.textContent === "Make Default Layer")!);
+        expect(makeDefault).toHaveBeenCalled();
+
+        reorder.canSetDefault = false;
+        renderTabs();
+        expect(screen.getAllByText("Make Default Layer (needs newer firmware)").length).toBeGreaterThan(0);
     });
 
     it("does nothing when dropped where no gap is open", async () => {

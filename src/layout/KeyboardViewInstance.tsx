@@ -1,4 +1,5 @@
 import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
+import { House } from "lucide-react";
 import { FC, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Keyboard } from "@/components/Keyboard";
@@ -115,7 +116,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onLayerDropHover,
     onLayerDrop,
 }) => {
-    const { keyboard, activeLayerIndex, isConnected } = useKeyboard();
+    const { keyboard, activeLayerIndex, isConnected, defaultLayerIndex } = useKeyboard();
     const transparentKeyGlyph = KEYMAP["KC_TRNS"]?.str || "▽";
     const { clearSelection } = useKeyBinding();
     const { copy, paste, clipboardError } = useLayerClipboardActions();
@@ -418,6 +419,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         const isDropTarget = isLayerDragActive && hoveredDropLayer === i;
         const canMove = i !== pinnedLayer(keyboard);
         const isDragged = tabDrag?.from === i;
+        const isDefault = isConnected && defaultLayerIndex === i;
         const isLayerActive = typeof activeLayerIndex === "number"
             ? activeLayerIndex === i
             : !!layerActiveState?.[i];
@@ -434,6 +436,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             }
                         }}
                         onClick={handleSelectLayer(i)}
+                        title={isDefault ? "Default layer: the keyboard starts on it" : undefined}
+                        aria-label={isDefault ? `${layerShortName}, default layer` : undefined}
                         onDoubleClick={(e) => {
                             e.stopPropagation();
                             onToggleLayerOn(i);
@@ -466,7 +470,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             isHudMode && !isActive && !isLayerActive && "text-gray-300 dark:text-neutral-400"
                         )}
                     >
-                        <span className={cn("select-none", isLayerActive && "underline underline-offset-2")}>
+                        <span className={cn("select-none inline-flex items-center gap-1", isLayerActive && "underline underline-offset-2")}>
+                            {isDefault && <House aria-hidden className="h-3.5 w-3.5 shrink-0" />}
                             {layerShortName}
                         </span>
                     </button>
@@ -478,6 +483,14 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     <ContextMenuItem onSelect={() => { void paste(i); }}>
                         Paste Layer
                     </ContextMenuItem>
+                    {isConnected && defaultLayerIndex != null && (
+                        <ContextMenuItem
+                            disabled={isDefault || !reorder.canSetDefault}
+                            onSelect={() => { void reorder.makeDefault(i); }}
+                        >
+                            {isDefault ? "Default Layer" : reorder.canSetDefault ? "Make Default Layer" : "Make Default Layer (needs newer firmware)"}
+                        </ContextMenuItem>
+                    )}
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
                         {isLayerActive ? "Turn Layer Off" : "Turn Layer On"}

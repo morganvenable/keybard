@@ -743,6 +743,25 @@ describe('KeyboardService', () => {
       await expect(keyboardService.setDefaultLayer(16)).rejects.toThrow();
     });
 
+    it('reports the default layer, and shows it when no other layer is on', async () => {
+      // Active mask 0, default mask layer 3.
+      mockUSB.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_GET, 0, 0, 0, 0, 0x08, 0, 0, 0]));
+      expect(await keyboardService.getLayerIndexes({ feature_flags: 0x40 } as any)).toEqual({ active: 3, defaultLayer: 3 });
+      // A momentary layer above it wins; without the flag the default isn't known.
+      mockUSB.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_GET, 0x20, 0, 0, 0, 0x08, 0, 0, 0]));
+      expect(await keyboardService.getLayerIndexes({ feature_flags: 0x40 } as any)).toEqual({ active: 5, defaultLayer: 3 });
+      expect(await keyboardService.getLayerIndexes({ feature_flags: 0 } as any)).toEqual({ active: 5, defaultLayer: null });
+    });
+
+    it('checks the default layer after setting it', async () => {
+      const ok = new Uint8Array([SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, 0]);
+      const state = (mask: number) => new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_GET, 0, 0, 0, 0, mask, 0, 0, 0]);
+      mockUSB.sendSvil.mockResolvedValueOnce(ok).mockResolvedValueOnce(state(0x04));
+      await expect(keyboardService.setDefaultLayerChecked({ feature_flags: 0x40 } as any, 2)).resolves.toBeUndefined();
+      mockUSB.sendSvil.mockResolvedValueOnce(ok).mockResolvedValueOnce(state(0x10));
+      await expect(keyboardService.setDefaultLayerChecked({ feature_flags: 0x40 } as any, 2)).rejects.toThrow(/default layer is 4, not 2/);
+    });
+
     it('writes the live mask little-endian', async () => {
       mockUSB.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_SET]));
       await keyboardService.setLayerStateMask(0x80000106);
