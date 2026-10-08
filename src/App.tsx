@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
+import ChannelBanner from "./components/ChannelBanner";
 import DeployBadge from "./components/DeployBadge";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
@@ -109,6 +110,7 @@ function App() {
         <KeyboardProvider>
             <LoadingOverlay />
             <DeployBadge />
+            <ChannelBanner />
             <SettingsProvider>
                 <ThemeSync />
                 <ChangesProviderWithKeyboard>

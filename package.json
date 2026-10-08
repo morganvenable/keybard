@@ -14,6 +14,7 @@
         "test:ui": "vitest --ui",
         "build:sval-preview": "tsc && vite build --mode sval-preview",
         "build:svalboard": "tsc && vite build --mode svalboard",
+        "build:next": "tsc && vite build --mode next",
         "build:paranoid": "tsc && vite build --mode paranoid",
         "dev:sval-preview": "vite --mode sval-preview --host 127.0.0.1 --port 5176"
     },

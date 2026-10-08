@@ -49,7 +49,7 @@ jobs:
             echo
             echo "## This build"
             echo
-            echo "- Bundles Keybard \`$KEYBARD_COMMIT\`, the same build keybard.svalboard.com served at that commit (shown in the corner of the Keybard page)."
+            echo "- Bundles Keybard built from commit \`$KEYBARD_COMMIT\` (each Keybard page shows its commit in the corner)."
             echo "- Keybard Host reports its release and bundled Keybard in Trainer and in its tray tooltip."
           } >> dist/RELEASE-NOTES.md
       - name: Checksum
