@@ -24,12 +24,12 @@ This applies to all work, no matter how small. Changes only reach `main` through
 | Site | What it serves | How it updates |
 |------|----------------|----------------|
 | https://keybard.svalboard.com (stable) | A commit or tag on `main` that was promoted | Manually: `gh workflow run svalboard-deploy.yml -R svalboard/keybard -f ref=<commit or tag>` (`.github/workflows/svalboard-deploy.yml`). It refuses anything not on `main`. |
-| https://svalboard.github.io/keybard-next/ (bleeding edge) | The tip of `main`, with a "Bleeding edge" banner and its own storage (`.env.next`) | Automatically on every merge to `main` (`.github/workflows/next-deploy.yml`, pushing to `svalboard/keybard-next` with a deploy key) |
+| https://next.keybard.svalboard.com (bleeding edge) | The tip of `main`, with a "Bleeding edge" banner and its own storage (`.env.next`) | Automatically on every merge to `main` (`.github/workflows/next-deploy.yml`, pushing to the `gh-pages` branch of `svalboard/keybard-next` with a deploy key; a `next.keybard` CNAME on svalboard.com points at `svalboard.github.io`) |
 | https://morganvenable.github.io/keybard-test/ | Any branch, for testing before it merges | `gh workflow run deploy.yml -R morganvenable/keybard-test -f repo=morganvenable/keybard -f ref=<branch>` |
 
 **Merging to `main` no longer changes the stable site.** Promote to stable only after checking the build on the bleeding-edge site.
 
-Keybard Host only accepts calls from https://keybard.svalboard.com (`REMOTE_ORIGINS` in `companion/overlay-host/keybard_host/server.py`), so Trainer's Host connection works on the stable site only. To try Host features on another site, start the Host with `--allow-origin <origin>`.
+Keybard Host accepts calls only from exact origins: https://keybard.svalboard.com and https://next.keybard.svalboard.com (`REMOTE_ORIGINS` in `companion/overlay-host/keybard_host/server.py`). Installed Hosts learn a new origin only from a Host update. Never allow a `*.github.io` origin: every Pages site of that account shares it. To try Host features on another site, start the Host with `--allow-origin <origin>`.
 
 **ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first. If you touch anything that could reach the network, also run `npm run build:paranoid`.
 

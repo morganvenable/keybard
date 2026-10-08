@@ -1,10 +1,10 @@
-name: Deploy Keybard bleeding edge (svalboard.github.io/keybard-next)
+name: Deploy Keybard bleeding edge (next.keybard.svalboard.com)
 
-# Every merge to main is built with --mode next (.env.next: its own path and
-# storage, and a "Bleeding edge" banner) and published to the gh-pages branch of
-# svalboard/keybard-next, which GitHub Pages serves at
-# https://svalboard.github.io/keybard-next/. Production is promoted separately
-# (svalboard-deploy.yml).
+# Every merge to main is built with --mode next (.env.next: its own storage and
+# a "Bleeding edge" banner) and published to the gh-pages branch of
+# svalboard/keybard-next, which GitHub Pages serves at the custom domain
+# https://next.keybard.svalboard.com (a next.keybard CNAME on svalboard.com points
+# at svalboard.github.io). Production is promoted separately (svalboard-deploy.yml).
 #
 # Pushes with a deploy key that can write only to svalboard/keybard-next: its
 # private half is this repository's KEYBARD_NEXT_DEPLOY_KEY secret.
@@ -54,6 +54,8 @@ jobs:
           echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >> ~/.ssh/known_hosts
           cd dist
           touch .nojekyll
+          # The branch is replaced on every deploy, so it must carry the custom domain each time.
+          echo next.keybard.svalboard.com > CNAME
           git init -q -b gh-pages
           git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
