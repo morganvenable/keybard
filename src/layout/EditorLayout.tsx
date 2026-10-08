@@ -25,6 +25,7 @@ import { LayerProvider, useLayer } from "@/contexts/LayerContext";
 import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
 import { PasteLayerDialog } from "@/components/PasteLayerDialog";
 import { DragReplaceLayerDialog } from "@/components/DragReplaceLayerDialog";
+import { StorageResetDialog } from "@/components/StorageResetDialog";
 import type { LayerEntry } from "@/types/layer-library";
 
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -1547,6 +1548,7 @@ const EditorLayoutInner = () => {
                 onConfirm={handleDragReplaceConfirm}
                 onCancel={handleDragReplaceCancel}
             />
+            <StorageResetDialog />
             </div>
         </div >
     );

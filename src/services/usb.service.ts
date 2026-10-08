@@ -212,6 +212,7 @@ export class SvilUSB {
   static readonly CMD_SVIL_MACRO_BUFFER_GET = 0x1f;
   static readonly CMD_SVIL_MACRO_BUFFER_SET = 0x20;
   static readonly CMD_SVIL_TABLE_SCAN = 0x21;
+  static readonly CMD_SVIL_STORAGE_RESET_CLEAR = 0x2a;
 
   // Label types for CMD_SVIL_LABEL_*; every label is a fixed 16-byte, null-padded UTF-8 field
   static readonly SVIL_LABEL_TYPE_LAYER = 0;

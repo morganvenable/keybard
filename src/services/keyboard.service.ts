@@ -226,7 +226,7 @@ export class KeyboardService {
 
         // Parse Svil info response:
         // Response format after wrapper stripped:
-        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch]
+        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
         // Table and label requests switch to 2-byte indices from v2 on
@@ -236,6 +236,9 @@ export class KeyboardService {
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
         kbinfo.keycode_version = kbinfo.keycode_version_reported ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
+        // Set when the board reset its settings because its storage could not be read,
+        // until the host clears it (CMD_SVIL_STORAGE_RESET_CLEAR). Older firmware sends zero.
+        kbinfo.storage_reset = !!svilInfo[17];
         // Nothing past here is safe on a board that isn't speaking Sval protocol 3+
         assertSupportedSvilProto(kbinfo.svil_proto);
 
@@ -633,6 +636,13 @@ export class KeyboardService {
      */
     async saveSvil(): Promise<void> {
         await this.usb.sendSvil(SvilUSB.CMD_SVIL_SAVE, [], {});
+    }
+
+    /**
+     * Tell the board the user has been told about a storage reset, so it stops reporting it
+     */
+    async clearStorageReset(): Promise<void> {
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_STORAGE_RESET_CLEAR, [], {});
     }
 
     /**

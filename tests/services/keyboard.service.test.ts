@@ -235,6 +235,23 @@ describe('KeyboardService', () => {
       expect(mockUSB.sendSvil).not.toHaveBeenCalledWith(SvilUSB.CMD_SVIL_DEFINITION_SIZE, expect.anything(), expect.anything());
     });
 
+    it('reads whether the board reset its settings because its storage could not be read', async () => {
+      for (const [tail, expected] of [[[0, 0, 9, 1], true], [[0, 0, 9, 0], false], [[0, 0, 9], false], [[], false]] as const) {
+        mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
+          SvilUSB.CMD_SVIL_GET_INFO, 0x03, 0x00, 0x00, 0x00, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x00, ...tail,
+        ])));
+        const kbinfo = createTestKeyboardInfo();
+        await keyboardService.getKeyboardInfo(kbinfo);
+        expect(kbinfo.storage_reset).toBe(expected);
+      }
+    });
+
+    it('clears the storage reset notice with its own command', async () => {
+      await keyboardService.clearStorageReset();
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_STORAGE_RESET_CLEAR, [], {});
+      expect(SvilUSB.CMD_SVIL_STORAGE_RESET_CLEAR).toBe(0x2a);
+    });
+
     it('notes whether the board reported its keycode numbering', async () => {
       const kbinfo = createTestKeyboardInfo();
       await keyboardService.getKeyboardInfo(kbinfo);
