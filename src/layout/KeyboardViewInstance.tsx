@@ -15,6 +15,8 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { svalService } from "@/services/sval.service";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
+import { LayerReorderDialog, type LayerMoveRequest } from "@/components/LayerReorderDialog";
+import { pinnedLayer } from "@/utils/layer-permute";
 import { LEGACY_FORWARD_ENTRY_MS, type LayerScenePose } from "./layer-scene";
 import {
     ContextMenu,
@@ -62,6 +64,8 @@ interface KeyboardViewInstanceProps {
  * A self-contained keyboard view instance with its own layer tabs, layer badge, and keyboard.
  * Multiple instances can be stacked vertically, each showing a different layer independently.
  */
+const LAYER_TAB_DRAG_TYPE = "application/x-keybard-layer";
+
 const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     instanceId,
     selectedLayer,
@@ -273,6 +277,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const KC_TRNS = 1;
     const isTransparencyActive = !!transparencyByLayer[selectedLayer];
     const tabRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
+    const [moveRequest, setMoveRequest] = useState<LayerMoveRequest | null>(null);
+    const [tabDrag, setTabDrag] = useState<{ from: number; over: number | null } | null>(null);
     const prevTabRectsRef = useRef<Map<number, DOMRect>>(new Map());
     const prevDisplayOrderRef = useRef<number[] | null>(null);
     const prevVisibleIdsRef = useRef<Set<number>>(new Set());
@@ -339,6 +345,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
         const isActive = selectedLayer === i;
         const isDropTarget = isLayerDragActive && hoveredDropLayer === i;
+        const canMove = i !== pinnedLayer(keyboard);
+        const isMoveTarget = !!tabDrag && tabDrag.over === i && tabDrag.from !== i;
         const isLayerActive = typeof activeLayerIndex === "number"
             ? activeLayerIndex === i
             : !!layerActiveState?.[i];
@@ -358,6 +366,28 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         onDoubleClick={(e) => {
                             e.stopPropagation();
                             onToggleLayerOn(i);
+                        }}
+                        // Drag a tab onto another to give the layer that number.
+                        draggable={canMove && !isLayerDragActive}
+                        onDragStart={(e) => {
+                            e.dataTransfer.setData(LAYER_TAB_DRAG_TYPE, String(i));
+                            e.dataTransfer.effectAllowed = "move";
+                            setTabDrag({ from: i, over: null });
+                        }}
+                        onDragEnd={() => setTabDrag(null)}
+                        onDragOver={(e) => {
+                            if (!tabDrag || !canMove) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            if (tabDrag.over !== i) setTabDrag({ ...tabDrag, over: i });
+                        }}
+                        onDragLeave={() => { if (tabDrag?.over === i) setTabDrag({ ...tabDrag, over: null }); }}
+                        onDrop={(e) => {
+                            if (!tabDrag || !canMove) return;
+                            e.preventDefault();
+                            const from = tabDrag.from;
+                            setTabDrag(null);
+                            if (from !== i) setMoveRequest({ from, to: i });
                         }}
                         onMouseEnter={() => {
                             if (!isLayerDragActive) return;
@@ -379,6 +409,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                     ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105"
                                     : "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700",
                             isDropTarget && "hover:bg-red-500",
+                            isMoveTarget && "ring-2 ring-offset-1 ring-offset-background ring-sky-500",
                             isHudMode && !isActive && !isLayerActive && "text-gray-300 dark:text-neutral-400"
                         )}
                     >
@@ -393,6 +424,9 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => { void paste(i); }}>
                         Paste Layer
+                    </ContextMenuItem>
+                    <ContextMenuItem disabled={!canMove} onSelect={() => setMoveRequest({ from: i, to: i })}>
+                        {canMove ? "Move Layer…" : "Move Layer… (auto-mouse layer stays last)"}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
@@ -550,6 +584,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             }}
         >
             {clipboardError && <p role="alert" className="pointer-events-auto text-sm text-red-700 dark:text-red-400">{clipboardError}</p>}
+            <LayerReorderDialog
+                request={moveRequest}
+                onClose={() => setMoveRequest(null)}
+                onMoved={(newOf) => setSelectedLayer(newOf[selectedLayer] ?? selectedLayer)}
+            />
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             {!hideLayerTabs && !isOverviewSceneActive && !show3DScene && (
                 <div

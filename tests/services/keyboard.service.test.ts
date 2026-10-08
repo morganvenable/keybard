@@ -711,4 +711,20 @@ describe('KeyboardService', () => {
       await expect(keyboardService.getKeyboardInfo(kbinfo)).rejects.toThrow('LZMA decompression failed');
     });
   });
+
+  describe('layer state', () => {
+    const reply = new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_GET, 0x05, 0x00, 0x00, 0x80, 0x04, 0x00, 0x00, 0x00]);
+
+    it('reads the default mask only when the board advertises it', async () => {
+      mockUSB.sendSvil.mockResolvedValue(reply);
+      expect(await keyboardService.getLayerStateMasks({ feature_flags: 0x40 } as any)).toEqual({ active: 0x80000005, default: 4 });
+      expect(await keyboardService.getLayerStateMasks({ feature_flags: 0x08 } as any)).toEqual({ active: 0x80000005, default: null });
+    });
+
+    it('writes the live mask little-endian', async () => {
+      mockUSB.sendSvil.mockResolvedValue(new Uint8Array([SvilUSB.CMD_SVIL_LAYER_STATE_SET]));
+      await keyboardService.setLayerStateMask(0x80000106);
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_LAYER_STATE_SET, [0x06, 0x01, 0x00, 0x80]);
+    });
+  });
 });

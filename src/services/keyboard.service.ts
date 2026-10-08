@@ -13,6 +13,7 @@ import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyb
 // CAPS_WORD = 0x01, LAYER_LOCK = 0x02 - not currently used
 const SVIL_FLAG_ONESHOT = 0x04;
 const SVIL_FLAG_LEADER = 0x08;
+const SVIL_FLAG_DEFAULT_LAYER_STATE = 0x40;
 import { ComboService } from "./combo.service";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -497,6 +498,23 @@ export class KeyboardService {
             index: 1,
         }) as number;
         return mask >>> 0;
+    }
+
+    /**
+     * Active and default layer masks. The default mask is null unless the board
+     * advertises SVIL_FLAG_DEFAULT_LAYER_STATE (it follows the active mask in the reply).
+     */
+    async getLayerStateMasks(kbinfo: KeyboardInfo): Promise<{ active: number; default: number | null }> {
+        const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_GET, [], { uint8: true }) as Uint8Array;
+        const view = new DataView(reply.buffer, reply.byteOffset, reply.byteLength);
+        const hasDefault = ((kbinfo.feature_flags ?? 0) & SVIL_FLAG_DEFAULT_LAYER_STATE) !== 0;
+        return { active: view.getUint32(1, true), default: hasDefault ? view.getUint32(5, true) : null };
+    }
+
+    /** Sets the live layer state. QMK doesn't save it. */
+    async setLayerStateMask(mask: number): Promise<void> {
+        const m = mask >>> 0;
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_SET, [m & 0xff, (m >>> 8) & 0xff, (m >>> 16) & 0xff, (m >>> 24) & 0xff]);
     }
 
     getActiveLayerIndexFromMask(mask: number): number {
