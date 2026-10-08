@@ -4,6 +4,11 @@ Keybard Host shows your Svalboard layout as a transparent overlay on your deskto
 
 This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer.
 
+## New in this preview
+
+- **The overlay keeps up with your edits.** When Keybard saves a change to the keyboard, the overlay updates about a second later, without going blank. Before, you had to choose **Reload layout** from the tray.
+- **The bundled Keybard is current:** it can reorder layers by dragging their tabs, shows and sets the default layer, and warns when the keyboard couldn't save a setting.
+
 ## Get started
 
 1. Download **KeybardHost-Windows.zip** and extract the whole ZIP to a folder you'll keep.
