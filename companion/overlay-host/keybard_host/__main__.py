@@ -9,8 +9,8 @@ import sys
 import threading
 import time
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPointF
-from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPointF, QRect
+from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap, QRegion
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineScript
@@ -64,8 +64,11 @@ class Surface(QWebEngineView):
         page.settings().setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, True)
         self.resize(1050, 330)
         self.setUrl(QUrl(f'http://127.0.0.1:{port}/?hostOverlay=1'))
-        self.arranging = True
+        self.arranging = False
         self.drag_origin = None
+        self.key_rects = None
+        # While dragging by keys, follow the keys as the layout, size or hands change.
+        self.key_timer = QTimer(self); self.key_timer.timeout.connect(self.read_key_rects)
 
     def mousePressEvent(self, event):
         if self.arranging and event.button() == Qt.LeftButton:
@@ -73,13 +76,55 @@ class Surface(QWebEngineView):
         super().mousePressEvent(event)
 
     def set_arrange(self, value):
+        """Off: every click passes through and only the handle moves the overlay.
+        On: the visible keys can be dragged too; the space around them still passes clicks."""
         self.arranging = value
         # A transparent child webview leaves drag events to the native surface.
         self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        self.setWindowFlag(Qt.WindowTransparentForInput, not value)
         for child in self.findChildren(QObject):
             if hasattr(child, 'setAttribute'): child.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        self.show()
+        self.key_rects = None
+        if value:
+            self.key_timer.start(300); self.read_key_rects()
+        else:
+            self.key_timer.stop()
+        self.set_keys_draggable(None)
+
+    def read_key_rects(self):
+        self.page().runJavaScript(KEY_RECTS_SCRIPT, 0, self.apply_key_rects)
+
+    def apply_key_rects(self, rects):
+        # Qt hands JavaScript arrays back as an empty string, so the page sends JSON.
+        if isinstance(rects, str):
+            try: rects = json.loads(rects)
+            except ValueError: rects = None
+        if not self.arranging or not isinstance(rects, list): return
+        rects = [tuple(round(v) for v in r) for r in rects if isinstance(r, list) and len(r) == 4]
+        if rects == self.key_rects: return
+        self.key_rects = rects
+        region = QRegion()
+        for x, y, w, h in rects:
+            # Pad past the outline, which is drawn half outside the key.
+            region = region.united(QRect(x - KEY_MASK_PAD, y - KEY_MASK_PAD, w + 2 * KEY_MASK_PAD, h + 2 * KEY_MASK_PAD))
+        self.set_keys_draggable(region if rects else None)
+
+    def set_keys_draggable(self, region):
+        """Take input only inside region (the keys); None passes every click through."""
+        # The window mask limits both input and drawing, so it only ever covers the keys themselves.
+        if region is None: self.clearMask()
+        else: self.setMask(region)
+        through = region is None
+        if bool(self.windowFlags() & Qt.WindowTransparentForInput) != through:
+            visible = self.isVisible()
+            self.setWindowFlag(Qt.WindowTransparentForInput, through)
+            if visible: self.show()
+
+
+# Each key's outline rectangle, in window pixels, as the overlay draws it right now.
+KEY_RECTS_SCRIPT = """JSON.stringify([...document.querySelectorAll('.trainer-native-surface svg > g > rect:first-of-type')]
+    .map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0)
+    .map(r => [r.left, r.top, r.width, r.height]))"""
+KEY_MASK_PAD = 3
 
 
 def overlay_control_icon(kind):
@@ -131,8 +176,8 @@ class DragHandle(QToolButton):
 
 
 class OverlayControls(QWidget):
-    """A separate input window keeps the handle usable when the keyboard passes clicks through."""
-    def __init__(self, surface, hide, open_controls, set_click_through):
+    """A separate input window: the handle moves the overlay while the keyboard passes clicks through."""
+    def __init__(self, surface, hide, open_controls, set_drag_by_keys):
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus)
         self.surface = surface
         self.setWindowTitle('Keybard · Overlay controls')
@@ -146,8 +191,8 @@ class OverlayControls(QWidget):
         menu = QMenu(self.more)
         menu.addAction('Hide overlay', hide)
         menu.addAction('Open Keybard', open_controls)
-        self.click_through = menu.addAction('Click through keyboard'); self.click_through.setCheckable(True)
-        self.click_through.triggered.connect(set_click_through)
+        self.drag_by_keys = menu.addAction('Drag by keys'); self.drag_by_keys.setCheckable(True)
+        self.drag_by_keys.triggered.connect(set_drag_by_keys)
         self.more.setMenu(menu)
         for button in (self.handle, self.more):
             button.setFixedSize(24, 24); layout.addWidget(button)
@@ -186,11 +231,12 @@ class Host(QObject):
         self.last_publish = 0
         self.surface.loadFinished.connect(self.renderer_loaded)
         self.surface.show()
-        self.surface.set_arrange(True)
+        self.surface.set_arrange(state.arrange)
         self.place()
         self.controls = OverlayControls(self.surface,
             lambda: self.command(dict(op='show', value=False)), self.open_controls,
-            lambda value: self.command(dict(op='arrange', value=not value)))
+            lambda value: self.command(dict(op='arrange', value=value)))
+        self.controls.drag_by_keys.setChecked(state.arrange)
         self.controls.show()
         icon = QIcon(str(Path(__file__).parent / 'assets' / 'svalboard.png'))
         app.setWindowIcon(icon); self.surface.setWindowIcon(icon)
@@ -201,7 +247,7 @@ class Host(QObject):
         self.show_action = QAction('Show overlay', menu, checkable=True, checked=True)
         self.show_action.triggered.connect(lambda value: self.command(dict(op='show', value=value)))
         menu.addAction(self.show_action)
-        self.arrange_action = QAction('Drag to reposition', menu, checkable=True, checked=True)
+        self.arrange_action = QAction('Drag by keys', menu, checkable=True, checked=state.arrange)
         self.arrange_action.triggered.connect(lambda value: self.command(dict(op='arrange', value=value)))
         menu.addAction(self.arrange_action)
         menu.addAction('Place at bottom', self.place)
@@ -373,7 +419,7 @@ class Host(QObject):
         elif op == 'show':
             self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value']); self.controls.setVisible(value['value'])
         elif op == 'arrange':
-            self.state.arrange = value['value']; self.surface.set_arrange(value['value']); self.surface.setVisible(self.state.visible); self.arrange_action.setChecked(value['value']); self.controls.click_through.setChecked(not value['value']); self.controls.reposition()
+            self.state.arrange = value['value']; self.surface.set_arrange(value['value']); self.surface.setVisible(self.state.visible); self.arrange_action.setChecked(value['value']); self.controls.drag_by_keys.setChecked(value['value']); self.controls.reposition()
         elif op == 'place': self.place()
         elif op == 'practice':
             with self.state.lock:

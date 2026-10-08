@@ -20,7 +20,7 @@ Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Trainer.
 
 ## Using it
 
-- **Place it:** the overlay starts out draggable. Once it's where you want it, turn on **Click through keyboard** in Trainer or in the overlay's small menu. The grip next to the overlay stays clickable either way.
+- **Place it:** drag the grip above the overlay's top-right corner. Clicks anywhere else pass through to the window underneath. To drag the overlay by its keys as well, turn on **Drag by keys** in Trainer, the overlay's small menu or the tray menu; the space between keys still passes clicks.
 - **Tray menu:** show or hide the overlay, drag or place it at the bottom of the screen, reload the layout, open Keybard's Trainer, or quit. Closing the browser leaves the overlay running.
 - **After you edit your layout in Keybard**, the overlay updates by itself about a second after the change reaches the keyboard, as long as Keybard is connected to Keybard Host (the Trainer's **Connect to Keybard Host**, once). For changes made elsewhere, choose **Reload layout** from the tray.
 - **Held keys:** optionally highlight the keys you're holding. Very short taps can be missed.
