@@ -17,6 +17,7 @@ import { LayoutLibraryProvider } from "./contexts/LayoutLibraryContext";
 import { LayoutSettingsProvider } from "./contexts/LayoutSettingsContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { KeyboardProvider, useKeyboard } from "./contexts/KeyboardContext";
+import { notifyHostLayoutChanged } from "./features/trainer/host";
 
 // Simple page navigation context
 type Page = "main" | "explore" | "proof-sheet";
@@ -40,7 +41,8 @@ export const useNavigation = () => {
 // Wrapper to connect KeyboardContext's markAsSaved to ChangesProvider
 const ChangesProviderWithKeyboard = ({ children }: { children: ReactNode }) => {
     const { markAsSaved, getKeyboardSnapshot, isConnected, connectionSessionId, registerTargetChangeGuard } = useKeyboard();
-    return <ChangesProvider captureSave={() => { const snapshot = getKeyboardSnapshot(); return () => { if (snapshot) markAsSaved(snapshot); }; }} canWrite={isConnected} sessionKey={connectionSessionId} registerTargetChangeGuard={registerTargetChangeGuard}>{children}</ChangesProvider>;
+    // Once a batch of writes has reached the board, Keybard Host's overlay re-reads it.
+    return <ChangesProvider captureSave={() => { const snapshot = getKeyboardSnapshot(); return () => { if (snapshot) markAsSaved(snapshot); notifyHostLayoutChanged(); }; }} canWrite={isConnected} sessionKey={connectionSessionId} registerTargetChangeGuard={registerTargetChangeGuard}>{children}</ChangesProvider>;
 };
 
 const NavigationProvider = ({ children }: { children: ReactNode }) => {

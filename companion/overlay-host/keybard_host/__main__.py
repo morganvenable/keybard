@@ -384,6 +384,11 @@ class Host(QObject):
             if self.disconnect(): self.state.status = 'Disconnected by user'
         elif op == 'reload' and self.worker:
             self.state.valid = False; self.profile_ready = False; self.worker.reload()
+        elif op == 'refresh' and self.worker and self.profile_ready:
+            # Keybard changed the board: re-read it, showing the current layout until the new one arrives.
+            self.worker.refresh()
+        elif op == 'refresh' and self.worker:
+            self.worker.reload()
         self.publish_state()
 
     def shutdown(self):

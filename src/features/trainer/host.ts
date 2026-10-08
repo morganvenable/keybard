@@ -103,3 +103,48 @@ export function useHost() {
     }, [base]);
     return { state, error, command, configure, busy, connect, local };
 }
+
+const HOST_REFRESH_DELAY_MS = 500;
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+let refreshToken = '';
+// Hosts before the refresh command only know reload, which blanks the overlay while it reads.
+let refreshOp: 'refresh' | 'reload' = 'refresh';
+
+/**
+ * Tell Keybard Host the board's layout changed, so its overlay re-reads it. Called once a batch
+ * of writes has reached the board; a burst of edits gives one re-read (about 0.6 s of USB reads).
+ * Only where the host is already in use: Keybard served by it, or a hosted page the user
+ * connected to it from the Trainer. Never probes loopback otherwise.
+ */
+export function notifyHostLayoutChanged(): void {
+    const local = servedByHost() || (typeof window !== 'undefined' && !!window.__keybardNativeState);
+    if (!local && (PARANOID || !rememberedRemote())) return;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => { void sendHostRefresh(local ? '' : HOST_ORIGIN); }, HOST_REFRESH_DELAY_MS);
+}
+
+async function sendHostRefresh(base: string, retried = false): Promise<void> {
+    try {
+        if (!refreshToken) {
+            const r = await fetch(`${base}/api/host/bootstrap`, { cache: 'no-store', signal: AbortSignal.timeout(1500) });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (data.apiVersion !== 1) return;
+            refreshToken = data.token;
+        }
+        const r = await fetch(`${base}/api/host/command`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': refreshToken },
+            body: JSON.stringify({ op: refreshOp }), signal: AbortSignal.timeout(1500),
+        });
+        // A restarted host has a new token; an older one doesn't know refresh.
+        if (r.status === 403 && !retried) { refreshToken = ''; return sendHostRefresh(base, true); }
+        if (r.status === 400 && refreshOp === 'refresh') { refreshOp = 'reload'; return sendHostRefresh(base, retried); }
+    } catch { /* Host not running: nothing to update. */ }
+}
+
+/** Test hook: forget the cached token and host version. */
+export function resetHostRefreshForTests(): void {
+    clearTimeout(refreshTimer);
+    refreshToken = '';
+    refreshOp = 'refresh';
+}

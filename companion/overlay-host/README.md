@@ -22,7 +22,7 @@ Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Trainer.
 
 - **Place it:** the overlay starts out draggable. Once it's where you want it, turn on **Click through keyboard** in Trainer or in the overlay's small menu. The grip next to the overlay stays clickable either way.
 - **Tray menu:** show or hide the overlay, drag or place it at the bottom of the screen, reload the layout, open Keybard's Trainer, or quit. Closing the browser leaves the overlay running.
-- **After you edit your layout**, choose **Reload layout** from the tray so the overlay shows the change.
+- **After you edit your layout in Keybard**, the overlay updates by itself about a second after the change reaches the keyboard, as long as Keybard is connected to Keybard Host (the Trainer's **Connect to Keybard Host**, once). For changes made elsewhere, choose **Reload layout** from the tray.
 - **Held keys:** optionally highlight the keys you're holding. Very short taps can be missed.
 - **Shift and Caps Lock** change the letters and symbols shown, using the keyboard language chosen in Keybard. This doesn't work on Wayland.
 

@@ -106,6 +106,30 @@ class BoardLayoutTests(unittest.TestCase):
         self.assertEqual(offsets.count(0), 2)  # Two identical passes before publishing.
         self.assertGreater(max(offsets), 255)  # Byte order tested beyond a single-byte offset.
 
+    def test_refresh_reuses_the_definition_but_rereads_keys_and_positions(self):
+        device = FakeDevice()
+        device.definition = fragment_definition()
+        device.hardware = device.selections = (255,) * 10
+        reader = SvalReader(device)
+        _, uid = reader.info()
+        # Without a definition read on this connection, a refresh reads it anyway.
+        reader.read_profile(uid, reuse_definition=True)
+        self.assertTrue(any(p[6:8] == b'\xdf\x0e' for p in device.writes))
+        device.writes.clear()
+        device.keycodes[0] = 0x0005
+        device.selections = (0,) * 10
+        profile = reader.read_profile(uid, reuse_definition=True)
+        commands = [p[6:8] for p in device.writes if p[2:6] != bytes(4)]
+        self.assertNotIn(b'\xdf\x0d', commands)
+        self.assertNotIn(b'\xdf\x0e', commands)
+        self.assertIn(b'\xdf\x19', commands)  # Hardware positions can change without new firmware.
+        self.assertEqual(profile.layers[0][0][0], 0x0005)
+        self.assertEqual(len(profile.keys), 52)
+        # A full reload reads the definition again.
+        device.writes.clear()
+        reader.read_profile(uid)
+        self.assertTrue(any(p[6:8] == b'\xdf\x0e' for p in device.writes))
+
     def test_unstable_keymap_truncated_definition_and_uid_change_rejected(self):
         device = FakeDevice()
         device.change_keymap = True

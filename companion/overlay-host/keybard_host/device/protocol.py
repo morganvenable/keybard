@@ -73,6 +73,8 @@ class SvalReader:
         self.renew_at = 0
         self.feature_flags = 0
         self.load_deadline = None
+        # The last board definition read: it only changes with new firmware, so a refresh reuses it.
+        self.cached_definition = None
 
     def checkpoint(self):
         if self.cancelled():
@@ -240,12 +242,19 @@ class SvalReader:
             start = index + 1
         return labels
 
-    def read_profile(self, uid, progress=lambda message: None):
-        """Publishable only after all reads succeed; no partial layout escapes."""
+    def read_profile(self, uid, progress=lambda message: None, reuse_definition=False):
+        """Publishable only after all reads succeed; no partial layout escapes.
+
+        reuse_definition skips re-reading the board definition (about a third of the
+        transfer) when one was read on this connection; everything else is read again.
+        """
         self.load_deadline = self.clock() + 60
         try:
-            progress("Reading board definition…")
-            definition = self.definition()
+            if reuse_definition and self.cached_definition is not None:
+                definition = self.cached_definition
+            else:
+                progress("Reading board definition…")
+                definition = self.cached_definition = self.definition()
             has_fragments = "fragments" in definition or "fragment_schema_version" in definition
             hardware = self.fragment_state(0x18) if has_fragments else ()
             selections = self.fragment_state(0x19) if has_fragments else ()
