@@ -1,4 +1,4 @@
-import { BookOpen, HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Settings } from "lucide-react";
+import { BookOpen, HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Rocket, Settings } from "lucide-react";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -88,7 +88,7 @@ const layoutSidebarItems: SidebarItem[] = [
 ];
 
 const footerItems: SidebarItem[] = [
-    { title: "Quick Start", url: "quickstart", icon: GraduationCapIcon },
+    { title: "Quick Start", url: "quickstart", icon: Rocket },
     // The user manual is published beside the app (see build/manual.ts). Keybard
     // Paranoid is a single offline file, so it has no manual to link to.
     ...(PARANOID ? [] : [{ title: "Manual", url: "manual", icon: BookOpen, href: `${import.meta.env.BASE_URL}manual/` }]),
