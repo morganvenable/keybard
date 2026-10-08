@@ -13,6 +13,9 @@ import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyb
 // CAPS_WORD = 0x01, LAYER_LOCK = 0x02 - not currently used
 const SVIL_FLAG_ONESHOT = 0x04;
 const SVIL_FLAG_LEADER = 0x08;
+const SVIL_FLAG_DEFAULT_LAYER_STATE = 0x40;
+// Second feature byte
+const SVIL_FLAG2_DEFAULT_LAYER_SET = 0x01;
 import { ComboService } from "./combo.service";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -232,6 +235,8 @@ export class KeyboardService {
         // Table and label requests switch to 2-byte indices from v2 on
         this.usb.svilProtocolVersion = kbinfo.svil_proto;
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
+        // [feature_flags2:1] follows the storage flags byte; older firmware sends zero.
+        kbinfo.feature_flags2 = svilInfo[18] ?? 0;
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
@@ -501,6 +506,56 @@ export class KeyboardService {
             index: 1,
         }) as number;
         return mask >>> 0;
+    }
+
+    /**
+     * Active and default layer masks. The default mask is null unless the board
+     * advertises SVIL_FLAG_DEFAULT_LAYER_STATE (it follows the active mask in the reply).
+     */
+    async getLayerStateMasks(kbinfo: KeyboardInfo): Promise<{ active: number; default: number | null }> {
+        const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_GET, [], { uint8: true }) as Uint8Array;
+        const view = new DataView(reply.buffer, reply.byteOffset, reply.byteLength);
+        const hasDefault = ((kbinfo.feature_flags ?? 0) & SVIL_FLAG_DEFAULT_LAYER_STATE) !== 0;
+        return { active: view.getUint32(1, true), default: hasDefault ? view.getUint32(5, true) : null };
+    }
+
+    /** Whether the board can change its saved default layer (DEFAULT_LAYER_SET). */
+    canSetDefaultLayer(kbinfo: KeyboardInfo): boolean {
+        return ((kbinfo.feature_flags2 ?? 0) & SVIL_FLAG2_DEFAULT_LAYER_SET) !== 0;
+    }
+
+    /** Makes layer the default, now and after a restart, as a PDF(layer) key does. */
+    async setDefaultLayer(layer: number): Promise<void> {
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, [layer], { uint8: true }) as Uint8Array;
+        checkSvilStatus(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, resp);
+    }
+
+    /** Sets the default layer, then reads it back: a default that didn't change is an error, not a silent miss. */
+    async setDefaultLayerChecked(kbinfo: KeyboardInfo, layer: number): Promise<void> {
+        await this.setDefaultLayer(layer);
+        const { defaultLayer } = await this.getLayerIndexes(kbinfo);
+        if (defaultLayer !== null && defaultLayer !== layer) {
+            throw new Error(`The keyboard's default layer is ${defaultLayer}, not ${layer} as Keybard asked. Set it again from the layer's menu.`);
+        }
+    }
+
+    /**
+     * The layer the board is showing and its default layer (null unless the board reports it).
+     * QMK shows the highest layer that is on, counting the default layer, so with no other
+     * layer on the board shows its default, which needn't be layer 0.
+     */
+    async getLayerIndexes(kbinfo: KeyboardInfo): Promise<{ active: number; defaultLayer: number | null }> {
+        const masks = await this.getLayerStateMasks(kbinfo);
+        return {
+            active: this.getActiveLayerIndexFromMask(masks.active | (masks.default ?? 0)),
+            defaultLayer: masks.default === null ? null : this.getActiveLayerIndexFromMask(masks.default),
+        };
+    }
+
+    /** Sets the live layer state. QMK doesn't save it. */
+    async setLayerStateMask(mask: number): Promise<void> {
+        const m = mask >>> 0;
+        await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_SET, [m & 0xff, (m >>> 8) & 0xff, (m >>> 16) & 0xff, (m >>> 24) & 0xff]);
     }
 
     getActiveLayerIndexFromMask(mask: number): number {

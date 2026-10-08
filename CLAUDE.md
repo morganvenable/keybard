@@ -300,6 +300,8 @@ VIA cmd:    [0xDD][client_id:4][0xFE][via_cmd...] → [0xDD][client_id:4][0xFE][
 - `0x1B-0x1D` - labels (layer, tap dance, macro names) get/set/clear
 - `0x1E-0x20` - macro buffer size/get/set (32-bit offsets)
 - `0x21` - table scan
+- `0x2A` - storage reset clear (after the host has told the user about a reset reported in get_info)
+- `0x2B` - default layer set (saved, like a `PDF` key); advertised by bit 0 of the second feature byte in get_info, after the storage flags
 
 Protocol versions: v2 widened table indices to 2 bytes (256 entries); v3 added the macro buffer commands and table scan. Released firmware (vRC0 onward) is v3.
 

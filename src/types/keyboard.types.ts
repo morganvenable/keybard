@@ -28,6 +28,7 @@ export interface KeyboardInfo {
     key_override_count?: number;
     alt_repeat_key_count?: number;           // NEW
     leader_count?: number;                   // NEW
+    feature_flags2?: number;                 // Second feature byte, after the storage flags; zero on older firmware
     feature_flags?: number;                  // NEW: Svil feature flags
     keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
     storage_reset?: boolean;                 // board reset its settings: its storage could not be read
