@@ -5,6 +5,10 @@ import { LabelService } from './label.service';
 import { keyService } from './key.service';
 import { activeKeycodeVersion } from '@/constants/keycode-numbering';
 import { usbInstance } from './usb.service';
+import { FragmentService, NO_SELECTION } from './fragment.service';
+import { FragmentComposerService } from './fragment-composer.service';
+import { KleService } from './kle.service';
+import { getClosestPresetColor } from '../utils/color-conversion';
 
 export interface ImportReview {
     keyboard: KeyboardInfo;
@@ -17,6 +21,8 @@ export interface ImportReview {
 export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): ImportReview {
     const errors: string[] = [], warnings: string[] = [];
     const summary = [`${file.layers ?? 0} layers`, `${file.macros?.length ?? 0} macros`, `${file.combos?.length ?? 0} combos`, `${file.tapdances?.length ?? 0} tap dances`, `${file.key_overrides?.length ?? 0} overrides`];
+    if (file.alt_repeat_keys?.length) summary.push(`${file.alt_repeat_keys.length} alt-repeat keys`);
+    if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
     if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
     const next = structuredClone(current);
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
@@ -31,7 +37,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (vial?.unassigned_custom_keycodes) warnings.push(`${vial.unassigned_custom_keycodes} key${vial.unassigned_custom_keycodes === 1 ? ' uses a custom keycode' : 's use custom keycodes'} that Svalboard's Vial firmware left unassigned; ${vial.unassigned_custom_keycodes === 1 ? 'it' : 'they'} did nothing there and will be set to KC_NO.`);
     if (vial?.svalboard) warnings.push('Vial layout files do not include pointing and hardware settings (DPI, scrolling, automouse, layer colors). Set them again after importing.');
     next.keymap = current.keymap?.map((layer, index) => file.keymap?.[index] ? [...file.keymap[index]] : [...layer]);
-    for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count']] as const) {
+    for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count'], ['alt_repeat_keys','alt_repeat_key_count'], ['leaders','leader_count']] as const) {
         const incoming = file[field];
         if (!incoming) continue;
         if (incoming.length > (current[count] ?? 0)) errors.push(`${field}: file has ${incoming.length} entries; keyboard supports ${current[count] ?? 0}.`);
@@ -59,21 +65,29 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.tapdances?.some(td => [td.tap, td.hold, td.doubletap, td.taphold].some(key => !validKey(key)))) errors.push('A tap dance contains an unrecognized keycode.');
     if (file.tapdances?.some(td => !Number.isInteger(td.tapping_term) || td.tapping_term < 0 || td.tapping_term > 32767)) errors.push('Tap dance timing must be whole milliseconds between 0 and 32767.');
     if (file.key_overrides?.some(override => [override.trigger, override.replacement].some(key => !validKey(key)))) errors.push('An override contains an unrecognized keycode.');
+    if (file.alt_repeat_keys?.some(ark => [ark.keycode, ark.alt_keycode].some(key => !validKey(key)))) errors.push('An alt-repeat key contains an unrecognized keycode.');
+    if (file.alt_repeat_keys?.some(ark => [ark.allowed_mods, ark.options].some(value => !Number.isInteger(value) || value < 0 || value > 255))) errors.push('Alt-repeat key modifiers and options must be whole numbers between 0 and 255.');
+    if (file.leaders?.some(leader => !Array.isArray(leader.sequence) || leader.sequence.length > 5 || [...leader.sequence, leader.output].some(key => !validKey(key)))) errors.push('A leader sequence contains an unrecognized keycode or more than 5 keys.');
+    if (file.leaders?.some(leader => !Number.isInteger(leader.options) || leader.options < 0 || leader.options > 65535)) errors.push('Leader options must be whole numbers between 0 and 65535.');
     if (Object.values(file.settings ?? {}).some(value => !Number.isInteger(value) || value < 0)) errors.push('QMK settings must contain non-negative integer values.');
     if (file.macros?.length) {
         try { new MacroService(usbInstance).dump(current.macros_size ?? 0, next.macros ?? []); }
         catch { errors.push('The imported macros do not fit the keyboard’s macro buffer or contain invalid actions.'); }
     }
-    for (const field of ['alt_repeat_keys', 'leaders', 'one_shot', 'layer_colors', 'fragmentState'] as const) {
-        if (file[field] && JSON.stringify(file[field]) !== JSON.stringify(current[field])) warnings.push(`${field.replace(/_/g, ' ')} will be kept from the keyboard; restoring this feature is not supported yet.`);
-    }
+    restoreFragments(file, current, next, warnings);
     next.settings = { ...current.settings };
     for (const [id, value] of Object.entries(file.settings ?? {})) {
         if (Object.prototype.hasOwnProperty.call(current.settings ?? {}, id)) next.settings[Number(id)] = value;
         else warnings.push(`QMK setting ${id} is not supported by this keyboard and will be skipped.`);
     }
+    // One-shot timeout and tap toggle are QMK settings 6 and 5, restored with the others.
+    // Files may also hold an older one-shot block that no Keybard screen could set; the settings win.
+    if (next.one_shot && next.settings && 5 in next.settings && 6 in next.settings) next.one_shot = { timeout: next.settings[6], tap_toggle: next.settings[5] };
     const menuItems = new Map(customValueService.extractAllItemsWithRefs(current.menus ?? []).map(({ item, ref }) => [ref.key, item]));
-    const supportedValues = (file.custom_values ?? []).filter(entry => {
+    // Layer colors are custom values on the board; the file loader keeps them in layer_colors.
+    const layerColorValues = (file.layer_colors ?? []).flatMap((color, layer) =>
+        color && layer < (current.layers ?? 0) ? [{ key: `id_layer${layer}_color`, channel: 0, valueId: 0, data: [color.hue, color.sat] }] : []);
+    const supportedValues = [...(file.custom_values ?? []), ...layerColorValues].filter(entry => {
         if (menuItems.has(entry.key)) {
             const width = customValueService.getByteWidth(menuItems.get(entry.key)!);
             if (entry.data.length !== width && !(entry.data.length === 1 && width > 1)) errors.push(`Setting ${entry.key} has ${entry.data.length} bytes; the keyboard expects ${width}.`);
@@ -86,6 +100,13 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     });
     next.custom_values = [...(current.custom_values ?? []).filter(entry => !supportedValues.some(value => value.key === entry.key)), ...supportedValues];
     next.cosmetic = { ...current.cosmetic };
+    for (const entry of supportedValues) {
+        const layer = Number(entry.key.match(/^id_layer(\d+)_color$/)?.[1] ?? -1);
+        if (layer < 0) continue;
+        next.layer_colors = [...(next.layer_colors ?? [])];
+        next.layer_colors[layer] = { hue: entry.data[0], sat: entry.data[1], val: 255 };
+        next.cosmetic.layer_colors = { ...next.cosmetic.layer_colors, [layer]: file.cosmetic?.layer_colors?.[layer] ?? getClosestPresetColor(entry.data[0], entry.data[1], 255) };
+    }
     const labels = new LabelService(usbInstance);
     for (const [field, kind, count] of [['layer','layer',file.layers], ['macros','macro',file.macros?.length], ['tapdances','tapdance',file.tapdances?.length]] as const) {
         if (!file.cosmetic?.[field]) continue;
@@ -103,4 +124,50 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     }
     summary.push('Entries beyond the file’s layers and tables will be kept from the keyboard.');
     return { keyboard: next, errors, warnings, summary };
+}
+
+/**
+ * Hardware positions (thumb clusters and the like). The file records the fragment
+ * each position resolved to. A position that matches what the hardware detects is
+ * cleared to follow detection; any other is saved as the board's selection.
+ */
+function restoreFragments(file: KeyboardInfo, current: KeyboardInfo, next: KeyboardInfo, warnings: string[]) {
+    const wanted = file.fragmentState?.userSelections;
+    const fragments = new FragmentService(null as any);
+    if (!wanted || !current.fragmentState || !fragments.hasFragments(current)) return;
+    const get = (map: any, key: string | number) => map instanceof Map ? map.get(key) : map?.[key];
+    // Files and snapshots may hold these as plain objects rather than Maps.
+    const copy = <K, V>(source: any, key: (k: string) => K): Map<K, V> =>
+        source instanceof Map ? new Map(source) : new Map(Object.entries(source ?? {}).map(([k, v]) => [key(k), v as V]));
+    const was = current.fragmentState;
+    const state = next.fragmentState = {
+        hwDetection: copy<number, number>(was.hwDetection, Number),
+        eepromSelections: copy<number, number>(was.eepromSelections, Number),
+        userSelections: copy<string, string>(was.userSelections, String),
+    };
+    let changed = false;
+    for (const { idx, instance } of fragments.getSelectableInstances(current)) {
+        const name = get(wanted, instance.id);
+        if (!name) continue;
+        const options = instance.fragment_options ?? [];
+        if (!options.some(option => option.fragment === name)) {
+            warnings.push(`Hardware position ${instance.id}: ${name} is not an option on this keyboard and will be kept from the keyboard.`);
+            continue;
+        }
+        const detectedId = get(was.hwDetection, idx);
+        const detected = detectedId === undefined ? undefined : fragments.getFragmentNameById(current, detectedId);
+        if (detected && instance.allow_override === false) {
+            if (detected !== name) warnings.push(`Hardware position ${instance.id} is fixed by the detected hardware and will be kept from the keyboard.`);
+            continue;
+        }
+        const selection = detected === name ? NO_SELECTION : fragments.getOptionIndex(instance, name);
+        if (selection === (get(was.eepromSelections, idx) ?? NO_SELECTION)) continue;
+        if (selection === NO_SELECTION) state.eepromSelections.delete(idx);
+        else state.eepromSelections.set(idx, selection);
+        state.userSelections.set(instance.id, name);
+        changed = true;
+    }
+    if (!changed) return;
+    const layout = new FragmentComposerService(new KleService(), fragments).composeLayout(next);
+    if (Object.keys(layout).length > 0) next.keylayout = layout;
 }

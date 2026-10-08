@@ -4,6 +4,7 @@ import { customValueService } from "./custom-value.service";
 import { LabelService } from "./label.service";
 import { usbInstance } from "./usb.service";
 import { keyService } from "./key.service";
+import { NO_SELECTION } from "./fragment.service";
 
 export class ImportService {
     async syncWithKeyboard(
@@ -64,7 +65,9 @@ export class ImportService {
         }
 
         // 2. Sync Macros
-        if (JSON.stringify(newKb.macros) !== JSON.stringify(currentKb.macros)) {
+        // Compare actions only: macros read from a file and from the board order their fields differently.
+        const macroActions = (kb: KeyboardInfo) => JSON.stringify((kb.macros ?? []).map(macro => macro.actions));
+        if (macroActions(newKb) !== macroActions(currentKb)) {
             await queue(
                 "Update All Macros",
                 async () => {
@@ -114,6 +117,26 @@ export class ImportService {
             }
         }
 
+        // 4b. Sync Alt Repeat Keys and Leader sequences
+        for (const [field, kind, label, update] of [
+            ["alt_repeat_keys", "altrepeat", "Alt Repeat Key", "updateAltRepeatKey"],
+            ["leaders", "leader", "Leader", "updateLeader"],
+        ] as const) {
+            const entries = newKb[field];
+            const oldEntries = currentKb[field];
+            if (!entries || !oldEntries) continue;
+            for (let idx = 0; idx < entries.length; idx++) {
+                if (JSON.stringify(entries[idx]) === JSON.stringify(oldEntries[idx])) continue;
+                await queue(
+                    `Update ${label} ${idx}`,
+                    async () => {
+                        await services.keyboardService[update](newKb, idx);
+                    },
+                    { type: "key", writeKey: `${kind}:${idx}` }
+                );
+            }
+        }
+
         // 5. Sync Key Overrides
         const newOverrides = newKb.key_overrides;
         const currentOverrides = currentKb.key_overrides;
@@ -143,6 +166,19 @@ export class ImportService {
                     if (name === (currentKb.cosmetic?.[field]?.[index] ?? "")) continue;
                     await queue(`Rename ${kind} ${index}`, () => labels.saveName(currentKb, kind, index, name), { type: "key", writeKey: `label:${kind}:${index}` });
                 }
+            }
+        }
+
+        // Hardware positions: the preflight already set the selections the board should hold.
+        const wantedSelections = newKb.fragmentState?.eepromSelections;
+        if (wantedSelections instanceof Map && currentKb.fragmentState) {
+            for (const [idx] of (newKb.composition?.instances ?? []).entries()) {
+                const wanted = wantedSelections.get(idx) ?? NO_SELECTION;
+                const was = currentKb.fragmentState.eepromSelections instanceof Map ? currentKb.fragmentState.eepromSelections.get(idx) : (currentKb.fragmentState.eepromSelections as any)?.[idx];
+                if (wanted === (was ?? NO_SELECTION)) continue;
+                await queue(`Hardware position ${newKb.composition!.instances[idx].id}`, async () => {
+                    if (!await services.keyboardService.updateFragmentSelection(newKb, idx, wanted)) throw new Error(`Keyboard rejected the selection for ${newKb.composition!.instances[idx].id}`);
+                }, { writeKey: `fragment:${idx}` });
             }
         }
 
@@ -197,6 +233,10 @@ export class ImportService {
                         dataBytes.push(0);
                     }
                 }
+
+                // Unchanged values need no write.
+                const was = currentKb.custom_values?.find(value => value.key === entry.key)?.data;
+                if (was && was.length === dataBytes.length && was.every((byte, index) => byte === dataBytes[index])) continue;
 
                 await queue(
                     `Update custom value ${entry.key}`,
