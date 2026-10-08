@@ -30,7 +30,9 @@ class ServerTests(unittest.TestCase):
     def test_local_assets_and_authorized_commands(self):
         with urlopen(self.base) as r: self.assertIn(b'data-keybard-host="true"', r.read())
         with self.post({'op': 'show', 'value': False}) as r: self.assertEqual(r.status, 202)
-        self.assertEqual(self.commands, [{'op': 'show', 'value': False}])
+        # Keybard asks for a refresh after it writes to the board.
+        with self.post({'op': 'refresh'}) as r: self.assertEqual(r.status, 202)
+        self.assertEqual(self.commands, [{'op': 'show', 'value': False}, {'op': 'refresh'}])
     def test_foreign_origin_missing_token_and_write_commands_rejected(self):
         for value, headers, expected in [({'op': 'show', 'value': True}, {'X-Keybard-Token': self.state.token, 'Origin': 'https://evil.example'}, 403), ({'op': 'show', 'value': True}, {'Content-Type': 'application/json'}, 403), ({'op': 'flash'}, None, 400), ({'op': 'practice', 'hidden': [99], 'target': None}, None, 400)]:
             with self.assertRaises(HTTPError) as error: self.post(value, headers)

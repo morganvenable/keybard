@@ -17,6 +17,7 @@ class DeviceWorker(QThread):
         self.expected_uid = expected_uid  # Pinned after first successful handshake.
         self.stop_event = Event()
         self.reload_event = Event()
+        self.refresh_event = Event()
         self.press_lock = Lock()
         self.press_enabled = False
         self.press_generation = 0
@@ -32,6 +33,10 @@ class DeviceWorker(QThread):
 
     def reload(self):
         self.reload_event.set()
+
+    def refresh(self):
+        """Re-read the layout after an edit, keeping the board definition and the current layout on show."""
+        self.refresh_event.set()
 
     def run(self):
         try:
@@ -60,15 +65,34 @@ class DeviceWorker(QThread):
                     return
                 self.expected_uid = uid
                 self.reload_event.set()
+                refresh_after, refresh_failures = 0.0, 0
                 retry = .5
                 while not self.stop_event.is_set():
                     if self.reload_event.is_set():
                         self.reload_event.clear()
+                        self.refresh_event.clear()
                         profile = reader.read_profile(uid, self.status.emit)
                         reader.checkpoint()
                         self.profile.emit(profile)
                         mode = "automatic defaults" if reader.feature_flags & DEFAULT_LAYER_STATE_FLAG else "manual default (older firmware)"
                         self.status.emit(f"Connected · Sval v{version} · layout read from board; {mode}")
+                    elif self.refresh_event.is_set() and time.monotonic() >= refresh_after:
+                        self.refresh_event.clear()
+                        try:
+                            profile = reader.read_profile(uid, reuse_definition=True)
+                        except ProtocolError as exc:
+                            # Usually Keybard still writing: keep the shown layout and try again shortly.
+                            refresh_failures += 1
+                            if refresh_failures > 3:
+                                raise
+                            self.status.emit(f"Layout refresh deferred · {exc}")
+                            refresh_after = time.monotonic() + .5
+                            self.refresh_event.set()
+                        else:
+                            refresh_failures = 0
+                            reader.checkpoint()
+                            self.profile.emit(profile)
+                            self.status.emit(f"Connected · Sval v{version} · layout refreshed from board")
                     cycle_start = time.monotonic()
                     self.state.emit(reader.layer_snapshot())
                     with self.press_lock:
