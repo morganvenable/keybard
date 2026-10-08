@@ -229,13 +229,13 @@ export class KeyboardService {
 
         // Parse Svil info response:
         // Response format after wrapper stripped:
-        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset][feature_flags2:1]
+        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
         // Table and label requests switch to 2-byte indices from v2 on
         this.usb.svilProtocolVersion = kbinfo.svil_proto;
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
-        // A second feature byte follows the storage flags; older firmware sends zero.
+        // [feature_flags2:1] follows the storage flags byte; older firmware sends zero.
         kbinfo.feature_flags2 = svilInfo[18] ?? 0;
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
