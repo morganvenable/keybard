@@ -29,8 +29,9 @@ export interface KeyboardInfo {
     alt_repeat_key_count?: number;           // NEW
     leader_count?: number;                   // NEW
     feature_flags?: number;                  // NEW: Svil feature flags
-    keycode_version?: string;
-    storage_reset?: boolean;                 // board reset its settings: its storage could not be read                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
+    feature_flags2?: number;                 // Second feature byte, after the storage flags; zero on older firmware
+    keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
+    storage_reset?: boolean;                 // board reset its settings: its storage could not be read
     keycode_version_reported?: boolean;      // Connected boards: whether GET_INFO reported the numbering (vLaunch on)
     raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
     vial_import?: {                          // Loaded .vil files

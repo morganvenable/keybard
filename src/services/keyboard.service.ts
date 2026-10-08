@@ -14,6 +14,8 @@ import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyb
 const SVIL_FLAG_ONESHOT = 0x04;
 const SVIL_FLAG_LEADER = 0x08;
 const SVIL_FLAG_DEFAULT_LAYER_STATE = 0x40;
+// Second feature byte
+const SVIL_FLAG2_DEFAULT_LAYER_SET = 0x01;
 import { ComboService } from "./combo.service";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -227,12 +229,14 @@ export class KeyboardService {
 
         // Parse Svil info response:
         // Response format after wrapper stripped:
-        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset]
+        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset][feature_flags2:1]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
         // Table and label requests switch to 2-byte indices from v2 on
         this.usb.svilProtocolVersion = kbinfo.svil_proto;
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
+        // A second feature byte follows the storage flags; older firmware sends zero.
+        kbinfo.feature_flags2 = svilInfo[18] ?? 0;
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
@@ -509,6 +513,17 @@ export class KeyboardService {
         const view = new DataView(reply.buffer, reply.byteOffset, reply.byteLength);
         const hasDefault = ((kbinfo.feature_flags ?? 0) & SVIL_FLAG_DEFAULT_LAYER_STATE) !== 0;
         return { active: view.getUint32(1, true), default: hasDefault ? view.getUint32(5, true) : null };
+    }
+
+    /** Whether the board can change its saved default layer (DEFAULT_LAYER_SET). */
+    canSetDefaultLayer(kbinfo: KeyboardInfo): boolean {
+        return ((kbinfo.feature_flags2 ?? 0) & SVIL_FLAG2_DEFAULT_LAYER_SET) !== 0;
+    }
+
+    /** Makes layer the default, now and after a restart, as a PDF(layer) key does. */
+    async setDefaultLayer(layer: number): Promise<void> {
+        const resp = await this.usb.sendSvil(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, [layer], { uint8: true }) as Uint8Array;
+        checkSvilStatus(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, resp);
     }
 
     /** Sets the live layer state. QMK doesn't save it. */

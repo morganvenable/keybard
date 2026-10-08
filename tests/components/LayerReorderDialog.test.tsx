@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
     keyboardService: {
         getLayerStateMasks: vi.fn(),
         setLayerStateMask: vi.fn(),
+        setDefaultLayer: vi.fn(),
+        canSetDefaultLayer: (kb: any) => ((kb.feature_flags2 ?? 0) & 1) !== 0,
         getActiveLayerIndexFromMask: (mask: number) => (mask ? 31 - Math.clz32(mask) : 0),
     },
 }));
@@ -74,6 +76,26 @@ describe('LayerReorderDialog', () => {
         render(<LayerReorderDialog request={{ from: 0, to: 1 }} onClose={vi.fn()} onMoved={vi.fn()} />);
         expect(await screen.findByText(/Base is the default layer and has to keep its number/)).toBeTruthy();
         expect((screen.getByRole('button', { name: 'Move layer' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('moves the default layer when the board can set it', async () => {
+        mocks.keyboard.feature_flags2 = 1;
+        const onClose = vi.fn();
+        render(<LayerReorderDialog request={{ from: 0, to: 2 }} onClose={onClose} onMoved={vi.fn()} />);
+        expect(await screen.findByText(/Base becomes layer 2 and stays the default/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Move layer' }));
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        const write = mocks.queue.mock.calls.find(([, , metadata]) => metadata?.writeKey === 'default-layer');
+        await write[1]();
+        expect(mocks.keyboardService.setDefaultLayer).toHaveBeenCalledWith(2);
+
+        // Undo puts it back on layer 0.
+        mocks.queue.mockClear();
+        mocks.keyboard = mocks.setKeyboard.mock.calls[0][0];
+        await mocks.registerUndo.mock.calls[0][1]();
+        const undoWrite = mocks.queue.mock.calls.find(([, , metadata]) => metadata?.writeKey === 'default-layer');
+        await undoWrite[1]();
+        expect(mocks.keyboardService.setDefaultLayer).toHaveBeenLastCalledWith(0);
     });
 
     it('protects layer 0 and DF targets when the board does not report its default layer', async () => {

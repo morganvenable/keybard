@@ -12,6 +12,8 @@ export interface LayerReorderReview {
     plan: LayerReorderPlan;
     lines: string[];
     defaultLayer: string;
+    /** The board's default layer, when the board can renumber it. */
+    movableDefault: number | null;
     base: KeyboardInfo;
 }
 
@@ -30,16 +32,23 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
     const request = useRef(0);
     const name = (kb: KeyboardInfo) => (layer: number) => svalService.getLayerName(kb, layer);
 
-    /** The layers that must keep their number: the board's default layer, or every layer that could be it. */
-    const fixedLayers = async (kb: KeyboardInfo): Promise<{ layers: number[]; known: boolean }> => {
+    /**
+     * The board's default layer. It can move when the board reports it and can set it;
+     * otherwise it keeps its number, and without a report so does every layer that could be it.
+     */
+    const defaultLayerOf = async (kb: KeyboardInfo): Promise<{ fixed: number[]; known: number | null; movable: boolean }> => {
         if (isConnected) {
             try {
                 const { keyboardService } = await import('@/services/keyboard.service');
                 const { default: mask } = await keyboardService.getLayerStateMasks(kb);
-                if (mask !== null) return { layers: [keyboardService.getActiveLayerIndexFromMask(mask)], known: true };
+                if (mask !== null) {
+                    const layer = keyboardService.getActiveLayerIndexFromMask(mask);
+                    const movable = keyboardService.canSetDefaultLayer(kb);
+                    return { fixed: movable ? [] : [layer], known: layer, movable };
+                }
             } catch { /* Fall back to the layout's own hints. */ }
         }
-        return { layers: defaultLayerCandidates(kb), known: false };
+        return { fixed: defaultLayerCandidates(kb), known: null, movable: false };
     };
 
     const prepare = async (from: number, to: number) => {
@@ -51,19 +60,25 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
             setError('Apply or discard your pending changes before moving a layer.');
             return;
         }
-        const fixed = await fixedLayers(keyboard);
+        const found = await defaultLayerOf(keyboard);
         if (id !== request.current) return;
-        const plan = planLayerReorder(keyboard, moveLayerOrder(keyboard.layers ?? 16, from, to), { fixedLayers: fixed.layers, layerName: name(keyboard) });
-        const defaultLayer = fixed.known
-            ? `Default layer: ${name(keyboard)(fixed.layers[0])} (layer ${fixed.layers[0]}) stays the default.`
-            : `This keyboard doesn't report its default layer, so layer 0 and every layer a DF or PDF key selects (${fixed.layers.join(', ')}) keep their numbers.`;
-        setReview({ plan, lines: describeLayerReorder(plan, name(keyboard)), defaultLayer, base: keyboard });
+        const order = moveLayerOrder(keyboard.layers ?? 16, from, to);
+        const plan = planLayerReorder(keyboard, order, { fixedLayers: found.fixed, layerName: name(keyboard) });
+        const d = found.known;
+        const moved = d === null ? d : invertLayerOrder(order)[d];
+        const defaultLayer = d === null
+            ? `This keyboard doesn't report its default layer, so layer 0 and every layer a DF or PDF key selects (${found.fixed.join(', ')}) keep their numbers.`
+            : moved !== d
+                ? `Default layer: ${name(keyboard)(d)} becomes layer ${moved} and stays the default, now and after a restart.`
+                : `Default layer: ${name(keyboard)(d)} (layer ${d}) stays the default.`;
+        setReview({ plan, lines: describeLayerReorder(plan, name(keyboard)), defaultLayer, movableDefault: found.movable ? d : null, base: keyboard });
     };
 
-    const applyPlan = async (base: KeyboardInfo, plan: LayerReorderPlan) => {
+    const applyPlan = async (base: KeyboardInfo, plan: LayerReorderPlan, defaultLayer: number | null) => {
+        const newOf = invertLayerOrder(plan.order);
         const next = plan.keyboard;
         setKeyboard(next);
-        onMoved?.(invertLayerOrder(plan.order));
+        onMoved?.(newOf);
         if (isConnected) {
             const { importService } = await import('@/services/import.service');
             const { keyboardService } = await import('@/services/keyboard.service');
@@ -74,6 +89,9 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
                 const { active } = await keyboardService.getLayerStateMasks(base);
                 await keyboardService.setLayerStateMask(permuteLayerMask(active, plan.order));
             }, { writeKey: 'layer-state' });
+            if (defaultLayer !== null && newOf[defaultLayer] !== defaultLayer) {
+                await staged(`Default layer is now ${newOf[defaultLayer]}`, () => keyboardService.setDefaultLayer(newOf[defaultLayer]), { writeKey: 'default-layer' });
+            }
             if (isInstant && !await commit()) throw new Error('Some changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.');
         }
         registerUndo('layer move', async () => {
@@ -81,7 +99,7 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
             if (!now) return;
             const back = planLayerReorder(now, invertLayerOrder(plan.order));
             if (back.errors.length) throw new Error(back.errors.join(' '));
-            await applyPlan(now, back);
+            await applyPlan(now, back, defaultLayer === null ? null : newOf[defaultLayer]);
         });
     };
 
@@ -94,7 +112,7 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
         }
         setApplying(true);
         try {
-            await applyPlan(review.base, review.plan);
+            await applyPlan(review.base, review.plan, review.movableDefault);
             setReview(null);
             return true;
         } catch (e) {

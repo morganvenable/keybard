@@ -150,6 +150,17 @@ describe('KeyboardService', () => {
       }
     });
 
+    it('reads the second feature byte after the keycode version, zero when absent', async () => {
+      for (const [tail, expected] of [[[0, 0, 9, 1], 1], [[0, 0, 9, 0], 0], [[0, 0, 9], 0]] as const) {
+        mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
+          SvilUSB.CMD_SVIL_GET_INFO, 0x03, 0x00, 0x00, 0x00, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x40, ...tail,
+        ])));
+        const kbinfo = createTestKeyboardInfo();
+        await keyboardService.getKeyboardInfo(kbinfo);
+        expect(kbinfo.feature_flags2).toBe(expected);
+      }
+    });
+
     it('should retrieve protocol, id, and matrix from svil definition', async () => {
       const kbinfo = createTestKeyboardInfo();
 
@@ -719,6 +730,16 @@ describe('KeyboardService', () => {
       mockUSB.sendSvil.mockResolvedValue(reply);
       expect(await keyboardService.getLayerStateMasks({ feature_flags: 0x40 } as any)).toEqual({ active: 0x80000005, default: 4 });
       expect(await keyboardService.getLayerStateMasks({ feature_flags: 0x08 } as any)).toEqual({ active: 0x80000005, default: null });
+    });
+
+    it('sets the default layer when the board advertises the command', async () => {
+      expect(keyboardService.canSetDefaultLayer({ feature_flags: 0x40 } as any)).toBe(false);
+      expect(keyboardService.canSetDefaultLayer({ feature_flags2: 0x01 } as any)).toBe(true);
+      mockUSB.sendSvil.mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, 0]));
+      await keyboardService.setDefaultLayer(3);
+      expect(mockUSB.sendSvil).toHaveBeenCalledWith(SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, [3], { uint8: true });
+      mockUSB.sendSvil.mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_DEFAULT_LAYER_SET, 1]));
+      await expect(keyboardService.setDefaultLayer(16)).rejects.toThrow();
     });
 
     it('writes the live mask little-endian', async () => {
