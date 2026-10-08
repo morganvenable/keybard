@@ -1,0 +1,63 @@
+name: Deploy Keybard bleeding edge (svalboard.github.io/keybard-next)
+
+# Every merge to main is built with --mode next (.env.next: its own path and
+# storage, and a "Bleeding edge" banner) and published to the gh-pages branch of
+# svalboard/keybard-next, which GitHub Pages serves at
+# https://svalboard.github.io/keybard-next/. Production is promoted separately
+# (svalboard-deploy.yml).
+#
+# Pushes with a deploy key that can write only to svalboard/keybard-next: its
+# private half is this repository's KEYBARD_NEXT_DEPLOY_KEY secret.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keybard-next
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'svalboard/keybard'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: meta
+        run: |
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "subject=$(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:next
+        env:
+          GIT_BRANCH: main
+          GIT_SHA: ${{ github.sha }}
+          GIT_SUBJECT: ${{ steps.meta.outputs.subject }}
+      - name: Publish to svalboard/keybard-next
+        env:
+          DEPLOY_KEY: ${{ secrets.KEYBARD_NEXT_DEPLOY_KEY }}
+          SUBJECT: ${{ steps.meta.outputs.subject }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/keybard_next
+          chmod 600 ~/.ssh/keybard_next
+          # GitHub's published SSH host key
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >> ~/.ssh/known_hosts
+          cd dist
+          touch .nojekyll
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "Keybard main ${{ steps.meta.outputs.sha }}: $SUBJECT"
+          # One commit per deploy: the branch holds only the current build.
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/keybard_next -o IdentitiesOnly=yes' \
+            git push -q -f git@github.com:svalboard/keybard-next.git gh-pages

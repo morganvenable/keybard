@@ -17,7 +17,17 @@ git push -u origin feature/description-of-work
 gh pr create --repo svalboard/keybard --base main --head <your-github-user>:feature/description-of-work
 ```
 
-This applies to all work, no matter how small. **Pushing `svalboard/keybard` `main` deploys production** (`.github/workflows/svalboard-deploy.yml` → https://keybard.svalboard.com), so changes only reach `main` through a reviewed PR.
+This applies to all work, no matter how small. Changes only reach `main` through a reviewed PR.
+
+### Deployments
+
+| Site | What it serves | How it updates |
+|------|----------------|----------------|
+| https://keybard.svalboard.com (stable) | A commit or tag on `main` that was promoted | Manually: `gh workflow run svalboard-deploy.yml -R svalboard/keybard -f ref=<commit or tag>` (`.github/workflows/svalboard-deploy.yml`). It refuses anything not on `main`. |
+| https://svalboard.github.io/keybard-next/ (bleeding edge) | The tip of `main`, with a "Bleeding edge" banner and its own storage (`.env.next`) | Automatically on every merge to `main` (`.github/workflows/next-deploy.yml`, pushing to `svalboard/keybard-next` with a deploy key) |
+| https://morganvenable.github.io/keybard-test/ | Any branch, for testing before it merges | `gh workflow run deploy.yml -R morganvenable/keybard-test -f repo=morganvenable/keybard -f ref=<branch>` |
+
+**Merging to `main` no longer changes the stable site.** Promote to stable only after checking the build on the bleeding-edge site.
 
 **ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first. If you touch anything that could reach the network, also run `npm run build:paranoid`.
 

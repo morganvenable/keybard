@@ -1,14 +1,23 @@
 name: Deploy Keybard (keybard.svalboard.com)
 
-# Production: svalboard/keybard main, served by GitHub Pages at the custom
-# domain keybard.svalboard.com (set in the repository's Pages settings; a
-# keybard CNAME on svalboard.com points at svalboard.github.io). Built for the
-# domain's root with --mode svalboard (.env.svalboard).
+# Production: served by GitHub Pages at the custom domain keybard.svalboard.com
+# (set in the repository's Pages settings; a keybard CNAME on svalboard.com
+# points at svalboard.github.io). Built for the domain's root with --mode
+# svalboard (.env.svalboard).
+#
+# Production is promoted, not deployed on every merge: merges to main go to the
+# bleeding-edge site (next-deploy.yml). Run this workflow from main to promote a
+# commit or tag that is already on main:
+#
+#   gh workflow run svalboard-deploy.yml -R svalboard/keybard -f ref=<commit or tag>
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit or tag on main to deploy (default: the tip of main)
+        required: true
+        default: main
 
 permissions:
   contents: read
@@ -23,6 +32,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - name: Only deploy what is already on main
+        run: |
+          git fetch -q origin main
+          git merge-base --is-ancestor HEAD origin/main || { echo "::error::${{ inputs.ref }} is not on main"; exit 1; }
+          echo "Deploying $(git log -1 --format='%h %s')"
+      - id: meta
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "subject=$(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
@@ -31,14 +52,15 @@ jobs:
       - run: npm test
       - run: npm run build:svalboard
         env:
-          GIT_BRANCH: ${{ github.ref_name }}
-          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: main
+          GIT_SHA: ${{ steps.meta.outputs.sha }}
+          GIT_SUBJECT: ${{ steps.meta.outputs.subject }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    # Pages replaces the whole site: deploy only from this repository's main.
+    # Pages replaces the whole site: deploy only from a run of this repository's main.
     if: github.repository == 'svalboard/keybard' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
