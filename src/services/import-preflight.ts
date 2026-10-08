@@ -74,20 +74,15 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
         try { new MacroService(usbInstance).dump(current.macros_size ?? 0, next.macros ?? []); }
         catch { errors.push('The imported macros do not fit the keyboard’s macro buffer or contain invalid actions.'); }
     }
-    if (file.one_shot) {
-        if (!current.one_shot) warnings.push('One-shot settings are not supported by this keyboard and will be skipped.');
-        else {
-            const { timeout, tap_toggle } = file.one_shot;
-            if (!Number.isInteger(timeout) || timeout < 0 || timeout > 65535 || !Number.isInteger(tap_toggle) || tap_toggle < 0 || tap_toggle > 255) errors.push('One-shot settings must be a timeout of 0 to 65535 ms and a tap count of 0 to 255.');
-            next.one_shot = { timeout, tap_toggle };
-        }
-    }
     restoreFragments(file, current, next, warnings);
     next.settings = { ...current.settings };
     for (const [id, value] of Object.entries(file.settings ?? {})) {
         if (Object.prototype.hasOwnProperty.call(current.settings ?? {}, id)) next.settings[Number(id)] = value;
         else warnings.push(`QMK setting ${id} is not supported by this keyboard and will be skipped.`);
     }
+    // One-shot timeout and tap toggle are QMK settings 6 and 5, restored with the others.
+    // Files may also hold an older one-shot block that no Keybard screen could set; the settings win.
+    if (next.one_shot && next.settings && 5 in next.settings && 6 in next.settings) next.one_shot = { timeout: next.settings[6], tap_toggle: next.settings[5] };
     const menuItems = new Map(customValueService.extractAllItemsWithRefs(current.menus ?? []).map(({ item, ref }) => [ref.key, item]));
     // Layer colors are custom values on the board; the file loader keeps them in layer_colors.
     const layerColorValues = (file.layer_colors ?? []).flatMap((color, layer) =>

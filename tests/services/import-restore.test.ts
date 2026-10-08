@@ -31,6 +31,7 @@ function connected(settings: { selections: [number, number][]; oneShot: { timeou
     kb.svil_proto = 3;
     kb.menus = menus;
     kb.one_shot = settings.oneShot;
+    kb.settings = { 5: settings.oneShot.tap_toggle, 6: settings.oneShot.timeout };
     kb.layer_colors = settings.colors.map(([hue, sat]) => ({ hue, sat, val: 255 }));
     kb.custom_values = settings.colors.map(([hue, sat], layer) => ({ key: `id_layer${layer}_color`, channel: 0, valueId: 32 + layer, data: [hue, sat] }));
     return kb;
@@ -41,7 +42,7 @@ const configured = () => connected({
     oneShot: { timeout: 3000, tap_toggle: 3 },
     colors: [[0, 255], [85, 255], [170, 128], [0, 0]],
 });
-const reset = () => connected({ selections: [], oneShot: { timeout: 0, tap_toggle: 0 }, colors: [[0, 0], [0, 0], [0, 0], [0, 0]] });
+const reset = () => connected({ selections: [], oneShot: { timeout: 5000, tap_toggle: 5 }, colors: [[0, 0], [0, 0], [0, 0], [0, 0]] });
 
 const reload = (kb: KeyboardInfo) => fileService.svilToKBINFO(JSON.parse(fileService.kbinfoToSvil(kb)));
 
@@ -50,7 +51,7 @@ function services() {
         keyboardService: {
             saveSvil: vi.fn().mockResolvedValue(undefined),
             updateKey: vi.fn().mockResolvedValue(undefined),
-            updateOneShot: vi.fn().mockResolvedValue(undefined),
+            updateQMKSetting: vi.fn().mockResolvedValue(undefined),
             updateFragmentSelection: vi.fn().mockResolvedValue(true),
         },
     };
@@ -77,10 +78,8 @@ describe('restoring a .svil after a settings reset', () => {
 
         const { keys, writes, svc } = await sync(review.keyboard, board);
         // Layer 3 already matches the defaults; right_finger is fixed by its detected hardware.
-        expect(keys).toEqual(['oneshot', 'fragment:0', 'custom:id_layer0_color', 'custom:id_layer1_color', 'custom:id_layer2_color', 'custom-save:0', 'save-svil']);
+        expect(keys).toEqual(['fragment:0', 'setting:5', 'setting:6', 'custom:id_layer0_color', 'custom:id_layer1_color', 'custom:id_layer2_color', 'custom-save:0', 'save-svil']);
         await writes[0]();
-        await writes[1]();
-        expect(svc.keyboardService.updateOneShot).toHaveBeenCalledExactlyOnceWith(review.keyboard);
         expect(svc.keyboardService.updateFragmentSelection).toHaveBeenCalledExactlyOnceWith(review.keyboard, 0, 1);
     });
 
@@ -113,9 +112,11 @@ describe('restoring a .svil after a settings reset', () => {
         expect(review.keyboard.fragmentState?.eepromSelections.has(1)).toBe(false);
     });
 
-    it('rejects one-shot values the board cannot store', () => {
-        const file = reload(reset());
-        file.one_shot = { timeout: 70000, tap_toggle: 3 };
-        expect(prepareImport(file, reset()).errors.join(' ')).toMatch(/One-shot settings/);
+    it('takes one-shot settings from QMK settings 5 and 6 over an older one-shot block', () => {
+        const file = reload(configured());
+        file.one_shot = { timeout: 0, tap_toggle: 0 }; // the separate block older firmware read
+        const review = prepareImport(file, reset());
+        expect(review.keyboard.settings).toMatchObject({ 5: 3, 6: 3000 });
+        expect(review.keyboard.one_shot).toEqual({ timeout: 3000, tap_toggle: 3 });
     });
 });

@@ -169,10 +169,6 @@ export class ImportService {
             }
         }
 
-        if (newKb.one_shot && currentKb.one_shot && JSON.stringify(newKb.one_shot) !== JSON.stringify(currentKb.one_shot)) {
-            await queue("Update one-shot settings", () => services.keyboardService.updateOneShot(newKb), { type: "setting", writeKey: "oneshot" });
-        }
-
         // Hardware positions: the preflight already set the selections the board should hold.
         const wantedSelections = newKb.fragmentState?.eepromSelections;
         if (wantedSelections instanceof Map && currentKb.fragmentState) {
