@@ -29,6 +29,8 @@ This applies to all work, no matter how small. Changes only reach `main` through
 
 **Merging to `main` no longer changes the stable site.** Promote to stable only after checking the build on the bleeding-edge site.
 
+Keybard Host only accepts calls from https://keybard.svalboard.com (`REMOTE_ORIGINS` in `companion/overlay-host/keybard_host/server.py`), so Trainer's Host connection works on the stable site only. To try Host features on another site, start the Host with `--allow-origin <origin>`.
+
 **ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first. If you touch anything that could reach the network, also run `npm run build:paranoid`.
 
 ---
