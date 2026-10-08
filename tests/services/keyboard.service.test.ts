@@ -235,14 +235,19 @@ describe('KeyboardService', () => {
       expect(mockUSB.sendSvil).not.toHaveBeenCalledWith(SvilUSB.CMD_SVIL_DEFINITION_SIZE, expect.anything(), expect.anything());
     });
 
-    it('reads whether the board reset its settings because its storage could not be read', async () => {
-      for (const [tail, expected] of [[[0, 0, 9, 1], true], [[0, 0, 9, 0], false], [[0, 0, 9], false], [[], false]] as const) {
+    it('reads whether the board reset its settings, and whether it could not save a change', async () => {
+      // [tail, storage reset (bit 0), write failed (bit 1)]
+      for (const [tail, reset, writeFailed] of [
+        [[0, 0, 9, 1], true, false], [[0, 0, 9, 2], false, true], [[0, 0, 9, 3], true, true],
+        [[0, 0, 9, 0], false, false], [[0, 0, 9], false, false], [[], false, false],
+      ] as const) {
         mockUSB.sendSvil.mockImplementationOnce(() => Promise.resolve(new Uint8Array([
           SvilUSB.CMD_SVIL_GET_INFO, 0x03, 0x00, 0x00, 0x00, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0x00, ...tail,
         ])));
         const kbinfo = createTestKeyboardInfo();
         await keyboardService.getKeyboardInfo(kbinfo);
-        expect(kbinfo.storage_reset).toBe(expected);
+        expect(kbinfo.storage_reset).toBe(reset);
+        expect(kbinfo.storage_write_failed).toBe(writeFailed);
       }
     });
 

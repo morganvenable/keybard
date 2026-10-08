@@ -33,4 +33,25 @@ describe('StorageResetDialog', () => {
         expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull();
         expect(svc.clearStorageReset).not.toHaveBeenCalled();
     });
+
+    it('warns that changes are not being saved, and dismisses without telling the board', async () => {
+        keyboardContext.keyboard = { kbid: 'abc', storage_write_failed: true };
+        render(<StorageResetDialog />);
+        expect(screen.getByText("Your keyboard can't save changes")).toBeTruthy();
+        expect(screen.getByText(/lost when it restarts/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+        await waitFor(() => expect(screen.queryByText("Your keyboard can't save changes")).toBeNull());
+        expect(svc.clearStorageReset).not.toHaveBeenCalled();
+    });
+
+    it('shows the save warning first, then the reset notice', async () => {
+        keyboardContext.keyboard = { kbid: 'abc', storage_reset: true, storage_write_failed: true };
+        render(<StorageResetDialog />);
+        expect(screen.getByText("Your keyboard can't save changes")).toBeTruthy();
+        expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+        await waitFor(() => expect(screen.getByText("Your keyboard's settings were reset")).toBeTruthy());
+        fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+        await waitFor(() => expect(svc.clearStorageReset).toHaveBeenCalledTimes(1));
+    });
 });
