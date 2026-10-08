@@ -4,3 +4,4 @@
 __pycache__/
 web/
 *.log
+keybard_host/build.json

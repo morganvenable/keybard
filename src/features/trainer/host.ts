@@ -22,6 +22,8 @@ export interface HostSnapshot {
     practiceHidden: number[]; practiceTarget: number | null;
     matrixAvailable: boolean | null; visible: boolean; arrange: boolean; session: string;
 }
+/** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
+export interface HostBuild { version: string; keybardCommit: string | null }
 declare global { interface Window { __keybardNativeState?: boolean } }
 export function useHost() {
     const [state, setState] = useState<HostSnapshot | null>(null);
@@ -29,6 +31,7 @@ export function useHost() {
     const token = useRef('');
     const current = useRef<HostSnapshot | null>(null);
     const [busy, setBusy] = useState(false);
+    const [build, setBuild] = useState<HostBuild | null>(null);
     const busyRef = useRef(false);
     const local = servedByHost() || !!window.__keybardNativeState;
     const base = local ? '' : HOST_ORIGIN;
@@ -73,6 +76,7 @@ export function useHost() {
                 const data = await r.json();
                 if (data.apiVersion !== 1 || !alive) return;
                 token.current = data.token;
+                setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null });
                 if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
                 setError(''); void poll();
             } catch {
@@ -101,7 +105,7 @@ export function useHost() {
         } catch (e) { setError(e instanceof Error ? e.message : 'Could not save host settings'); return false; }
         finally { busyRef.current = false; setBusy(false); }
     }, [base]);
-    return { state, error, command, configure, busy, connect, local };
+    return { state, error, command, configure, busy, connect, local, build };
 }
 
 const HOST_REFRESH_DELAY_MS = 500;

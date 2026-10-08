@@ -90,7 +90,7 @@ These don't cover moving the window, focus, click-through, fullscreen, or live l
 2. Run the tests above and a Windows smoke test.
 3. Build with `npm run build:svalboard`, then run `python3 companion/overlay-host/scripts/package.py`.
 4. In `dist`, run `sha256sum KeybardHost-Windows.zip > SHA256SUMS.txt`.
-5. Tag the commit `keybard-host-vX.Y.Z-preview.N` and publish a GitHub prerelease with the ZIP and the checksum.
-6. Point `HOST_RELEASE` in `src/features/trainer/HostInstall.tsx` at the new release, so Trainer's install link finds it. Link the tag itself, not GitHub's `latest` redirect, which skips prereleases.
+5. Tag the commit (`keybard-host-vX.Y.Z-preview.N`, or a launch tag shared with the firmware such as `vLaunch2`) and publish a GitHub prerelease with the ZIP and the checksum. Set `KEYBARD_HOST_VERSION` to the tag when packaging, so the host reports it.
+6. Set `HOST_RELEASE_TAG` in `src/features/trainer/HostInstall.tsx` to the new tag, so Trainer's install link finds it. Link the tag itself, not GitHub's `latest` redirect, which skips prereleases.
 
-Instead of steps 3–5, you can run the **Package Keybard Host preview** workflow with an existing tag. It builds a draft prerelease with both files; test the ZIP before you publish it.
+Instead of steps 3–5, you can run the **Package Keybard Host preview** workflow with an existing tag. It builds a draft prerelease with both files, stamps the release and the bundled Keybard commit into the host and the release notes; test the ZIP before you publish it.

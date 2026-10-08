@@ -8,6 +8,7 @@ import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
+from .build import build_info
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -53,6 +54,8 @@ def load_paranoid_page(assets):
 def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, paranoid=False, page=None):
     # In paranoid mode `page` is the verified page bytes; nothing else is served.
     remote_origins = frozenset(remote_origins)
+    # Which release this is and which Keybard it serves, so Keybard can tell the user.
+    build = build_info()
 
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *args): pass
@@ -106,7 +109,7 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
             path = urlsplit(self.path)
             if not (self.api_ok() if path.path.startswith('/api/host/') else self.origin_ok()):
                 return self.reply({'error': 'Local origin required'}, 403)
-            if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1, paranoid=paranoid))
+            if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1, paranoid=paranoid, **build))
             if path.path == '/api/host/state':
                 try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)

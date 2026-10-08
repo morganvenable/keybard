@@ -8,6 +8,8 @@ This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed instal
 
 - **The overlay keeps up with your edits.** When Keybard saves a change to the keyboard, the overlay updates about a second later, without going blank. Before, you had to choose **Reload layout** from the tray.
 - **The bundled Keybard is current:** it can reorder layers by dragging their tabs, shows and sets the default layer, and warns when the keyboard couldn't save a setting.
+- **Shows which version you have.** Trainer says which Keybard Host is connected and which Keybard it bundles, and points to a newer release when there is one. The tray icon's tooltip shows the same.
+- **Made for Svalboard firmware vLaunch2.** It works with older firmware too, but moving or setting the default layer needs vLaunch2.
 
 ## Get started
 
