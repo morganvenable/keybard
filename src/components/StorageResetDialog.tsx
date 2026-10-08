@@ -13,16 +13,22 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { keyboardService } from "@/services/keyboard.service";
 
 /**
- * Shown once per connection when the board reports it reset its settings because
- * its storage could not be read. Acknowledging clears the board's flag.
+ * Shown once per connection when the board reports a storage problem:
+ * - it can't save changes right now, so they'll be lost when it restarts;
+ * - it reset its settings because its storage could not be read. Acknowledging
+ *   clears the board's flag.
+ * If both apply, the warning about unsaved changes comes first.
  */
 export const StorageResetDialog: FC = () => {
     const { keyboard, isConnected } = useKeyboard();
-    const [acknowledged, setAcknowledged] = useState<string | null>(null);
-    const open = Boolean(isConnected && keyboard?.storage_reset && acknowledged !== (keyboard.kbid ?? ""));
+    const [acknowledgedReset, setAcknowledgedReset] = useState<string | null>(null);
+    const [acknowledgedWriteFailure, setAcknowledgedWriteFailure] = useState<string | null>(null);
+    const kbid = keyboard?.kbid ?? "";
+    const showWriteFailure = Boolean(isConnected && keyboard?.storage_write_failed && acknowledgedWriteFailure !== kbid);
+    const showReset = Boolean(isConnected && keyboard?.storage_reset && acknowledgedReset !== kbid && !showWriteFailure);
 
-    const acknowledge = async () => {
-        setAcknowledged(keyboard?.kbid ?? "");
+    const acknowledgeReset = async () => {
+        setAcknowledgedReset(kbid);
         try {
             await keyboardService.clearStorageReset();
         } catch (error) {
@@ -31,8 +37,31 @@ export const StorageResetDialog: FC = () => {
         }
     };
 
+    // The board clears this itself when it restarts, so there's nothing to send.
+    const acknowledgeWriteFailure = () => setAcknowledgedWriteFailure(kbid);
+
+    if (showWriteFailure) {
+        return (
+            <Dialog open onOpenChange={(next) => !next && acknowledgeWriteFailure()}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle>Your keyboard can't save changes</DialogTitle>
+                        <DialogDescription>
+                            Your keyboard couldn't save its settings since it was plugged in. Changes you make will
+                            show up, but they'll be lost when it restarts. Unplug it and plug it back in, then make
+                            your changes again.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={acknowledgeWriteFailure}>OK</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
-        <Dialog open={open} onOpenChange={(next) => !next && acknowledge()}>
+        <Dialog open={showReset} onOpenChange={(next) => !next && acknowledgeReset()}>
             <DialogContent className="sm:max-w-[480px]">
                 <DialogHeader>
                     <DialogTitle>Your keyboard's settings were reset</DialogTitle>
@@ -42,7 +71,7 @@ export const StorageResetDialog: FC = () => {
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button onClick={acknowledge}>OK</Button>
+                    <Button onClick={acknowledgeReset}>OK</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

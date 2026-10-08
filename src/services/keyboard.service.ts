@@ -229,7 +229,7 @@ export class KeyboardService {
 
         // Parse Svil info response:
         // Response format after wrapper stripped:
-        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage reset]
+        // [cmd_echo][protocol_version:4][uid:8][feature_flags:1][keycodes major, minor, patch][storage flags]
         const dv = new DataView((svilInfo as Uint8Array).buffer);
         kbinfo.svil_proto = dv.getUint32(1, true); // Skip cmd_echo
         // Table and label requests switch to 2-byte indices from v2 on
@@ -241,9 +241,13 @@ export class KeyboardService {
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
         kbinfo.keycode_version = kbinfo.keycode_version_reported ? keycodeVersion.join('.') : UNREPORTED_KEYCODE_VERSION;
-        // Set when the board reset its settings because its storage could not be read,
-        // until the host clears it (CMD_SVIL_STORAGE_RESET_CLEAR). Older firmware sends zero.
-        kbinfo.storage_reset = !!svilInfo[17];
+        // Storage flags; older firmware sends zero.
+        // Bit 0: the board reset its settings because its storage could not be read,
+        // until the host clears it (CMD_SVIL_STORAGE_RESET_CLEAR).
+        // Bit 1: since it started, the board couldn't save a change to flash. It still
+        // shows the change but loses it on restart; only a restart clears this.
+        kbinfo.storage_reset = !!(svilInfo[17] & 1);
+        kbinfo.storage_write_failed = !!(svilInfo[17] & 2);
         // Nothing past here is safe on a board that isn't speaking Sval protocol 3+
         assertSupportedSvilProto(kbinfo.svil_proto);
 
