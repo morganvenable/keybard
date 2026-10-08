@@ -23,7 +23,12 @@ class LocalServer(ThreadingHTTPServer):
 
 # Hosted Keybard sites that may use the host API from the browser. They still
 # need the per-session token for every write, and only the local copy is served.
-REMOTE_ORIGINS = frozenset({'https://keybard.svalboard.com'})
+# Exact origins on domains Svalboard controls: never a shared host such as
+# svalboard.github.io, where every Pages site would share the origin.
+REMOTE_ORIGINS = frozenset({
+    'https://keybard.svalboard.com',       # stable
+    'https://next.keybard.svalboard.com',  # bleeding edge, built from every merge to main
+})
 
 
 def paranoid_policy_ok(html):

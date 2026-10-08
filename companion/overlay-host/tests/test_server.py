@@ -78,8 +78,18 @@ class RemoteOriginTests(ServerTests):
         with self.assertRaises(HTTPError) as error: self.get('/', {'Origin': self.PROD})
         self.assertEqual(error.exception.code, 403)
 
+    def test_bleeding_edge_site_is_trusted_like_stable(self):
+        origin = 'https://next.keybard.svalboard.com'
+        with self.get('/api/host/bootstrap', {'Origin': origin}) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'], origin)
+        with self.post({'op': 'refresh'}, {'X-Keybard-Token': self.state.token, 'Content-Type': 'application/json', 'Origin': origin}) as r:
+            self.assertEqual(r.status, 202)
+        self.assertEqual(self.commands, [{'op': 'refresh'}])
+
     def test_untrusted_origins_and_rebinding_rejected(self):
-        for headers in [{'Origin': 'https://evil.example'}, {'Origin': self.PROD, 'Host': 'evil.example:5178'}]:
+        lookalikes = ['https://svalboard.github.io', 'http://next.keybard.svalboard.com', 'https://next.keybard.svalboard.com.evil.example',
+                      'https://evilnext.keybard.svalboard.com', 'https://keybard.svalboard.com:8443']
+        for headers in [{'Origin': 'https://evil.example'}, {'Origin': self.PROD, 'Host': 'evil.example:5178'}, *({'Origin': o} for o in lookalikes)]:
             with self.assertRaises(HTTPError) as error: self.get('/api/host/bootstrap', headers)
             self.assertEqual(error.exception.code, 403)
             self.assertIsNone(error.exception.headers['Access-Control-Allow-Origin'])
