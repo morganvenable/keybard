@@ -45,3 +45,19 @@ it('uses relative URLs on the copy of Keybard served by the host', async () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/host/bootstrap', expect.anything()));
     unmount();
 });
+
+it("keeps the host's release and bundled Keybard from bootstrap; older hosts are 'unknown'", async () => {
+    document.documentElement.dataset.keybardHost = 'true';
+    fetchMock.mockImplementation(async (url: string) => String(url).endsWith('/api/host/bootstrap')
+        ? new Response(JSON.stringify({ token: 't', apiVersion: 1, version: 'vLaunch2', keybardCommit: '5954334' }))
+        : new Response('{}', { status: 503 }));
+    const current = renderHook(() => useHost());
+    await waitFor(() => expect(current.result.current.build).toEqual({ version: 'vLaunch2', keybardCommit: '5954334' }));
+    current.unmount();
+    fetchMock.mockImplementation(async (url: string) => String(url).endsWith('/api/host/bootstrap')
+        ? new Response(JSON.stringify({ token: 't', apiVersion: 1 }))
+        : new Response('{}', { status: 503 }));
+    const older = renderHook(() => useHost());
+    await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null }));
+    older.unmount();
+});

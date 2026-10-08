@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing keybard-host-v* tag to package
+        description: Existing release tag to package (keybard-host-v* or a v* launch tag such as vLaunch2)
         required: true
         type: string
 
@@ -20,7 +20,7 @@ jobs:
       - name: Validate release tag
         env:
           RELEASE_TAG: ${{ inputs.tag }}
-        run: '[[ "$RELEASE_TAG" =~ ^keybard-host-v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+)?$ ]]'
+        run: '[[ "$RELEASE_TAG" =~ ^(keybard-host-v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+)?|v[A-Za-z0-9]+(\.[0-9]+)*)$ ]]'
       - uses: actions/checkout@v5
         with:
           ref: refs/tags/${{ inputs.tag }}
@@ -36,7 +36,22 @@ jobs:
       - run: PYTHONPATH=companion/overlay-host python -m unittest discover -s companion/overlay-host/tests -q
       - run: npm run build:svalboard
       - run: npm run build:paranoid
-      - run: python companion/overlay-host/scripts/package.py
+      - name: Package, stamped with the release and the Keybard commit it bundles
+        env:
+          KEYBARD_HOST_VERSION: ${{ inputs.tag }}
+        run: |
+          echo "KEYBARD_COMMIT=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+          KEYBARD_COMMIT=$(git rev-parse --short=7 HEAD) python companion/overlay-host/scripts/package.py
+      - name: Release notes with this build's Keybard
+        run: |
+          cp companion/overlay-host/RELEASE-NOTES.md dist/RELEASE-NOTES.md
+          {
+            echo
+            echo "## This build"
+            echo
+            echo "- Bundles Keybard \`$KEYBARD_COMMIT\`, the same build keybard.svalboard.com served at that commit (shown in the corner of the Keybard page)."
+            echo "- Keybard Host reports its release and bundled Keybard in Trainer and in its tray tooltip."
+          } >> dist/RELEASE-NOTES.md
       - name: Checksum
         working-directory: dist
         run: sha256sum KeybardHost-Windows.zip > SHA256SUMS.txt
@@ -49,4 +64,4 @@ jobs:
           (cd dist && sha256sum keybard-paranoid.html >> SHA256SUMS.txt) &&
           gh release create "$RELEASE_TAG" dist/KeybardHost-Windows.zip dist/keybard-paranoid.html dist/SHA256SUMS.txt
           --verify-tag --draft --prerelease --title "Keybard Host $RELEASE_TAG"
-          --notes-file companion/overlay-host/RELEASE-NOTES.md
+          --notes-file dist/RELEASE-NOTES.md

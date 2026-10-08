@@ -104,6 +104,10 @@ class HardeningTests(ServerTests):
                 self.assertIn("frame-ancestors 'none'", r.headers['Content-Security-Policy'])
     def test_bootstrap_reports_mode(self):
         with urlopen(self.base + '/api/host/bootstrap') as r: self.assertIs(json.load(r)['paranoid'], False)
+    def test_bootstrap_reports_release_and_bundled_keybard(self):
+        # A source checkout has no build.json: a development build.
+        with urlopen(self.base + '/api/host/bootstrap') as r: data = json.load(r)
+        self.assertEqual((data['version'], data['keybardCommit']), ('dev', None))
         root = Path(self.temp.name); paranoid = make_server(self.state, root, lambda c: None, 0, set(), True)
         thread = threading.Thread(target=paranoid.serve_forever); thread.start()
         try:

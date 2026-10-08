@@ -19,6 +19,7 @@ from .device.worker import DeviceWorker
 from .state import HostState, serialize_profile
 from .modifiers import ModifierReader
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server
+from .build import build_info
 from .browser import open_contained
 
 
@@ -206,7 +207,7 @@ class Host(QObject):
         menu.addAction('Place at bottom', self.place)
         menu.addSeparator(); menu.addAction('Reload board layout', lambda: self.command(dict(op='reload')))
         menu.addAction('Quit host', app.quit)
-        self.tray.setContextMenu(menu); self.tray.setToolTip('Keybard Host')
+        self.tray.setContextMenu(menu); info = build_info(); self.tray.setToolTip(f"Keybard Host {info['version']}" + (f" · Keybard {info['keybardCommit']}" if info['keybardCommit'] else ''))
         self.tray.activated.connect(lambda reason: self.open_controls() if reason == QSystemTrayIcon.DoubleClick else None)
         self.tray.show()
         self.modifier_reader = ModifierReader()

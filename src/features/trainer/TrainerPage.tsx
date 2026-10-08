@@ -12,7 +12,7 @@ import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import './trainer.css';
 import { useHost } from './host';
 import { PARANOID } from '@/lib/paranoid';
-import { HostInstall } from './HostInstall';
+import { HostInstall, HostVersion } from './HostInstall';
 import { surfaceKeys } from './useSurfaceKeys';
 
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
@@ -109,7 +109,7 @@ export default function TrainerPage({ active = true }: { active?: boolean }) {
         <main className="trainer-main">
             {!host.state && (PARANOID ? <p className="trainer-note">For the desktop overlay, start Keybard Host in paranoid mode (Start-Paranoid.cmd) and use the Keybard it opens. This file never contacts anything else.</p> : <HostInstall onConnect={host.local ? undefined : host.connect} />)}
             <div className="trainer-workspace"><section className="trainer-stage">
-                {host.state && <div className="trainer-host-section"><div className="trainer-host-toolbar"><select aria-label="Host keyboard" value={host.state.selectedDevice || ''} onChange={e => { setLive(true); void host.command({ op: 'connect', id: e.target.value }); }}><option value="" disabled>Select a Svalboard…</option>{host.state.devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><Button variant="outline" onClick={() => void host.command({ op: 'show', value: !host.state!.visible })}>{host.state.visible ? 'Hide overlay' : 'Show overlay'}</Button></div><p className="trainer-error" role="status" hidden={host.state.valid}>{host.state.status}</p></div>}
+                {host.state && <div className="trainer-host-section"><div className="trainer-host-toolbar"><select aria-label="Host keyboard" value={host.state.selectedDevice || ''} onChange={e => { setLive(true); void host.command({ op: 'connect', id: e.target.value }); }}><option value="" disabled>Select a Svalboard…</option>{host.state.devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><Button variant="outline" onClick={() => void host.command({ op: 'show', value: !host.state!.visible })}>{host.state.visible ? 'Hide overlay' : 'Show overlay'}</Button></div><p className="trainer-error" role="status" hidden={host.state.valid}>{host.state.status}</p><HostVersion build={host.build} /></div>}
                 {host.error && <p role="alert" className="trainer-error">{host.error}</p>}
                 <div className="trainer-preview-card">
                     <div className={`trainer-canvas trainer-bg-${background.toLowerCase()}`}><div className="trainer-keyboard" style={{ width: `${prefs.scale}%` }}><OverlaySurface keys={keys} appearance={appearance} changed={changed} held={following ? new Set(host.state?.pressed || []) : held} effect={prefs.effect} duration={prefs.duration} hidden={hidden} target={recall && revealed ? target?.id : undefined} onSelect={setSelected} /></div></div>
