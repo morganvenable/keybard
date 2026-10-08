@@ -27,16 +27,45 @@ class OverlayControlsTest(unittest.TestCase):
         self.controls.deleteLater(); self.surface.deleteLater()
         self.app.processEvents()
 
-    def test_drag_is_default_and_handle_stays_interactive_in_click_through(self):
-        self.assertTrue(self.surface.arranging)
+    def test_click_through_is_default_and_handle_stays_interactive(self):
+        import tempfile
+        from pathlib import Path
+        from keybard_host.state import HostState
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertFalse(HostState(Path(folder) / 'preferences.json').arrange)
+        self.assertFalse(self.surface.arranging)
         self.surface.set_arrange(False)
+        self.assertFalse(self.surface.arranging)
         self.assertTrue(self.surface.windowFlags() & Qt.WindowTransparentForInput)
         self.assertFalse(self.controls.windowFlags() & Qt.WindowTransparentForInput)
         self.assertFalse(self.controls.handle.testAttribute(Qt.WA_TransparentForMouseEvents))
-        self.surface.set_arrange(True)
-        self.assertFalse(self.surface.windowFlags() & Qt.WindowTransparentForInput)
 
-    def test_control_menu_has_working_hide_open_and_click_through(self):
+    def test_drag_by_keys_takes_input_only_on_the_keys(self):
+        self.surface.set_arrange(True)
+        # Until the overlay reports keys, nothing is visible, so nothing takes a click.
+        self.assertTrue(self.surface.windowFlags() & Qt.WindowTransparentForInput)
+        # The page answers in JSON.
+        self.surface.apply_key_rects('[[10, 20, 37, 37], [50, 20.4, 37, 37]]')
+        self.assertFalse(self.surface.windowFlags() & Qt.WindowTransparentForInput)
+        mask = self.surface.mask()
+        self.assertTrue(mask.contains(QPoint(20, 30)))
+        self.assertTrue(mask.contains(QPoint(85, 55)))
+        self.assertFalse(mask.contains(QPoint(5, 5)))
+        self.assertFalse(mask.contains(QPoint(20, 80)))
+        self.assertFalse(mask.contains(QPoint(150, 30)))
+        # The keys disappear (overlay hidden or board lost): clicks pass through again.
+        self.surface.apply_key_rects([])
+        self.assertTrue(self.surface.windowFlags() & Qt.WindowTransparentForInput)
+        self.assertTrue(self.surface.mask().isEmpty())
+        self.surface.apply_key_rects([[10, 20, 37, 37]])
+        self.surface.set_arrange(False)
+        self.assertTrue(self.surface.windowFlags() & Qt.WindowTransparentForInput)
+        self.assertTrue(self.surface.mask().isEmpty())
+        # Late answers from the page don't turn input back on.
+        self.surface.apply_key_rects([[10, 20, 37, 37]])
+        self.assertTrue(self.surface.windowFlags() & Qt.WindowTransparentForInput)
+
+    def test_control_menu_has_working_hide_open_and_drag_by_keys(self):
         actions = self.controls.more.menu().actions()
         actions[0].trigger(); actions[1].trigger(); actions[2].trigger()
         self.assertEqual(self.calls, ['hide', 'open', True])

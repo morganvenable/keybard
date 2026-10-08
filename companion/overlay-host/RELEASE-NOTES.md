@@ -27,7 +27,7 @@ This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed instal
 - Shows your board's layout and follows your active layer, and your default layer on firmware that reports it.
 - Keeps up with edits: when Keybard saves a change to the keyboard, the overlay re-reads the layout by itself, showing the old one until the new one is read.
 - Uses Keybard's key icons. Shift and Caps Lock change the letters shown.
-- Stays on top, can be dragged into place, and lets clicks pass through once it's placed.
+- Stays on top and lets clicks pass through. Move it with its grip, or turn on **Drag by keys** to drag it by the keys themselves.
 - Adjustable color, outline, opacity and halo.
 - Highlights layer changes and, optionally, the keys you're holding. Includes recall practice.
 

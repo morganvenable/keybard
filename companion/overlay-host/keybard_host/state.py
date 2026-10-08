@@ -67,7 +67,8 @@ class HostState:
         self.practice_target = None
         self.practice_at = 0
         self.visible = True
-        self.arrange = True
+        # Only the handle moves the overlay unless the user turns on dragging by keys.
+        self.arrange = False
         self.session = secrets.token_hex(12)
         try:
             saved = json.loads(self.path.read_text())
