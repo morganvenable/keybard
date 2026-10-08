@@ -61,3 +61,33 @@ it("keeps the host's release and bundled Keybard from bootstrap; older hosts are
     await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null }));
     older.unmount();
 });
+
+it('fetches a new token and retries when a restarted host refuses a write', async () => {
+    document.documentElement.dataset.keybardHost = 'true';
+    // The host restarted: state keeps flowing, but only the new token may write.
+    let liveToken = 'old', bootstraps = 0;
+    const snapshot = { apiVersion: 1, config: { scale: 100 }, revision: 0, layoutRevision: 1, board: null, session: 's', valid: true };
+    const writes: { token: string; body: unknown }[] = [];
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        if (path.endsWith('/api/host/bootstrap')) { bootstraps++; return new Response(JSON.stringify({ token: liveToken, apiVersion: 1 })); }
+        if (path.includes('/api/host/state')) return new Response(JSON.stringify(snapshot));
+        const token = (init?.headers as Record<string, string>)['X-Keybard-Token'];
+        writes.push({ token, body: JSON.parse(String(init?.body)) });
+        if (token !== liveToken) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 403 });
+        return new Response(JSON.stringify(path.endsWith('/config') ? { revision: 1 } : { ok: true }));
+    });
+    const { result, unmount } = renderHook(() => useHost());
+    await waitFor(() => expect(result.current.state).not.toBeNull());
+    liveToken = 'new';
+    let saved = false;
+    await act(async () => { saved = await result.current.configure({ ...result.current.state!.config, scale: 70 }); });
+    expect(saved).toBe(true);
+    expect(writes.map(w => w.token)).toEqual(['old', 'new']);
+    expect(result.current.state?.config.scale).toBe(70);
+    await act(async () => { await result.current.command({ op: 'place' }); });
+    expect(writes.at(-1)?.token).toBe('new');
+    expect(result.current.error).toBe('');
+    expect(bootstraps).toBe(2);
+    unmount();
+});
