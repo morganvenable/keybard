@@ -5,6 +5,10 @@ import { LabelService } from './label.service';
 import { keyService } from './key.service';
 import { activeKeycodeVersion } from '@/constants/keycode-numbering';
 import { usbInstance } from './usb.service';
+import { FragmentService, NO_SELECTION } from './fragment.service';
+import { FragmentComposerService } from './fragment-composer.service';
+import { KleService } from './kle.service';
+import { getClosestPresetColor } from '../utils/color-conversion';
 
 export interface ImportReview {
     keyboard: KeyboardInfo;
@@ -70,16 +74,25 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
         try { new MacroService(usbInstance).dump(current.macros_size ?? 0, next.macros ?? []); }
         catch { errors.push('The imported macros do not fit the keyboard’s macro buffer or contain invalid actions.'); }
     }
-    for (const field of ['one_shot', 'layer_colors', 'fragmentState'] as const) {
-        if (file[field] && JSON.stringify(file[field]) !== JSON.stringify(current[field])) warnings.push(`${field.replace(/_/g, ' ')} will be kept from the keyboard; restoring this feature is not supported yet.`);
+    if (file.one_shot) {
+        if (!current.one_shot) warnings.push('One-shot settings are not supported by this keyboard and will be skipped.');
+        else {
+            const { timeout, tap_toggle } = file.one_shot;
+            if (!Number.isInteger(timeout) || timeout < 0 || timeout > 65535 || !Number.isInteger(tap_toggle) || tap_toggle < 0 || tap_toggle > 255) errors.push('One-shot settings must be a timeout of 0 to 65535 ms and a tap count of 0 to 255.');
+            next.one_shot = { timeout, tap_toggle };
+        }
     }
+    restoreFragments(file, current, next, warnings);
     next.settings = { ...current.settings };
     for (const [id, value] of Object.entries(file.settings ?? {})) {
         if (Object.prototype.hasOwnProperty.call(current.settings ?? {}, id)) next.settings[Number(id)] = value;
         else warnings.push(`QMK setting ${id} is not supported by this keyboard and will be skipped.`);
     }
     const menuItems = new Map(customValueService.extractAllItemsWithRefs(current.menus ?? []).map(({ item, ref }) => [ref.key, item]));
-    const supportedValues = (file.custom_values ?? []).filter(entry => {
+    // Layer colors are custom values on the board; the file loader keeps them in layer_colors.
+    const layerColorValues = (file.layer_colors ?? []).flatMap((color, layer) =>
+        color && layer < (current.layers ?? 0) ? [{ key: `id_layer${layer}_color`, channel: 0, valueId: 0, data: [color.hue, color.sat] }] : []);
+    const supportedValues = [...(file.custom_values ?? []), ...layerColorValues].filter(entry => {
         if (menuItems.has(entry.key)) {
             const width = customValueService.getByteWidth(menuItems.get(entry.key)!);
             if (entry.data.length !== width && !(entry.data.length === 1 && width > 1)) errors.push(`Setting ${entry.key} has ${entry.data.length} bytes; the keyboard expects ${width}.`);
@@ -92,6 +105,13 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     });
     next.custom_values = [...(current.custom_values ?? []).filter(entry => !supportedValues.some(value => value.key === entry.key)), ...supportedValues];
     next.cosmetic = { ...current.cosmetic };
+    for (const entry of supportedValues) {
+        const layer = Number(entry.key.match(/^id_layer(\d+)_color$/)?.[1] ?? -1);
+        if (layer < 0) continue;
+        next.layer_colors = [...(next.layer_colors ?? [])];
+        next.layer_colors[layer] = { hue: entry.data[0], sat: entry.data[1], val: 255 };
+        next.cosmetic.layer_colors = { ...next.cosmetic.layer_colors, [layer]: file.cosmetic?.layer_colors?.[layer] ?? getClosestPresetColor(entry.data[0], entry.data[1], 255) };
+    }
     const labels = new LabelService(usbInstance);
     for (const [field, kind, count] of [['layer','layer',file.layers], ['macros','macro',file.macros?.length], ['tapdances','tapdance',file.tapdances?.length]] as const) {
         if (!file.cosmetic?.[field]) continue;
@@ -109,4 +129,50 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     }
     summary.push('Entries beyond the file’s layers and tables will be kept from the keyboard.');
     return { keyboard: next, errors, warnings, summary };
+}
+
+/**
+ * Hardware positions (thumb clusters and the like). The file records the fragment
+ * each position resolved to. A position that matches what the hardware detects is
+ * cleared to follow detection; any other is saved as the board's selection.
+ */
+function restoreFragments(file: KeyboardInfo, current: KeyboardInfo, next: KeyboardInfo, warnings: string[]) {
+    const wanted = file.fragmentState?.userSelections;
+    const fragments = new FragmentService(null as any);
+    if (!wanted || !current.fragmentState || !fragments.hasFragments(current)) return;
+    const get = (map: any, key: string | number) => map instanceof Map ? map.get(key) : map?.[key];
+    // Files and snapshots may hold these as plain objects rather than Maps.
+    const copy = <K, V>(source: any, key: (k: string) => K): Map<K, V> =>
+        source instanceof Map ? new Map(source) : new Map(Object.entries(source ?? {}).map(([k, v]) => [key(k), v as V]));
+    const was = current.fragmentState;
+    const state = next.fragmentState = {
+        hwDetection: copy<number, number>(was.hwDetection, Number),
+        eepromSelections: copy<number, number>(was.eepromSelections, Number),
+        userSelections: copy<string, string>(was.userSelections, String),
+    };
+    let changed = false;
+    for (const { idx, instance } of fragments.getSelectableInstances(current)) {
+        const name = get(wanted, instance.id);
+        if (!name) continue;
+        const options = instance.fragment_options ?? [];
+        if (!options.some(option => option.fragment === name)) {
+            warnings.push(`Hardware position ${instance.id}: ${name} is not an option on this keyboard and will be kept from the keyboard.`);
+            continue;
+        }
+        const detectedId = get(was.hwDetection, idx);
+        const detected = detectedId === undefined ? undefined : fragments.getFragmentNameById(current, detectedId);
+        if (detected && instance.allow_override === false) {
+            if (detected !== name) warnings.push(`Hardware position ${instance.id} is fixed by the detected hardware and will be kept from the keyboard.`);
+            continue;
+        }
+        const selection = detected === name ? NO_SELECTION : fragments.getOptionIndex(instance, name);
+        if (selection === (get(was.eepromSelections, idx) ?? NO_SELECTION)) continue;
+        if (selection === NO_SELECTION) state.eepromSelections.delete(idx);
+        else state.eepromSelections.set(idx, selection);
+        state.userSelections.set(instance.id, name);
+        changed = true;
+    }
+    if (!changed) return;
+    const layout = new FragmentComposerService(new KleService(), fragments).composeLayout(next);
+    if (Object.keys(layout).length > 0) next.keylayout = layout;
 }

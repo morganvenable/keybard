@@ -4,6 +4,7 @@ import { customValueService } from "./custom-value.service";
 import { LabelService } from "./label.service";
 import { usbInstance } from "./usb.service";
 import { keyService } from "./key.service";
+import { NO_SELECTION } from "./fragment.service";
 
 export class ImportService {
     async syncWithKeyboard(
@@ -64,7 +65,9 @@ export class ImportService {
         }
 
         // 2. Sync Macros
-        if (JSON.stringify(newKb.macros) !== JSON.stringify(currentKb.macros)) {
+        // Compare actions only: macros read from a file and from the board order their fields differently.
+        const macroActions = (kb: KeyboardInfo) => JSON.stringify((kb.macros ?? []).map(macro => macro.actions));
+        if (macroActions(newKb) !== macroActions(currentKb)) {
             await queue(
                 "Update All Macros",
                 async () => {
@@ -166,6 +169,23 @@ export class ImportService {
             }
         }
 
+        if (newKb.one_shot && currentKb.one_shot && JSON.stringify(newKb.one_shot) !== JSON.stringify(currentKb.one_shot)) {
+            await queue("Update one-shot settings", () => services.keyboardService.updateOneShot(newKb), { type: "setting", writeKey: "oneshot" });
+        }
+
+        // Hardware positions: the preflight already set the selections the board should hold.
+        const wantedSelections = newKb.fragmentState?.eepromSelections;
+        if (wantedSelections instanceof Map && currentKb.fragmentState) {
+            for (const [idx] of (newKb.composition?.instances ?? []).entries()) {
+                const wanted = wantedSelections.get(idx) ?? NO_SELECTION;
+                const was = currentKb.fragmentState.eepromSelections instanceof Map ? currentKb.fragmentState.eepromSelections.get(idx) : (currentKb.fragmentState.eepromSelections as any)?.[idx];
+                if (wanted === (was ?? NO_SELECTION)) continue;
+                await queue(`Hardware position ${newKb.composition!.instances[idx].id}`, async () => {
+                    if (!await services.keyboardService.updateFragmentSelection(newKb, idx, wanted)) throw new Error(`Keyboard rejected the selection for ${newKb.composition!.instances[idx].id}`);
+                }, { writeKey: `fragment:${idx}` });
+            }
+        }
+
         // 6. Sync QMK Settings
         if (newKb.settings && currentKb.settings) {
             for (const key of Object.keys(newKb.settings)) {
@@ -217,6 +237,10 @@ export class ImportService {
                         dataBytes.push(0);
                     }
                 }
+
+                // Unchanged values need no write.
+                const was = currentKb.custom_values?.find(value => value.key === entry.key)?.data;
+                if (was && was.length === dataBytes.length && was.every((byte, index) => byte === dataBytes[index])) continue;
 
                 await queue(
                     `Update custom value ${entry.key}`,

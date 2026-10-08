@@ -13,7 +13,7 @@ import { SvilUSB } from "./usb.service";
 // Max number of fragment instances (protocol uses fixed 21-byte arrays)
 const MAX_INSTANCES = 21;
 // Value indicating no detection/selection
-const NO_SELECTION = 0xff;
+export const NO_SELECTION = 0xff;
 
 /**
  * Safely get a value from something that might be a Map or a plain object
