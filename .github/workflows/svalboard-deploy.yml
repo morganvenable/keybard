@@ -6,16 +6,17 @@ name: Deploy Keybard (keybard.svalboard.com)
 # svalboard (.env.svalboard).
 #
 # Production is promoted, not deployed on every merge: merges to main go to the
-# bleeding-edge site (next-deploy.yml). Run this workflow from main to promote a
-# commit or tag that is already on main:
+# bleeding-edge site (next-deploy.yml). Promote with the launch tag shared with
+# the firmware and Keybard Host releases (e.g. vLaunch2), so one name means the
+# same release everywhere. The tag must be on main:
 #
-#   gh workflow run svalboard-deploy.yml -R svalboard/keybard -f ref=<commit or tag>
+#   gh workflow run svalboard-deploy.yml -R svalboard/keybard -f ref=<launch tag>
 
 on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Commit or tag on main to deploy (default: the tip of main)
+        description: "Launch tag (or commit) on main to deploy, e.g. vLaunch2"
         required: true
         default: main
 
