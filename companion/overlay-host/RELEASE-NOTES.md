@@ -1,8 +1,14 @@
-# Keybard Host — Windows preview
+# Keybard Host — Windows
 
 Keybard Host shows your Svalboard layout as a transparent overlay on your desktop. It follows the layer you're on, so you can glance at it while you type in any app. You set it up in the **Trainer** panel of [Keybard](https://keybard.svalboard.com).
 
-This preview is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer.
+This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer.
+
+## New in vLaunch2.2
+
+- **Clicks go through the overlay.** The overlay no longer catches clicks anywhere in its rectangle: everything you click reaches the window underneath. Move it with the grip above its top-right corner.
+- **Drag by keys, if you want it.** Turn on **Drag by keys** in Trainer, the overlay's menu or the tray to drag the overlay by its keys as well. Only the keys themselves take the click; the space between them still passes through.
+- **Trainer's settings stick after the Host restarts.** Changing the overlay size or another setting in a Trainer tab opened before Keybard Host restarted used to snap back. Trainer now reconnects and saves the change. The Hide overlay button is gone from Trainer: hide the overlay from its handle menu or the tray.
 
 ## New in vLaunch2.1
 

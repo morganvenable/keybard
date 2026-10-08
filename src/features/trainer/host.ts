@@ -38,6 +38,27 @@ export function useHost() {
     // Keybard Paranoid only talks to the Keybard Host that serves it, never across origins.
     const [attempt, setAttempt] = useState(() => (local || (!PARANOID && rememberedRemote()) ? 1 : 0));
     const asked = useRef(false);
+    /** Fetch the host's write token and build; false if it isn't a host this Keybard can use. */
+    const bootstrap = useCallback(async (signal?: AbortSignal) => {
+        const r = await fetch(`${base}/api/host/bootstrap`, { signal, cache: 'no-store' });
+        if (!r.ok) throw new Error('Host refused the connection');
+        const data = await r.json();
+        if (data.apiVersion !== 1) return false;
+        token.current = data.token;
+        setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null });
+        return true;
+    }, [base]);
+    /**
+     * POST to the host. A restarted host has a new token and keeps serving state to this page, so
+     * a 403 means the token is stale: fetch the current one and try once more.
+     */
+    const post = useCallback(async (path: string, body: () => unknown) => {
+        const send = () => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': token.current }, body: JSON.stringify(body()) });
+        let r = await send();
+        if (r.status === 403 && await bootstrap()) r = await send();
+        const data = await r.json(); if (!r.ok) throw new Error(data.error);
+        return data;
+    }, [base, bootstrap]);
     useEffect(() => {
         if (!attempt) return;
         let alive = true, timer: ReturnType<typeof setTimeout>;
@@ -71,12 +92,7 @@ export function useHost() {
         }
         void (async () => {
             try {
-                const r = await fetch(`${base}/api/host/bootstrap`, { signal: abort.signal, cache: 'no-store' });
-                if (!r.ok) throw new Error('Host refused the connection');
-                const data = await r.json();
-                if (data.apiVersion !== 1 || !alive) return;
-                token.current = data.token;
-                setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null });
+                if (!await bootstrap(abort.signal) || !alive) return;
                 if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
                 setError(''); void poll();
             } catch {
@@ -85,26 +101,26 @@ export function useHost() {
             }
         })();
         return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
-    }, [attempt, base, local]);
+    }, [attempt, base, local, bootstrap]);
     /** Connect a hosted Keybard page to a running Keybard Host (user-initiated). */
     const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
-            const r = await fetch(`${base}/api/host/command`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': token.current }, body: JSON.stringify(value) });
-            const data = await r.json(); if (!r.ok) throw new Error(data.error); setError('');
+            await post('/api/host/command', () => value); setError('');
         } catch (e) { setError(e instanceof Error ? e.message : 'Host command failed'); }
-    }, [base]);
+    }, [post]);
     const configure = useCallback(async (config: HostConfig) => {
         if (!current.current || busyRef.current) return false;
         busyRef.current = true; setBusy(true);
         try {
-            const r = await fetch(`${base}/api/host/config`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': token.current }, body: JSON.stringify({ config, revision: current.current.revision }) });
-            const data = await r.json(); if (!r.ok) throw new Error(data.error);
+            // The revision is read at send time: a retry after a host restart uses the new host's.
+            const data = await post('/api/host/config', () => ({ config, revision: current.current?.revision ?? 0 }));
+            if (!current.current) return false;
             current.current = { ...current.current, config, revision: data.revision };
             setState(current.current); setError(''); return true;
         } catch (e) { setError(e instanceof Error ? e.message : 'Could not save host settings'); return false; }
         finally { busyRef.current = false; setBusy(false); }
-    }, [base]);
+    }, [post]);
     return { state, error, command, configure, busy, connect, local, build };
 }
 
