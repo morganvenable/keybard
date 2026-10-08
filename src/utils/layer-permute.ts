@@ -268,3 +268,69 @@ export function describeLayerReorder(plan: LayerReorderPlan, name: (layer: numbe
     lines.push(parts.length ? `Updates ${parts.join(', ')} so they still reach the same layers.` : 'No keys refer to the moved layers.');
     return lines;
 }
+
+/** Every keycode in the layout, numbers and names alike. */
+function allKeycodes(kb: KeyboardInfo): number[] {
+    const codes: number[] = [];
+    const addName = (value: string) => {
+        if (!value || value === '-1') return;
+        const code = keyService.parse(value);
+        if (Number.isFinite(code)) codes.push(code);
+    };
+    kb.keymap?.forEach(layer => codes.push(...layer));
+    kb.combos?.forEach(combo => { combo.keys.forEach(addName); addName(combo.output); });
+    kb.tapdances?.forEach(td => [td.tap, td.hold, td.doubletap, td.taphold].forEach(addName));
+    kb.key_overrides?.forEach(ko => { addName(ko.trigger); addName(ko.replacement); });
+    kb.alt_repeat_keys?.forEach(ark => { addName(ark.keycode); addName(ark.alt_keycode); });
+    kb.leaders?.forEach(leader => { leader.sequence.forEach(addName); addName(leader.output); });
+    kb.macros?.forEach(macro => macro.actions.forEach(([type, value]) => { if (['tap', 'down', 'up'].includes(type) && typeof value === 'string') addName(value); }));
+    return codes;
+}
+
+/**
+ * The layer numbers `from` can be moved to without breaking anything: the last layer
+ * stays last, fixed layers keep their number, and LT/LM targets stay within reach.
+ * Checks only what blocks a move, so it's cheap enough to run while dragging.
+ */
+export function allowedLayerMoves(kb: KeyboardInfo, from: number, fixedLayers: number[] = []): Set<number> {
+    const count = kb.layers ?? kb.keymap?.length ?? 0;
+    const allowed = new Set<number>();
+    if (from < 0 || from >= count || from === pinnedLayer(kb)) return allowed;
+    // The highest number each layer can have, from the narrowest key that refers to it.
+    const reach = new Map<number, number>();
+    const fields = layerFields();
+    for (const code of allKeycodes(kb)) {
+        const field = fields.find(f => code >= f.first && code <= f.last);
+        if (!field) continue;
+        const layer = ((code - field.first) >> field.shift) & field.mask;
+        reach.set(layer, Math.min(reach.get(layer) ?? Infinity, field.mask));
+    }
+    for (let to = 0; to < count; to++) {
+        if (to === from) continue;
+        const newOf = invertLayerOrder(moveLayerOrder(count, from, to));
+        if (newOf[pinnedLayer(kb)] !== pinnedLayer(kb)) continue;
+        if (fixedLayers.some(layer => layer < count && newOf[layer] !== layer)) continue;
+        if ([...reach].some(([layer, max]) => layer < count && newOf[layer] > max)) continue;
+        allowed.add(to);
+    }
+    return allowed;
+}
+
+/**
+ * The layer number a dragged layer gets when dropped in a gap of the tab row.
+ * shown lists the tabs in display order (hidden layers left out, possibly reversed)
+ * without the dragged layer; gap k sits before shown[k], and gap shown.length after
+ * the last tab. The layer lands right after the lower-numbered neighbour (or right
+ * before the higher one at the low end), so hidden layers elsewhere stay put.
+ * Returns null where the drop changes nothing.
+ */
+export function layerGapTarget(from: number, shown: number[], gap: number): number | null {
+    const ascending = shown.length < 2 || shown[0] < shown[shown.length - 1];
+    const [left, right] = [shown[gap - 1], shown[gap]];
+    const [below, above] = ascending ? [left, right] : [right, left];
+    let to: number;
+    if (below !== undefined) to = below > from ? below : below + 1;
+    else if (above !== undefined) to = above > from ? above - 1 : above;
+    else return null;
+    return to === from ? null : to;
+}

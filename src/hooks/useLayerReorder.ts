@@ -8,11 +8,22 @@ import {
     planLayerReorder, withLayerColorValues, type LayerReorderPlan,
 } from '@/utils/layer-permute';
 
+/** What limits a move: the layers that must keep their number, and the board's default layer. */
+export interface LayerMoveConstraints {
+    fixed: number[];
+    /** The board's default layer, when it reports one. */
+    defaultLayer: number | null;
+    /** Whether the board can renumber its saved default layer. */
+    movable: boolean;
+}
+
 export interface LayerReorderReview {
+    from: number;
+    to: number;
     plan: LayerReorderPlan;
     lines: string[];
     defaultLayer: string;
-    /** The board's default layer, when the board can renumber it. */
+    /** The default layer to renumber on the board, when the board can. */
     movableDefault: number | null;
     base: KeyboardInfo;
 }
@@ -29,14 +40,13 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
     const [applying, setApplying] = useState(false);
     const current = useRef(keyboard);
     current.current = keyboard;
-    const request = useRef(0);
     const name = (kb: KeyboardInfo) => (layer: number) => svalService.getLayerName(kb, layer);
 
-    /**
-     * The board's default layer. It can move when the board reports it and can set it;
-     * otherwise it keeps its number, and without a report so does every layer that could be it.
-     */
-    const defaultLayerOf = async (kb: KeyboardInfo): Promise<{ fixed: number[]; known: number | null; movable: boolean }> => {
+    /** Without a report from the board, layer 0 and every layer a DF or PDF key selects could be the default. */
+    const guessConstraints = (kb: KeyboardInfo): LayerMoveConstraints => ({ fixed: defaultLayerCandidates(kb), defaultLayer: null, movable: false });
+
+    /** Asks the board for its default layer. The default can move only if the board can also set it. */
+    const loadConstraints = async (kb: KeyboardInfo): Promise<LayerMoveConstraints> => {
         if (isConnected) {
             try {
                 const { keyboardService } = await import('@/services/keyboard.service');
@@ -44,34 +54,31 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
                 if (mask !== null) {
                     const layer = keyboardService.getActiveLayerIndexFromMask(mask);
                     const movable = keyboardService.canSetDefaultLayer(kb);
-                    return { fixed: movable ? [] : [layer], known: layer, movable };
+                    return { fixed: movable ? [] : [layer], defaultLayer: layer, movable };
                 }
             } catch { /* Fall back to the layout's own hints. */ }
         }
-        return { fixed: defaultLayerCandidates(kb), known: null, movable: false };
+        return guessConstraints(kb);
     };
 
-    const prepare = async (from: number, to: number) => {
-        const id = ++request.current;
+    /** Opens the confirmation for moving layer from to number to. */
+    const prepare = (from: number, to: number, constraints: LayerMoveConstraints) => {
         setError(null);
-        setReview(null);
         if (!keyboard || from === to) return;
         if (Object.keys(todo).length || isSaving) {
             setError('Apply or discard your pending changes before moving a layer.');
             return;
         }
-        const found = await defaultLayerOf(keyboard);
-        if (id !== request.current) return;
         const order = moveLayerOrder(keyboard.layers ?? 16, from, to);
-        const plan = planLayerReorder(keyboard, order, { fixedLayers: found.fixed, layerName: name(keyboard) });
-        const d = found.known;
+        const plan = planLayerReorder(keyboard, order, { fixedLayers: constraints.fixed, layerName: name(keyboard) });
+        const d = constraints.defaultLayer;
         const moved = d === null ? d : invertLayerOrder(order)[d];
         const defaultLayer = d === null
-            ? `This keyboard doesn't report its default layer, so layer 0 and every layer a DF or PDF key selects (${found.fixed.join(', ')}) keep their numbers.`
+            ? `This keyboard doesn't report its default layer, so layer 0 and every layer a DF or PDF key selects (${constraints.fixed.join(', ')}) keep their numbers.`
             : moved !== d
                 ? `Default layer: ${name(keyboard)(d)} becomes layer ${moved} and stays the default, now and after a restart.`
                 : `Default layer: ${name(keyboard)(d)} (layer ${d}) stays the default.`;
-        setReview({ plan, lines: describeLayerReorder(plan, name(keyboard)), defaultLayer, movableDefault: found.movable ? d : null, base: keyboard });
+        setReview({ from, to, plan, lines: describeLayerReorder(plan, name(keyboard)), defaultLayer, movableDefault: constraints.movable ? d : null, base: keyboard });
     };
 
     const applyPlan = async (base: KeyboardInfo, plan: LayerReorderPlan, defaultLayer: number | null) => {
@@ -107,7 +114,7 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
     const apply = async (): Promise<boolean> => {
         if (!review || review.plan.errors.length) return false;
         if (review.base !== keyboard || Object.keys(todo).length || isSaving) {
-            setError('The layout changed. Close this and move the layer again.');
+            setError('The layout changed. Drag the layer again.');
             return false;
         }
         setApplying(true);
@@ -121,5 +128,10 @@ export function useLayerReorder(onMoved?: (newOf: number[]) => void) {
         } finally { setApplying(false); }
     };
 
-    return { prepare, apply, review, cancel: () => { request.current++; setReview(null); }, error, clearError: () => setError(null), applying };
+    return {
+        guessConstraints, loadConstraints, prepare, apply, review, applying, error,
+        cancel: () => { setReview(null); setError(null); },
+    };
 }
+
+export type LayerReorder = ReturnType<typeof useLayerReorder>;

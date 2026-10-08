@@ -6,7 +6,7 @@ import { importService } from '../../src/services/import.service';
 import { vi } from 'vitest';
 import type { KeyboardInfo } from '../../src/types/keyboard.types';
 import {
-    defaultLayerCandidates, describeLayerReorder, invertLayerOrder, moveLayerOrder, permuteLayerMask, permuteLayers,
+    allowedLayerMoves, defaultLayerCandidates, describeLayerReorder, invertLayerOrder, layerGapTarget, moveLayerOrder, permuteLayerMask, permuteLayers,
     planLayerReorder, withLayerColorValues,
 } from '../../src/utils/layer-permute';
 
@@ -198,5 +198,42 @@ describe('writing a reorder to the board', () => {
         expect(writes).not.toContain('combo:1');
         expect(writes.filter(key => key.startsWith('custom:'))).toEqual(['custom:id_layer3_color', 'custom:id_layer4_color']);
         expect(writes.length).toBeLessThan(100);
+    });
+});
+
+describe('dragging between tabs', () => {
+    it('puts the layer right after its lower neighbour, in either display direction', () => {
+        // Tabs 0 1 2 3 4 5, dragging 4.
+        const shown = [0, 1, 2, 3, 5];
+        expect(layerGapTarget(4, shown, 0)).toBe(0);    // before 0
+        expect(layerGapTarget(4, shown, 2)).toBe(2);    // between 1 and 2
+        expect(layerGapTarget(4, shown, 4)).toBeNull(); // between 3 and 5: where it already is
+        expect(layerGapTarget(4, shown, 5)).toBe(5);    // after 5
+        // Dragging 1 to between 3 and 5 lands right after 3.
+        expect(layerGapTarget(1, [0, 2, 3, 5], 3)).toBe(3);
+        // Reversed row: 5 3 2 1 0. The gap between 2 and 1 is still "after 1".
+        expect(layerGapTarget(4, [5, 3, 2, 1, 0], 3)).toBe(2);
+        expect(layerGapTarget(4, [5, 3, 2, 1, 0], 0)).toBe(5);
+    });
+
+    it('skips hidden layers: the layer lands next to the tab it was dropped by', () => {
+        // Layers 3–13 are blank and hidden; dragging 2 to between 14 and 15.
+        expect(layerGapTarget(2, [0, 1, 14, 15], 3)).toBe(14);
+        // Dragging 14 to between 1 and 2 when 2 is the next shown tab.
+        expect(layerGapTarget(14, [0, 1, 2, 15], 2)).toBe(2);
+    });
+
+    it('offers only moves that keep the last layer, the fixed layers and LT reach', () => {
+        const kb = board(6);
+        expect([...allowedLayerMoves(kb, 2)].sort()).toEqual([0, 1, 3, 4]);
+        expect(allowedLayerMoves(kb, 5).size).toBe(0);
+        expect([...allowedLayerMoves(kb, 2, [0])].sort()).toEqual([1, 3, 4]);
+        // Moving 1 to 3 shifts 2 and 3 down; fixing 3 rules out every move past it.
+        expect([...allowedLayerMoves(kb, 1, [3])].sort()).toEqual([0, 2]);
+        const wide = board(32);
+        wide.combos = [{ cmbid: 0, keys: ['KC_A', 'KC_B'], output: 'LT3(KC_A)', options: 0 }];
+        const moves = allowedLayerMoves(wide, 3);
+        expect(moves.has(15)).toBe(true);
+        expect(moves.has(16)).toBe(false);
     });
 });

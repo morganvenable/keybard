@@ -1,5 +1,5 @@
 import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
-import { FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { FC, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Keyboard } from "@/components/Keyboard";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
@@ -15,8 +15,9 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { svalService } from "@/services/sval.service";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
-import { LayerReorderDialog, type LayerMoveRequest } from "@/components/LayerReorderDialog";
-import { pinnedLayer } from "@/utils/layer-permute";
+import { LayerReorderDialog } from "@/components/LayerReorderDialog";
+import { useLayerReorder, type LayerMoveConstraints } from "@/hooks/useLayerReorder";
+import { allowedLayerMoves, layerGapTarget, pinnedLayer } from "@/utils/layer-permute";
 import { LEGACY_FORWARD_ENTRY_MS, type LayerScenePose } from "./layer-scene";
 import {
     ContextMenu,
@@ -65,6 +66,21 @@ interface KeyboardViewInstanceProps {
  * Multiple instances can be stacked vertically, each showing a different layer independently.
  */
 const LAYER_TAB_DRAG_TYPE = "application/x-keybard-layer";
+
+/** A layer tab being dragged to a new position in the row. */
+interface TabDrag {
+    from: number;
+    /** The other tabs, in display order. Gap k sits before shown[k]. */
+    shown: number[];
+    /** For each gap, the layer number a drop there gives, or null where a drop isn't allowed. */
+    targets: (number | null)[];
+    constraints: LayerMoveConstraints;
+    /** Centres of the shown tabs once the dragged tab has left the row, to place the pointer between them. */
+    centers: number[];
+    width: number;
+    collapsed: boolean;
+    gap: number | null;
+}
 
 const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     instanceId,
@@ -277,8 +293,17 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const KC_TRNS = 1;
     const isTransparencyActive = !!transparencyByLayer[selectedLayer];
     const tabRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
-    const [moveRequest, setMoveRequest] = useState<LayerMoveRequest | null>(null);
-    const [tabDrag, setTabDrag] = useState<{ from: number; over: number | null } | null>(null);
+    const reorder = useLayerReorder((newOf) => setSelectedLayer(newOf[selectedLayer] ?? selectedLayer));
+    const [tabDrag, setTabDrag] = useState<TabDrag | null>(null);
+    // Measure the remaining tabs once the dragged one has collapsed out of the row.
+    useLayoutEffect(() => {
+        if (!tabDrag?.collapsed || tabDrag.centers.length) return;
+        const centers = tabDrag.shown.map((layer) => {
+            const rect = tabRefs.current.get(layer)?.getBoundingClientRect();
+            return rect ? rect.left + rect.width / 2 : 0;
+        });
+        setTabDrag((drag) => drag && drag.from === tabDrag.from ? { ...drag, centers } : drag);
+    }, [tabDrag]);
     const prevTabRectsRef = useRef<Map<number, DOMRect>>(new Map());
     const prevDisplayOrderRef = useRef<number[] | null>(null);
     const prevVisibleIdsRef = useRef<Set<number>>(new Set());
@@ -339,6 +364,52 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         return true;
     };
 
+    /** Gaps a drop is allowed in, worked out for the layer being dragged. */
+    const gapTargets = (from: number, shown: number[], constraints: LayerMoveConstraints) => {
+        const allowed = allowedLayerMoves(keyboard, from, constraints.fixed);
+        return Array.from({ length: shown.length + 1 }, (_, gap) => {
+            const to = layerGapTarget(from, shown, gap);
+            return to !== null && allowed.has(to) ? to : null;
+        });
+    };
+
+    const startTabDrag = (from: number, e: React.DragEvent<HTMLButtonElement>) => {
+        e.dataTransfer.setData(LAYER_TAB_DRAG_TYPE, String(from));
+        e.dataTransfer.effectAllowed = "move";
+        const shown = displayOrder.filter((layer) => layer !== from);
+        const constraints = reorder.guessConstraints(keyboard);
+        setTabDrag({
+            from, shown, constraints, targets: gapTargets(from, shown, constraints),
+            centers: [], width: e.currentTarget.getBoundingClientRect().width, collapsed: false, gap: null,
+        });
+        // Collapse the tab only after the browser has taken its drag image.
+        requestAnimationFrame(() => setTabDrag((drag) => drag && drag.from === from ? { ...drag, collapsed: true } : drag));
+        // The board knows its default layer; until it answers, every layer that could be the default stays put.
+        void reorder.loadConstraints(keyboard).then((loaded) =>
+            setTabDrag((drag) => drag && drag.from === from ? { ...drag, constraints: loaded, targets: gapTargets(from, shown, loaded) } : drag));
+    };
+
+    const dragOverTabs = (e: React.DragEvent<HTMLDivElement>) => {
+        if (!tabDrag || !tabDrag.centers.length) return;
+        const gap = tabDrag.centers.filter((center) => e.clientX > center).length;
+        const allowed = tabDrag.targets[gap] !== null;
+        if (allowed) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+        }
+        const next = allowed ? gap : null;
+        if (next !== tabDrag.gap) setTabDrag({ ...tabDrag, gap: next });
+    };
+
+    const dropOnTabs = (e: React.DragEvent<HTMLDivElement>) => {
+        if (!tabDrag) return;
+        e.preventDefault();
+        const to = tabDrag.gap === null ? null : tabDrag.targets[tabDrag.gap];
+        const { from, constraints } = tabDrag;
+        setTabDrag(null);
+        if (to !== null) reorder.prepare(from, to, constraints);
+    };
+
     const renderLayerTab = (i: number) => {
         if (!shouldRenderLayerTab(i)) return null;
 
@@ -346,7 +417,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         const isActive = selectedLayer === i;
         const isDropTarget = isLayerDragActive && hoveredDropLayer === i;
         const canMove = i !== pinnedLayer(keyboard);
-        const isMoveTarget = !!tabDrag && tabDrag.over === i && tabDrag.from !== i;
+        const isDragged = tabDrag?.from === i;
         const isLayerActive = typeof activeLayerIndex === "number"
             ? activeLayerIndex === i
             : !!layerActiveState?.[i];
@@ -367,28 +438,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             e.stopPropagation();
                             onToggleLayerOn(i);
                         }}
-                        // Drag a tab onto another to give the layer that number.
+                        // Drag a tab to a gap between two others to move the layer there.
                         draggable={canMove && !isLayerDragActive}
-                        onDragStart={(e) => {
-                            e.dataTransfer.setData(LAYER_TAB_DRAG_TYPE, String(i));
-                            e.dataTransfer.effectAllowed = "move";
-                            setTabDrag({ from: i, over: null });
-                        }}
+                        onDragStart={(e) => startTabDrag(i, e)}
                         onDragEnd={() => setTabDrag(null)}
-                        onDragOver={(e) => {
-                            if (!tabDrag || !canMove) return;
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = "move";
-                            if (tabDrag.over !== i) setTabDrag({ ...tabDrag, over: i });
-                        }}
-                        onDragLeave={() => { if (tabDrag?.over === i) setTabDrag({ ...tabDrag, over: null }); }}
-                        onDrop={(e) => {
-                            if (!tabDrag || !canMove) return;
-                            e.preventDefault();
-                            const from = tabDrag.from;
-                            setTabDrag(null);
-                            if (from !== i) setMoveRequest({ from, to: i });
-                        }}
                         onMouseEnter={() => {
                             if (!isLayerDragActive) return;
                             onLayerDropHover?.(i);
@@ -409,7 +462,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                     ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105"
                                     : "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700",
                             isDropTarget && "hover:bg-red-500",
-                            isMoveTarget && "ring-2 ring-offset-1 ring-offset-background ring-sky-500",
+                            isDragged && tabDrag?.collapsed && "w-0 -ml-1 px-0 opacity-0 overflow-hidden",
                             isHudMode && !isActive && !isLayerActive && "text-gray-300 dark:text-neutral-400"
                         )}
                     >
@@ -424,9 +477,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => { void paste(i); }}>
                         Paste Layer
-                    </ContextMenuItem>
-                    <ContextMenuItem disabled={!canMove} onSelect={() => setMoveRequest({ from: i, to: i })}>
-                        {canMove ? "Move Layer…" : "Move Layer… (auto-mouse layer stays last)"}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
@@ -584,11 +634,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             }}
         >
             {clipboardError && <p role="alert" className="pointer-events-auto text-sm text-red-700 dark:text-red-400">{clipboardError}</p>}
-            <LayerReorderDialog
-                request={moveRequest}
-                onClose={() => setMoveRequest(null)}
-                onMoved={(newOf) => setSelectedLayer(newOf[selectedLayer] ?? selectedLayer)}
-            />
+            <LayerReorderDialog reorder={reorder} />
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             {!hideLayerTabs && !isOverviewSceneActive && !show3DScene && (
                 <div
@@ -619,8 +665,24 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
                     </div>
 
-                    <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
-                        {displayOrder.map((i) => renderLayerTab(i))}
+                    <div
+                        className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}
+                        onDragOver={dragOverTabs}
+                        onDragLeave={(e) => {
+                            if (tabDrag && !e.currentTarget.contains(e.relatedTarget as Node | null)) setTabDrag({ ...tabDrag, gap: null });
+                        }}
+                        onDrop={dropOnTabs}
+                    >
+                        {displayOrder.map((i) => {
+                            const gap = tabDrag ? tabDrag.shown.indexOf(i) : -1;
+                            return (
+                                <Fragment key={`${instanceId}-layer-slot-${i}`}>
+                                    {gap >= 0 && <LayerTabGap open={tabDrag!.gap === gap} width={tabDrag!.width} />}
+                                    {renderLayerTab(i)}
+                                </Fragment>
+                            );
+                        })}
+                        {tabDrag && <LayerTabGap open={tabDrag.gap === tabDrag.shown.length} width={tabDrag.width} />}
                     </div>
 
                     <Tooltip delayDuration={500}>
@@ -796,3 +858,16 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 };
 
 export default KeyboardViewInstance;
+
+/** The space that opens between two layer tabs where a dragged layer will land. */
+function LayerTabGap({ open, width }: { open: boolean; width: number }) {
+    return (
+        <span
+            aria-hidden
+            className="-ml-1 flex h-7 items-center justify-center transition-[width] duration-150 ease-out"
+            style={{ width: open ? width : 0 }}
+        >
+            {open && <span className="h-6 w-1 rounded-full bg-primary" />}
+        </span>
+    );
+}

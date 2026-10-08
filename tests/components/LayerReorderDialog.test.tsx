@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KEYMAP } from '../../src/constants/keygen';
 import { LayerReorderDialog } from '../../src/components/LayerReorderDialog';
+import { useLayerReorder, type LayerMoveConstraints, type LayerReorder } from '../../src/hooks/useLayerReorder';
 
 const MO = (layer: number) => KEYMAP[`MO(${layer})`].code;
 
@@ -34,7 +35,18 @@ const board = () => ({
     cosmetic: { layer: { '0': 'Base', '1': 'Nav', '2': 'Sym', '3': 'Mouse' } },
 });
 
-describe('LayerReorderDialog', () => {
+/** Stands in for the tab row: a drop asks for the board's constraints, then prepares the move. */
+let hook: LayerReorder;
+function Harness({ onMoved = vi.fn() }: { onMoved?: (newOf: number[]) => void }) {
+    hook = useLayerReorder(onMoved);
+    return <LayerReorderDialog reorder={hook} />;
+}
+async function drop(from: number, to: number, constraints?: LayerMoveConstraints) {
+    const loaded = constraints ?? await hook.loadConstraints(mocks.keyboard);
+    act(() => hook.prepare(from, to, loaded));
+}
+
+describe('layer reorder confirmation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.keyboard = board();
@@ -47,15 +59,17 @@ describe('LayerReorderDialog', () => {
 
     it('summarises the move, writes it, keeps active layers on and registers undo', async () => {
         const onMoved = vi.fn();
-        const onClose = vi.fn();
-        render(<LayerReorderDialog request={{ from: 1, to: 2 }} onClose={onClose} onMoved={onMoved} />);
-        expect(await screen.findByText('Nav: layer 1 → 2')).toBeTruthy();
+        render(<Harness onMoved={onMoved} />);
+        await drop(1, 2);
+        expect(await screen.findByText('Move Nav to layer 2')).toBeTruthy();
+        expect(screen.getByText('Nav: layer 1 → 2')).toBeTruthy();
         expect(screen.getByText('Sym: layer 2 → 1')).toBeTruthy();
         expect(screen.getByText(/Updates 2 layer keys/)).toBeTruthy();
         expect(screen.getByText(/Base \(layer 0\) stays the default/)).toBeTruthy();
+        expect(screen.queryByRole('combobox')).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: 'Move layer' }));
-        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
         const next = mocks.setKeyboard.mock.calls[0][0];
         expect(next.keymap).toEqual([[MO(2), MO(1)], [6, 7], [4, 5], [8, 9]]);
@@ -68,28 +82,26 @@ describe('LayerReorderDialog', () => {
         expect(layerState[2]).toMatchObject({ writeKey: 'layer-state', deferCommit: true });
         await layerState[1]();
         expect(mocks.keyboardService.setLayerStateMask).toHaveBeenCalledWith(0b0101);
-
         expect(mocks.registerUndo).toHaveBeenCalledWith('layer move', expect.any(Function));
     });
 
-    it('blocks moving the default layer, and the last layer is not offered', async () => {
-        render(<LayerReorderDialog request={{ from: 0, to: 1 }} onClose={vi.fn()} onMoved={vi.fn()} />);
-        expect(await screen.findByText(/Base is the default layer and has to keep its number/)).toBeTruthy();
-        expect((screen.getByRole('button', { name: 'Move layer' }) as HTMLButtonElement).disabled).toBe(true);
+    it('keeps the default layer fixed on firmware that cannot set it', async () => {
+        render(<Harness />);
+        expect(await hook.loadConstraints(mocks.keyboard)).toEqual({ fixed: [0], defaultLayer: 0, movable: false });
     });
 
-    it('moves the default layer when the board can set it', async () => {
+    it('moves the default layer when the board can set it, and undo moves it back', async () => {
         mocks.keyboard.feature_flags2 = 1;
-        const onClose = vi.fn();
-        render(<LayerReorderDialog request={{ from: 0, to: 2 }} onClose={onClose} onMoved={vi.fn()} />);
+        render(<Harness />);
+        expect(await hook.loadConstraints(mocks.keyboard)).toEqual({ fixed: [], defaultLayer: 0, movable: true });
+        await drop(0, 2);
         expect(await screen.findByText(/Base becomes layer 2 and stays the default/)).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Move layer' }));
-        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        await waitFor(() => expect(mocks.registerUndo).toHaveBeenCalled());
         const write = mocks.queue.mock.calls.find(([, , metadata]) => metadata?.writeKey === 'default-layer');
         await write[1]();
         expect(mocks.keyboardService.setDefaultLayer).toHaveBeenCalledWith(2);
 
-        // Undo puts it back on layer 0.
         mocks.queue.mockClear();
         mocks.keyboard = mocks.setKeyboard.mock.calls[0][0];
         await mocks.registerUndo.mock.calls[0][1]();
@@ -98,28 +110,30 @@ describe('LayerReorderDialog', () => {
         expect(mocks.keyboardService.setDefaultLayer).toHaveBeenLastCalledWith(0);
     });
 
-    it('protects layer 0 and DF targets when the board does not report its default layer', async () => {
+    it('treats layer 0 and DF targets as the default when the board does not report it', async () => {
         mocks.keyboard.feature_flags = 0;
         mocks.keyboard.keymap[1][0] = KEYMAP['DF(2)'].code;
         mocks.keyboardService.getLayerStateMasks.mockResolvedValue({ active: 1, default: null });
-        render(<LayerReorderDialog request={{ from: 1, to: 2 }} onClose={vi.fn()} onMoved={vi.fn()} />);
-        expect(await screen.findByText(/doesn't report its default layer.*\(0, 2\)/)).toBeTruthy();
-        expect(screen.getByText(/Sym is the default layer/)).toBeTruthy();
+        render(<Harness />);
+        const constraints = await hook.loadConstraints(mocks.keyboard);
+        expect(constraints).toEqual({ fixed: [0, 2], defaultLayer: null, movable: false });
+        expect(hook.guessConstraints(mocks.keyboard)).toEqual(constraints);
     });
 
     it('asks for pending changes to be applied first', async () => {
         mocks.todo = { a: {} };
-        render(<LayerReorderDialog request={{ from: 1, to: 2 }} onClose={vi.fn()} onMoved={vi.fn()} />);
+        render(<Harness />);
+        await drop(1, 2);
         expect(await screen.findByText(/Apply or discard your pending changes/)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Move layer' })).toBeNull();
     });
 
     it('changes only the offline layout when no keyboard is connected', async () => {
         mocks.connected = false;
-        const onClose = vi.fn();
-        render(<LayerReorderDialog request={{ from: 1, to: 2 }} onClose={onClose} onMoved={vi.fn()} />);
+        render(<Harness />);
+        await drop(1, 2);
         fireEvent.click(await screen.findByRole('button', { name: 'Move layer' }));
-        await waitFor(() => expect(onClose).toHaveBeenCalled());
-        expect(mocks.setKeyboard).toHaveBeenCalled();
+        await waitFor(() => expect(mocks.setKeyboard).toHaveBeenCalled());
         expect(mocks.sync).not.toHaveBeenCalled();
         expect(mocks.queue).not.toHaveBeenCalled();
     });
