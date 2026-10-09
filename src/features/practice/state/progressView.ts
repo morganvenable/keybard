@@ -110,12 +110,23 @@ export function periodView(
     pathOf: (codePoint: number) => Path | null,
     period: ProgressPeriod,
     now = Date.now(),
+    {
+        tracked = lesson.letters,
+        always,
+    }: {
+        /** Every character with stats (the session's tracked letters, M3). */
+        tracked?: readonly Letter[];
+        /** Characters listed even without samples (the language letters); the others only once practiced. */
+        always?: ReadonlySet<number>;
+    } = {},
 ): PeriodView {
     const from = periodStart(period, now);
     const inPeriod = records.filter((r) => r.ts >= from);
     const results = inPeriod.map((r) => new PracticeResult(r));
-    const keyStatsMap = makeKeyStatsMap(lesson.letters, lesson.filter(results));
-    const characters = lesson.letters.map((letter: Letter) => characterStats(keyStatsMap.get(letter), target, pathOf(letter.codePoint)));
+    const keyStatsMap = makeKeyStatsMap(tracked, lesson.filter(results));
+    const characters = tracked
+        .map((letter: Letter) => characterStats(keyStatsMap.get(letter), target, pathOf(letter.codePoint)))
+        .filter((c) => !always || always.has(c.codePoint) || c.samples > 0);
     const time = results.reduce((sum, r) => sum + r.time, 0);
     return {
         records: inPeriod,

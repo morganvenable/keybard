@@ -12,20 +12,25 @@ import type { PracticeContent } from '../content/loader';
 import { keymapFingerprint } from '../keymap/fingerprint';
 import { type KeymapResolution, type KeymapSource, resolveKeymap } from '../keymap/resolver';
 import { type SvalKeyboard, svalKeyboard } from '../keymap/svalKeyboard';
+import { PracticeCustomLesson } from '../lessons/custom';
+import { PracticeDrillLesson } from '../lessons/drill';
 import { PracticeGuidedLesson } from '../lessons/guided';
+import { MIN_DRILL_SCOPE } from '../lessons/scope';
+import { PracticeWordsLesson } from '../lessons/words';
 import type { PracticeStore, StoredResult } from '../store/db';
 import { pruneEvents, saveEvents } from '../store/events';
 import { RECORD_SCHEMA } from '../store/migrations';
 import { activeProfile } from '../store/profiles';
 import { buildResultRecord, isValidResult, PracticeResult, resultRecordFromJson } from '../store/results';
-import type { InputSource, LessonType, ProfileRecord, ResultRecord } from '../types';
+import type { DrillScope, InputSource, ProfileRecord, ResultRecord } from '../types';
 import { Lesson, type LessonKey, type LessonKeys, Target } from '../vendor/keybr/lesson/index.ts';
+import type { Letter } from '../vendor/keybr/phonetic-model/index.ts';
 import { type RNGStream } from '../vendor/keybr/rand/index.ts';
 import type { KeyStatsMap } from '../vendor/keybr/result/index.ts';
 import type { StyledText } from '../vendor/keybr/textinput/index.ts';
 import { LessonRun } from './lessonRun';
-import { Progress, SEED_CHUNK, snapshotIsUsable } from './progress';
-import { effectiveLessonType, type PracticeSettings, toKeybrSettings } from './settings';
+import { Progress, SEED_CHUNK, snapshotIsUsable, trackedLetters } from './progress';
+import { DRILL_DIRECTIONS, effectiveLessonType, type PracticeSettings, toKeybrSettings } from './settings';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 
 /** The keymap a session practices (§5.4 sources) and how Keybard reads it. */
@@ -107,12 +112,40 @@ export async function resolvePracticeKeymap(keymap: PracticeKeymap): Promise<{ r
     return { resolution, fingerprint: await keymapFingerprint(resolution) };
 }
 
-function lessonFor(type: LessonType, settings: PracticeSettings, keyboard: SvalKeyboard, content: PracticeContent): Lesson {
-    switch (effectiveLessonType(type)) {
+/** The keybr lesson for the settings' type (§5.2): Guided, Drill, Words or Custom. */
+export function lessonFor(settings: PracticeSettings, keyboard: SvalKeyboard, content: PracticeContent): Lesson {
+    const keybr = toKeybrSettings(settings);
+    switch (effectiveLessonType(settings.type)) {
+        case 'drill':
+            return new PracticeDrillLesson(keybr, keyboard, content.model, content.words, settings.drill);
+        case 'words':
+            return new PracticeWordsLesson(keybr, keyboard, content.model, content.words);
+        case 'custom':
+            return new PracticeCustomLesson(keybr, keyboard, content.model);
         default:
-            // TODO(practice): M3 adds Drill, Words and Custom lessons.
-            return new PracticeGuidedLesson(toKeybrSettings(settings), keyboard, content.model, content.words);
+            return new PracticeGuidedLesson(keybr, keyboard, content.model, content.words);
     }
+}
+
+/** The result's text type (§8.3 `m`): Guided and Drill are generated, Drill · Numbers with Benford numbers, Words and Custom natural. */
+export function textTypeOf(lesson: Lesson): ResultRecord['m'] {
+    if (lesson instanceof PracticeDrillLesson) return lesson.textType;
+    if (lesson instanceof PracticeWordsLesson || lesson instanceof PracticeCustomLesson) return 'natural';
+    return 'generated';
+}
+
+/** The result's `x.scope` (§8.3): the Drill scope, or the defaults for other types. */
+export function scopeRecord(settings: PracticeSettings): Partial<DrillScope> {
+    if (effectiveLessonType(settings.type) !== 'drill') return {};
+    const d = settings.drill;
+    if (d.keys) return { group: 'keys', thumbs: true };
+    return {
+        layer: d.layer,
+        group: d.group,
+        dirs: DRILL_DIRECTIONS.every((x) => d.dirs.includes(x)) ? null : [...d.dirs],
+        hands: d.hands === 'both' ? null : [d.hands],
+        thumbs: d.thumbs,
+    };
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -132,6 +165,8 @@ export class PracticeSession {
     readonly keyboard: SvalKeyboard;
     readonly lesson: Lesson;
     readonly progress: Progress;
+    /** Every character progress keeps stats for (M3): the lesson's letters first. */
+    readonly trackedLetters: readonly Letter[];
     /** Valid results of the profile as PracticeResults, oldest first, parallel to `data.records`. */
     readonly results: PracticeResult[];
     #lessonKeys: LessonKeys;
@@ -152,10 +187,12 @@ export class PracticeSession {
         { deferSeed = false }: { deferSeed?: boolean } = {},
     ) {
         this.keyboard = svalKeyboard(keymap.board, resolution);
-        this.lesson = lessonFor(settings.type, settings, this.keyboard, content);
-        this.progress = new Progress(toKeybrSettings(settings), this.lesson);
+        this.lesson = lessonFor(settings, this.keyboard, content);
+        this.trackedLetters = trackedLetters(this.lesson, resolution.codePoints);
+        this.progress = new Progress(toKeybrSettings(settings), this.lesson, this.trackedLetters);
         this.results = data.records.map((r) => new PracticeResult(r));
-        if (snapshotIsUsable(snapshot, { resultCount: this.results.length, keymapFingerprint: fingerprint })) {
+        const codePoints = this.trackedLetters.map((l) => l.codePoint);
+        if (snapshotIsUsable(snapshot, { resultCount: this.results.length, keymapFingerprint: fingerprint, codePoints })) {
             this.progress.restore(snapshot, this.results);
             this.#seeded = true;
         } else if (!deferSeed || this.results.length <= SEED_CHUNK) {
@@ -224,7 +261,37 @@ export class PracticeSession {
 
     /** Fewer than 6 language letters can be typed on this keymap (§5.3 No letters). */
     get noLetters(): boolean {
-        return this.lesson.letters.length < 6;
+        return this.languageLetters.length < 6;
+    }
+
+    /** The language model's letters that have a path (Guided's alphabet), whatever the lesson type. */
+    get languageLetters(): readonly Letter[] {
+        return this.lesson.model.letters;
+    }
+
+    get type() {
+        return effectiveLessonType(this.settings.type);
+    }
+
+    /** Drill: the scope has fewer than 3 characters (§5.3 Nothing to drill). */
+    get nothingToDrill(): boolean {
+        return this.type === 'drill' && this.#lessonKeys.findIncludedKeys().length < MIN_DRILL_SCOPE;
+    }
+
+    /** Custom: no character of the text can be typed on this keymap. */
+    get emptyCustom(): boolean {
+        return this.lesson instanceof PracticeCustomLesson && this.lesson.empty;
+    }
+
+    /** No lesson can run: the wells of §5.3 show instead. */
+    get noLesson(): boolean {
+        return this.noLetters || this.nothingToDrill || this.emptyCustom;
+    }
+
+    /** Lesson keys a preset's settings would give now (P2's board preview, §5.4), without changing the session. */
+    preview(patch: Partial<PracticeSettings>): LessonKeys {
+        const lesson = lessonFor({ ...this.settings, ...patch }, this.keyboard, this.content);
+        return lesson.update(this.progress.keyStatsMap);
     }
 
     generate(rng: RNGStream = Lesson.rng): StyledText {
@@ -281,7 +348,8 @@ export class PracticeSession {
         const record = buildResultRecord({
             profileId: this.data.profile.id,
             type: effectiveLessonType(this.settings.type),
-            textType: 'generated',
+            textType: textTypeOf(this.lesson),
+            scope: scopeRecord(this.settings),
             ts: meta.ts,
             steps: run.practiceSteps(),
             paused: run.pausedIntervals(),
@@ -326,8 +394,11 @@ export class PracticeSession {
         }
 
         const events: LessonEvent[] = [];
-        for (const key of this.#lessonKeys.findIncludedKeys()) {
-            if (!before.has(key.letter.codePoint)) events.push({ type: 'new-key', key });
+        // Only Guided unlocks keys; a Drill's Weakest scope changing is not a new key.
+        if (this.type === 'guided') {
+            for (const key of this.#lessonKeys.findIncludedKeys()) {
+                if (!before.has(key.letter.codePoint)) events.push({ type: 'new-key', key });
+            }
         }
         // keybr announces a top speed from the fourth result on (event-source-top-speed.ts).
         if (this.results.length > 3 && result.speed > topSpeed) events.push({ type: 'top-speed', speed: result.speed });

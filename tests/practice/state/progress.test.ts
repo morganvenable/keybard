@@ -10,6 +10,7 @@ import {
     practiceSettings,
     saveSettings,
     SETTINGS_KEY,
+    DEFAULT_DRILL,
     START_PRESETS,
     toKeybrSettings,
 } from '@/features/practice/state/settings';
@@ -134,7 +135,7 @@ describe('Practice settings (§8.1)', () => {
         // M1b: the presets also set the lesson type and the board hints (§5.4).
         expect(START_PRESETS.learn).toEqual({ type: 'guided', order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, hints: 'next-cluster', dailyGoal: 15 });
         expect(START_PRESETS.qwerty).toEqual({ type: 'guided', targetSpeed: 175, alphabetSize: 1, hints: 'next', dailyGoal: 15 });
-        // Drill → Weakest runs as Guided over every letter, following current confidence, until M3.
-        expect(START_PRESETS.drill).toEqual({ type: 'drill', targetSpeed: 225, hints: 'off', dailyGoal: 10, alphabetSize: 1, recoverKeys: true });
+        // M3 runs Drill → Weakest, so the preset no longer forces every letter into a Guided lesson.
+        expect(START_PRESETS.drill).toEqual({ type: 'drill', drill: { ...DEFAULT_DRILL, group: 'weakest' }, targetSpeed: 225, hints: 'off', dailyGoal: 10 });
     });
 });

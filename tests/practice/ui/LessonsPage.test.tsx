@@ -253,15 +253,15 @@ describe('Key strip (§5.2)', () => {
 });
 
 describe('Type row (§5.2)', () => {
-    it('offers Guided until M3; the scope button opens the Lesson panel; Enter moves focus to the surface', async () => {
+    it('offers Guided, Drill, Words and Custom (M3); the scope button opens the Lesson panel; Enter moves focus to the surface', async () => {
         await startController();
         renderPage();
         const group = screen.getByRole('radiogroup', { name: 'Lesson type' });
-        expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Guided']);
+        expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Guided', 'Drill', 'Words', 'Custom']);
         fireEvent.click(screen.getByRole('button', { name: /Center first/ }));
         expect(screen.getByTestId('active').textContent).toBe('practice');
         expect(practice.controller!.panelSection).toBe('guided');
-        act(() => { fireEvent.keyDown(within(group).getByRole('radio'), { key: 'Enter' }); });
+        act(() => { fireEvent.keyDown(within(group).getByRole('radio', { checked: true }), { key: 'Enter' }); });
         expect(document.activeElement).toBe(textarea());
     });
 });
@@ -361,7 +361,7 @@ describe('Review fixes (M1b review R2, R3, R10, R13)', () => {
         act(() => { notPrevented = fireEvent.keyDown(scope, { key: 'Enter' }); });
         expect(notPrevented).toBe(true);
         expect(document.activeElement).toBe(scope);
-        const radio = within(screen.getByRole('radiogroup', { name: 'Lesson type' })).getByRole('radio');
+        const radio = within(screen.getByRole('radiogroup', { name: 'Lesson type' })).getByRole('radio', { checked: true });
         act(() => { notPrevented = fireEvent.keyDown(radio, { key: 'Enter' }); });
         expect(notPrevented).toBe(false);
         expect(document.activeElement).toBe(textarea());

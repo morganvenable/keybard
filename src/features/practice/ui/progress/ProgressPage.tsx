@@ -43,7 +43,11 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
 
     const view = useMemo(() => {
         if (!session) return null;
-        return periodView(session.lesson, session.records, session.target, (c) => session.resolution.primary(c), period);
+        // Every character the keymap types: the language letters always, the others once practiced (M3).
+        return periodView(session.lesson, session.records, session.target, (c) => session.resolution.primary(c), period, Date.now(), {
+            tracked: session.trackedLetters,
+            always: new Set(session.languageLetters.map((l) => l.codePoint)),
+        });
         // A new lesson appends to the same records array, so its length is part of the key.
     }, [session, period, count]);
 

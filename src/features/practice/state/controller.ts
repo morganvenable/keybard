@@ -31,7 +31,8 @@ import type { ProfileRecord, SnapshotRecord } from '../types';
 import { type IInputEvent, type IKeyboardEvent } from '../vendor/keybr/textinput-events/index.ts';
 import type { LessonRun } from './lessonRun';
 import { type Completion, type LessonEvent, loadProfileData, PracticeSession, type PracticeKeymap, type ProfileData, resolvePracticeKeymap } from './session';
-import { LESSON_SHAPING, type PracticeSettings, START_PRESETS, type StartPreset } from './settings';
+import { clusterScope } from '../lessons/scope';
+import { type DrillSettings, LESSON_SHAPING, type PracticeSettings, START_PRESETS, type StartPreset } from './settings';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 
 export type KeymapSourceKind = 'connected' | 'file' | 'example';
@@ -469,7 +470,7 @@ export class PracticeController {
         const session = this.session;
         this.#clearIdle();
         this.#pausedSince = null;
-        if (!session || session.noLetters || session.firstRun) {
+        if (!session || session.noLesson || session.firstRun) {
             this.run = null;
             this.live?.bindRun(null);
             this.#emit();
@@ -484,6 +485,23 @@ export class PracticeController {
     /** Discards the current lesson and starts a new one (Restart lesson, the type control). */
     regenerate() {
         this.#newRun();
+    }
+
+    /**
+     * Drill this key (P5, §5.7): Drill with the character and its cluster neighbors in
+     * scope and the character focused. The caller shows the Lessons page.
+     */
+    drillKey(codePoint: number) {
+        const session = this.session;
+        if (!session) return;
+        const letterFrequency = new Map(session.languageLetters.map((l) => [l.codePoint, l.f]));
+        const keys = clusterScope(session.resolution, codePoint, session.keymap.board.cols, letterFrequency);
+        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: codePoint } });
+    }
+
+    /** Changes the Drill scope from the Lesson panel; Drill this key's explicit set ends (§5.5). */
+    updateDrill(patch: Partial<Omit<DrillSettings, 'keys' | 'focus'>>, options?: { debounce?: boolean }) {
+        this.update({ drill: { ...this.settings.drill, ...patch, keys: null, focus: null } }, options);
     }
 
     // ---- settings

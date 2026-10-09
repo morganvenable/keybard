@@ -234,7 +234,8 @@ describe('Practice settings for M1b (§5.5, §8.1)', () => {
     it('validates the display fields and the lesson type', () => {
         const s = practiceSettings({ type: 'drill', hints: 'loud', speedUnit: 'cpm', period: '7', showBoard: false });
         expect(s).toMatchObject({ type: 'drill', hints: 'next-cluster', speedUnit: 'cpm', period: '7', showBoard: false });
-        expect(effectiveLessonType('drill')).toBe('guided');
+        // M3: Drill runs as Drill (it ran as Guided until then).
+        expect(effectiveLessonType('drill')).toBe('drill');
         expect(START_PRESETS.learn).toMatchObject({ type: 'guided', hints: 'next-cluster' });
         expect(START_PRESETS.qwerty).toMatchObject({ type: 'guided', hints: 'next' });
         expect(START_PRESETS.drill).toMatchObject({ type: 'drill', hints: 'off' });
