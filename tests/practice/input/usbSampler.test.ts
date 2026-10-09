@@ -133,6 +133,26 @@ describe('UsbSampler', () => {
         expect(health).toHaveBeenLastCalledWith(false);
     });
 
+    it('starts a fresh history after an outage: no edges span it, and the masks are read at once', async () => {
+        const board = new FakeBoard();
+        const s = (current = sampler(board));
+        const edges: number[][] = [];
+        s.onSample = (_sample, e) => edges.push(e.map((x) => x.index));
+        s.start();
+        await board.reply([], 10);
+        await board.reply([26], 20); // a press before the board stops answering
+        for (let i = 1; i <= FAILURES_TO_FALLBACK; i++) await board.fail(20 + i);
+        expect(s.failed).toBe(true);
+        const masks = board.getLayerMasks.mock.calls.length;
+        await board.wake();
+        await board.reply([27], 2100); // back: 26 released and 27 pressed meanwhile
+        expect(s.failed).toBe(false);
+        expect(edges.at(-1)).toEqual([]); // a baseline, not edges against the sample before the outage
+        expect(s.history.samples.length).toBe(1);
+        expect(s.history.edges.length).toBe(0);
+        expect(board.getLayerMasks.mock.calls.length).toBe(masks + 1);
+    });
+
     it('counts an empty reply (no board) as a failure', async () => {
         const board = new FakeBoard();
         board.pollMatrix.mockImplementation(async () => []);

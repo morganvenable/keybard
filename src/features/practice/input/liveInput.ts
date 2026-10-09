@@ -12,7 +12,11 @@
 //   the live layer. A sample that changes none of them notifies nobody, so a
 //   running sampler re-renders nothing (§9.3, §9.9).
 // - Layer locked on (§5.3): the active mask has a layer no held key explains,
-//   for 300 ms.
+//   for 300 ms, while no layer key or tap dance is held (TT, LM, a tri-layer or
+//   a tap-dance hold turns layers on the correlator doesn't model) and other
+//   than Svalboard's auto-mouse layer.
+// - While the board isn't answering, keystrokes aren't queued: they stay
+//   inferred, and the next step's interval starts after them.
 // - onChange tells the controller about what its notices and pill show: the
 //   sampler failing or recovering, and Layer locked on.
 //
@@ -125,6 +129,8 @@ export class LiveInput {
         sampler.onHealth = (failed) => {
             // A board that stopped answering shows nothing held, rather than its last state.
             if (failed) {
+                // What was typed before it stopped is attributed from the history there is.
+                this.#flush();
                 this.#clearBoard();
                 this.#setLocked(null);
             }
@@ -190,6 +196,12 @@ export class LiveInput {
         // A one-shot layer is used up by the key it applied to.
         this.#oneShots.clear();
         if (!this.running) return;
+        if (this.failed) {
+            // No evidence is coming for it: it stays inferred, and the next step
+            // looks only at what the board shows after it (§9.3 Errors).
+            this.#tPrev = keystroke.tInput;
+            return;
+        }
         this.#pending.push(keystroke);
         this.#drain();
     }
@@ -250,13 +262,20 @@ export class LiveInput {
         this.#drain();
         const pressed = new Set<number>();
         for (let i = 0; i < sample.down.length; i++) if (sample.down[i]) pressed.add(i);
-        this.#publish(pressed, keymap.effectiveMask(history, sample));
+        this.#publish(pressed, keymap.effectiveMask(history, sample, this.#oneShotMask()));
+    }
+
+    /** One-shot layers tapped since the last keystroke: on before any mask read shows them. */
+    #oneShotMask(): number {
+        let mask = 0;
+        for (const layer of this.#oneShots.keys()) if (layer < 32) mask |= 1 << layer;
+        return mask >>> 0;
     }
 
     #onPress(edge: MatrixEdge) {
         const keymap = this.#keymap!;
         const history = this.#sampler!.history;
-        const mask = keymap.effectiveMask(history, edge.sample);
+        const mask = keymap.effectiveMask(history, edge.sample, this.#oneShotMask());
         const key = keymap.keyAt(edge.index, mask);
         const action = layerAction(keymap.name(key.code));
         if (action?.kind === 'oneshot') this.#oneShots.set(action.toLayer, edge.t);
@@ -265,6 +284,14 @@ export class LiveInput {
         const char = keymap.charAt(edge.index, key.layer, keymap.shiftHeld(edge.sample.down, mask));
         if (!char) return;
         if (!this.#isWrong(char.char, edge)) return;
+        // A roll out of an LT or mod-tap key: with permissive hold, releasing it
+        // first types its tap and then this key's tap side. Not wrong if that's right.
+        if (keymap.tapHoldHeld(edge.sample.down, mask, edge.index)) {
+            const tapMask = keymap.effectiveMask(history, edge.sample, this.#oneShotMask(), true);
+            const tapKey = keymap.keyAt(edge.index, tapMask);
+            const tapChar = keymap.charAt(edge.index, tapKey.layer, keymap.shiftHeld(edge.sample.down, tapMask, true));
+            if (tapChar && !this.#isWrong(tapChar.char, edge)) return;
+        }
         const timer = this.#wrongTimers.get(edge.index);
         if (timer) { clearTimeout(timer); this.#wrongTimers.delete(edge.index); }
         this.#wrong.set(edge.index, null);
@@ -298,10 +325,15 @@ export class LiveInput {
     #onMasks(mask: MaskSample) {
         const keymap = this.#keymap;
         if (!keymap) return;
-        // Layers on that no held key explains, less one-shots still waiting for their key.
-        let unexplained = keymap.unexplainedMask(mask);
-        for (const layer of this.#oneShots.keys()) unexplained &= ~(1 << layer);
+        // Layers on that no held key explains, less one-shots still waiting for their
+        // key and the auto-mouse layer the trackball turns on.
+        let unexplained = keymap.unexplainedMask(mask) & ~this.#oneShotMask();
+        if (keymap.autoMouseLayer < 32) unexplained &= ~(1 << keymap.autoMouseLayer);
         unexplained >>>= 0;
+        // A held layer key or tap dance may explain it in a way the correlator doesn't
+        // model (TT, LM, a tri-layer, a tap-dance hold): never a lock while one is down.
+        const down = mask.sample?.down;
+        if (unexplained && down && keymap.layerKeyHeld(down, keymap.heldMask(down, keymap.defaultMask(mask)))) unexplained = 0;
         if (!unexplained) {
             this.#lockSince = null;
             this.#setLocked(null);

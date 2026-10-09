@@ -117,6 +117,51 @@ describe('LiveInput: attribution into the lesson', () => {
         expect(live.getBoard().pressed.size).toBe(0);
     });
 
+    it('a Shift and its target caught in one late sample count as two presses (§6.5)', async () => {
+        const fake = new FakeBoard();
+        const live = (current = liveInput(fake));
+        const run = lesson('aA');
+        live.bindRun(run);
+        live.setWanted(true);
+        await fake.reply([], 10);
+        await fake.reply([A], 20); // ts 15
+        type(run, live, 'a', 16);
+        await fake.reply([], 100); // ts 60
+        type(run, live, 'A', 102);
+        await fake.reply([2, A], 110); // ts 105: Shift and a in one sample, after the input
+        const settled = live.settle();
+        await fake.reply([], 200);
+        await settled;
+        run.practiceSteps();
+        expect(run.events[1].phys).toMatchObject({ confidence: 'observed', index: A, reach: 105 - 16, target: 0 });
+        expect(run.events[1]).toMatchObject({ raw: 102 - 16, ttt: (102 - 16) / 2, prereq: [2] });
+    });
+
+    it('keystrokes typed while the board is not answering stay inferred, never matched to presses from before', async () => {
+        const fake = new FakeBoard();
+        const live = (current = liveInput(fake));
+        const run = lesson('aaa');
+        live.bindRun(run);
+        live.setWanted(true);
+        await fake.reply([], 10);
+        await fake.reply([at('x')], 20); // a stray x at ts 15, never typed
+        await fake.reply([], 30);
+        for (let i = 1; i <= 3; i++) await fake.fail(30 + i);
+        expect(live.failed).toBe(true);
+        type(run, live, 'a', 200);
+        expect(run.events[0].phys.confidence).toBe('inferred');
+        // Back: a fresh history, and the next step looks only after the keystroke typed meanwhile.
+        await fake.wake();
+        await fake.reply([], 2100);
+        expect(live.failed).toBe(false);
+        await fake.reply([A], 2120); // ts 2110
+        type(run, live, 'a', 2112);
+        await fake.reply([], 2200);
+        expect(run.events[0].phys.confidence).toBe('inferred');
+        expect(run.events[1].phys).toMatchObject({ confidence: 'observed', index: A });
+        expect(live.mismatch.count).toBe(0);
+    });
+
     it('a keystroke typed while not reading stays inferred', () => {
         const fake = new FakeBoard();
         const live = (current = liveInput(fake));
@@ -178,6 +223,42 @@ describe('LiveInput: the board', () => {
         expect(live.getBoard().wrong.size).toBe(0);
     });
 
+    it('a press right after an OSL tap, before the next mask read, is on layer 1 and not wrong', async () => {
+        const osl = rebind(svalDefault(), 0, 33, keyService.parse('OSL(1)'));
+        const fake = new FakeBoard();
+        const live = (current = liveInput(fake, osl));
+        const run = lesson('!a');
+        live.bindRun(run);
+        live.setWanted(true);
+        await fake.reply([], 10); // iteration 0: masks read (base)
+        await fake.reply([33], 20); // OSL down
+        await fake.reply([], 30); // OSL up: layer 1 waits for its key
+        expect(live.getBoard().layer).toBe(1);
+        await fake.reply([Q], 40); // N, before the next mask read
+        expect(live.getBoard().wrong.size).toBe(0);
+        type(run, live, '!', 36);
+        const settled = live.settle();
+        await fake.reply([], 100);
+        await settled;
+        expect(run.events[0].phys).toMatchObject({ confidence: 'observed', index: Q, layer: 1 });
+        expect(live.mismatch.count).toBe(0);
+    });
+
+    it('a roll out of an LT key is not wrong when its tap side types the next character', async () => {
+        const lt = rebind(svalDefault(), 0, 33, keyService.parse('LT1(KC_S)'));
+        const fake = new FakeBoard();
+        const live = (current = liveInput(fake, lt));
+        live.bindRun(lesson('sa'));
+        live.setWanted(true);
+        await fake.reply([], 10);
+        await fake.reply([33], 20); // LT1(KC_S) down: s expected, its hold isn't decided
+        await fake.reply([33, A], 30); // a down before LT1 is up: 1 on layer 1, a as a tap
+        expect(live.getBoard().wrong.size).toBe(0);
+        // A key that is wrong either way still gets the mark.
+        await fake.reply([33, A, at('f')], 40);
+        expect([...live.getBoard().wrong]).toEqual([at('f')]);
+    });
+
     it('shows Layer locked on after an unexplained layer lasts 300 ms, and clears it', async () => {
         const fake = new FakeBoard();
         const live = (current = liveInput(fake));
@@ -208,6 +289,37 @@ describe('LiveInput: the board', () => {
         // OSL tapped: layer 1 stays on until the next key, which is not a lock.
         await fake.reply([33], 410);
         for (let t = 420; t <= 800; t += 10) await fake.reply([], t);
+        expect(live.layerLocked).toBeNull();
+    });
+
+    it('a held TT, LM or tap dance, or a tri-layer under two MO keys, is never a locked layer', async () => {
+        const holds: [number, number, number[]][] = [
+            [keyService.parse('TT(1)'), 0b11, [33]],
+            [0x5000 | (1 << 5) | 0x02, 0b11, [33]], // LM(1, Shift)
+            [keyService.parse('TD(0)'), 0b101, [33]], // a tap dance holding to layer 2
+            [keyService.parse('MO(2)'), 0b1111, [MO1, 33]], // MO(1) and MO(2) raising layer 3
+        ];
+        for (const [code, active, down] of holds) {
+            const kb = rebind(svalDefault(), 0, 33, code);
+            const fake = new FakeBoard();
+            const live = liveInput(fake, kb);
+            live.bindRun(lesson('asdf'));
+            fake.masks = { active, default: 1 };
+            live.setWanted(true);
+            for (let t = 10; t <= 500; t += 10) await fake.reply(down, t);
+            expect(live.layerLocked).toBeNull();
+            live.dispose();
+        }
+    });
+
+    it('the Svalboard auto-mouse layer (the last) is never a locked layer', async () => {
+        const fake = new FakeBoard();
+        const live = (current = liveInput(fake));
+        live.bindRun(lesson('asdf'));
+        const auto = board.keymap!.length - 1;
+        fake.masks = { active: (1 | (1 << auto)) >>> 0, default: 1 };
+        live.setWanted(true);
+        for (let t = 10; t <= LAYER_LOCK_MS + 100; t += 10) await fake.reply([], t);
         expect(live.layerLocked).toBeNull();
     });
 });

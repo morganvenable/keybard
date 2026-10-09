@@ -23,7 +23,9 @@
 // The effective layer at an edge comes from the matrix itself (§9.3): the default
 // layer and the toggled or one-shot layers from the last mask, plus the layer of
 // every MO and LT key down in the same sample. Masks are read only every third
-// sample, so a mask alone would lag a fast MO(1) → target roll.
+// sample, so a mask alone would lag a fast MO(1) → target roll. For the same
+// reason a one-shot layer (OSL) tapped since the previous step applies to the
+// presses after it, before any mask shows it.
 import { keyService } from '@/services/key.service';
 import { classifyPress, type PressedKey } from './classify';
 import { type KeymapResolution, layerAction, type Path, resolveBinding, type Shift, shiftRole, isTapHold } from '../keymap/resolver';
@@ -33,6 +35,33 @@ import type { MaskSample, MatrixEdge, MatrixHistory, MatrixSample } from './usbS
 
 /** Slack after the input event: an edge seen up to this long after it can still be its cause (§9.3; M0 tunes it). */
 export const EPSILON_MS = 40;
+
+/** QMK's LM(layer, mods) range: Keybard names these by their hex code. */
+const QK_LAYER_MOD = 0x5000;
+const QK_LAYER_MOD_MAX = 0x51ff;
+
+/**
+ * The layer a held key turns on: MO, the hold side of LT, OSL while held (the
+ * resolver's layer keys), and also TT and LM, whose hold side is momentary but
+ * which the resolver doesn't route paths through.
+ */
+export function heldLayer(code: number, name: string): number | null {
+    const action = layerAction(name);
+    if (action) return action.toLayer;
+    const tt = /^TT\((\d+)\)$/.exec(name);
+    if (tt) return Number(tt[1]);
+    if (code >= QK_LAYER_MOD && code <= QK_LAYER_MOD_MAX) return (code >> 5) & 0x0f;
+    return null;
+}
+
+/**
+ * Keys whose hold can turn a layer on in ways the correlator doesn't model: any
+ * layer key (two held MO keys can raise a tri-layer), the tri-layer keys and tap
+ * dances (a hold can go to a layer, M3).
+ */
+function layerish(code: number, name: string): boolean {
+    return heldLayer(code, name) != null || /^TD\(\d+\)$/.test(name) || /^FN_MO(13|23)$/.test(name);
+}
 
 export interface KeyAt {
     code: number;
@@ -77,7 +106,7 @@ export class LiveKeymap {
     keyAt(index: number, mask: number): KeyAt {
         const { code, layer } = resolveBinding(this.keymap, index, mask);
         const name = this.name(code);
-        return { code, layer, prereqKey: layerAction(name) != null || shiftRole(name) != null, tapHold: isTapHold(name) };
+        return { code, layer, prereqKey: heldLayer(code, name) != null || shiftRole(name) != null, tapHold: isTapHold(name) };
     }
 
     /** Every path (of any character) whose target is this key on this layer. */
@@ -87,17 +116,21 @@ export class LiveKeymap {
 
     /**
      * `base` plus the layers turned on by layer keys held in `down`: MO, the hold
-     * side of LT (taken as held even before the firmware decides, §9.3) and OSL
-     * while held, followed through the layers they turn on.
+     * side of LT (taken as held even before the firmware decides, §9.3; skipped
+     * with `tapSide`, as if every LT were tapped), OSL while held, TT and LM,
+     * followed through the layers they turn on.
      */
-    heldMask(down: Uint8Array, base: number): number {
+    heldMask(down: Uint8Array, base: number, tapSide = false): number {
         let mask = base >>> 0;
         for (let pass = 0; pass < 4; pass++) {
             let next = mask;
             for (let index = 0; index < this.size; index++) {
                 if (!down[index]) continue;
-                const action = layerAction(this.name(resolveBinding(this.keymap, index, next).code));
-                if (action && action.toLayer < 32) next = (next | (1 << action.toLayer)) >>> 0;
+                const code = resolveBinding(this.keymap, index, next).code;
+                const name = this.name(code);
+                if (tapSide && isTapHold(name)) continue;
+                const layer = heldLayer(code, name);
+                if (layer != null && layer < 32) next = (next | (1 << layer)) >>> 0;
             }
             if (next === mask) break;
             mask = next;
@@ -105,12 +138,41 @@ export class LiveKeymap {
         return mask;
     }
 
-    /** A Shift key (or a Shift mod-tap) is held in `down` under `mask`. */
-    shiftHeld(down: Uint8Array, mask: number): boolean {
+    /** A Shift key (or, unless `tapSide`, a Shift mod-tap) is held in `down` under `mask`. */
+    shiftHeld(down: Uint8Array, mask: number, tapSide = false): boolean {
         for (let index = 0; index < this.size; index++) {
-            if (down[index] && shiftRole(this.name(resolveBinding(this.keymap, index, mask).code))) return true;
+            if (!down[index]) continue;
+            const role = shiftRole(this.name(resolveBinding(this.keymap, index, mask).code));
+            if (role && !(tapSide && role.tapHold)) return true;
         }
         return false;
+    }
+
+    /** An LT or mod-tap key other than `except` is held in `down` under `mask`: its hold isn't decided yet. */
+    tapHoldHeld(down: Uint8Array, mask: number, except = -1): boolean {
+        for (let index = 0; index < this.size; index++) {
+            if (down[index] && index !== except && this.keyAt(index, mask).tapHold) return true;
+        }
+        return false;
+    }
+
+    /** A layer key, tri-layer key or tap dance is held in `down` under `mask` (Layer locked on waits, §5.3). */
+    layerKeyHeld(down: Uint8Array, mask: number): boolean {
+        for (let index = 0; index < this.size; index++) {
+            if (!down[index]) continue;
+            const code = resolveBinding(this.keymap, index, mask).code;
+            if (layerish(code, this.name(code))) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Svalboard's auto-mouse layer: the firmware turns it on when the trackball
+     * moves, with no key held (MH_AUTO_BUTTONS_LAYER, the last layer). It is never
+     * Layer locked on.
+     */
+    get autoMouseLayer(): number {
+        return this.keymap.length - 1;
     }
 
     /** A layer key or Shift key is held in `down` under `mask`. */
@@ -135,11 +197,22 @@ export class LiveKeymap {
         return (mask.active & ~held & ~base) >>> 0;
     }
 
-    /** The effective layer mask at a matrix sample (§9.3 "Effective layer at an edge"). */
-    effectiveMask(history: MatrixHistory, sample: MatrixSample): number {
+    /**
+     * The effective layer mask at a matrix sample (§9.3 "Effective layer at an
+     * edge"). `extra`: layers known to be on that no mask shows yet (a one-shot
+     * tapped since the last mask read). `tapSide`: as if every held LT were tapped.
+     */
+    effectiveMask(history: MatrixHistory, sample: MatrixSample, extra = 0, tapSide = false): number {
         const mask = history.maskAt(sample.ts);
-        const base = (this.defaultMask(mask) | (mask ? this.unexplainedMask(mask) : 0)) >>> 0;
-        return this.heldMask(sample.down, base);
+        const base = (this.defaultMask(mask) | (mask ? this.unexplainedMask(mask) : 0) | extra) >>> 0;
+        return this.heldMask(sample.down, base, tapSide);
+    }
+
+    /** The one-shot layer an OSL press edge waits with, or null for any other edge. */
+    oneShotLayer(history: MatrixHistory, edge: MatrixEdge): number | null {
+        if (!edge.press) return null;
+        const action = layerAction(this.name(this.keyAt(edge.index, this.effectiveMask(history, edge.sample)).code));
+        return action?.kind === 'oneshot' && action.toLayer < 32 ? action.toLayer : null;
     }
 
     /**
@@ -232,12 +305,15 @@ function candidateOrder(edges: readonly MatrixEdge[], tInput: number): MatrixEdg
     return [...before, ...after];
 }
 
-/** The best of several paths to one key: the one whose prerequisites are held, then the cheapest. */
-function bestPath(candidates: readonly Path[], down: Uint8Array): Path {
+/**
+ * The best of several paths to one key: the one whose prerequisites are held (a
+ * one-shot: tapped before it in the step), then the cheapest.
+ */
+function bestPath(candidates: readonly Path[], down: Uint8Array, oneShotKeys: ReadonlySet<number>): Path {
     let best = candidates[0];
     let bestMissing = Infinity;
     for (const path of candidates) {
-        const missing = path.prereqs.filter((p) => !down[p.index]).length;
+        const missing = path.prereqs.filter((p) => !down[p.index] && !(p.kind === 'oneshot' && oneShotKeys.has(p.index))).length;
         if (missing < bestMissing) {
             best = path;
             bestMissing = missing;
@@ -265,6 +341,18 @@ export function attributeStep(
         if (step.typed === step.expected) return null;
         return expectedPath ? classifyPress(expectedPath, pressed, keymap.cols) : 'unknown';
     };
+    // One-shot layers tapped in this step's interval apply to the presses after them,
+    // before the next mask read shows them (masks come every third sample).
+    const oneShots: { edge: MatrixEdge; layer: number }[] = [];
+    for (const edge of edges) {
+        const layer = keymap.oneShotLayer(history, edge);
+        if (layer != null) oneShots.push({ edge, layer });
+    }
+    const oneShotsBefore = (edge: MatrixEdge) => oneShots.filter((o) => o.edge.id !== edge.id && o.edge.t <= edge.t);
+    const maskFor = (edge: MatrixEdge) => {
+        const extra = oneShotsBefore(edge).reduce((m, o) => (m | (1 << o.layer)) >>> 0, 0);
+        return keymap.effectiveMask(history, edge.sample, extra);
+    };
     const eligible = (sample: MatrixSample, mask: number, delayed: boolean) => {
         // Only base-layer presses with nothing held and no delayed output count (§9.3).
         const base = keymap.defaultMask(history.maskAt(sample.ts));
@@ -273,11 +361,11 @@ export function attributeStep(
 
     // Rule 1: a press whose key, under the effective layer at that edge, types the character.
     for (const edge of presses) {
-        const mask = keymap.effectiveMask(history, edge.sample);
+        const mask = maskFor(edge);
         const key = keymap.keyAt(edge.index, mask);
         const candidates = keymap.pathsAt(key.layer, edge.index).filter((p) => p.char === step.typed);
         if (!candidates.length) continue;
-        const path = bestPath(candidates, edge.sample.down);
+        const path = bestPath(candidates, edge.sample.down, new Set(oneShotsBefore(edge).map((o) => o.edge.index)));
         const prereqEdges = prereqEdgesFor(path, edges, edge.t);
         const pressed: PressedKey = { index: edge.index, layer: key.layer, shift: path.shift };
         return {
@@ -310,7 +398,7 @@ export function attributeStep(
 
     // Rule 3: the latest press of a key that types a character.
     for (const edge of presses) {
-        const mask = keymap.effectiveMask(history, edge.sample);
+        const mask = maskFor(edge);
         const key = keymap.keyAt(edge.index, mask);
         if (key.prereqKey || key.tapHold) continue;
         const char = keymap.charAt(edge.index, key.layer, keymap.shiftHeld(edge.sample.down, mask));

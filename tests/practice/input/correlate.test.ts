@@ -5,7 +5,7 @@ import {
 import { MatrixHistory, matrixToDown } from '@/features/practice/input/usbSampler';
 import { resolveKeymap } from '@/features/practice/keymap/resolver';
 import { keyService } from '@/services/key.service';
-import { svalDefault } from '../fixtures/boards';
+import { rebind, svalDefault } from '../fixtures/boards';
 import { COLS, frame, ROWS } from './fakeBoard';
 
 // The correlator (spec §9.3, §9.9) on synthetic matrix histories over the default keymap
@@ -146,6 +146,39 @@ describe('correlate: rules (§9.3)', () => {
     });
 });
 
+describe('correlate: one-shot layers (§9.3)', () => {
+    // OSL(1) on the right thumb position 33.
+    const OSL1 = 33;
+    const oslBoard = rebind(board, 0, OSL1, keyService.parse('OSL(1)'));
+    const oslKeymap = new LiveKeymap(resolveKeymap({ keymap: oslBoard.keymap!, rows: oslBoard.rows, cols: oslBoard.cols }), oslBoard.keymap!, oslBoard.rows, oslBoard.cols);
+
+    it('an OSL tap applies to the next press before any mask shows it: !, not q, and not a mismatch', () => {
+        // Masks only at 0 (base): the OSL is tapped at 10–20 and N pressed at 30, before the next mask read.
+        const h = history([[0, []], [10, [OSL1]], [20, []], [30, [Q]], [40, []]]);
+        const a = attributeStep(step('!', 32, 0), h, oslKeymap, new Set());
+        expect(a).toMatchObject({ rule: 1, confidence: 'observed', resolved: cp('!'), mismatch: null });
+        expect(a.pressed).toMatchObject({ index: Q, layer: 1 });
+        expect(a.path?.prereqs.map((p) => [p.index, p.kind])).toEqual([[OSL1, 'oneshot']]);
+        expect(a.prereqEdges.map((e) => e.index)).toEqual([OSL1]);
+        expect(a.consumed.length).toBe(2);
+    });
+
+    it('a wrong key after an OSL tap is classed on layer 1 and is not counted as an OS layout mismatch', () => {
+        const h = history([[0, []], [10, [OSL1]], [20, []], [30, [A]], [40, []]]);
+        const a = attributeStep(step('1', 32, 0, '!'), h, oslKeymap, new Set());
+        expect(a.pressed).toMatchObject({ index: A, layer: 1 });
+        expect(a.mismatch).toBeNull();
+    });
+
+    it('an OSL used by an earlier step no longer applies', () => {
+        const h = history([[0, []], [10, [OSL1]], [20, []], [30, [Q]], [40, []], [60, [Q]], [70, []]]);
+        const first = attributeStep(step('!', 32, 0), h, oslKeymap, new Set());
+        const second = attributeStep(step('q', 62, 32), h, oslKeymap, new Set(first.consumed));
+        expect(second).toMatchObject({ rule: 1, resolved: cp('q'), mismatch: false });
+        expect(second.pressed?.layer).toBe(0);
+    });
+});
+
 describe('correlate: strays and the OS layout check (§6.6, §3.1)', () => {
     it('Shift, MO and Backspace presses are never strays; an extra letter press is', () => {
         const h = history([[0, []], [10, [SHIFT]], [20, []], [30, [MO1]], [40, []], [50, [BSPC]], [60, []], [70, [A]], [80, []]]);
@@ -185,6 +218,25 @@ describe('LiveKeymap', () => {
         toggled.addSample(10, 10, matrixToDown(frame([]), ROWS, COLS));
         expect(keymap.unexplainedMask(toggled.latestMask!)).toBe(0b100);
         expect(topLayer(keymap.effectiveMask(toggled, toggled.latest!))).toBe(2);
+    });
+
+    it('a held TT(1) or LM(1, Shift) turns layer 1 on and is a prerequisite, never a typed key', () => {
+        for (const code of [keyService.parse('TT(1)'), 0x5000 | (1 << 5) | 0x02]) {
+            const kb = rebind(board, 0, 33, code);
+            const km = new LiveKeymap(resolveKeymap({ keymap: kb.keymap!, rows: kb.rows, cols: kb.cols }), kb.keymap!, kb.rows, kb.cols);
+            const down = matrixToDown(frame([33]), ROWS, COLS);
+            expect(topLayer(km.heldMask(down, 1))).toBe(1);
+            expect(km.keyAt(33, 1).prereqKey).toBe(true);
+            expect(km.layerKeyHeld(down, 1)).toBe(true);
+        }
+    });
+
+    it('as a tap, a held LT key turns no layer on', () => {
+        const down = matrixToDown(frame([LT1]), ROWS, COLS);
+        expect(topLayer(keymap.heldMask(down, 1))).toBe(1);
+        expect(topLayer(keymap.heldMask(down, 1, true))).toBe(0);
+        expect(keymap.tapHoldHeld(down, 1)).toBe(true);
+        expect(keymap.tapHoldHeld(down, 1, LT1)).toBe(false);
     });
 
     it('a held layer key explains its layer in the mask', () => {

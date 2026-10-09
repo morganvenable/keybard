@@ -14,7 +14,8 @@
 // the later sample's ts, its uncertainty the interval between the two.
 //
 // Three failed reads in a row mark the sampler failed (Practice falls back to
-// Keymap only) and it retries every 2 s for as long as it is wanted.
+// Keymap only) and it retries every 2 s for as long as it is wanted. The first
+// read after that starts a fresh history.
 
 /** How much history the ring buffer keeps (§9.3). */
 export const HISTORY_MS = 2000;
@@ -325,6 +326,13 @@ export class UsbSampler {
                 continue;
             }
             this.#failures = 0;
+            if (this.#failed) {
+                // Back after an outage: a fresh baseline, as on a restart. Edges against
+                // the last sample before it would span the outage, and its stale presses
+                // would match keystrokes typed meanwhile. Read the masks again at once.
+                this.history.clear();
+                iteration = 0;
+            }
             this.#setFailed(false);
             this.#samples++;
             this.#rtts.push(t1 - t0);
