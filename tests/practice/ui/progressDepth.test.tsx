@@ -241,3 +241,41 @@ describe('P5 in full (§5.7)', () => {
         expect(confusions.some((t) => t!.includes('× '))).toBe(true);
     });
 });
+
+describe('Pressed instead after Import or Reset (M4 review R3)', () => {
+    it('a Replace with as many lessons reloads the events: no confusions from deleted lessons', async () => {
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        // File A: two clean lessons. Then two lessons with misses in the profile.
+        await completeLessons(c, 2);
+        const { text } = await c.exportData(true);
+        await act(async () => { await c.resetProgress(); });
+        await completeLessons(c, 2, { miss: true });
+        render(<Providers><ProgressPage /></Providers>);
+        const s = c.session!;
+        const events = await c.eventStats(s.records);
+        const missedCode = [...events].find(([char, e]) => e.confusions.length > 0 && s.resolution.primary(char)?.layer === 0)?.[0];
+        expect(missedCode).toBeDefined();
+        const missed = String.fromCodePoint(missedCode!);
+        const index = s.resolution.primary(missedCode!)!.index;
+        const open = async () => {
+            await act(async () => { fireEvent.click(document.querySelector(`[data-heat-key="${index}"]`)!.closest('button')!); });
+            return screen.findByRole('dialog', { name: `Key ${missed}` });
+        };
+        await open();
+        await vi.waitFor(() => expect(document.querySelector('[data-pressed-instead]')).not.toBeNull(), { timeout: 3000 });
+        // Close it: the key toggles its popover.
+        await act(async () => { fireEvent.click(document.querySelector(`[data-heat-key="${index}"]`)!.closest('button')!); });
+        await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+        // Replace with file A: still two lessons, so only the history revision tells the page to reload.
+        const revision = c.historyRevision;
+        await act(async () => { await c.importData(JSON.parse(text), 'replace'); });
+        expect(c.lessonCount).toBe(2);
+        expect(c.historyRevision).toBe(revision + 1);
+        await open();
+        // Let the new event stats load, then nothing from the deleted lessons may show.
+        await act(async () => { await c.eventStats(c.session!.records); });
+        await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+        expect(document.querySelector('[data-pressed-instead]')).toBeNull();
+    });
+});

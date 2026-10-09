@@ -171,6 +171,23 @@ describe('Progress panel Data rows (§5.9)', () => {
         expect(await store.listResults(c.session!.profile.id)).toEqual([]);
     });
 
+    it('a failed Reset says so and leaves the progress as it was', async () => {
+        class FailingStore extends MemoryPracticeStore {
+            override async clearProgress(): Promise<void> { throw new Error('QuotaExceededError'); }
+        }
+        const store = new FailingStore();
+        const c = await startController({ store, settings: { targetSpeed: 75 } });
+        await completeLessons(c, 2);
+        render(<Providers><ProgressPanel /></Providers>);
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reset progress…' })); });
+        await act(async () => { fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete progress for Me?' })).getByRole('button', { name: 'Delete' })); });
+        expect(await screen.findByRole('alert')).toHaveTextContent('Reset failed');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(c.lessonCount).toBe(2);
+        expect(await store.countResults(c.session!.profile.id)).toBe(2);
+        expect(await store.listEventIds(c.session!.profile.id)).toHaveLength(2);
+    });
+
     it('Storage off: Import and Reset say why instead of offering buttons; Export stays', async () => {
         await startController({ persistent: false });
         render(<Providers><ProgressPanel /></Providers>);

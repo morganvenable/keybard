@@ -71,6 +71,12 @@ export class MemoryPracticeStore implements PracticeStore {
         return ids;
     }
 
+    async clearProgress(profileId: string) {
+        for (const id of await this.listEventIds(profileId)) this.events.delete(id);
+        await this.deleteResults(profileId);
+        this.snapshots.delete(profileId);
+    }
+
     async getSnapshot(profileId: string) { const s = this.snapshots.get(profileId); return s && clone(s); }
     async putSnapshot(snapshot: SnapshotRecord) { this.snapshots.set(snapshot.profileId, clone(snapshot)); }
     async deleteSnapshot(profileId: string) { this.snapshots.delete(profileId); }

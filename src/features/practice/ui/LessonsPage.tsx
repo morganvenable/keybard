@@ -318,7 +318,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                         targetSpeed={settings!.targetSpeed}
                         inferredOf={inferredOf}
                         loadEventStats={loadEventStats}
-                        eventsKey={`${s.profile.id}:${s.records.length}`}
+                        eventsKey={`${s.profile.id}:${s.records.length}:${controller.historyRevision}`}
                         layerColorOfLayer={layerColorOfLayer}
                     />
                     <MetricsRow

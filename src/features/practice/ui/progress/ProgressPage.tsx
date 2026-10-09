@@ -59,7 +59,7 @@ function useEventStats(controller: PracticeController | null, records: readonly 
         let live = true;
         void controller.eventStats(records).then((stats) => { if (live) setState({ key, stats }); });
         return () => { live = false; };
-        // `key` names the records (profile, count, period).
+        // `key` names the records (profile, count, period, keymap, history revision).
     }, [controller, key]);
     return state?.key === key ? state.stats : null;
 }
@@ -84,7 +84,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
         // A new lesson appends to the same records array, so its length is part of the key.
     }, [session, period, count]);
 
-    const events = useEventStats(controller, view?.records, `${session?.profile.id}:${count}:${period}:${session?.fingerprint}`);
+    const events = useEventStats(controller, view?.records, `${session?.profile.id}:${count}:${period}:${session?.fingerprint}:${controller?.historyRevision}`);
 
     const layerColorOf = useCallback((codePoint: number) => {
         const path = session?.resolution.primary(codePoint);

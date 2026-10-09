@@ -114,6 +114,7 @@ function DataSection({ controller: c, group }: { controller: PracticeController;
     const [confirm, setConfirm] = useState<"replace" | "reset" | null>(null);
     const [busy, setBusy] = useState(false);
     const [exportFailed, setExportFailed] = useState(false);
+    const [resetFailed, setResetFailed] = useState(false);
     const profile = c.session?.profile.name ?? "Me";
     const writable = c.dataWritable;
     const unavailable = c.storageOff ? NOT_AVAILABLE : READ_ONLY;
@@ -156,6 +157,9 @@ function DataSection({ controller: c, group }: { controller: PracticeController;
         try {
             await c.resetProgress();
             setState({ kind: "idle" });
+            setResetFailed(false);
+        } catch {
+            setResetFailed(true);
         } finally {
             setBusy(false);
             setConfirm(null);
@@ -198,7 +202,7 @@ function DataSection({ controller: c, group }: { controller: PracticeController;
                                 </div>
                             </>
                         )}
-                        <Row title="Reset">
+                        <Row title="Reset" value={resetFailed ? <span role="alert" className={ERROR_LINE}>Reset failed</span> : undefined}>
                             <Button type="button" variant="destructive" onClick={() => setConfirm("reset")}><Trash2 aria-hidden="true" />Reset progress…</Button>
                         </Row>
                     </>

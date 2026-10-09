@@ -204,6 +204,7 @@ export class PracticeController {
     #disposed = false;
     #started = false;
     #eventStats: EventStatsCache | null = null;
+    #historyRevision = 0;
 
     constructor(deps: ControllerDeps) {
         this.#deps = {
@@ -679,18 +680,28 @@ export class PracticeController {
         return summary;
     }
 
-    /** Deletes the active profile's results, events and snapshot (§5.9 Reset); the profile itself stays. */
+    /**
+     * Deletes the active profile's results, events and snapshot in one transaction (§5.9 Reset); the profile
+     * itself stays. A failure deletes nothing and rejects, for the panel's "Reset failed".
+     */
     async resetProgress(): Promise<void> {
         const store = this.store;
         const profile = this.session?.profile ?? this.#profileData?.profile;
         if (!store || !profile || !this.dataWritable) return;
-        await store.deleteEvents(await store.listEventIds(profile.id));
-        await store.deleteResults(profile.id);
-        await store.deleteSnapshot(profile.id);
+        await store.clearProgress(profile.id);
         await this.#reloadHistory();
     }
 
+    /**
+     * Bumped whenever stored history is replaced (Import, Reset). A lesson count alone can't name the records:
+     * a Replace with as many lessons leaves it unchanged, so keys for loaded event stats include this.
+     */
+    get historyRevision(): number {
+        return this.#historyRevision;
+    }
+
     async #reloadHistory() {
+        this.#historyRevision++;
         this.#eventStats?.clear();
         this.#snapshot = undefined;
         await this.#loadProfile();

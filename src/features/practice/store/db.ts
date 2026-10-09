@@ -42,6 +42,12 @@ export interface PracticeStore {
      */
     importResults(profileId: string, rows: readonly ImportRow[], replace: boolean): Promise<number[]>;
 
+    /**
+     * Deletes a profile's results, events and snapshot in one transaction (§5.9 Reset); the profile stays.
+     * Nothing is deleted when any delete fails.
+     */
+    clearProgress(profileId: string): Promise<void>;
+
     getSnapshot(profileId: string): Promise<SnapshotRecord | undefined>;
     putSnapshot(snapshot: SnapshotRecord): Promise<void>;
     deleteSnapshot(profileId: string): Promise<void>;
@@ -208,6 +214,23 @@ export class IndexedDbPracticeStore implements PracticeStore {
         }
         if (failure) throw failure;
         return ids;
+    }
+
+    async clearProgress(profileId: string): Promise<void> {
+        const db = await this.open();
+        const tx = db.transaction([STORES.results, STORES.events, STORES.snapshots], 'readwrite');
+        const results = tx.objectStore(STORES.results);
+        const events = tx.objectStore(STORES.events);
+        const finished = done(tx);
+        const resultIds = results.index('profileId').getAllKeys(profileId);
+        const eventIds = events.index('profileId').getAllKeys(profileId);
+        // Requests run in order: both key lists are ready here.
+        eventIds.onsuccess = () => {
+            for (const id of resultIds.result) results.delete(id);
+            for (const id of eventIds.result) events.delete(id);
+            tx.objectStore(STORES.snapshots).delete(profileId);
+        };
+        await finished;
     }
 
     getSnapshot(profileId: string) { return this.read(STORES.snapshots, (s) => s.get(profileId) as IDBRequest<SnapshotRecord | undefined>); }

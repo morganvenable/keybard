@@ -227,12 +227,30 @@ export function practiceStoreContract(name: string, makeStore: () => PracticeSto
             expect((await b.listResults('me')).filter((r) => kept.has(r.id)).map((r) => r.ts)).toEqual([10, 11]);
         });
 
+        it('Reset clears one profile’s results, events and snapshot together, and nothing else', async () => {
+            const store = makeStore();
+            for (const ts of [1, 2]) await saveEvents(store, 'me', await store.addResult(record(ts)), []);
+            await store.putSnapshot(snapshot('me'));
+            const other = await store.addResult(record(5, 'other'));
+            await saveEvents(store, 'other', other, []);
+            await store.putSnapshot(snapshot('other'));
+            await store.clearProgress('me');
+            expect(await store.countResults('me')).toBe(0);
+            expect(await store.listEventIds('me')).toEqual([]);
+            expect(await store.getSnapshot('me')).toBeUndefined();
+            expect(await store.countResults('other')).toBe(1);
+            expect(await store.listEventIds('other')).toEqual([other]);
+            expect(await store.getSnapshot('other')).toBeDefined();
+            // An empty profile clears without error.
+            await store.clearProgress('me');
+        });
+
         it('export → reset → import round-trips byte-identical results', async () => {
             const store = makeStore();
             for (const ts of [3, 1, 2]) await store.addResult(record(ts));
             const before = JSON.stringify((await store.listResults('me')).map(({ id: _id, ...r }) => r));
             const file = JSON.parse(JSON.stringify(await exportProfile(store, 'me')));
-            await store.deleteResults('me');
+            await store.clearProgress('me');
             await importIntoProfile(store, 'me', file, 'merge');
             expect(JSON.stringify((await store.listResults('me')).map(({ id: _id, ...r }) => r))).toBe(before);
         });
