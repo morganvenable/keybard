@@ -25,10 +25,16 @@ interface CustomColorDialogProps {
     initialDisplayHue?: number;
     initialDisplaySat?: number;
     initialDisplayVal?: number;
-    // Callback with both colors
+    /**
+     * The display color as an exact hex. With it, the dialog hands back this hex unchanged until a
+     * slider moves, instead of a round trip through 8-bit HSV that shifts most colors by a step.
+     */
+    initialDisplayHex?: string;
+    // Callback with both colors; displayHex is the display color exactly as shown in the dialog
     onApply: (
         displayHsv: { hue: number; sat: number; val: number },
-        ledHsv: { hue: number; sat: number; val: number }
+        ledHsv: { hue: number; sat: number; val: number },
+        displayHex: string
     ) => void;
     layerName?: string;
     onCloseAutoFocus?: (event: Event) => void;
@@ -58,6 +64,7 @@ const CustomColorDialog = ({
     initialDisplayHue = 85,
     initialDisplaySat = 255,
     initialDisplayVal = 200,
+    initialDisplayHex,
     onApply,
     layerName,
     displayOnly = false,
@@ -67,6 +74,8 @@ const CustomColorDialog = ({
     const [displayHue, setDisplayHue] = useState(initialDisplayHue);
     const [displaySat, setDisplaySat] = useState(initialDisplaySat);
     const [displayVal, setDisplayVal] = useState(initialDisplayVal);
+    // The display color's exact hex while no slider has moved (initial or typed); null once one has.
+    const [displayExact, setDisplayExact] = useState<string | null>(initialDisplayHex ?? null);
 
     // LED color state
     const [ledHue, setLedHue] = useState(initialLedHue);
@@ -89,13 +98,14 @@ const CustomColorDialog = ({
             setDisplayHue(initialDisplayHue);
             setDisplaySat(initialDisplaySat);
             setDisplayVal(initialDisplayVal);
+            setDisplayExact(initialDisplayHex ? initialDisplayHex.toLowerCase() : null);
             setLedHue(initialLedHue);
             setLedSat(initialLedSat);
             setLedVal(initialLedVal);
             setActiveTarget('display');
             setIsEditingHex(false);
         }
-    }, [open, initialDisplayHue, initialDisplaySat, initialDisplayVal, initialLedHue, initialLedSat, initialLedVal]);
+    }, [open, initialDisplayHue, initialDisplaySat, initialDisplayVal, initialDisplayHex, initialLedHue, initialLedSat, initialLedVal]);
 
     // Get active color values
     const getActiveHsv = () => {
@@ -107,27 +117,28 @@ const CustomColorDialog = ({
 
     // Set active color values
     const setActiveHue = (v: number) => {
-        if (activeTarget === 'display') setDisplayHue(v);
+        if (activeTarget === 'display') { if (v !== displayHue) setDisplayExact(null); setDisplayHue(v); }
         else setLedHue(v);
     };
     const setActiveSat = (v: number) => {
-        if (activeTarget === 'display') setDisplaySat(v);
+        if (activeTarget === 'display') { if (v !== displaySat) setDisplayExact(null); setDisplaySat(v); }
         else setLedSat(v);
     };
     const setActiveVal = (v: number) => {
-        if (activeTarget === 'display') setDisplayVal(v);
+        if (activeTarget === 'display') { if (v !== displayVal) setDisplayExact(null); setDisplayVal(v); }
         else setLedVal(v);
     };
 
     const activeHsv = getActiveHsv();
-    const displayColor = hsvToHex(displayHue, displaySat, displayVal);
+    const displayColor = displayExact ?? hsvToHex(displayHue, displaySat, displayVal);
     const ledColor = hsvToHex(ledHue, ledSat, ledVal);
-    const activeColor = hsvToHex(activeHsv.hue, activeHsv.sat, activeHsv.val);
+    const activeColor = activeTarget === 'display' ? displayColor : ledColor;
 
     const handleApply = () => {
         onApply(
             { hue: displayHue, sat: displaySat, val: displayVal },
-            { hue: ledHue, sat: ledSat, val: ledVal }
+            { hue: ledHue, sat: ledSat, val: ledVal },
+            displayColor
         );
         onOpenChange(false);
     };
@@ -151,6 +162,7 @@ const CustomColorDialog = ({
                 setDisplayHue(hsv.hue);
                 setDisplaySat(hsv.sat);
                 setDisplayVal(hsv.val);
+                setDisplayExact(hex.toLowerCase());
             } else {
                 setLedHue(hsv.hue);
                 setLedSat(hsv.sat);

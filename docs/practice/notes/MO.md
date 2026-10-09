@@ -7,7 +7,7 @@ Milestone MO from [spec.md](../spec.md) §12 (D11, D12, OD2, §1.4, §4.1 Mounti
 | Area | Files |
 |---|---|
 | Host client: `lost` (set by a failed poll or the 1.2 s watchdog after Host had answered, cleared by the next snapshot, never set before the first) and `unreachable` (Connect pressed, no Host answered); `error` keeps only bootstrap, command and configure messages; unreachable copy **Can't reach Keybard Host at 127.0.0.1:5178** | `src/features/trainer/host.ts` |
-| State lift: TrainerPage's state and effects, unchanged, as a hook; Host config mirroring, Recall publishing gated on the workspace, board-change resets; source naming (`snapshotName`), layer options with layer colors, import checks, the Highlight held keys queue | `src/features/trainer/useOverlayController.ts` |
+| State lift: TrainerPage's state and effects, unchanged, as a hook; Host config mirroring, Recall publishing gated on the workspace, board-change resets; source naming (`snapshotName`), layer options with layer colors, import checks, the queue for Host-only panel choices (Highlight held keys, Desktop default layer) | `src/features/trainer/useOverlayController.ts` |
 | OverlayEngine runs the hook once Overlay is first opened and publishes `model` through the provider's store; `useOverlay()` for the page and panel | `src/features/trainer/OverlayProvider.tsx` |
 | O1 page: title and Host status pill; one notice at a time; Host card; Desktop overlay or Paranoid well; preview card (N-16) with Background control and source; Layout row; Layers row with House on the default pill | `src/features/trainer/OverlayWorkspace.tsx` |
 | O2 panel: Window · Appearance · Feedback · Recall tiles, setting rows, Recall card, footer | `src/features/trainer/OverlayPanel.tsx` |
@@ -30,7 +30,7 @@ Milestone MO from [spec.md](../spec.md) §12 (D11, D12, OD2, §1.4, §4.1 Mounti
 | `tests/trainer/host-lost.test.tsx` (new) | `lost` is never set before the first snapshot, is set by a failed poll and by the watchdog, is cleared by the next snapshot, and never writes `error` |
 | `tests/trainer/host-remote.test.tsx` (updated) | The unreachable copy and `unreachable`, cleared by Connect |
 | `tests/trainer/host-install.test.tsx` (rewritten, as §9.9 asks) | The Desktop overlay well (versioned download, local Keybard, release notes, install steps; Connect only when offered), the Paranoid well, the facts line and outdated notice, the three status pills |
-| `tests/trainer/overlay-controller.test.tsx` (new) | Mirroring: adopt on a new revision when nothing is pending, write 160 ms after a change with Saving… meanwhile, `layoutId` follows `internationalLayout`, no Saving… without Host; Recall publishes only while the workspace shows and clears on leave, also with the panel showing Settings; Highlight held keys waits for a write in flight; Desktop default layer lists Host's board; Preview held keys works while following; source naming; No board; layer labels and colors; import errors |
+| `tests/trainer/overlay-controller.test.tsx` (new) | Mirroring: adopt on a new revision when nothing is pending, write 160 ms after a change with Saving… meanwhile, `layoutId` follows `internationalLayout`, no Saving… without Host; Recall publishes only while the workspace shows and clears on leave, also with the panel showing Settings; Highlight held keys and Desktop default layer wait for a write in flight, and a refused write is sent once; Desktop default layer lists Host's board; Preview held keys works while following; source naming; No board; layer labels and colors; import errors |
 | `tests/trainer/overlay-ui.test.tsx` (new) | Page per Host state (web, Host-served, Paranoid, can't reach, lost, connected, command failed, hidden, outdated, no board, import error, background, ring never on the Recall target); panel tiles and rows per Host state (Host-only rows absent without Host; Desktop default layer whenever `default === null`, following or not; Duration hidden when Off; Held keys unavailable; Recall card buttons; Mark familiar; footer); Esc on the real Preset select closes only the select, a second Esc closes the panel |
 | `tests/trainer/overlay-surface.test.tsx` (new) | The ring's two tones, paint order and pointer events; the halo per background; HostOverlay draws no ring |
 | `tests/trainer/overlay-styles.test.ts` (new) | One stylesheet, `overlay-surface.css`, with no colors; no hex literals in the Overlay `.tsx` files; TrainerPage and trainer.css gone |
@@ -62,7 +62,7 @@ Milestone MO from [spec.md](../spec.md) §12 (D11, D12, OD2, §1.4, §4.1 Mounti
 3. **Saving… shows only while Host is connected.** TrainerPage set `hostDirty` on every change and only cleared it after a Host write, so without Host the footer said "Saving…" forever. §5.15 ties the footer to a Host write; changes made without Host are still written when Host connects, as before.
 4. **Empty preview titles.** The spec draws the dashed well for no board chosen and says "preview as above" for a board that isn't valid. The well reads **No board selected** only when no board is chosen; **No layout from the board yet** while a chosen board has no keys; **No physical keys in this layout** offline (TrainerPage's old paragraph).
 5. **Desktop default layer lists the layers of the board Host reads** (`hostLayers`), and shows the highest set bit of a multi-bit `manualDefault`. TrainerPage listed the preview board's layers and read `log2` of the mask, which gave a fraction for two bits (review finding).
-6. **Highlight held keys has no disabled state.** OnOffToggle can't be disabled, and §5.6 forbids disabled buttons anyway, so a choice made while another Host write is in flight shows at once and is sent when Host is free (TrainerPage disabled the Switch).
+6. **Highlight held keys and Desktop default layer have no disabled state.** OnOffToggle can't be disabled, and §5.6 forbids disabled buttons anyway, so a choice made while another Host write is in flight shows at once and is sent when Host is free (TrainerPage disabled the Switch, and dropped a Desktop default layer choice made during a write). A choice Host refuses (400, or 500 when it can't write its preferences) is dropped after the one attempt, so the control shows Host's value again and the error notice says why; it is not retried (review MO-1).
 7. **Preview held keys also works while following the board.** TrainerPage showed only Host's held keys while following, so the button did nothing with Host connected; M-30 shows it lighting keys with Host connected. The simulated chord now adds to Host's held keys for 800 ms.
 8. **Import error copy without periods** (**Choose a Svalboard layout with a 10 × 6 matrix**, **Couldn't read this layout**), as §5.14 writes them.
 9. **Bottom-bar panel** lays its rows out in an auto-fill grid (18 rem columns) under the tiles; the spec only says the panel docks.
@@ -70,6 +70,8 @@ Milestone MO from [spec.md](../spec.md) §12 (D11, D12, OD2, §1.4, §4.1 Mounti
 11. **Manual asset names stay `trainer-*`** (not user visible; the capture case names and evidence files use them). The chapter id is `overlay`, with an empty `#trainer` anchor kept for old links.
 12. **The preview's accessible name** is "Overlay keyboard preview" (was "Trainer keyboard preview"); HostOverlay shares the component, and the native capture scripts were updated.
 13. Spec line numbers are for `61db58a`. Every cited TrainerPage, host.ts and HostInstall site was found at or near its line on this base (vLaunch2.2), apart from the removed Hide button (deviation 1).
+14. **`host.configure` returns null when it sent nothing** (no Host state yet, or another write in flight), and false only when Host refused the write or couldn't be reached. The panel queue and the 160 ms mirroring write keep their change pending on null instead of dropping it.
+15. **Keybard's color dialog hands back an exact hex** (`CustomColorDialog` `initialDisplayHex`, and a third `displayHex` argument to `onApply`). Its sliders are 8-bit QMK HSV, which can't hold most hex colors, so until a slider moves the dialog returns the initial or typed hex unchanged. The layer color badge ignores the new argument, so its behavior is unchanged.
 
 ## OWNER_Q usage
 
@@ -101,7 +103,7 @@ The manual Host checklist from §12 MO, on Windows with Keybard Host and the Mul
 
 ## Checks run
 
-- `npx tsc --noEmit -p .` and `npm test` before every commit (final: 116 files, 1131 tests, all passing). Intermediate commits were checked in isolation with the later work set aside in a uniquely tagged stash, applied back by SHA and dropped.
+- `npx tsc --noEmit -p .` and `npm test` before every commit (final at the second review: 116 files, 1139 tests, all passing). Intermediate commits were checked in isolation with the later work set aside in a uniquely tagged stash, applied back by SHA and dropped.
 - `npm run build` and `npm run build:paranoid` before each push: both pass. The existing warning that the main chunk is over 500 kB still shows.
 - Playwright (system Chrome) against `npm run dev` and against `vite preview` of the production build, with Keybard Host mocked by request routes (board from `sval-default.svil`): every state in M-28 to M-34, light and dark, the Color field popover, Recall with the ring on Light, Dark and Busy, and the widths above. Paranoid checked from the built single file.
 - The manual: `tools/build.py` and `tools/validate.py` (local server) pass; the PDF was regenerated by `validate.py`.
@@ -128,3 +130,14 @@ An independent review (`/code-review high`, `0b08c3c..888f47d`) produced ten can
 | `PILL_BRAND` copies ConnectKeyboard's and Button's brand classes | **Deferred** (separate cleanup), listed under Stubbed |
 | Swatch names said "grey" (British) | **Fixed**: "Brand gray", "Brand light gray"; test |
 | `log2` of a multi-bit `manualDefault` matched no option | **Fixed**: the highest set bit; test |
+
+### Second review (at `428e6a5`)
+
+| Id | Finding | Disposition |
+|---|---|---|
+| MO-1 | The Highlight held keys queue resent the write every time `busy` settled while Host kept refusing it (500, 400) | **Fixed**: a write Host refuses settles the choice (dropped, the toggle shows Host's value, the error notice says why); only "nothing sent, another write in flight" (`configure` now returns null for it) waits and retries. Test: `/config` answers 500 and exactly one write is sent |
+| MO-2 | Desktop default layer lost a choice made while another Host write was in flight | **Fixed**: it goes through the same queue as Highlight held keys (`pendingHost`), and the select shows the waiting choice (`manualDefault` on the model). Tests: the write is sent after the one in flight and that one's Size change is kept; the panel shows a waiting choice |
+| MO-3 | More colors… round-tripped through 8-bit HSV and changed colors the user didn't edit (#099e7c came back #099e7d) | **Fixed**: the dialog returns the exact hex until a slider moves, and a hex typed in it passes straight through (deviation 15). Tests: Apply without changes keeps #099e7c, #001144 and #dce5ec; a typed hex passes through; a moved slider still returns the slider color |
+| MO-4 | The engine test changed the workspace and checked nothing, so the clear-on-leave gate in OverlayEngine was untested | **Fixed**: it rerenders after leaving the workspace, asserts the clearing `practice` command, and checks a second later that nothing is published again. The failed-write test from MO-1 was added too |
+
+Also found while fixing MO-1: the 160 ms mirroring write dropped its pending change (`hostDirty` cleared) when `configure` returned early because a panel choice's write had just started. It now waits for that write and sends after it (deviation 14).

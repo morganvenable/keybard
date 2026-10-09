@@ -4,7 +4,7 @@ import { Popover } from "radix-ui";
 import CustomColorDialog from "@/components/CustomColorDialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { hexToHsv, hsvToHex } from "@/utils/color-conversion";
+import { hexToHsv } from "@/utils/color-conversion";
 
 import { COLOR_FIELD_SWATCHES, HEX_COLOR } from "./color-swatches";
 
@@ -112,7 +112,9 @@ export function ColorField({ label, value, onChange }: ColorFieldProps) {
                 initialDisplayHue={hsv.hue}
                 initialDisplaySat={hsv.sat}
                 initialDisplayVal={hsv.val}
-                onApply={(display) => onChange(hsvToHex(display.hue, display.sat, display.val).toLowerCase())}
+                initialDisplayHex={HEX_COLOR.test(value) ? value : undefined}
+                // The exact hex: Apply without moving a slider keeps the color, and a typed hex passes through.
+                onApply={(_display, _led, hex) => onChange(hex.toLowerCase())}
             />
         </>
     );

@@ -88,4 +88,45 @@ describe("ColorField", () => {
         expect(onChange).toHaveBeenCalledTimes(1);
         expect(onChange.mock.calls[0][0]).toMatch(HEX_COLOR);
     });
+
+    // 8-bit HSV can't hold most hex colors (#099e7c comes back #099e7d), so More colors… hands back
+    // the exact hex until a slider moves.
+    it.each(["#099e7c", "#001144", "#dce5ec"])("keeps %s when More colors… is applied without changes", (hex) => {
+        const onChange = vi.fn();
+        render(<Harness initial={hex} onChange={onChange} />);
+        open();
+        fireEvent.click(screen.getByRole("button", { name: /More colors/ }));
+        const dialog = screen.getByRole("dialog", { name: "Outline color" });
+        expect(within(dialog).getByRole("button", { name: `Edit hex color ${hex.toUpperCase()}` })).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+        expect(onChange).toHaveBeenCalledWith(hex);
+    });
+
+    it("passes a hex typed in More colors… straight through", () => {
+        const onChange = vi.fn();
+        render(<Harness onChange={onChange} />);
+        open();
+        fireEvent.click(screen.getByRole("button", { name: /More colors/ }));
+        const dialog = screen.getByRole("dialog", { name: "Outline color" });
+        fireEvent.click(within(dialog).getByRole("button", { name: /^Edit hex color/ }));
+        const input = within(dialog).getByRole("textbox", { name: "Hex color" });
+        fireEvent.change(input, { target: { value: "#001144" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+        fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+        expect(onChange).toHaveBeenCalledWith("#001144");
+    });
+
+    it("hands back the slider color once a slider moves", () => {
+        const onChange = vi.fn();
+        render(<Harness initial="#099e7c" onChange={onChange} />);
+        open();
+        fireEvent.click(screen.getByRole("button", { name: /More colors/ }));
+        const dialog = screen.getByRole("dialog", { name: "Outline color" });
+        const hue = within(dialog).getByRole("slider", { name: "Hue" });
+        fireEvent.keyDown(hue, { key: "ArrowRight" });
+        fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+        expect(onChange).toHaveBeenCalledTimes(1);
+        expect(onChange.mock.calls[0][0]).toMatch(HEX_COLOR);
+        expect(onChange.mock.calls[0][0]).not.toBe("#099e7c");
+    });
 });
