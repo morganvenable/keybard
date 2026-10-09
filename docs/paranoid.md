@@ -14,6 +14,7 @@ Opening the file by double-clicking it, or opening the Host's address in your no
 ## What reads your keyboard, and when
 
 - **Keybard Paranoid** asks the board for its active layer only while its window is visible and focused. The Matrix Tester and Scan Lab only read while open and in front of you.
+- **Practice** reads key presses (the switch matrix and the active layer) only while a lesson is open, its text has focus and the window is in front of you, and never while the lesson is paused. It reads nothing else and writes nothing to the board. **Read key presses** in the Lesson panel, or **Stop reading keys** in its Input popover, turns this off; Practice then works from the keymap alone.
 - **Keybard Host** reads the board continuously while it runs, because the overlay is meant to work while you type in other apps. It reads the active layer and runs periodic device scans, and checks the Shift and Caps Lock state from Windows. Key presses are read only if you turn on held-key highlighting. It never sends anything off your computer, and in paranoid mode it accepts no website at all.
 
 ## Use it
@@ -43,7 +44,7 @@ In paranoid mode the Host:
 ## Limits worth knowing
 
 - **Keep the profile for Keybard only.** Chrome treats every HTML file opened from disk as the same origin. Another local HTML file opened in the contained profile could read Keybard's saved settings and, if permitted, talk to your keyboard. Don't use that profile for anything else.
-- **The firmware answers any page you connect.** Over WebHID, the keyboard's firmware reports its switch matrix to whatever page you've connected it to. Keybard Paranoid only asks while the Matrix Tester is open, but that protection is in the page's code, not in the firmware.
+- **The firmware answers any page you connect.** Over WebHID, the keyboard's firmware reports its switch matrix to whatever page you've connected it to. Keybard Paranoid only asks while the Matrix Tester, Scan Lab or a Practice lesson is open and in front of you, but that protection is in the page's code, not in the firmware.
 - **Managed browsers may ignore the proxy.** If your organization sets proxy settings by policy, they override the launchers' flags, and layer 2 may not apply.
 - **Outside apps can be launched with your consent.** A `mailto:` or other app link goes through the operating system, not the browser's network stack, if you approve Chrome's prompt.
 - **The launchers need Chrome or Edge.** WebHID needs a Chromium browser. If neither is installed, the launchers say so and open nothing.
