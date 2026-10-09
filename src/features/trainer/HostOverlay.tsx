@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import { useHost } from './host';
 import { surfaceKeys } from './useSurfaceKeys';
-import './trainer.css';
+import './overlay-surface.css';
 export default function HostOverlay() {
     const { state } = useHost();
     const [changed, setChanged] = useState<Set<number>>(new Set());

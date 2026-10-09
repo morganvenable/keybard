@@ -2,14 +2,25 @@ import type { KeyContent } from '@/types/keyboard.types';
 import { getHeaderIcons, getCenterContent, getTypeIcon } from '@/utils/key-icons';
 import type { Appearance, Preferences } from './core';
 import { haloColor } from './core';
+import './overlay-surface.css';
+import { PREVIEW_BACKGROUNDS } from './preview-backgrounds';
 export interface SurfaceKey { id: number; x: number; y: number; w: number; h: number; label: string; code: number; layer: number; hand: string; legend?: { keycode: string; keyContents?: KeyContent; displayLabel: string; topLabel: string; bottomStr: string } }
-interface Props { keys: SurfaceKey[]; appearance: Appearance; changed: Set<number>; held: Set<number>; effect: Preferences['effect']; duration: number; hidden: Set<number>; target?: number; onSelect?: (id: number) => void }
-export function OverlaySurface({ keys, appearance: a, changed, held, effect, duration, hidden, target, onSelect }: Props) {
+interface Props {
+    keys: SurfaceKey[]; appearance: Appearance; changed: Set<number>; held: Set<number>; effect: Preferences['effect']; duration: number; hidden: Set<number>; target?: number; onSelect?: (id: number) => void;
+    /**
+     * The key chosen on the Overlay page (Familiar bindings), drawn as a two-tone ring outside the user's
+     * colors: 2 px kb-select with a 1 px `selectionHalo` outside it (docs/practice/spec.md §5.14). Only the
+     * page preview passes it; HostOverlay never does, so the desktop overlay is unchanged.
+     */
+    selected?: number; selectionHalo?: string;
+}
+export function OverlaySurface({ keys, appearance: a, changed, held, effect, duration, hidden, target, onSelect, selected, selectionHalo = PREVIEW_BACKGROUNDS.Dark.halo }: Props) {
     if (!keys.length) return <p>No physical keys in this layout.</p>;
     const minX = Math.min(...keys.map(k => k.x)), minY = Math.min(...keys.map(k => k.y));
     const width = Math.max(...keys.map(k => k.x + k.w)) - minX;
     const height = Math.max(...keys.map(k => k.y + k.h)) - minY;
-    return <svg role="img" aria-label="Trainer keyboard preview" viewBox={`-4 -4 ${width * 40 + 8} ${height * 40 + 8}`}>
+    const ring = selected === undefined ? undefined : keys.find(k => k.id === selected);
+    return <svg role="img" aria-label="Overlay keyboard preview" viewBox={`-4 -4 ${width * 40 + 8} ${height * 40 + 8}`}>
         {keys.map(k => {
             const isHeld = held.has(k.id), isChanged = changed.has(k.id) && effect !== 'Off';
             const label = hidden.has(k.id) ? '·' : k.label;
@@ -29,6 +40,11 @@ export function OverlaySurface({ keys, appearance: a, changed, held, effect, dur
                     fill={a.legend} fillOpacity={a.legendAlpha / 100} stroke={a.halo ? haloColor(a.legend) : 'none'} strokeOpacity={a.legendAlpha / 100} strokeWidth="2" paintOrder="stroke fill">{line}</text>)}
             </g>;
         })}
+        {/* Drawn after every key so neighbors don't paint over it. */}
+        {ring && <g data-selection-ring aria-hidden="true" pointerEvents="none" transform={`translate(${(ring.x - minX) * 40} ${(ring.y - minY) * 40})`}>
+            <rect x={-5.5} y={-5.5} width={ring.w * 40 + 8} height={ring.h * 40 + 8} rx="10" fill="none" stroke={selectionHalo} strokeWidth="1" />
+            <rect x={-4} y={-4} width={ring.w * 40 + 5} height={ring.h * 40 + 5} rx="9" fill="none" className="stroke-kb-select" strokeWidth="2" />
+        </g>}
     </svg>;
 }
 
