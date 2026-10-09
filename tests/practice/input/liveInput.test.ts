@@ -223,6 +223,23 @@ describe('LiveInput: the board', () => {
         expect(live.getBoard().wrong.size).toBe(0);
     });
 
+    it('the keys of a combo for the expected character are not wrong (M3)', async () => {
+        const kb = { ...svalDefault(), combos: [{ cmbid: 0, keys: ['KC_J', 'KC_K'], output: 'KC_EQUAL', options: 0x8000 }] };
+        const fake = new FakeBoard();
+        const live = (current = new LiveInput({ pollMatrix: fake.pollMatrix, getLayerMasks: fake.getLayerMasks, clock: fake.clock, sleep: fake.sleep }));
+        const r = resolveKeymap({ keymap: kb.keymap!, rows: kb.rows, cols: kb.cols, combos: kb.combos });
+        live.setKeymap({ resolution: r, keymap: kb.keymap!, rows: kb.rows, cols: kb.cols });
+        live.bindRun(new LessonRun({ text: '=as', textInput: { stopOnError: true, forgiveErrors: true, spaceSkipsWords: false }, resolution: r, cols: kb.cols }));
+        live.setWanted(true);
+        await fake.reply([], 10);
+        await fake.reply([at('j')], 20);
+        await fake.reply([at('j'), at('k')], 30);
+        expect(live.getBoard().wrong.size).toBe(0);
+        await fake.reply([], 40);
+        await fake.reply([at('f')], 50);
+        expect([...live.getBoard().wrong]).toEqual([at('f')]);
+    });
+
     it('a press right after an OSL tap, before the next mask read, is on layer 1 and not wrong', async () => {
         const osl = rebind(svalDefault(), 0, 33, keyService.parse('OSL(1)'));
         const fake = new FakeBoard();

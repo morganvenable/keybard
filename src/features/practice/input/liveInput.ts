@@ -283,7 +283,7 @@ export class LiveInput {
         if (key.prereqKey || key.tapHold || !this.#run) return;
         const char = keymap.charAt(edge.index, key.layer, keymap.shiftHeld(edge.sample.down, mask));
         if (!char) return;
-        if (!this.#isWrong(char.char, edge)) return;
+        if (!this.#isWrong(char.char, edge) || this.#chordOfExpected(edge.index)) return;
         // A roll out of an LT or mod-tap key: with permissive hold, releasing it
         // first types its tap and then this key's tap side. Not wrong if that's right.
         if (keymap.tapHoldHeld(edge.sample.down, mask, edge.index)) {
@@ -295,6 +295,19 @@ export class LiveInput {
         const timer = this.#wrongTimers.get(edge.index);
         if (timer) { clearTimeout(timer); this.#wrongTimers.delete(edge.index); }
         this.#wrong.set(edge.index, null);
+    }
+
+    /** The key is one of a combo or a double tap that types the expected or the next character (M3): part of the chord, not wrong. */
+    #chordOfExpected(index: number): boolean {
+        const text = this.#run!.textInput;
+        if (text.completed) return false;
+        const resolution = this.#keymap!.resolution;
+        for (let pos = text.pos; pos <= text.pos + 1 && pos < text.length; pos++) {
+            for (const path of resolution.pathsOf(text.at(pos).codePoint)) {
+                if ((path.targets.length > 1 || path.taps === 2) && path.targets.includes(index)) return true;
+            }
+        }
+        return false;
     }
 
     /** A press is wrong unless it types the character expected now, or one just typed right, or the next one (a roll). */

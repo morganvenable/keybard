@@ -102,3 +102,16 @@ describe('Practice board, Live · USB (§5.2, §9.3)', () => {
         expect(at({ displayedLayer: 1 }).keycode).toBe(live.keycode);
     });
 });
+
+describe('Practice board: combos (M3)', () => {
+    it('rings every key of a combo and keeps their own legends', () => {
+        const combos = [{ cmbid: 0, keys: ['KC_J', 'KC_K'], output: 'KC_EQUAL', options: 0x8000 }];
+        const r = resolveKeymap({ keymap: board.keymap!, rows: board.rows, cols: board.cols, combos });
+        const v = boardView({
+            keyboard: board, resolution: r, layoutId: 'us', defaultLayer: 0, displayedLayer: 0,
+            included: letters('='), locked: new Set(), next: cp('='), hints: 'next', legends: true,
+        });
+        expect(v.keys.filter((k) => k.ring).map((k) => k.index).sort((a, b) => a - b)).toEqual([38, 44]);
+        expect(v.keys.find((k) => k.index === 38)!.label).not.toBe('=');
+    });
+});

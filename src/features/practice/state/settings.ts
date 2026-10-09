@@ -56,8 +56,12 @@ export interface DrillSettings {
     focus: number | null;
 }
 
+/**
+ * A new Drill practices the 8 weakest characters of the whole keymap (§6.2 Weakest): the spec leaves the
+ * default open, and All over every layer is 60-odd characters, too many for a drill.
+ */
 export const DEFAULT_DRILL: DrillSettings = {
-    layer: null, group: 'all', dirs: [...DRILL_DIRECTIONS], hands: 'both', thumbs: true, benford: true, keys: null, focus: null,
+    layer: null, group: 'weakest', dirs: [...DRILL_DIRECTIONS], hands: 'both', thumbs: true, benford: true, keys: null, focus: null,
 };
 
 /** Words (§5.5): the size of the word list (most frequent first) and Long words only. */
@@ -154,7 +158,7 @@ export const START_PRESETS = {
     /** "Coming from QWERTY": Guided, every letter included at once, 35 WPM, next key, 15 min a day. */
     qwerty: { type: 'guided', targetSpeed: 175, alphabetSize: 1, hints: 'next', dailyGoal: 15 },
     /** "Drill my keymap": Drill → Weakest over the whole keymap, 45 WPM, no hints, 10 min a day. */
-    drill: { type: 'drill', drill: { ...DEFAULT_DRILL, group: 'weakest' }, targetSpeed: 225, hints: 'off', dailyGoal: 10 },
+    drill: { type: 'drill', drill: { ...DEFAULT_DRILL, group: 'weakest', layer: null, keys: null, focus: null }, targetSpeed: 225, hints: 'off', dailyGoal: 10 },
 } as const satisfies Record<string, Partial<PracticeSettings>>;
 
 export type StartPreset = keyof typeof START_PRESETS;

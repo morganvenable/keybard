@@ -33,10 +33,10 @@ const letterFrequency = new Map(englishModel().letters.map((l) => [l.codePoint, 
 const weight = (c: number) => keyboard.getCodePoints().weight(c);
 const noProgress = () => ({ confidence: null, samples: 0 });
 const scope = (drill: Partial<DrillSettings>, progress = noProgress) =>
-    drillScope({ resolution, cols: board.cols, letterFrequency, drill: { ...DEFAULT_DRILL, ...drill }, weight, progress });
+    drillScope({ resolution, cols: board.cols, letterFrequency, drill: { ...DEFAULT_DRILL, group: 'all', ...drill }, weight, progress });
 
 function drillLesson(drill: Partial<DrillSettings>, settings: Partial<PracticeSettings> = {}) {
-    const s = { ...DEFAULT_SETTINGS, ...settings, drill: { ...DEFAULT_DRILL, ...drill } };
+    const s = { ...DEFAULT_SETTINGS, ...settings, drill: { ...DEFAULT_DRILL, group: 'all' as const, ...drill } };
     return new PracticeDrillLesson(toKeybrSettings(s), keyboard, englishModel(), englishWords(), s.drill);
 }
 
@@ -139,9 +139,9 @@ describe('Drill scope (§5.5, §6.2)', () => {
         const name = (layer: number) => `Layer ${layer}`;
         const dirs = DRILL_DIRECTIONS.filter((d) => d !== '2S');
         expect(drillScopeLabel({ ...DEFAULT_DRILL, layer: 1, group: 'symbols', dirs: ['N', 'S'] }, name, dirs)).toBe('Layer 1 · Symbols · N S');
-        expect(drillScopeLabel(DEFAULT_DRILL, name, dirs)).toBe('All keys');
-        expect(drillScopeLabel({ ...DEFAULT_DRILL, group: 'weakest' }, name, dirs)).toBe('Weakest');
-        expect(drillScopeLabel({ ...DEFAULT_DRILL, hands: 'left', thumbs: false }, name, dirs)).toBe('Left hand · No thumbs');
+        expect(drillScopeLabel({ ...DEFAULT_DRILL, group: 'all' }, name, dirs)).toBe('All keys');
+        expect(drillScopeLabel(DEFAULT_DRILL, name, dirs)).toBe('Weakest');
+        expect(drillScopeLabel({ ...DEFAULT_DRILL, group: 'all', hands: 'left', thumbs: false }, name, dirs)).toBe('Left hand · No thumbs');
         expect(drillScopeLabel({ ...DEFAULT_DRILL, keys: [cp('!'), cp('1')], focus: cp('!') }, name, dirs)).toBe('! and its cluster');
     });
 
@@ -154,7 +154,7 @@ describe('Drill scope (§5.5, §6.2)', () => {
         expect(drillSettings({ layer: 1, group: 'symbols', dirs: ['N', 'X', 'S'], hands: 'left', thumbs: false, benford: false }))
             .toEqual({ layer: 1, group: 'symbols', dirs: ['N', 'S'], hands: 'left', thumbs: false, benford: false, keys: null, focus: null });
         expect(drillSettings({ layer: -1, group: 'nope', hands: 3, keys: [33, 'x', 49], focus: 99 }))
-            .toMatchObject({ layer: null, group: 'all', hands: 'both', keys: [33, 49], focus: null });
+            .toMatchObject({ layer: null, group: 'weakest', hands: 'both', keys: [33, 49], focus: null });
         expect(drillSettings({ keys: [33, 49], focus: 33 })).toMatchObject({ keys: [33, 49], focus: 33 });
         expect(practiceSettings({ words: { size: 5000, longOnly: 'yes' }, drillLayerUnderlines: false }))
             .toMatchObject({ words: { size: 1000, longOnly: false }, drillLayerUnderlines: false, drill: DEFAULT_DRILL });

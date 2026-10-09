@@ -77,7 +77,8 @@ describe('Type row with Drill, Words and Custom (§5.2)', () => {
         await vi.waitFor(() => expect(c.session?.type).toBe('drill'));
         expect(c.run).not.toBe(before);
         await vi.waitFor(() => expect(document.activeElement).toBe(textarea()));
-        expect(screen.getByRole('button', { name: /All keys/ })).toBeInTheDocument();
+        // A new Drill practices the weakest characters.
+        expect(screen.getByRole('button', { name: /Weakest/ })).toBeInTheDocument();
     });
 
     it('names each type\'s scope: Drill, Words and Custom', async () => {
