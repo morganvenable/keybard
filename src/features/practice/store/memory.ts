@@ -2,7 +2,9 @@
 // and the fallback when IndexedDB is unavailable. Values are cloned in and out so
 // callers can't mutate stored records, as with IndexedDB's structured clone.
 import type { EventsRecord, ProfileRecord, ResultRecord, SnapshotRecord } from '../types';
-import type { PracticeStore, StoredResult } from './db';
+import type { ImportRow, PracticeStore, StoredResult } from './db';
+import { RECORD_SCHEMA } from './migrations';
+import { EVENT_LAYOUT } from './pack';
 
 const clone = <T>(value: T): T => structuredClone(value);
 
@@ -48,6 +50,26 @@ export class MemoryPracticeStore implements PracticeStore {
     }
 
     async deleteEvents(resultIds: readonly number[]) { for (const id of resultIds) this.events.delete(id); }
+
+    async importResults(profileId: string, rows: readonly ImportRow[], replace: boolean) {
+        // Clone everything first: a row that can't be stored throws before anything changes.
+        const values = rows.map((row) => {
+            const { id: _ignored, ...result } = row.result;
+            return { result: clone({ ...result, profileId }), events: row.events && clone(row.events) };
+        });
+        if (replace) {
+            for (const id of await this.listEventIds(profileId)) this.events.delete(id);
+            await this.deleteResults(profileId);
+        }
+        const ids = values.map(({ result, events }) => {
+            const id = this.nextId++;
+            this.results.set(id, { ...result, id });
+            if (events) this.events.set(id, { schema: RECORD_SCHEMA, resultId: id, profileId, layout: EVENT_LAYOUT, packed: events });
+            return id;
+        });
+        if (replace || rows.length) this.snapshots.delete(profileId);
+        return ids;
+    }
 
     async getSnapshot(profileId: string) { const s = this.snapshots.get(profileId); return s && clone(s); }
     async putSnapshot(snapshot: SnapshotRecord) { this.snapshots.set(snapshot.profileId, clone(snapshot)); }

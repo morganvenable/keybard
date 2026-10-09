@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { packEvents, unpackEvents, WORDS_PER_EVENT } from '@/features/practice/store/pack';
 import { ERROR_CLASSES, type KeystrokeEvent } from '@/features/practice/types';
 
-function event(overrides: Partial<KeystrokeEvent> & { phys?: Partial<KeystrokeEvent['phys']> } = {}): KeystrokeEvent {
+function event(overrides: Omit<Partial<KeystrokeEvent>, 'phys'> & { phys?: Partial<KeystrokeEvent['phys']> } = {}): KeystrokeEvent {
     const { phys, ...rest } = overrides;
     return {
         t: 0, expected: 0x61, typed: 0x61, kind: 'hit', raw: 0, ttt: null, path: '0:26:n', prereq: [],

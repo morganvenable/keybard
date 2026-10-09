@@ -3,12 +3,13 @@
 // Import always targets the active profile: every profile in the file is imported
 // into it and `profileId` is rewritten. Merge skips results already present
 // (same ts, n and t); Replace clears the profile's results, events and snapshot
-// first (the UI confirms before calling it). A file with a newer `version` is
-// refused. Every record is validated by resultRecordFromJson.
-import type { EventsRecord, ProfileRecord, ResultRecord } from '../types';
-import type { PracticeStore } from './db';
+// first (the UI confirms before calling it), in the same transaction as the
+// import. A file with a newer `version` is refused. Every record is validated by
+// resultRecordFromJson before anything is written.
+import type { ProfileRecord, ResultRecord } from '../types';
+import type { ImportRow, PracticeStore } from './db';
 import { bytesToBase64, base64ToBytes } from './base64';
-import { RECORD_SCHEMA } from './migrations';
+import { pruneEvents } from './events';
 import { EVENT_LAYOUT, WORDS_PER_EVENT } from './pack';
 import { resultRecordFromJson } from './results';
 
@@ -78,7 +79,7 @@ export interface ImportSummary {
 }
 
 export class ImportError extends Error {
-    constructor(message: string, readonly reason: 'format' | 'newer-version') {
+    constructor(message: string, readonly reason: 'format' | 'newer-version' | 'empty') {
         super(message);
         this.name = 'ImportError';
     }
@@ -98,44 +99,54 @@ export function parseExport(json: unknown): { results: unknown[]; events: unknow
 
 const dedupeKey = (r: Pick<ResultRecord, 'ts' | 'n' | 't'>) => `${r.ts}|${r.n}|${r.t}`;
 
-/** Imports a parsed export file into the active profile. */
-export async function importIntoProfile(store: PracticeStore, profileId: string, json: unknown, mode: ImportMode): Promise<ImportSummary> {
+/**
+ * Imports a parsed export file into the active profile. Every record is validated
+ * and every event row decoded before anything is written, then the whole import
+ * is one store transaction: a failed write leaves the profile as it was. Replace
+ * is refused when the file has no valid result, so it can't empty the profile.
+ * Events beyond the retention limit (OWNER_Q5) are pruned afterwards.
+ */
+export async function importIntoProfile(
+    store: PracticeStore,
+    profileId: string,
+    json: unknown,
+    mode: ImportMode,
+    { keepEvents }: { keepEvents?: number } = {},
+): Promise<ImportSummary> {
     const file = parseExport(json);
-    if (mode === 'replace') {
-        await store.deleteEvents(await store.listEventIds(profileId));
-        await store.deleteResults(profileId);
-        await store.deleteSnapshot(profileId);
-    }
-    const existing = new Set((await store.listResults(profileId)).map(dedupeKey));
     const eventsByOldId = new Map<number, ExportedEvents>();
     for (const raw of file.events) {
         const e = raw as Partial<ExportedEvents>;
         if (Number.isSafeInteger(e?.resultId) && e?.layout === EVENT_LAYOUT && typeof e.packed === 'string') eventsByOldId.set(e.resultId!, e as ExportedEvents);
     }
     const summary: ImportSummary = { added: 0, duplicates: 0, invalid: 0, events: 0 };
-    const records = file.results.map((raw) => ({ raw, record: resultRecordFromJson(raw) }));
-    records.sort((a, b) => (a.record?.ts ?? 0) - (b.record?.ts ?? 0));
-    for (const { record } of records) {
-        if (!record) { summary.invalid++; continue; }
+    const records = file.results.map((raw) => resultRecordFromJson(raw));
+    summary.invalid = records.filter((r) => !r).length;
+    const valid = records.filter((r): r is ResultRecord => r != null).sort((a, b) => a.ts - b.ts);
+    if (mode === 'replace' && !valid.length) throw new ImportError('This Practice file has no valid results.', 'empty');
+    // Replace clears the profile, so only duplicates within the file are skipped.
+    const existing = new Set(mode === 'replace' ? [] : (await store.listResults(profileId)).map(dedupeKey));
+    const rows: ImportRow[] = [];
+    for (const record of valid) {
         const key = dedupeKey(record);
         if (existing.has(key)) { summary.duplicates++; continue; }
         existing.add(key);
-        const oldId = record.id;
-        const id = await store.addResult({ ...record, id: undefined, profileId });
-        summary.added++;
-        const events = oldId != null ? eventsByOldId.get(oldId) : undefined;
+        const row: ImportRow = { result: { ...record, profileId } };
+        const events = record.id != null ? eventsByOldId.get(record.id) : undefined;
         if (events) {
             try {
                 const bytes = base64ToBytes(events.packed);
                 if (bytes.byteLength % (WORDS_PER_EVENT * 4) !== 0) throw new Error('bad length');
-                const row: EventsRecord = { schema: RECORD_SCHEMA, resultId: id, profileId, layout: EVENT_LAYOUT, packed: bytes.slice().buffer };
-                await store.putEvents(row);
+                row.events = bytes.slice().buffer;
                 summary.events++;
             } catch {
                 // Events are optional; a damaged row is skipped, the result is kept.
             }
         }
+        rows.push(row);
     }
-    if (summary.added) await store.deleteSnapshot(profileId);
+    await store.importResults(profileId, rows, mode === 'replace');
+    summary.added = rows.length;
+    await pruneEvents(store, profileId, keepEvents);
     return summary;
 }
