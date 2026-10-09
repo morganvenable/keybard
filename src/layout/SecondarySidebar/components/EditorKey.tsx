@@ -12,12 +12,12 @@ export interface EditorKeyProps {
 }
 
 const classes = {
-    key: "bg-kb-surface border border-kb-gray-border border-2 w-12 h-12 rounded-md cursor-pointer hover:border-red-600 transition-all flex flex-col select-none",
+    key: "bg-kb-surface border border-kb-gray-border border-2 w-12 h-12 rounded-md cursor-pointer hover:border-kb-select transition-all flex flex-col select-none",
     emptyKey:
-        "bg-kb-green text-white w-12 h-12 rounded-md cursor-pointer hover:border-2 border-2 border border-transparent hover:border-red-600 transition-all flex items-center justify-center text-wrap text-center text-xs flex-col select-none",
-    selectedKey: "!bg-red-600 border-2 border-red-600 text-white",
+        "bg-kb-green text-white w-12 h-12 rounded-md cursor-pointer hover:border-2 border-2 border border-transparent hover:border-kb-select transition-all flex items-center justify-center text-wrap text-center text-xs flex-col select-none",
+    selectedKey: "!bg-kb-select-tint border-2 border-kb-select text-kb-ink",
     dragSource: "!bg-kb-light-grey border-kb-light-grey dark:!bg-neutral-700 dark:border-neutral-700 text-transparent opacity-65 select-none",
-    dragHover: "!border-red-500 !bg-red-50 dark:!bg-red-950/40 !border-2",
+    dragHover: "!border-kb-select !bg-kb-select-tint !border-2",
 };
 
 const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDrop }) => {
@@ -41,7 +41,7 @@ const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDr
         ? cn(keyClass, classes.dragSource)
         : isDragHover && isDragging && !isDragSource
             ? cn(keyClass, classes.dragHover)
-            : selected ? `${keyClass} ${classes.selectedKey}` : keyClass;
+            : selected ? cn(keyClass, classes.selectedKey) : keyClass;
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return; // Only left click

@@ -296,10 +296,10 @@ const LayoutsPanel: FC = () => {
             {/* Drag overlay */}
             {
                 isDragging && (
-                    <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
+                    <div className="absolute inset-0 bg-kb-select-tint/40 border-2 border-solid border-kb-select rounded-lg flex items-center justify-center z-10">
                         <div className="text-center">
-                            <Upload className="w-12 h-12 text-blue-500 mx-auto mb-2" />
-                            <p className="text-blue-700 dark:text-blue-300 font-medium">
+                            <Upload className="w-12 h-12 text-kb-ink mx-auto mb-2" />
+                            <p className="text-kb-ink font-medium">
                                 Drop .svil file to import
                             </p>
                         </div>

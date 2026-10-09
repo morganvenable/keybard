@@ -99,7 +99,7 @@ const BindingsList: FC<Props> = ({ editElement, icon, bindingType, notBindable, 
                         <div
                             className={cn(
                                 "flex flex-col bg-black h-12 w-12 rounded-sm flex-shrink-0 items-center cursor-default",
-                                notBindable ? "" : "cursor-pointer border-2 hover:border-red-600 border-transparent transition-all"
+                                notBindable ? "" : "cursor-pointer border-2 hover:border-kb-select border-transparent transition-all"
                             )}
                             onClick={() => {
                                 if (!notBindable) assignKeycode(getKeyCode(bindingType, absoluteIndex));

@@ -7,6 +7,7 @@ import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
 import { hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
 import { DragItem, useDrag } from "@/contexts/DragContext";
+import { SELECTED_KEY_CLASSES, SELECTED_STRIP_CLASSES } from "@/constants/color-roles";
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditorKeyProps {
@@ -67,13 +68,13 @@ const EditorKey: FC<EditorKeyProps> = ({
 
     if (selected) {
         keyColor = undefined;
-        keyClassName = "border-2 border-red-600";
-        headerClass = "bg-black/20";
+        keyClassName = "border-2 border-kb-select bg-kb-select-tint";
+        headerClass = SELECTED_STRIP_CLASSES;
     } else if (isDragHover && isDragging && onDrop) {
-        // Drag Hover State: Double Border effect
+        // Drag Hover State: the selected look (this slot is where the key will land)
         keyColor = undefined;
-        keyClassName = "bg-red-500 border-kb-key-border ring-2 ring-red-500 ring-offset-1 ring-offset-background";
-        headerClass = "bg-red-600 text-white";
+        keyClassName = SELECTED_KEY_CLASSES;
+        headerClass = SELECTED_STRIP_CLASSES;
     } else if (hasContent) {
         keyColor = "sidebar";
         keyClassName = "border-kb-key-border";

@@ -20,6 +20,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
 import { KEYMAP } from "@/constants/keygen";
+import { PENDING_OUTLINE_CLASSES } from "@/constants/color-roles";
 
 import { fileService } from "@/services/file.service";
 import {
@@ -479,16 +480,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 getPendingCount() === 0
                                                     ? "bg-gray-200 dark:bg-neutral-700 text-kb-ink border-gray-200 dark:border-neutral-700 cursor-not-allowed"
                                                     : "bg-kb-active text-gray-200 dark:text-neutral-900 cursor-pointer",
-                                                // Hover logic - Manual Mode: Red (only when enabled)
-                                                getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white dark:hover:text-white hover:border-red-500",
+                                                // Hover logic - Manual Mode (only when enabled). Sending edits is not
+                                                // destructive, so no red: the ink pill just lightens a little.
+                                                getPendingCount() > 0 && (!ignoreHover) && "hover:bg-kb-active/80",
 
-                                                // Pending Changes Ring (Manual Mode only)
-                                                getPendingCount() > 0
-                                                    ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-kb-ink" : ""}`
-                                                    : "", // No ring when disabled
+                                                // Pending outline (Manual Mode only): the pending role, dashed amber
+                                                getPendingCount() > 0 && cn("border-transparent", PENDING_OUTLINE_CLASSES),
 
                                                 // Active state (click) - only when enabled
-                                                getPendingCount() > 0 && "active:bg-red-500 active:text-white dark:active:text-white"
+                                                getPendingCount() > 0 && "active:bg-kb-active/80"
                                             )}
                                         >
                                             <span className="select-none">

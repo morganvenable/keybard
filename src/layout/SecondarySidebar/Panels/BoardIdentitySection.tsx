@@ -104,7 +104,7 @@ export default function BoardIdentitySection() {
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && dirty && !problem && !busy) save();
                             }}
-                            className={dirty ? "border-amber-500" : undefined}
+                            className={dirty ? "border-kb-pending" : undefined}
                         />
                         <Button size="sm" disabled={!dirty || !!problem || busy} onClick={save}>
                             Save now

@@ -118,7 +118,7 @@ const AltRepeatPanel: React.FC = () => {
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
                         hasContent ? "border-kb-key-border" : "bg-transparent border border-kb-gray-border",
-                        isSelected && "ring-2 ring-blue-500"
+                        isSelected && "ring-2 ring-kb-select"
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"

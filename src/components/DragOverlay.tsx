@@ -68,7 +68,7 @@ export const DragOverlay: React.FC = () => {
         const keyClass = displayText !== "" ? classes.emptyKey : classes.key;
 
         return (
-            <div className={cn(keyClass, "border-red-600 !w-full !h-full shadow-none")}>
+            <div className={cn(keyClass, "border-kb-select !w-full !h-full shadow-none")}>
                 {isMacro && <MacrosIcon className="mt-2 h-8" />}
                 {displayText && <span style={{ whiteSpace: "pre-line" }}>{displayText}</span>}
             </div>

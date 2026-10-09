@@ -1222,7 +1222,7 @@ const EditorLayoutInner = () => {
                 ref={contentContainerRef}
                 className={cn(
                     "relative flex-1 min-w-0 px-2 sm:px-4 h-dvh max-h-dvh flex flex-col max-w-full overflow-hidden bg-kb-gray border-none",
-                    isDraggingLayer && "ring-4 ring-inset ring-blue-400 ring-opacity-50"
+                    isDraggingLayer && "ring-4 ring-inset ring-kb-select/50"
                 )}
                 style={contentStyle}
                 onClick={() => clearSelection()}

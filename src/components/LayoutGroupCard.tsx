@@ -91,7 +91,7 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
                             {group.name}
                         </span>
                         {group.source === "current" && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 rounded">
+                            <span className="text-xs px-2 py-0.5 bg-kb-gray-medium text-kb-ink rounded">
                                 Active
                             </span>
                         )}

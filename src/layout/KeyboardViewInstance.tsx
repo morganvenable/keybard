@@ -461,11 +461,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         className={cn(
                             "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
                             isDropTarget
-                                ? "bg-red-500 text-white shadow-md scale-105 ring-2 ring-red-500 ring-offset-1 ring-offset-background"
+                                ? "bg-kb-select-tint text-kb-ink shadow-md scale-105 ring-2 ring-kb-select ring-offset-1 ring-offset-background"
                                 : isActive
                                     ? "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105"
                                     : "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700",
-                            isDropTarget && "hover:bg-red-500",
+                            isDropTarget && "hover:bg-kb-select-tint",
                             isDragged && tabDrag?.collapsed && "w-0 -ml-1 px-0 opacity-0 overflow-hidden",
                             isHudMode && !isActive && !isLayerActive && "text-gray-300 dark:text-neutral-400"
                         )}
