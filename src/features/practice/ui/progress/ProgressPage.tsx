@@ -109,6 +109,27 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
     }, [session, view, board]);
 
     const [chosenLayer, setChosenLayer] = useState<number | null>(null);
+    const metric = settings?.heatMetric ?? "speed";
+    const target = settings?.targetSpeed ?? 175;
+
+    // The heatmap's keys on the chosen layer and the usage quartiles of what each section shows.
+    const heat = useMemo(() => {
+        if (!session || !view || !physical || !board) return null;
+        const defaultLayer = session.keymap.defaultLayer;
+        const layers = physical.totals.layers;
+        const layer = chosenLayer != null && layers.includes(chosenLayer) ? chosenLayer : layers.includes(defaultLayer) ? defaultLayer : layers[0] ?? defaultLayer;
+        const characters = new Map(view.characters.map((c) => [c.codePoint, c]));
+        const keys = heatmapKeys({
+            keymap: board.keymap ?? [], resolution: session.resolution, indices: physical.places.map((p) => p.index), layer, defaultLayer,
+            totals: physical.totals, characters, targetSpeed: target,
+        });
+        const gridGroups = [...physical.fingers.cells.flat(), ...physical.thumbs.left.map((r) => r.group), ...physical.thumbs.right.map((r) => r.group)];
+        return {
+            layer, layers, characters, keys,
+            keyQuartiles: usageQuartiles(keys.map((k) => (k.noData ? 0 : k.values.usage ?? 0))),
+            gridQuartiles: usageQuartiles(gridGroups.map((g) => (g ? metricValue(g.values, "usage") ?? 0 : 0))),
+        };
+    }, [session, view, physical, board, chosenLayer, target]);
 
     const profileName = session?.profile.name ?? "Me";
     const header = <PracticeHeader right={<span className="text-sm text-muted-foreground whitespace-nowrap truncate">{profileName} · {periodLabel(period)}</span>} />;
@@ -127,7 +148,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
         );
     }
 
-    if (!controller || !session || !view || !settings || !physical || !board) {
+    if (!controller || !session || !view || !settings || !physical || !board || !heat) {
         return (
             <div className={PAGE_FRAME} data-practice-page="progress" data-active={active}>
                 {header}
@@ -153,21 +174,10 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
     }
 
     const unit = settings.speedUnit;
-    const metric = settings.heatMetric;
-    const target = settings.targetSpeed;
     const s = view.summary;
     const points = chartPoints(view.records, view.results, settings.chartAxis);
     const defaultLayer = session.keymap.defaultLayer;
-    const layers = physical.totals.layers;
-    const layer = chosenLayer != null && layers.includes(chosenLayer) ? chosenLayer : layers.includes(defaultLayer) ? defaultLayer : layers[0] ?? defaultLayer;
-    const indices = physical.places.map((p) => p.index);
-    const characters = new Map(view.characters.map((c) => [c.codePoint, c]));
-    const heatKeys = heatmapKeys({
-        keymap: board.keymap ?? [], resolution: session.resolution, indices, layer, defaultLayer, totals: physical.totals, characters, targetSpeed: target,
-    });
-    const keyQuartiles = usageQuartiles(heatKeys.map((k) => (k.noData ? 0 : k.values.usage ?? 0)));
-    const gridGroups = [...physical.fingers.cells.flat(), ...physical.thumbs.left.map((r) => r.group), ...physical.thumbs.right.map((r) => r.group)];
-    const gridQuartiles = usageQuartiles(gridGroups.map((g) => (g ? metricValue(g.values, "usage") ?? 0 : 0)));
+    const { layer, layers, characters, keys: heatKeys, keyQuartiles, gridQuartiles } = heat;
     const inferred = physical.inferred ? <InferredChip /> : null;
     const p5: ProgressP5 = {
         resolution: session.resolution,

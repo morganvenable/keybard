@@ -1778,6 +1778,8 @@ M1b adds a Vitest check that reads `dist/` stats after `vite build` in CI and fa
 
 **Measured in M3 (2026-10-09).** Drill, Words, Custom, the symbol generator and the resolver's combos, tap dances and key overrides: Practice in the entry chunk 1.4 KB gzip; practice lazy chunks 90 KB gzip; English content 60 KB gzip; Paranoid growth 457 KB. All within budget.
 
+**Measured in M4 (2026-10-09).** The Progress heatmap, Fingers, Thumbs, Layers, History, P5 in full, the Data rows, stray presses and the OS layout notice: Practice in the entry chunk 1.4 KB gzip; practice lazy chunks 106 KB gzip; English content 60 KB gzip; Paranoid growth 502 KB. All within budget, but Paranoid has 48 KB left: the next milestone that adds much should measure first.
+
 ### 9.9 Testing
 
 - **Vendored engine:** keybr's tests for the vendored packages ported to Vitest (about 7.1k LOC), with fixtures rebuilt on a fake Svalboard keyboard instead of `loadKeyboard`/`Layout` tables (§9.2). Added tests for each patch: `lessonProps` without code/books, the `Lesson.filter` override, and `makeStats` with gaps and pauses.
