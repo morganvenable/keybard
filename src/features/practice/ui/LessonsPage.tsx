@@ -7,22 +7,25 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
 import { placeOf } from "../keymap/geometry";
-import { PracticeGuidedLesson } from "../lessons/guided";
+import { drillScopeLabel } from "../lessons/scope";
 import { PAGE_FRAME } from "../PracticeWorkspace";
 import { PracticeHeader } from "../PracticeHeader";
 import { usePractice } from "../PracticeProvider";
 import type { PracticeController } from "../state/controller";
 import { characterStats, type CharacterStats, stripKeys } from "../state/progressView";
-import { effectiveLessonType, START_PRESETS, type StartPreset, toKeybrSettings } from "../state/settings";
+import { effectiveLessonType, layerUnderlinesFor, type PracticeSettings, START_PRESETS, type StartPreset } from "../state/settings";
+import type { LessonType } from "../types";
 import { boardSize, boardView, displayedLayerFor } from "./boardModel";
 import { fitBoard, useSettledWidth } from "./boardFit";
-import { layerColorHex, layerColorName, spokenPlace } from "./format";
+import { CustomTextDialog } from "./CustomTextDialog";
+import { layerColorHex, layerColorName, layerName, spokenPlace } from "./format";
 import { InputStatus } from "./InputStatus";
 import { KeyStrip } from "./KeyStrip";
 import { MetricsRow } from "./MetricsRow";
 import { LiveBoard } from "./PracticeKeyboard";
 import { presetWpm, StartView } from "./StartView";
 import { StatusSlotItem, TypeRow } from "./TypeRow";
+import { boardDirections, textPreview } from "./TypeSections";
 import { TypingSurface, type TypingSurfaceHandle } from "./TypingSurface";
 import { FloatingTools, Well } from "./Wells";
 
@@ -31,6 +34,20 @@ import { FloatingTools, Well } from "./Wells";
 // The page reads PracticeController and tells it about focus; the controller owns the lesson.
 
 const EMPTY = new Set<number>();
+
+/** The type row's scope text (§5.2): what the current type practices; it opens that type's panel section. */
+export function scopeText(settings: PracticeSettings, layer: (n: number) => string, directions: Parameters<typeof drillScopeLabel>[2]): string {
+    switch (effectiveLessonType(settings.type)) {
+        case "drill":
+            return drillScopeLabel(settings.drill, layer, directions);
+        case "words":
+            return `${settings.words.size} words`;
+        case "custom":
+            return textPreview(settings.customText.content, 24) || "Empty text";
+        default:
+            return settings.order === "center-first" ? "Center first" : "Frequency";
+    }
+}
 
 function useCharacterStats(controller: PracticeController | null) {
     const session = controller?.session ?? null;
@@ -62,6 +79,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const [preset, setPreset] = useState<StartPreset | null>(null);
     const [targetWpm, setTargetWpm] = useState(25);
     const [boardSheet, setBoardSheet] = useState(false);
+    const [editingText, setEditingText] = useState(false);
 
     const session = controller?.session ?? null;
     const run = controller?.run ?? null;
@@ -101,6 +119,11 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         }
     }, [controller, layoutMode, panelOpen, handleCloseDetails]);
 
+    const drillKey = useCallback((codePoint: number) => {
+        controller?.drillKey(codePoint);
+        focusSurface();
+    }, [controller, focusSurface]);
+
     const openPanelAt = useCallback((section: string) => {
         controller?.requestPanelSection(section);
         setActivePanel("practice");
@@ -113,16 +136,15 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         await loadFromFile(file, "demo");
     }, [loadFromFile]);
 
-    // First run: the board previews the chosen preset's first lesson (§5.4).
+    // First run: the board previews the chosen preset's first lesson (§5.4), Drill my keymap included.
     const preview = useMemo(() => {
-        if (!session?.firstRun || !preset || !controller?.content) return null;
-        const lesson = new PracticeGuidedLesson(toKeybrSettings({ ...session.settings, ...START_PRESETS[preset] }), session.keyboard, controller.content.model, controller.content.words);
-        const keys = lesson.update(session.keyStatsMap);
+        if (!session?.firstRun || !preset) return null;
+        const keys = session.preview(START_PRESETS[preset] as Partial<PracticeSettings>);
         return {
             included: new Set(keys.findIncludedKeys().map((k) => k.letter.codePoint)),
             locked: new Set(keys.findExcludedKeys().map((k) => k.letter.codePoint)),
         };
-    }, [session, preset, controller?.content]);
+    }, [session, preset]);
 
     const lessonKeys = session?.lessonKeys ?? null;
     const strip = useMemo(() => (lessonKeys ? stripKeys(lessonKeys) : []), [lessonKeys]);
@@ -135,7 +157,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const fit = fitBoard(width, units);
     const defaultLayer = session?.keymap.defaultLayer ?? 0;
     const next = run?.expected ?? null;
-    const noLesson = !session || session.noLetters || controller?.loadState === "content-error";
+    const noLesson = !session || session.noLesson || controller?.loadState === "content-error";
     // The displayed layer (§5.2): the live layer while the board is read (LiveBoard passes it), else the
     // next character's layer once typing started, else the base layer.
     const viewFor = useCallback((liveLayer: number | null, liveMask: number | null) => {
@@ -232,78 +254,109 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         );
     } else {
         const s = session!;
+        const type = effectiveLessonType(settings!.type);
         const nextPath = next != null ? s.resolution.primary(next) : null;
-        body = (
-            <>
-                <KeyStrip
-                    keys={strip}
-                    stats={stats}
-                    resolution={s.resolution}
-                    cols={s.keymap.board.cols}
-                    unit={settings!.speedUnit}
-                    layerColorOf={layerColorOf}
-                    justUnlocked={controller.justUnlocked}
-                />
-                <MetricsRow
-                    last={s.lastLesson()}
-                    unit={settings!.speedUnit}
-                    keys={{ included: included.size, alphabet: s.lesson.letters.length }}
-                    today={{ minutes: s.minutesToday(), goal: settings!.dailyGoal }}
-                    fresh={!run?.started}
-                />
-                <TypeRow
-                    type={effectiveLessonType(settings!.type)}
-                    scope={settings!.order === "center-first" ? "Center first" : "Frequency"}
-                    onType={(type, source) => {
-                        controller.update({ type });
-                        if (source === "pointer") focusSurface();
-                    }}
-                    onScope={() => openPanelAt("guided")}
-                    onEnter={focusSurface}
-                    status={
-                        <StatusSlotItem item={controller.status} resolution={s.resolution} cols={s.keymap.board.cols}
-                            unit={settings!.speedUnit} layerColorOf={layerColorOf} />
-                    }
-                />
-                {run && (
-                    <TypingSurface
-                        ref={surface}
-                        run={run}
-                        version={controller.version}
-                        paused={controller.paused}
-                        showSpaces={settings!.showSpaces}
-                        layerUnderlines={settings!.layerUnderlines}
-                        resolution={s.resolution}
-                        defaultLayer={defaultLayer}
-                        layerHex={(layer) => layerColorHex(board, layer)}
-                        compact={narrow}
-                        onKey={(event) => controller.onKey(event)}
-                        onInput={(event) => controller.onInput(event)}
-                        onFocusChange={onFocusChange}
-                        onTogglePause={() => controller.togglePause()}
-                        onResume={() => controller.resume()}
-                    />
-                )}
-                {settings!.announceNextKey && nextPath && (
-                    <p className="sr-only" aria-live="polite">
-                        {`Next: ${String.fromCodePoint(nextPath.char)}, ${spokenPlace(placeOf(nextPath.index, s.keymap.board.cols))}, layer ${nextPath.layer}`}
-                    </p>
-                )}
-                {boardBlock}
-                {/* In the page flow at its bottom-left, not floating over it: the page scrolls, and in
-                    bottom-bar layout a floating group would sit on the metrics above the docked panel. */}
-                <div className="mt-auto pt-2">
-                    <FloatingTools
-                        className="w-fit"
-                        hints={settings!.hints}
-                        onHints={(hints) => controller.update({ hints })}
-                        onRestart={() => { controller.regenerate(); focusSurface(); }}
-                        onBoard={fit.hidden && !boardHidden ? () => setBoardSheet((v) => !v) : undefined}
-                        boardShown={boardSheet}
-                    />
-                </div>
-            </>
+        const typeRow = (
+            <TypeRow
+                type={type}
+                scope={scopeText(settings!, (n) => layerName(board, n), boardDirections(controller))}
+                onType={(value: LessonType, source) => {
+                    controller.update({ type: value });
+                    if (source === "pointer") focusSurface();
+                }}
+                onScope={() => openPanelAt(type)}
+                onEnter={focusSurface}
+                status={
+                    <StatusSlotItem item={controller.status} resolution={s.resolution} cols={s.keymap.board.cols}
+                        unit={settings!.speedUnit} layerColorOf={layerColorOf} />
+                }
+            />
         );
+        if (s.nothingToDrill || s.emptyCustom) {
+            // §5.3 Nothing to drill (and a Custom text with nothing typeable): the type row stays, so
+            // another type is one click away; the well replaces the strip, metrics and text card.
+            body = (
+                <>
+                    {typeRow}
+                    {s.nothingToDrill ? (
+                        <Well title="Nothing to drill in this scope">
+                            <button type="button" className={PILL_INK} onClick={() => openPanelAt("drill")}>Change scope</button>
+                        </Well>
+                    ) : (
+                        <Well title="Nothing to type in this text">
+                            <button type="button" className={PILL_INK} onClick={() => setEditingText(true)}>Edit text</button>
+                        </Well>
+                    )}
+                    {boardBlock}
+                    <CustomTextDialog open={editingText} onOpenChange={setEditingText} text={settings!.customText.content} resolution={s.resolution}
+                        onUse={(content) => controller.update({ customText: { ...settings!.customText, content } })} />
+                </>
+            );
+        } else {
+            const drill = type === "drill";
+            const atTarget = drill ? [...s.lessonKeys].filter((k) => (k.confidence ?? 0) >= 1).length : 0;
+            body = (
+                <>
+                    <KeyStrip
+                        keys={strip}
+                        stats={stats}
+                        resolution={s.resolution}
+                        cols={s.keymap.board.cols}
+                        unit={settings!.speedUnit}
+                        layerColorOf={layerColorOf}
+                        justUnlocked={controller.justUnlocked}
+                        onDrill={drillKey}
+                    />
+                    <MetricsRow
+                        last={s.lastLesson()}
+                        unit={settings!.speedUnit}
+                        keys={drill
+                            ? { label: "At target", included: atTarget, alphabet: included.size }
+                            : { included: included.size, alphabet: s.lesson.letters.length }}
+                        today={{ minutes: s.minutesToday(), goal: settings!.dailyGoal }}
+                        fresh={!run?.started}
+                    />
+                    {typeRow}
+                    {run && (
+                        <TypingSurface
+                            ref={surface}
+                            run={run}
+                            version={controller.version}
+                            paused={controller.paused}
+                            showSpaces={settings!.showSpaces}
+                            layerUnderlines={layerUnderlinesFor(settings!)}
+                            resolution={s.resolution}
+                            defaultLayer={defaultLayer}
+                            layerHex={(layer) => layerColorHex(board, layer)}
+                            compact={narrow}
+                            onKey={(event) => controller.onKey(event)}
+                            onInput={(event) => controller.onInput(event)}
+                            onFocusChange={onFocusChange}
+                            onTogglePause={() => controller.togglePause()}
+                            onResume={() => controller.resume()}
+                        />
+                    )}
+                    {settings!.announceNextKey && nextPath && (
+                        <p className="sr-only" aria-live="polite">
+                            {`Next: ${String.fromCodePoint(nextPath.char)}, ${spokenPlace(placeOf(nextPath.index, s.keymap.board.cols))}, layer ${nextPath.layer}`}
+                        </p>
+                    )}
+                    {boardBlock}
+                    {/* In the page flow at its bottom-left, not floating over it: the page scrolls, and in
+                        bottom-bar layout a floating group would sit on the metrics above the docked panel. */}
+                    <div className="mt-auto pt-2">
+                        <FloatingTools
+                            className="w-fit"
+                            hints={settings!.hints}
+                            onHints={(hints) => controller.update({ hints })}
+                            onRestart={() => { controller.regenerate(); focusSurface(); }}
+                            onBoard={fit.hidden && !boardHidden ? () => setBoardSheet((v) => !v) : undefined}
+                            boardShown={boardSheet}
+                        />
+                    </div>
+                </>
+            );
+        }
     }
 
     return (

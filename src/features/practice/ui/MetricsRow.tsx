@@ -10,7 +10,8 @@ import { StatCell, TodayRing } from "./StatCell";
 interface MetricsRowProps {
     last: LastLessonMetrics | null;
     unit: SpeedUnit;
-    keys: { included: number; alphabet: number };
+    /** Keys in the lesson; Drill: keys at target out of the scope, labelled At target (§5.2). */
+    keys: { included: number; alphabet: number; label?: string };
     today: { minutes: number; goal: number };
     /** A lesson just completed: deltas fade in. */
     fresh?: boolean;
@@ -30,7 +31,7 @@ export function MetricsRow({ last, unit, keys, today, fresh = false, skeleton = 
                     delta={last?.deltas ? last.deltas.accuracy * 100 : null} fresh={fresh} />
                 <StatCell label="Score" skeleton={skeleton} value={last ? score.format(last.score) : "—"}
                     delta={last?.deltas ? last.deltas.score : null} formatDelta={(v) => score.format(v)} fresh={fresh} />
-                <StatCell label="Keys" skeleton={skeleton} value={keys.included} unit={`/ ${keys.alphabet}`} />
+                <StatCell label={keys.label ?? "Keys"} skeleton={skeleton} value={keys.included} unit={`/ ${keys.alphabet}`} />
                 <StatCell label="Today" skeleton={skeleton} lead={<TodayRing fraction={today.goal > 0 ? today.minutes / today.goal : 0} />}
                     value={minutes} unit={today.goal > 0 ? `/ ${today.goal} min` : "min"} />
             </div>

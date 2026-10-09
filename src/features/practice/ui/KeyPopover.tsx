@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import { Popover } from "radix-ui";
 
+import { PILL_INK } from "@/components/shared/pills";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { KeymapResolution } from "../keymap/resolver";
 import type { CharacterStats } from "../state/progressView";
@@ -9,10 +10,10 @@ import { CharCap } from "./CharCap";
 import { alternativeText, formatPercent, formatSpeed, pathChips } from "./format";
 import { ConfidenceBar, StatCell } from "./StatCell";
 
-// P5 Key detail popover (docs/practice/spec.md §5.7), as M1b ships it: the header (cap, character, path
-// chips, alternatives, Delayed output), the stats grid, and the No samples / Inferred states.
-// TODO(practice): M4 adds the sparkline, Pressed instead, Layer reach and the aggregate variant;
-// M3 adds Drill this key.
+// P5 Key detail popover (docs/practice/spec.md §5.7): the header (cap, character, path chips,
+// alternatives, Delayed output), the stats grid, the No samples / Inferred states and, from M3, the
+// Drill this key action.
+// TODO(practice): M4 adds the sparkline, Pressed instead, Layer reach and the aggregate variant.
 
 /**
  * The §5.0 popover idiom (LayerNameBadge's classes) with p-4 instead of p-2: LayerNameBadge's p-2 frames
@@ -46,9 +47,11 @@ interface KeyDetailsProps {
     layerColor: string;
     /** Every sample is inferred (Keymap only). */
     inferred: boolean;
+    /** Drill this key (§5.7): Drill on the character and its cluster; absent when it can't be drilled. */
+    onDrill?: () => void;
 }
 
-export function KeyDetails({ stats, resolution, cols, unit, layerColor, inferred }: KeyDetailsProps) {
+export function KeyDetails({ stats, resolution, cols, unit, layerColor, inferred, onDrill }: KeyDetailsProps) {
     const paths = resolution?.pathsOf(stats.codePoint) ?? [];
     const primary = paths[0] ?? stats.path;
     const alternatives = primary ? paths.slice(1).map((p) => alternativeText(p, primary, cols)).filter(Boolean) : [];
@@ -97,6 +100,11 @@ export function KeyDetails({ stats, resolution, cols, unit, layerColor, inferred
             ) : (
                 <p className="text-sm text-muted-foreground">No samples yet</p>
             )}
+            {onDrill && primary && (
+                <div className="flex justify-end">
+                    <button type="button" className={PILL_INK} onClick={onDrill} data-drill-this-key>Drill this key</button>
+                </div>
+            )}
         </div>
     );
 }
@@ -108,7 +116,7 @@ interface KeyPopoverProps extends KeyDetailsProps {
 }
 
 /** P5 on a portaled Radix popover, anchored to the element that opened it (its trigger). */
-export function KeyPopover({ open, onOpenChange, children, ...details }: KeyPopoverProps) {
+export function KeyPopover({ open, onOpenChange, children, onDrill, ...details }: KeyPopoverProps) {
     return (
         <Popover.Root open={open} onOpenChange={onOpenChange}>
             <Popover.Trigger asChild>{children}</Popover.Trigger>
@@ -121,7 +129,7 @@ export function KeyPopover({ open, onOpenChange, children, ...details }: KeyPopo
                     collisionPadding={12}
                     className={POPOVER_CLASSES}
                 >
-                    <KeyDetails {...details} />
+                    <KeyDetails {...details} onDrill={onDrill && (() => { onOpenChange(false); onDrill(); })} />
                 </Popover.Content>
             </Popover.Portal>
         </Popover.Root>

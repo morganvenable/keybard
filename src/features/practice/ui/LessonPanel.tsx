@@ -8,13 +8,14 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
 import { usePractice } from "../PracticeProvider";
 import type { PracticeController } from "../state/controller";
-import type { Hints, PracticeSettings } from "../state/settings";
+import { effectiveLessonType, type Hints, layerUnderlinesFor, layerUnderlinesPatch, type PracticeSettings } from "../state/settings";
 import { InputDot, inputPillState, PILL_TEXT } from "./InputStatus";
 import { AboutRow, ClickRow, GroupLabel, PanelFooter, Row, SliderRow } from "./panelRows";
+import { TypeSection } from "./TypeSections";
 
 // P3 Lesson panel (docs/practice/spec.md §5.5), the detail panel content while the Lessons page shows.
-// The current type's section first (Guided until M3), then Targets, Typing, Board, Input, Keymap and
-// About. Lesson-shaping changes regenerate the lesson (sliders after 300 ms); display settings apply at
+// The current type's section first (Guided here; Drill, Words and Custom in TypeSections), then Targets,
+// Typing, Board, Input, Keymap and About. Lesson-shaping changes regenerate the lesson (sliders after 300 ms); display settings apply at
 // once and keep it. Esc closes the panel (SecondarySidebar, useWorkspacePanelEscape).
 
 const HINTS: { value: Hints; label: string }[] = [
@@ -38,6 +39,7 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
     const set = (patch: Partial<PracticeSettings>) => c.update(patch);
     const slide = (patch: Partial<PracticeSettings>) => c.update(patch, { debounce: true });
     const wpm = s.speedUnit === "wpm";
+    const type = effectiveLessonType(s.type);
     const pill = inputPillState(c);
 
     // The type row's scope button opens the panel at the current type's section (§5.2).
@@ -51,7 +53,8 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
     const group = horizontal ? "grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-x-4 items-start" : "flex flex-col";
     return (
         <div ref={root} data-practice-panel="lessons" className="flex flex-col pb-2">
-            <section aria-labelledby="lesson-guided" data-lesson-section="guided">
+            {type !== "guided" && <TypeSection controller={c} group={group} type={type} />}
+            {type === "guided" && <section aria-labelledby="lesson-guided" data-lesson-section="guided">
                 <GroupLabel id="lesson-guided">Guided</GroupLabel>
                 <div className={group}>
                     <Row title="Start order">
@@ -65,7 +68,7 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
                     <SliderRow title="Capitals" display={pct(s.capitals)} value={Math.round(s.capitals * 100)} min={0} max={100} onChange={(v) => slide({ capitals: v / 100 })} />
                     <SliderRow title="Punctuation" display={pct(s.punctuators)} value={Math.round(s.punctuators * 100)} min={0} max={100} onChange={(v) => slide({ punctuators: v / 100 })} />
                 </div>
-            </section>
+            </section>}
             <section aria-labelledby="lesson-targets" data-lesson-section="targets">
                 <GroupLabel id="lesson-targets">Targets</GroupLabel>
                 <div className={group}>
@@ -92,7 +95,7 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
                     <Row title="Stop on error"><OnOffToggle label="Stop on error" value={s.stopOnError} onToggle={(stopOnError) => set({ stopOnError })} /></Row>
                     <Row title="Forgive errors"><OnOffToggle label="Forgive errors" value={s.forgiveErrors} onToggle={(forgiveErrors) => set({ forgiveErrors })} /></Row>
                     <Row title="Show spaces"><OnOffToggle label="Show spaces" value={s.showSpaces} onToggle={(showSpaces) => set({ showSpaces })} /></Row>
-                    <Row title="Layer underlines"><OnOffToggle label="Layer underlines" value={s.layerUnderlines} onToggle={(layerUnderlines) => set({ layerUnderlines })} /></Row>
+                    <Row title="Layer underlines"><OnOffToggle label="Layer underlines" value={layerUnderlinesFor(s)} onToggle={(on) => set(layerUnderlinesPatch(s.type, on))} /></Row>
                     <Row title="Announce next key"><OnOffToggle label="Announce next key" value={s.announceNextKey} onToggle={(announceNextKey) => set({ announceNextKey })} /></Row>
                 </div>
             </section>
