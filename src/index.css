@@ -47,6 +47,33 @@
     --color-kb-active: var(--kb-active);
     --color-kb-active-fg: var(--kb-active-fg);
     --color-kb-popover: var(--kb-popover);
+    /* Color roles (docs/practice/spec.md §5.0.1): select = "the one you picked",
+       pending = "changed, not yet sent", pressed = a key held now in Practice.
+       Themed: values live on :root and .dark below. Red stays for errors,
+       destructive actions and wrong keys only (theme guard: red-reserved). */
+    --color-kb-select: var(--kb-select);
+    --color-kb-select-tint: var(--kb-select-tint);
+    --color-kb-select-strip: var(--kb-select-strip);
+    --color-kb-pending: var(--kb-pending);
+    --color-kb-pressed: var(--kb-pressed);
+    --color-kb-pressed-fg: var(--kb-pressed-fg);
+    /* Usage heat ramp (§5.0.2): themed, it runs from the page towards strong blue. */
+    --color-kb-use-1: var(--kb-use-1);
+    --color-kb-use-2: var(--kb-use-2);
+    --color-kb-use-3: var(--kb-use-3);
+    --color-kb-use-4: var(--kb-use-4);
+    --color-kb-use-1-fg: var(--kb-use-1-fg);
+    --color-kb-use-2-fg: var(--kb-use-2-fg);
+    --color-kb-use-3-fg: var(--kb-use-3-fg);
+    --color-kb-use-4-fg: var(--kb-use-4-fg);
+    /* Matrix Tester held face: one value in both themes, because Matrix Tester's
+       white and black faces are the same in both themes. */
+    --color-kb-select-strong: #2b86bd;
+    /* Speed/accuracy/errors heat faces (§5.0.2): data, the same in both themes. */
+    --color-kb-heat-far: #d8304a;
+    --color-kb-heat-mid: #f07f00;
+    --color-kb-heat-near: #ffc222;
+    --color-kb-heat-ink: #111214;
     /* Brand and layer colours stay literal (they are user data). */
     --color-kb-primary: #099e7c;
     --color-kb-green: #099e7c;
@@ -76,6 +103,20 @@
     --kb-active: #000000;
     --kb-active-fg: #ffffff;
     --kb-popover: #EEEEEE;
+    --kb-select: #2b86bd;
+    --kb-select-tint: #dfeff9;
+    --kb-select-strip: #bfdff2;
+    --kb-pending: #b45309;
+    --kb-pressed: #000000;
+    --kb-pressed-fg: #ffffff;
+    --kb-use-1: #d2e8f7;
+    --kb-use-2: #8ec6ea;
+    --kb-use-3: #379cd7;
+    --kb-use-4: #1f6fa0;
+    --kb-use-1-fg: #000000;
+    --kb-use-2-fg: #000000;
+    --kb-use-3-fg: #000000;
+    --kb-use-4-fg: #ffffff;
 
     --radius: 0.625rem;
     --background: oklch(1 0 0);
@@ -122,6 +163,20 @@
     --kb-active: #e8e9ea;
     --kb-active-fg: #111214;
     --kb-popover: #33363b;
+    --kb-select: #5cb8ec;
+    --kb-select-tint: #244154;
+    --kb-select-strip: #295773;
+    --kb-pending: #fbbf24;
+    --kb-pressed: #111214;
+    --kb-pressed-fg: #e8e9ea;
+    --kb-use-1: #223745;
+    --kb-use-2: #27506a;
+    --kb-use-3: #2e7097;
+    --kb-use-4: #379cd7;
+    --kb-use-1-fg: #f1f2f2;
+    --kb-use-2-fg: #f1f2f2;
+    --kb-use-3-fg: #f1f2f2;
+    --kb-use-4-fg: #111214;
 
     --background: #1d1e21;
     --foreground: #f1f2f2;
