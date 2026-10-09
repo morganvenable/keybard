@@ -62,4 +62,28 @@ describe('Lab page', () => {
         expect(writeText).toHaveBeenCalledWith(expect.stringContaining('| Samples per second |'));
         expect(await screen.findByText('Results copied')).toBeInTheDocument();
     });
+
+    it('stops reading and refreshing when the Practice workspace goes to the background (§9.3 Lifecycle)', async () => {
+        const board = svalDefault();
+        keyboardState.keyboard = board;
+        keyboardState.originalKeyboard = board;
+        keyboardState.isConnected = true;
+        const { rerender } = render(<Providers><LabPage active /></Providers>);
+        const box = screen.getByLabelText('Lab text');
+        act(() => { box.focus(); });
+        await vi.waitFor(() => expect(reader.fake.pollMatrix).toHaveBeenCalled());
+        await act(() => reader.fake.reply([], 10));
+        // Back to the editor with the browser's Back button: no blur, the lab stays mounted under `hidden`.
+        rerender(<Providers><LabPage active={false} /></Providers>);
+        expect(document.activeElement).toBe(box);
+        await act(() => reader.fake.reply([], 20));
+        const calls = reader.fake.pollMatrix.mock.calls.length;
+        await act(() => new Promise((r) => setTimeout(r, 300)));
+        expect(reader.fake.pollMatrix.mock.calls.length).toBe(calls);
+        expect(screen.getByText('Click the text box to read')).toBeInTheDocument();
+        // A focus while hidden doesn't read either.
+        act(() => { box.blur(); box.focus(); });
+        await act(() => new Promise((r) => setTimeout(r, 30)));
+        expect(reader.fake.pollMatrix.mock.calls.length).toBe(calls);
+    });
 });

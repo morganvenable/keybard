@@ -18,7 +18,8 @@ import { Well } from "./Wells";
 
 // The M0 measurement lab (docs/practice/spec.md §4.2, §12 M0), at ?practiceLab=1#practice/lab where
 // OWNER_Q7 allows it. Never linked from the UI. It runs the Live · USB sampler and correlator on the
-// connected board while its text box has focus and the tab is visible (D10), and shows the numbers the
+// connected board while its text box has focus, the tab is visible and the Practice workspace is active
+// (D10, §9.3 Lifecycle), and shows the numbers the
 // owner posts in the PR: samples/s, round trip, DOM-to-edge skew, taps caught over 500 characters, LT
 // roll timing, debounced-vs-raw evidence, and presses that typed nothing. Copy results gives the table
 // as Markdown; Copy raw data gives every keystroke as JSON.
@@ -66,7 +67,7 @@ function Histogram({ buckets }: { buckets: LabSummary["skewHistogram"] }) {
     );
 }
 
-export default function LabPage() {
+export default function LabPage({ active = true }: { active?: boolean }) {
     const { keyboard, originalKeyboard, isConnected, connect, isWebHIDSupported } = useKeyboard();
     const { internationalLayout } = useLayoutSettings();
     const board = isConnected ? originalKeyboard ?? keyboard : null;
@@ -89,19 +90,30 @@ export default function LabPage() {
         if (!keymap || blocked) return;
         const created = new LabSession(boardReader(() => boardRef.current), keymap);
         setSession(created);
-        const timer = setInterval(() => {
-            setSummary(created.summary());
-            setReading(created.running);
-        }, SUMMARY_MS);
         const onVisibility = () => { if (document.visibilityState !== "visible") created.stop(); };
         document.addEventListener("visibilitychange", onVisibility);
         return () => {
-            clearInterval(timer);
             document.removeEventListener("visibilitychange", onVisibility);
             created.stop();
             setSession(null);
         };
     }, [keymap, blocked]);
+
+    // Kept mounted (hidden) while the editor is in front: no reading and no summary
+    // refresh there. Reading starts again only when the text box gets focus.
+    useEffect(() => {
+        if (!session) return;
+        if (!active) {
+            session.stop();
+            setReading(false);
+            return;
+        }
+        const timer = setInterval(() => {
+            setSummary(session.summary());
+            setReading(session.running);
+        }, SUMMARY_MS);
+        return () => clearInterval(timer);
+    }, [session, active]);
 
     const reset = useCallback(() => {
         session?.reset();
@@ -163,7 +175,7 @@ export default function LabPage() {
                         autoCorrect="off"
                         autoCapitalize="off"
                         className="w-full rounded-md border border-kb-gray-border bg-kb-gray px-3 py-2 text-base text-kb-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                        onFocus={() => { session?.start(); setReading(true); }}
+                        onFocus={() => { if (!active) return; session?.start(); setReading(true); }}
                         onBlur={() => { session?.stop(); setReading(false); }}
                         onKeyDown={(e) => session?.keydown(e.nativeEvent.timeStamp, e.repeat)}
                         onInput={(e) => {

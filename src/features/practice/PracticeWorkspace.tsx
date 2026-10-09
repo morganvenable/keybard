@@ -25,7 +25,7 @@ export default function PracticeWorkspace({ active = true }: { active?: boolean 
     const { practicePage } = usePanels();
     return (
         <Suspense fallback={<Loading />}>
-            {practicePage === "lab" ? <LabPage /> : practicePage === "progress" ? <ProgressPage active={active} /> : <LessonsPage active={active} />}
+            {practicePage === "lab" ? <LabPage active={active} /> : practicePage === "progress" ? <ProgressPage active={active} /> : <LessonsPage active={active} />}
         </Suspense>
     );
 }
