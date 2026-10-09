@@ -95,6 +95,12 @@ describe('Live · USB mode (§3.2)', () => {
         const run = c.run!;
         c.onInput(input(run.expected!, 100));
         expect(run.events.length).toBe(1);
+        // It is still asked every 2 s, and Live · USB comes back when it answers.
+        expect(live.running).toBe(true);
+        await fake.wake();
+        await fake.reply([], 2100);
+        await vi.waitFor(() => expect(c.inputMode).toBe('usb'));
+        expect(c.pressedKeysValue).toBe('Shown');
     });
 
     it('unplugging mid-lesson falls back without losing the lesson', async () => {

@@ -63,6 +63,8 @@ export interface BoardInput {
     defaultLayer: number;
     /** Layer shown; the next character's layer in Keymap-only mode once typing started (§5.2). */
     displayedLayer: number;
+    /** Live · USB: the effective layer mask, for transparency through every active layer. Else default + displayed. */
+    displayedMask?: number | null;
     included: ReadonlySet<number>;
     locked: ReadonlySet<number>;
     /** The next character, or null (no lesson, or hints off). */
@@ -109,7 +111,7 @@ export function boardView(input: BoardInput): BoardView {
     const primary: Path | null = next != null && resolution ? resolution.primary(next) : null;
     const showNext = hints !== "off" && primary != null;
     const displayed = input.displayedLayer;
-    const mask = ((1 << defaultLayer) | (1 << displayed)) >>> 0;
+    const mask = input.displayedMask != null ? input.displayedMask >>> 0 : ((1 << defaultLayer) | (1 << displayed)) >>> 0;
 
     // Steps: primary prerequisites 1…n, the target n+1 (only when there are prerequisites).
     const steps = new Map<number, number>();

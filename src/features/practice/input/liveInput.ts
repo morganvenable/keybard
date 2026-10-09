@@ -38,9 +38,11 @@ export interface LiveBoardState {
     wrong: ReadonlySet<number>;
     /** The live layer (top of the effective mask), or null before the first sample. */
     layer: number | null;
+    /** The effective layer mask (§9.3), so legends resolve transparency through every active layer. */
+    mask: number | null;
 }
 
-export const IDLE_BOARD: LiveBoardState = { pressed: new Set(), wrong: new Set(), layer: null };
+export const IDLE_BOARD: LiveBoardState = { pressed: new Set(), wrong: new Set(), layer: null, mask: null };
 
 export interface LiveKeymapInput {
     resolution: KeymapResolution;
@@ -120,7 +122,14 @@ export class LiveInput {
         });
         sampler.onSample = (sample, edges) => this.#onSample(sample, edges);
         sampler.onMasks = (mask) => this.#onMasks(mask);
-        sampler.onHealth = () => this.onChange?.();
+        sampler.onHealth = (failed) => {
+            // A board that stopped answering shows nothing held, rather than its last state.
+            if (failed) {
+                this.#clearBoard();
+                this.#setLocked(null);
+            }
+            this.onChange?.();
+        };
         this.#sampler = sampler;
         if (running || this.#wanted) sampler.start();
     }
@@ -170,7 +179,7 @@ export class LiveInput {
         this.mismatch.reset();
         if (this.#wrong.size) {
             this.#clearWrong();
-            this.#publish(this.#board.pressed, this.#board.layer);
+            this.#publish(this.#board.pressed, this.#board.mask);
         }
     }
 
@@ -192,7 +201,7 @@ export class LiveInput {
      */
     settle(timeoutMs = SETTLE_TIMEOUT_MS): Promise<void> {
         if (!this.#pending.length) return Promise.resolve();
-        if (!this.running) {
+        if (!this.running || this.failed) {
             this.#flush();
             return Promise.resolve();
         }
@@ -241,7 +250,7 @@ export class LiveInput {
         this.#drain();
         const pressed = new Set<number>();
         for (let i = 0; i < sample.down.length; i++) if (sample.down[i]) pressed.add(i);
-        this.#publish(pressed, topLayer(keymap.effectiveMask(history, sample)));
+        this.#publish(pressed, keymap.effectiveMask(history, sample));
     }
 
     #onPress(edge: MatrixEdge) {
@@ -281,7 +290,7 @@ export class LiveInput {
             this.#wrongTimers.delete(edge.index);
             if (this.#wrong.get(edge.index) !== edge.t) return;
             this.#wrong.delete(edge.index);
-            this.#publish(this.#board.pressed, this.#board.layer);
+            this.#publish(this.#board.pressed, this.#board.mask);
         }, wait);
         this.#wrongTimers.set(edge.index, timer);
     }
@@ -356,11 +365,11 @@ export class LiveInput {
         }
     }
 
-    #publish(pressed: ReadonlySet<number>, layer: number | null) {
+    #publish(pressed: ReadonlySet<number>, mask: number | null) {
         const wrong = new Set(this.#wrong.keys());
         const board = this.#board;
-        if (board.layer === layer && sameSet(board.pressed, pressed) && sameSet(board.wrong, wrong)) return;
-        this.#board = { pressed, wrong, layer };
+        if (board.mask === mask && sameSet(board.pressed, pressed) && sameSet(board.wrong, wrong)) return;
+        this.#board = { pressed, wrong, layer: mask == null ? null : topLayer(mask), mask };
         this.#notify();
     }
 

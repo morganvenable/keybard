@@ -300,13 +300,16 @@ export class PracticeController {
         return this.inputMode === 'usb' ? this.live?.layerLocked ?? null : null;
     }
 
-    /** Reads the board only in Live · USB with a lesson that isn't paused (§9.3 Lifecycle, D10). */
+    /**
+     * Reads the board only in Live · USB with a lesson that isn't paused (§9.3 Lifecycle, D10). A board
+     * that stopped answering shows Keymap only but is still asked every 2 s, so it can come back (§9.3 Errors).
+     */
     #syncLive() {
         const live = this.live;
         if (!live) return;
         const run = this.run;
         const lesson = !!run && (run.phase === 'ready' || run.phase === 'typing' || this.#completing);
-        live.setWanted(!this.#disposed && lesson && this.inputMode === 'usb');
+        live.setWanted(!this.#disposed && lesson && inputMode({ ...this.inputConditions, failed: false }) === 'usb');
     }
 
     // ---- loading

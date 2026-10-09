@@ -138,7 +138,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const noLesson = !session || session.noLetters || controller?.loadState === "content-error";
     // The displayed layer (§5.2): the live layer while the board is read (LiveBoard passes it), else the
     // next character's layer once typing started, else the base layer.
-    const viewFor = useCallback((liveLayer: number | null) => {
+    const viewFor = useCallback((liveLayer: number | null, liveMask: number | null) => {
         const resolution = session?.resolution ?? null;
         const firstRun = !!session?.firstRun;
         return boardView({
@@ -147,6 +147,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
             layoutId: session?.keymap.layoutId ?? "us",
             defaultLayer,
             displayedLayer: liveLayer ?? displayedLayerFor(resolution, next, !!run?.started, defaultLayer),
+            displayedMask: liveMask,
             included: firstRun ? preview?.included ?? EMPTY : included,
             locked: firstRun ? preview?.locked ?? locked : locked,
             next: firstRun ? null : settings?.hints === "off" ? null : next,

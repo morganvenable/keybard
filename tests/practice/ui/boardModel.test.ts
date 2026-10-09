@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveKeymap } from '@/features/practice/keymap/resolver';
 import { boardSize, boardView, displayedLayerFor, type BoardInput } from '@/features/practice/ui/boardModel';
 import { fitBoard } from '@/features/practice/ui/boardFit';
-import { svalDefault } from '../fixtures/boards';
+import { rebind, svalDefault } from '../fixtures/boards';
 
 // Board hints (docs/practice/spec.md §5.2 "Board", §6.7): rings, step badges, target legends and the
 // cluster backdrop land on the expected keys of the default keymap.
@@ -84,5 +84,21 @@ describe('Board size (§5.1)', () => {
         expect(scaled.scale).toBeCloseTo(0.8);
         expect(fitBoard(200, units).hidden).toBe(true);
         expect(fitBoard(0, units)).toMatchObject({ variant: 'medium', hidden: false });
+    });
+});
+
+describe('Practice board, Live · USB (§5.2, §9.3)', () => {
+    it('resolves legends through every layer in the live mask, not only the displayed one', () => {
+        const km = board.keymap!;
+        // Make a key transparent on layer 2 whose layer-1 binding differs from its base one.
+        const index = km[1].findIndex((code, i) => code !== 1 && code !== km[0][i]);
+        const kb = rebind(board, 2, index, 1);
+        const at = (overrides: Partial<BoardInput>) => boardView({
+            keyboard: kb, resolution, layoutId: 'us', defaultLayer: 0, displayedLayer: 2,
+            included: letters('asdfjkl'), locked: letters('eriou'), next: null, hints: 'off', legends: true, ...overrides,
+        }).keys.find((k) => k.index === index)!;
+        const live = at({ displayedMask: 0b111 });
+        expect(live.keycode).not.toBe(at({}).keycode);
+        expect(at({ displayedLayer: 1 }).keycode).toBe(live.keycode);
     });
 });

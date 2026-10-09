@@ -168,8 +168,8 @@ const idleBoard = () => IDLE_BOARD;
 
 interface LiveBoardProps extends Omit<PracticeKeyboardProps, "view" | "pressed" | "wrong"> {
     live: LiveInput | null;
-    /** The board for a displayed layer: the live layer while reading, else null (the page's own choice, §5.2). */
-    viewFor: (liveLayer: number | null) => BoardView;
+    /** The board for the live layer and mask while reading, else for nulls (the page's own choice, §5.2). */
+    viewFor: (liveLayer: number | null, liveMask: number | null) => BoardView;
 }
 
 /**
@@ -178,7 +178,7 @@ interface LiveBoardProps extends Omit<PracticeKeyboardProps, "view" | "pressed" 
  */
 export function LiveBoard({ live, viewFor, ...props }: LiveBoardProps) {
     const state: LiveBoardState = useSyncExternalStore(live?.subscribeBoard ?? noSubscription, live?.getBoard ?? idleBoard, live?.getBoard ?? idleBoard);
-    const view = useMemo(() => viewFor(state.layer), [viewFor, state.layer]);
+    const view = useMemo(() => viewFor(state.layer, state.mask), [viewFor, state.layer, state.mask]);
     return <PracticeKeyboard view={view} pressed={state.pressed} wrong={state.wrong} {...props} />;
 }
 
