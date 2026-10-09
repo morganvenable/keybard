@@ -6,7 +6,7 @@ import type { KeyboardInfo } from '@/types/keyboard.types';
 import example from '@/default-layouts/sval-default.svil?raw';
 import { DEFAULTS, PRESETS, STORAGE_KEY, preferences, type Appearance, type Preferences } from './core';
 import type { SurfaceKey } from './OverlaySurface';
-import { useHost } from './host';
+import { useHost, type HostConfig } from './host';
 import { surfaceKeys } from './useSurfaceKeys';
 import { layerColors } from '@/utils/colors';
 import type { PreviewBackground } from './preview-backgrounds';
@@ -31,6 +31,8 @@ export interface LayoutSourceOption {
 }
 
 export interface LayerOption { index: number; label: string; color: string }
+
+type PendingHostConfig = Partial<Pick<HostConfig, 'highlightPressed' | 'manualDefault'>>;
 
 function readPreferences() { try { return preferences(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch { return preferences(null); } }
 
@@ -79,8 +81,9 @@ export function useOverlayController(active: boolean) {
     const [cue, setCue] = useState(0), [attempts, setAttempts] = useState(0), [correct, setCorrect] = useState(0);
     const [familiar, setFamiliar] = useState<Set<string>>(new Set()), [hideFamiliar, setHideFamiliar] = useState(false);
     const [selected, setSelected] = useState<number | null>(null);
-    // Highlight held keys chosen while another Host write is in flight; sent once Host is free.
-    const [pendingHighlight, setPendingHighlight] = useState<boolean | null>(null);
+    // Host-only settings chosen in the panel (Highlight held keys, Desktop default layer), sent once no
+    // other Host write is in flight. A choice Host refuses is dropped, so the control shows Host's value.
+    const [pendingHost, setPendingHost] = useState<PendingHostConfig | null>(null);
     const importGeneration = useRef(0);
     useEffect(() => () => { importGeneration.current++; }, []);
     useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); setStorageError(false); } catch { setStorageError(true); } }, [prefs]);
@@ -94,7 +97,8 @@ export function useOverlayController(active: boolean) {
     useEffect(() => {
         if (!host.state || !hostDirty || host.busy) return;
         const timer = setTimeout(() => {
-            void host.configure({ ...host.state!.config, ...prefs }).then(ok => { if (!ok || prefsRef.current === prefs) setHostDirty(false); });
+            // Null: a panel choice's write got there first; this one waits for busy to settle.
+            void host.configure({ ...host.state!.config, ...prefs }).then(ok => { if (ok !== null && (!ok || prefsRef.current === prefs)) setHostDirty(false); });
         }, 160);
         return () => clearTimeout(timer);
     }, [prefs, hostDirty, host.busy, host.configure]);
@@ -123,10 +127,15 @@ export function useOverlayController(active: boolean) {
     }, [keys, prefs.duration]);
     useEffect(() => { if (!held.size) return; const timer = setTimeout(() => setHeld(new Set()), 800); return () => clearTimeout(timer); }, [held]);
     useEffect(() => {
-        if (pendingHighlight === null || !host.state || host.busy) return;
-        if (host.state.config.highlightPressed === pendingHighlight) { setPendingHighlight(null); return; }
-        void host.configure({ ...host.state.config, highlightPressed: pendingHighlight }).then(ok => { if (ok) setPendingHighlight(null); });
-    }, [pendingHighlight, host.busy, host.state?.config.highlightPressed]);
+        if (!pendingHost || !host.state || host.busy) return;
+        const config = host.state.config;
+        if (Object.entries(pendingHost).every(([key, value]) => config[key as keyof PendingHostConfig] === value)) { setPendingHost(null); return; }
+        const sent = pendingHost;
+        // Saved or refused, this choice is settled: a refusal (a 400, or a 500 when Host can't write its
+        // preferences) is not retried, which would resend it every time busy settles. Null means
+        // another write got there first; busy settling re-runs this effect then.
+        void host.configure({ ...config, ...sent }).then(ok => { if (ok !== null) setPendingHost(p => p === sent ? null : p); });
+    }, [pendingHost, host.busy, host.state?.config.highlightPressed, host.state?.config.manualDefault]);
     const learnable = useMemo(() => keys.filter(k => k.code > 1), [keys]);
     const target = learnable.length ? learnable[cue % learnable.length] : undefined;
     const hidden = useMemo(() => new Set(keys.filter(k => (recall && !revealed) || (hideFamiliar && familiar.has(`${k.id}:${k.code}`) && !revealed)).map(k => k.id)),
@@ -158,8 +167,8 @@ export function useOverlayController(active: boolean) {
     const chooseSource = (value: LayoutSource) => { setLive(value === 'live'); if (value !== 'live') setSource(value); };
     /** Choosing a board on the Host card sends `connect` and follows it again, as before. */
     const connectBoard = (id: string) => { setLive(true); void host.command({ op: 'connect', id }); };
-    const setHighlightPressed = (value: boolean) => { if (host.state) setPendingHighlight(value); };
-    const setManualDefault = (layerIndex: number) => { if (host.state) void host.configure({ ...host.state.config, manualDefault: (1 << layerIndex) >>> 0 }); };
+    const setHighlightPressed = (value: boolean) => { if (host.state) setPendingHost(p => ({ ...p, highlightPressed: value })); };
+    const setManualDefault = (layerIndex: number) => { if (host.state) setPendingHost(p => ({ ...p, manualDefault: (1 << layerIndex) >>> 0 })); };
 
     async function importLayout(file: File | undefined) {
         if (!file) return;
@@ -204,7 +213,9 @@ export function useOverlayController(active: boolean) {
         sourceOptions, sourceValue, sourceName, noBoard,
         layers, hostLayers,
         /** Highlight held keys as shown: a choice waiting for Host, else Host's config. */
-        highlightPressed: pendingHighlight ?? !!host.state?.config.highlightPressed,
+        highlightPressed: pendingHost?.highlightPressed ?? !!host.state?.config.highlightPressed,
+        /** Desktop default layer's bitmask as shown: a choice waiting for Host, else Host's config. */
+        manualDefault: pendingHost?.manualDefault ?? host.state?.config.manualDefault ?? 1,
         setTile, setBackground, setLayer, setBase, setSelected, setHideFamiliar, setRecall,
         update, setAppearance, applyPreset, resetPreferences, grade, reveal: () => setRevealed(true), markFamiliar,
         clearFamiliar: () => setFamiliar(new Set()), previewHeld, chooseSource, importLayout, connectBoard,

@@ -119,7 +119,7 @@ function WindowRows({ overlay: o }: { overlay: OverlayModel }) {
     const state = o.host.state;
     const command = o.host.command;
     // The highest default layer wins when several bits are set (core.ts resolveBinding scans down).
-    const manualDefault = state ? Math.max(0, 31 - Math.clz32(state.config.manualDefault >>> 0)) : 0;
+    const manualDefault = state ? Math.max(0, 31 - Math.clz32(o.manualDefault >>> 0)) : 0;
     return <>
         <Row title="Hands">
             <SegmentedControl label="Hands" value={o.prefs.hands} onChange={v => o.update('hands', v)} options={HANDS.map(h => ({ value: h, label: h }))} />

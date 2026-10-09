@@ -99,6 +99,48 @@ describe('Host config mirroring', () => {
         expect(result.current.highlightPressed).toBe(true);
     });
 
+    it("sends Highlight held keys once when Host refuses the write, and shows Host's value again", async () => {
+        const base = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (String(url).endsWith('/config')) {
+                calls.push({ path: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
+                return new Response(JSON.stringify({ error: 'Could not save local preferences' }), { status: 500 });
+            }
+            return base(url, init);
+        });
+        const { result } = renderHook(() => useOverlayController(true));
+        await waitFor(() => expect(result.current.host.state).not.toBeNull());
+        act(() => result.current.setHighlightPressed(true));
+        await waitFor(() => expect(configWrites()).toHaveLength(1));
+        await waitFor(() => expect(result.current.highlightPressed).toBe(false));
+        expect(result.current.host.error).toBe('Could not save local preferences');
+        // Busy settling must not resend it.
+        await new Promise(r => setTimeout(r, 300));
+        expect(configWrites()).toHaveLength(1);
+    });
+
+    it('sends Desktop default layer once a Host write in flight has finished', async () => {
+        let release: (() => void) | undefined;
+        const base = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (String(url).endsWith('/config') && !release) await new Promise<void>(r => { release = r; });
+            return base(url, init);
+        });
+        const { result } = renderHook(() => useOverlayController(true));
+        await waitFor(() => expect(result.current.host.state).not.toBeNull());
+        act(() => result.current.update('scale', 110));
+        await waitFor(() => expect(result.current.host.busy).toBe(true));
+        act(() => result.current.setManualDefault(1));
+        // The select shows the choice while it waits, rather than snapping back.
+        expect(result.current.manualDefault).toBe(2);
+        await act(async () => { release!(); });
+        await waitFor(() => expect(configWrites().some(c => (c.body.config as { manualDefault: number }).manualDefault === 2)).toBe(true));
+        await waitFor(() => expect(result.current.host.state?.config.manualDefault).toBe(2));
+        expect(result.current.manualDefault).toBe(2);
+        // The Size change that was in flight is kept too.
+        expect(result.current.host.state?.config.scale).toBe(110);
+    });
+
     it("Preview held keys lights keys while following the board, on top of Host's held keys", async () => {
         snapshot = { ...snapshot, pressed: [1] };
         const { result } = renderHook(() => useOverlayController(true));
@@ -146,9 +188,16 @@ describe('Recall publishing', () => {
 
     it('runs whether or not the Overlay panel is open (OverlayEngine gates on the workspace)', async () => {
         panels.activePanel = 'settings';
-        render(<OverlayProvider><span /></OverlayProvider>);
+        const { rerender } = render(<OverlayProvider><span /></OverlayProvider>);
         await waitFor(() => expect(practice().length).toBeGreaterThan(0));
+        const before = practice().length;
+        // Leaving the workspace clears Recall from the desktop overlay, whatever the panel shows.
         panels.workspace = 'editor';
+        rerender(<OverlayProvider><span /></OverlayProvider>);
+        await waitFor(() => expect(practice().length).toBeGreaterThan(before));
+        expect(practice().at(-1)!.body).toEqual({ op: 'practice', hidden: [], target: null });
+        await new Promise(r => setTimeout(r, 1100));
+        expect(practice().at(-1)!.body).toEqual({ op: 'practice', hidden: [], target: null });
     });
 
     it('keeps the Familiar-bindings selection while Recall runs', () => {

@@ -47,7 +47,7 @@ function overlay(over: Over = {}): OverlayModel {
         tile: 'Appearance', background: 'Dark', layer: 0, base: 0, importError: '',
         sourceOptions: [{ value: 'snapshot', label: 'sval-default.svil' }, { value: 'example', label: 'QWERTY example' }], sourceValue: 'snapshot', sourceName: 'sval-default.svil', noBoard: false,
         layers: [{ index: 0, label: '0 · Base', color: '#099e7c' }, { index: 1, label: '1 · Layer 1', color: '#f89804' }],
-        hostLayers: [{ index: 0, label: '0 · Base', color: '#099e7c' }, { index: 1, label: '1 · Layer 1', color: '#f89804' }], highlightPressed: true,
+        hostLayers: [{ index: 0, label: '0 · Base', color: '#099e7c' }, { index: 1, label: '1 · Layer 1', color: '#f89804' }], highlightPressed: true, manualDefault: 1,
         setTile: vi.fn(), setBackground: vi.fn(), setLayer: vi.fn(), setBase: vi.fn(), setSelected: vi.fn(), setHideFamiliar: vi.fn(), setRecall: vi.fn(),
         update: vi.fn(), setAppearance: vi.fn(), applyPreset: vi.fn(), resetPreferences: vi.fn(), grade: vi.fn(), reveal: vi.fn(), markFamiliar: vi.fn(),
         clearFamiliar: vi.fn(), previewHeld: vi.fn(), chooseSource: vi.fn(), importLayout: vi.fn(), connectBoard: vi.fn(), setHighlightPressed: vi.fn(), setManualDefault: vi.fn(),
@@ -212,8 +212,13 @@ describe('O2 Overlay panel', () => {
 
     it("lists the layers of the board Host reads, and shows the highest bit of a multi-layer mask", () => {
         panel({ tile: 'Window', ...connected({ default: null, config: { ...DEFAULTS, manualDefault: 0b110, highlightPressed: false } }),
-            hostLayers: [0, 1, 2].map(i => ({ index: i, label: `${i} · Host ${i}`, color: '#099e7c' })) });
+            hostLayers: [0, 1, 2].map(i => ({ index: i, label: `${i} · Host ${i}`, color: '#099e7c' })), manualDefault: 0b110 });
         expect(screen.getByRole('combobox', { name: 'Desktop default layer' })).toHaveTextContent('2 · Host 2');
+    });
+
+    it("shows a Desktop default layer choice waiting for Host, not Host's current value", () => {
+        panel({ tile: 'Window', ...connected({ default: null }), manualDefault: 0b10 });
+        expect(screen.getByRole('combobox', { name: 'Desktop default layer' })).toHaveTextContent('1 · Layer 1');
     });
 
     it.each([true, false])('shows Desktop default layer whenever Host reports no default layer (following: %s)', (following) => {

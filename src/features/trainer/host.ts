@@ -118,8 +118,12 @@ export function useHost() {
             await post('/api/host/command', () => value); setError('');
         } catch (e) { setError(e instanceof Error ? e.message : 'Host command failed'); }
     }, [post]);
-    const configure = useCallback(async (config: HostConfig) => {
-        if (!current.current || busyRef.current) return false;
+    /**
+     * Write Host's config. True once Host saved it, false when Host refused it or couldn't be reached
+     * (the error says why), null when nothing was sent: no Host state yet, or another write in flight.
+     */
+    const configure = useCallback(async (config: HostConfig): Promise<boolean | null> => {
+        if (!current.current || busyRef.current) return null;
         busyRef.current = true; setBusy(true);
         try {
             // The revision is read at send time: a retry after a host restart uses the new host's.
