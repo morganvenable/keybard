@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
+import { Gauge, PictureInPicture2 } from "lucide-react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
@@ -84,6 +85,15 @@ afterEach(() => {
 });
 
 describe("nav items", () => {
+    it("uses icons that exist in the installed lucide-react", () => {
+        // §4.1 left their presence UNVERIFIED; MW checks them.
+        expect(Gauge).toBeTruthy();
+        expect(PictureInPicture2).toBeTruthy();
+        renderApp();
+        expect(nav("Practice").querySelector("svg.lucide-gauge")).not.toBeNull();
+        expect(nav("Overlay").querySelector("svg.lucide-picture-in-picture-2, svg.lucide-picture-in-picture2")).not.toBeNull();
+    });
+
     it("replaces Trainer with Practice and Overlay in the layout group", () => {
         renderApp();
         expect(screen.queryByRole("button", { name: "Trainer" })).not.toBeInTheDocument();
