@@ -1,0 +1,15 @@
+{
+  "clip": "storage-reset",
+  "verifiedResult": "A simulated reset flag opened the real reset notice; OK acknowledged it through a controlled service response. Opened a saved layout in Manual mode and stopped at import review, before staging or applying recovery.",
+  "frames": 32,
+  "durationMs": 12740,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid",
+  "review": "Review layout import\n\ntest-board-backup.svil \u2014 replace matching entries on test board.\n\n16 layers\n50 macros\n50 combos\n50 tap dances\n30 overrides\n32 alt-repeat keys\n32 leader sequences\nEntries beyond the file\u2019s layers and tables will be kept from the keyboard.\n\nThis will stage changes in Manual mode. Nothing is written until you use Apply.\n\nBack up current layout\nCancel\nStage import\nClose",
+  "recoveryFile": "Exported controlled test-board layout with tapping term 180 ms, matching board capabilities",
+  "simulatedWrites": [
+    {
+      "clearStorageReset": true
+    }
+  ]
+}

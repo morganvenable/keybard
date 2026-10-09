@@ -1,6 +1,14 @@
 {
   "checks": [
     {
+      "check": "animated WebP integrity",
+      "passed": true,
+      "detail": {
+        "animations": 44,
+        "all_frames_decoded": true
+      }
+    },
+    {
       "check": "responsive/search/layer-explanation/lightbox/playback",
       "passed": true,
       "detail": {
@@ -43,15 +51,15 @@
     {
       "check": "autoplay with either motion preference and no control rows",
       "passed": true,
-      "detail": 40
+      "detail": 44
     },
     {
       "check": "stable mobile deep link",
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.21875,
-        "settled": 105.21875
+        "start": 105.484375,
+        "settled": 105.484375
       }
     },
     {
@@ -59,8 +67,8 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 104.796875,
-        "settled": 104.796875
+        "start": 104.921875,
+        "settled": 104.921875
       }
     },
     {
@@ -68,14 +76,21 @@
       "passed": true,
       "detail": {
         "target": "trainer",
-        "start": 105.28125,
-        "settled": 105.28125
+        "start": 105.40625,
+        "settled": 105.40625
       }
     },
     {
       "check": "local assets and links",
       "passed": true,
-      "detail": 44
+      "detail": 48
+    },
+    {
+      "check": "animation sources, posters and internal anchors",
+      "passed": true,
+      "detail": {
+        "anchors": 24
+      }
     },
     {
       "check": "print PDF",

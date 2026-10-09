@@ -1,6 +1,6 @@
 async ([fixturePath, root]) => {
       const {fileService} = await import(root+'services/file.service.ts');
-      const {usbInstance} = await import(root+'services/usb.service.ts');
+      const {usbInstance, SvilUSB} = await import(root+'services/usb.service.ts');
       const {keyboardService} = await import(root+'services/keyboard.service.ts');
       const {qmkService} = await import(root+'services/qmk.service.ts');
       const {customValueService} = await import(root+'services/custom-value.service.ts');
@@ -20,6 +20,11 @@ async ([fixturePath, root]) => {
       const {identityService} = await import(root+'services/identity.service.ts');
       identityService.getInfo = async () => ({available:true, name:'test board', nameMaxBytes:16, serialSource:1, serial:'sval:0123456789ABCDEF'});
       usbInstance.open = async () => true;
+      // Newer connection flow chooses a device before opening it. Keep both
+      // steps within the controlled fixture; never invoke the HID chooser.
+      SvilUSB.requestDevice = async () => ({productName: 'test board'});
+      usbInstance.hasDevice = () => true;
+      usbInstance.openDevice = async () => true;
       usbInstance.close = async () => {};
       usbInstance.getDeviceName = () => 'test board';
       usbInstance.getAllLayerColors = async () => [];

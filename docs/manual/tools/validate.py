@@ -1,12 +1,22 @@
 """Browser acceptance checks for the standalone manual, with a JSON evidence report."""
 import json, os
 from pathlib import Path
+from PIL import Image
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 from env import MANUAL_URL as URL
 BROWSER=os.environ.get('CHROMIUM_PATH')
 checks=[]
 def record(name,detail):checks.append({'check':name,'passed':True,'detail':detail})
+# Decode every animation frame so corrupt/truncated WebPs cannot pass link checks.
+animations=list((ROOT/'assets').glob('*.webp'))
+for asset in animations:
+ with Image.open(asset) as animation:
+  assert animation.format=='WEBP' and animation.n_frames>1,asset.name
+  assert animation.info.get('loop')==0,asset.name
+  for frame in range(animation.n_frames):
+   animation.seek(frame);animation.load()
+record('animated WebP integrity',{'animations':len(animations),'all_frames_decoded':True})
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path=BROWSER,args=['--no-sandbox','--disable-gpu'])
  for width in [360,390,768,1280,1600]:
@@ -56,8 +66,15 @@ with sync_playwright() as p:
  for asset in local:
   response=page.request.get(URL+asset);assert response.ok,(asset,response.status)
  record('local assets and links',len(local))
+ for figure in page.locator('figure[data-animation]').all():
+  for attribute in ['data-animation','data-poster']:
+   asset=figure.get_attribute(attribute)
+   response=page.request.get(URL+asset);assert response.ok,(asset,response.status)
+ anchors=page.locator('a[href^="#"]').evaluate_all('(es)=>es.map(e=>e.hash.slice(1)).filter(Boolean)')
+ for anchor in anchors:assert page.locator('[id="'+anchor+'"]').count()==1,anchor
+ record('animation sources, posters and internal anchors',{'anchors':len(anchors)})
  page.locator('img').evaluate_all('(es)=>es.forEach(e=>e.loading="eager")');page.wait_for_function('Array.from(document.images).filter(i=>i.getAttribute("src")).every(i=>i.complete&&i.naturalWidth>0)')
- page.emulate_media(media='print');page.pdf(path=str(ROOT/'keybard-user-manual.pdf'),format='A4',print_background=True,prefer_css_page_size=True)
+ page.emulate_media(media='print');page.evaluate("window.dispatchEvent(new Event('beforeprint'))");page.wait_for_function('Array.from(document.images).filter(i=>i.getAttribute("src")).every(i=>i.complete&&i.naturalWidth>0)');page.pdf(path=str(ROOT/'keybard-user-manual.pdf'),format='A4',print_background=True,prefer_css_page_size=True)
  record('print PDF','keybard-user-manual.pdf')
  page.close()
  page=b.new_page(java_script_enabled=False);page.goto(URL);assert page.locator('main>.chapter').count()==11;assert len(page.locator('main').inner_text().split())>4500;record('no-JavaScript reading','All eleven chapters remain available');page.close()

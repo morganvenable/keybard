@@ -1,0 +1,38 @@
+{
+  "reviewDate": "2026-10-08",
+  "keybardCommit": "78cc7dbc11342ec3833be64c2559423516f2a96b",
+  "keybardTag": "vLaunch2",
+  "firmwareRelease": "https://github.com/svalboard/qmk/releases/tag/vLaunch2",
+  "firmwarePublishedAt": "2026-10-08T20:20:35Z",
+  "reviewedTopics": [
+    "Upgrade reset and backup/restore",
+    "Supported Vial conversion",
+    "Complete native import and retained unsupported fields",
+    "Storage reset and write-failure warnings",
+    "Layer reordering and remapped references",
+    "Saved default layer and PDF palette limitation",
+    "One-shot timeout and tap-toggle defaults",
+    "Host refresh and version indicator"
+  ],
+  "reviewMethod": "Separate source audits of start and feature chapters followed by reciprocal cross-review; browser validation and capture evidence stored separately.",
+  "physicalHardwareUsed": false,
+  "limitations": [
+    "Connected captures use controlled test-board responses with physical HID blocked.",
+    "Physical persistence, firmware execution, OS choosers and native desktop overlay behavior were not hardware-tested.",
+    "Earlier unchanged workflow recordings retain their original capture baseline."
+  ],
+  "validation": {
+    "productionBuild": "passed",
+    "manualPackagingTests": "2 passed",
+    "browserAcceptance": "passed at 360,390,768,1280,1600 px",
+    "animatedWebPs": "44; every frame decoded",
+    "newRecordings": 4,
+    "refreshedRecordings": [
+      "import-action"
+    ],
+    "pdfRegenerated": true,
+    "independentVisualReview": "passed at 390 and 1280 px"
+  },
+  "publicationBase": "af7ee57",
+  "upstreamIntegration": "Retained updated Trainer handle, drag-by-keys and tray-menu instructions; regenerated HTML and PDF and repeated browser acceptance after rebase."
+}
