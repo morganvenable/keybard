@@ -98,12 +98,14 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 
 ## Checks run
 
-- `npx tsc --noEmit -p .` and `npm test` before every commit (final: 203 files, 1,613 tests).
+- `npx tsc --noEmit -p .` and `npm test` before every commit (final: 203 files, 1,615 tests).
 - `npm run build` and `npm run build:paranoid` (via `npm run check:bundle`) before the push: both pass, and the budget check passes.
+- `dist-paranoid/keybard-paranoid.html` opened from disk in headless Chrome: the QWERTY example, Practice, Start and a generated lesson work with no network (the content is inlined).
 - Headless Chrome against `npm run dev` with the QWERTY example: first run, Start, typing, lesson completion with the New key banner, the pushed panel with a paused lesson and typing resumed with it open, Progress with its panel, dark theme, 1000 px panel over the page (a click on the card closes it), 860 px bottom-bar, 390 px phone; no horizontal scroll at 1000, 860 or 390. Screenshots in `m1b-screens/`.
 
 ## Follow-ups
 
 - The first `npm run check:bundle` in CI adds two builds (about five minutes) to the Node 24 test job.
 - Firefox check (no Firefox here).
-- Recheck the nav rail height at short viewports now that Practice shows in every build (MW follow-up).
+- Nav rail at short viewports (MW follow-up): at 1440 × 700 the expanded rail scrolls, as it already did; Practice is one more item in it. No change made.
+- Keystroke cost: the key strip no longer re-renders per keystroke and board keys compare by what they draw; the §9.7 frame budget itself is unmeasured (no baseline machine).
