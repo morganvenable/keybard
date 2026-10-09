@@ -12,7 +12,10 @@ export const OWNER_Q1_DEFAULT_UNLOCK_ORDER: 'center-first' | 'frequency' = 'cent
  * Q2. Keybard's license identifier, needed before the vendored keybr engine merges.
  * Recommended: AGPL-3.0-or-later. Applied on branch feat/practice-engine in its own
  * commit ("License Keybard as AGPL-3.0-or-later (OWNER_Q2)": package.json `license`
- * and the root LICENSE file), so it can be dropped or changed on its own.
+ * and the root LICENSE file), so it can be dropped or changed on its own. About's
+ * "Source code" line and the Paranoid file's notice read it (constants/license.ts,
+ * build/paranoid.ts via package.json); tests/build/license.test.ts keeps them in step.
+ * NEEDS OWNER SIGN-OFF before merging to svalboard/keybard: -or-later vs -only.
  */
 export const OWNER_Q2_LICENSE = 'AGPL-3.0-or-later';
 

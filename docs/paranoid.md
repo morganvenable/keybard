@@ -56,3 +56,5 @@ npm run build:paranoid     # writes dist-paranoid/keybard-paranoid.html and SHA2
 ```
 
 `build/paranoid.ts` inlines everything. It hashes each inline script into the policy, after normalizing line endings exactly as browsers do. It fails the build if the static page still references anything outside the file, through `src`, `href`, `srcset`, `poster`, `xlink:href`, CSS `url()` or `@import`. It also fails on meta refresh, preconnect, prefetch, prerender, preload or speculation rules. `tests/build/paranoid.test.ts` covers these rules, including the bypasses found in review.
+
+The file opens with a comment that carries Keybard's license (`license` in `package.json`) and the source URL, https://github.com/svalboard/keybard, because a file opened from disk can't follow the Source code link in About (AGPL §13).
