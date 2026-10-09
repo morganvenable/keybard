@@ -34,7 +34,11 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 | `tests/practice/ui/engineHost.test.tsx` | The M1b keymap source acceptance through PracticeEngineHost: file draft edits, connected board with Live Updating off (Unsent changes until Apply) and on, OS layout change, pause on leaving Lessons and on a hidden tab, Board connected after a connect remounts Practice |
 | `tests/practice/ui/boardModel.test.ts` | Rings, step badges and target legends for `j` and `!` (MO(1) ring, LT1 dashed), cluster backdrop, displayed layer, hints off, legends hidden, no-lesson look; the §5.1 board size rule |
 | `tests/build/practice-content.test.ts` | The virtual module: null outside Paranoid, both assets inlined in Paranoid |
-| `tests/build/bundle-size.test.ts` | §9.8 budgets from the last build (skipped until a build has run) |
+| `tests/build/bundle-size.test.ts` | §9.8 budgets from the builds `npm run check:bundle` just ran; left out of plain `npm test` (review R12) |
+| `tests/practice/state/lessonRun.test.ts` (review) | Outcomes for every Stop on error / Forgive errors combination: garbage kept in the text, the right character refused while garbage waits, skipped- and replaced-character recoveries rewriting the waiting keystrokes, backspace over garbage, Space skipping a word; the stored `k` counts after a recovery |
+| `tests/practice/state/controllerRebuild.test.ts` (review) | A long history replays in chunks that yield; a same-keymap shaping change reuses the key stats with no replay; a keymap change keeps the old session paused until the replay ends; a newer rebuild stops a running replay; a rebuild during a save waits for it and keeps the lesson; a failed write shows Storage off until a write succeeds; OWNER_Q11 priority |
+| `tests/practice/ui/panelEsc.test.tsx` (review) | The real detail panel beside Lessons: opening it pauses, Esc closes it, focus returns to the paused textarea, Enter resumes |
+| `tests/practice/ui/boardFit.test.ts` (review) | The board fits the frame's content box (padding left out) |
 | `tests/practice/content/loader.test.ts` (extended) | Content from the inlined module |
 | `tests/practice/state/progress.test.ts` (updated on purpose) | The Start presets now carry the lesson type and hints (the M1a TODO) |
 | `tests/theme/allowlist.ts` (one entry) | `bg-kb-red/15` on the current character after a miss is an error mark (red-reserved) |
@@ -44,7 +48,7 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 | Criterion | Status |
 |---|---|
 | Keymap source rules: connected + Live Updating on, remapping one letter restarts only it; off, only after Apply with the Unsent changes notice meanwhile; a loaded file's draft edit restarts only that letter | Done (`engineHost.test.tsx`, `session.test.ts`). **Needs Mule testing** with a real board and Apply. |
-| Practice nav opens Lessons with the Lesson panel; ≥ 1100 px and bottom-bar: typing continues with the panel open after a click on the text card; 900–1099 px side layout: focusing the surface closes the panel; Esc in the panel closes it and the lesson resumes on Enter; a lesson-shaping setting regenerates at once | Done (`LessonsPage.test.tsx`, MW's nav tests; Esc is MW's `useWorkspacePanelEscape`, return focus is the textarea). Checked in headless Chrome at 1600 (pushed), 1000 (over the page; a click closes it) and 860 (docked). |
+| Practice nav opens Lessons with the Lesson panel; ≥ 1100 px and bottom-bar: typing continues with the panel open after a click on the text card; 900–1099 px side layout: focusing the surface closes the panel; Esc in the panel closes it and the lesson resumes on Enter; a lesson-shaping setting regenerates at once | Done (`LessonsPage.test.tsx`, `panelEsc.test.tsx`, MW's nav tests; Esc is MW's `useWorkspacePanelEscape`, return focus is the textarea). The end-to-end Esc test found that focus did not return to the textarea (see the review, R13); fixed. Checked in headless Chrome at 1600 (pushed), 1000 (over the page; a click closes it) and 860 (docked). |
 | The lesson type control regenerates the lesson and returns focus to the surface | Until M3 the control offers only Guided (as the scope says), so there is nothing to switch to; the handler (update type → regenerate → focus on pointer) is wired, and Enter on the control moves focus to the surface (tested). |
 | The text card does not move when any banner or notice appears | Done: the slot is a fixed `h-12` (two fixed rows below 900 px) always present; the test checks the card node and slot stay the same when a notice appears. |
 | Every listed UI test and the theme test pass | Done (see Tests). |
@@ -73,6 +77,13 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 17. **A same-fingerprint keymap change (a layer color, a layer name) keeps the lesson** and redraws with the new colors; only a path change restarts it.
 18. **Board disconnect** switches the keymap to the kept draft; with unsent edits that changes the fingerprint and restarts the lesson with Keymap changed (the spec expects the lesson to continue). Without unsent edits it continues.
 19. Spec line numbers are for `61db58a`; the code wins where it moved (vLaunch2.2). Nothing in M1b depended on the removed Hide overlay button.
+20. **Caps Lock is on outranks Storage off and Newer schema** in the status slot (OWNER_Q11, new, recommended yes). Those two never clear in a session, so under the §5.2 order Caps Lock would be hidden for good in a private window while it drops every keystroke. `false` restores the spec order exactly.
+21. **A failed lesson write shows Progress isn't being saved** (the Storage off text, on the slot and on Progress) until a later write succeeds; the spec has Storage off only for IndexedDB being unavailable.
+22. **A long history replay keeps the old session, paused, until it ends** (§9.7 asks for a chunked replay but not what shows meanwhile). The first build of a profile shows the loading skeleton instead.
+23. **Status slot notices use `Notice compact`** (`px-3 py-2`, one line, never wraps) instead of the §5.0 notice's `p-3`: a `p-3` card is 46 px, which fills the `h-12` slot and leaves no room for its shadow. The shared `Notice` gained the `compact` variant so the tone classes live in one place.
+24. **P4 and P5 popovers use `p-4`**, not the §5.0 popover's `p-2`: LayerNameBadge's `p-2` frames menu rows with their own padding; P4 and P5 set headings, rows and a stats grid straight on the card (comment on `POPOVER_CLASSES`).
+25. **A skipped-character recovery (Forgive errors) records one more event than keystrokes**: a miss on the skipped character with `typed: null` and no class, then a hit for every keystroke that recovered it. A replaced-character recovery keeps the wrong keystroke's miss. Events now follow the outcome TextInput reached, not a comparison of characters.
+26. **The status pill shows on Start and while loading** once the keymap is known (§5.1 shows it whenever Lessons shows; M1b first hid it on Start). P4's Keymap row carries the keymap fingerprint as a focusable tooltip (§5.6); the sample rate joins with M2.
 
 ## OWNER_Q usage
 
@@ -80,6 +91,7 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 - Q5: `pruneEvents()` default, now called after every saved lesson (`state/session.ts`).
 - Q6: `activeProfile()` scope via `loadProfileData` (`state/session.ts`).
 - Q7: the lab page stays a placeholder (M0).
+- Q11 (new, from the review): Caps Lock outranks the persistent notices (`STATUS_PRIORITY` in `state/controller.ts`). **Needs owner sign-off**; it is not in spec rev 3 §13.2.
 - Q2, Q3, Q4, Q8–Q10: not read by M1b code.
 
 ## Stubbed or deferred
@@ -94,11 +106,11 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 - Connected board, Live Updating off: remap a letter, see **Practicing the board's keymap · unsent edits excluded**, then Apply: only that letter shows uncalibrated.
 - Live Updating on: remap a letter mid-lesson: Keymap changed, only that letter restarts.
 - Connect board from P4 mid-lesson: Keybard's dirty-draft confirm (if any), the remount, Practice reopens on Lessons with **Board connected · lesson restarted**, same profile.
-- Unplug mid-lesson: the lesson continues (see deviation 17 with unsent edits).
+- Unplug mid-lesson: the lesson continues (see deviation 18 with unsent edits).
 
 ## Checks run
 
-- `npx tsc --noEmit -p .` and `npm test` before every commit (final: 203 files, 1,615 tests).
+- `npx tsc --noEmit -p .` and `npm test` before every commit (before the review: 203 files, 1,615 tests; after it: 206 files, 1,640 tests, with the bundle budgets moved out of `npm test`).
 - `npm run build` and `npm run build:paranoid` (via `npm run check:bundle`) before the push: both pass, and the budget check passes.
 - `dist-paranoid/keybard-paranoid.html` opened from disk in headless Chrome: the QWERTY example, Practice, Start and a generated lesson work with no network (the content is inlined).
 - Headless Chrome against `npm run dev` with the QWERTY example: first run, Start, typing, lesson completion with the New key banner, the pushed panel with a paused lesson and typing resumed with it open, Progress with its panel, dark theme, 1000 px panel over the page (a click on the card closes it), 860 px bottom-bar, 390 px phone; no horizontal scroll at 1000, 860 or 390. Screenshots in `m1b-screens/`.
@@ -109,3 +121,28 @@ Milestone M1b from [spec.md](../spec.md) §12 (§0, §3.3, §4, §5.0–§5.13, 
 - Firefox check (no Firefox here).
 - Nav rail at short viewports (MW follow-up): at 1440 × 700 the expanded rail scrolls, as it already did; Practice is one more item in it. No change made.
 - Keystroke cost: the key strip no longer re-renders per keystroke and board keys compare by what they draw; the §9.7 frame budget itself is unmeasured (no baseline machine).
+
+## Review
+
+An independent review of `93a261b` raised 13 findings. Each was checked against the code; all 13 were real and are fixed. The end-to-end Esc test (R13) also found a bug the review didn't list, fixed as R13a.
+
+| Id | Disposition |
+|---|---|
+| M1b-R1 (major) | **Fixed.** A rebuild on the same keymap and history now starts from the current key stats (a snapshot of the live `Progress`), so a setting change or a toggle never replays. Any other rebuild (a remap, a profile switch, the first build without a usable stored snapshot) longer than one chunk replays through `Progress.seedAsync` in chunks of 100 that await a new task (`MessageChannel`) between them (`PracticeSession.seed`, `deferSeed`). The old session stays, paused, until the new one is ready; a newer rebuild stops a running replay. Measured in Node with 5,000 fixture results: a full replay is about 30 ms on top of about 45 ms of lesson setup (the lesson, not the history). `controllerRebuild.test.ts`. |
+| M1b-R2 (major) | **Fixed.** `Attr.Garbage` characters get the missed style (red, wavy underline) and `data-glyph="garbage"`; a garbage space draws as `·`. UI test with Stop on error off. |
+| M1b-R3 | **Fixed.** Enter-to-surface sits on a `display: contents` wrapper around the type control only, so Enter on the scope button keeps its default (opens the panel). UI test checks Enter on the scope button isn't prevented. |
+| M1b-R4 | **Fixed.** `LessonRun.onInput` follows the steps TextInput appended and its Feedback: a refused keystroke is a miss (the right character refused while garbage waits has no error class); a recovery rewrites the waiting keystrokes' events into hits and, for a skipped character, adds its miss with nothing typed (deviation 25). `lessonRun.test.ts` covers every combination. |
+| M1b-R5 | **Fixed.** `useSettledWidth` measures the content box (`contentWidth`: clientWidth less horizontal padding) before the 32 px gutter. `boardFit.test.ts`. |
+| M1b-R6 | **Fixed.** A rebuild asked for while a lesson is being saved is queued and runs after the save, from the history including that lesson; a replay that started before the save restarts after it. Test: a setting change during a held write ends with `records`, `results` and `progress` all at 1. |
+| M1b-R7 | **Fixed.** Progress shows the "Practice words didn't load" well with Retry on a content error. UI test. |
+| M1b-R8 | **Fixed.** A failed write shows Progress isn't being saved until a write succeeds (`controller.storageOff`; deviation 21). Caps Lock vs Storage off raised as **OWNER_Q11**, stubbed to the recommended "Caps Lock first" (deviation 20). Tests for both. |
+| M1b-R9 | **Fixed.** The Speed chart has a `viewBox` and `h-auto`, so it scales down in narrow containers (pointer and tooltip positions scale with it); "1 lesson"; the type by name (Guided, via `lessonTypeLabel`); "labeled". UI tests. |
+| M1b-R10 | **Fixed.** The Keymap row has the fingerprint as a focusable tooltip; the pill shows on Start and while loading (deviation 26). UI tests. |
+| M1b-R11 | **Fixed.** The slot uses the shared `Notice` with a new `compact` variant (deviation 23); the popover padding is recorded (deviation 24) with a comment on `POPOVER_CLASSES`. |
+| M1b-R12 | **Fixed.** `vitest.config.ts` leaves `tests/build/bundle-size.test.ts` out unless the run is `npm run check:bundle` (`npm_lifecycle_event`), which builds both outputs first; there, missing stats fail instead of skipping. |
+| M1b-R13 | **Fixed.** New tests: the panel Esc → paused surface → Enter sequence with the real detail panel (`panelEsc.test.tsx`), Restart lesson and the Hints cycle, Storage off / Newer schema / Unsent changes rendered in `[data-status-slot]`, Enter on the scope button, Stop on error and Forgive errors off. |
+| M1b-R13a (found by R13's test) | **Fixed.** Closing the Lesson panel did not return focus to the typing surface: LessonsPage cleared `returnFocusOverride` in a per-render effect cleanup, and React runs every cleanup of a commit before any effect, so in the commit that closes the panel the override was null by the time the panel's cleanup read it (Practice renders before the panel in `EditorLayout`, so this was live). The override is now cleared only when Lessons stops showing. |
+
+Not changed: nothing. Still open from the review's scope notes: Firefox (manual), and the Mule checks above.
+
+Checks after the review fixes: `npx tsc --noEmit -p .` and `npm test` (206 files, 1,640 tests) before each commit; `npm run check:bundle` (`npm run build`, `npm run build:paranoid` and the budgets) before the push, all passing. Measured: Practice in the entry chunk 1.6 KB gzip, lazy chunks 66.8 KB gzip, English content 60.1 KB gzip, Paranoid growth 396 KB. The review fixes were checked in jsdom only; the shared browser panel was not available for a headless pass, so a quick visual check of the compact status-slot notice, a wrong character with Stop on error off, and the Speed chart at 390 px is still worth doing.
