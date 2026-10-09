@@ -117,6 +117,7 @@ export const RED_ALLOWED: RedAllowed[] = [
     { file: "src/components/EditingTargetStatus.tsx", literal: "border-red-200 dark:border-red-900", tokens: ["border-red-200", "dark:border-red-900"], reason: "error", note: "Connection error notice." },
     { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", literal: "bg-red-50 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
     { file: "src/pages/ExploreLayoutsPage.tsx", literal: "bg-red-50 text-red-600 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
+    { file: "src/components/shared/Notice.tsx", literal: "border-red-200 dark:border-red-900", tokens: ["border-red-200", "dark:border-red-900"], reason: "error", note: "Error notice (Overlay: Host connection lost, can't reach Host, Host command failed)." },
 
     // Layer color data: a layer the user colors red still has red faces. (.ts, scanned by this rule only)
     { file: "src/utils/colors.ts", literal: /^(hover:)?(bg|border)-kb-red( text-white)?$/, tokens: ["bg-kb-red", "hover:border-kb-red", "hover:bg-kb-red"], reason: "layer-data", note: "Red layer color: face, hover border and hover face." },

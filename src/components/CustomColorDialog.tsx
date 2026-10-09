@@ -32,6 +32,13 @@ interface CustomColorDialogProps {
     ) => void;
     layerName?: string;
     onCloseAutoFocus?: (event: Event) => void;
+    /**
+     * Pick one display color only, with no LED target (the Overlay Color field's "More colors…",
+     * docs/practice/spec.md N-15). onApply still receives both; the LED values are the initial ones.
+     */
+    displayOnly?: boolean;
+    /** Dialog title; defaults to "Colors for {layerName}" or "Colors". */
+    title?: string;
 }
 
 type ColorTarget = 'display' | 'led';
@@ -53,6 +60,8 @@ const CustomColorDialog = ({
     initialDisplayVal = 200,
     onApply,
     layerName,
+    displayOnly = false,
+    title,
 }: CustomColorDialogProps) => {
     // Display color state
     const [displayHue, setDisplayHue] = useState(initialDisplayHue);
@@ -184,9 +193,9 @@ const CustomColorDialog = ({
                 }}>
                 <DialogHeader>
                     <DialogTitle>
-                        {layerName ? `Colors for ${layerName}` : "Colors"}
+                        {title ?? (layerName ? `Colors for ${layerName}` : "Colors")}
                     </DialogTitle>
-                    <DialogDescription className="sr-only">Choose a key or LED color, then adjust its hue, saturation, and brightness.</DialogDescription>
+                    <DialogDescription className="sr-only">{displayOnly ? "Adjust the color's hue, saturation, and brightness." : "Choose a key or LED color, then adjust its hue, saturation, and brightness."}</DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
@@ -215,12 +224,12 @@ const CustomColorDialog = ({
                                 "text-sm font-semibold transition-colors",
                                 activeTarget === 'display' ? "text-kb-ink" : "text-kb-ink/60 group-hover:text-kb-ink"
                             )}>
-                                Key color
+                                {displayOnly ? "Color" : "Key color"}
                             </span>
                         </button>
 
                         {/* LED Color Circle */}
-                        <button
+                        {!displayOnly && <button
                             type="button"
                             aria-pressed={activeTarget === 'led'}
                             className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
@@ -244,7 +253,7 @@ const CustomColorDialog = ({
                             )}>
                                 LED color
                             </span>
-                        </button>
+                        </button>}
                     </div>
 
                     {/* Hue Slider */}
