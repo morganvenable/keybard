@@ -6,7 +6,7 @@
 // |      | 21–22 | kind (0 hit, 1 miss, 2 backspace, 3 stray)                 |
 // |      | 23    | confidence (0 inferred, 1 observed)                        |
 // |      | 24–26 | errorClass (0 none, 1–6 in ERROR_CLASSES order)            |
-// |      | 27–28 | shift of the path (0 n, 1 f, 2 u)                          |
+// |      | 27–28 | shift of the pressed key (0 n, 1 f, 2 u, 3 unknown)        |
 // |      | 29–30 | prerequisite count (0–2)                                   |
 // |      | 31    | delayed output                                             |
 // | w2   | 0–20  | typed code point (0x1FFFFF = null)                         |
@@ -20,8 +20,11 @@
 // |      | 16–31 | target ms, same encoding                                   |
 //
 // `raw` and `ttt` are not stored: raw is rebuilt from `t` and the previous hit,
-// ttt from raw, the prerequisite count and the 2,000 ms rule; `path` from layer,
-// index and shift.
+// ttt from raw, the prerequisite count and the 2,000 ms rule. layer, index and
+// shift describe the key pressed: a hit's path is rebuilt from them. A miss's
+// expected path is not stored (it differs from the pressed key), so a miss
+// unpacks with path "" and its pressed key in phys, shift included; the expected
+// path re-resolves from `expected` under the result's keymap fingerprint.
 import { parsePathKey, pathKey, type Shift } from '../keymap/resolver';
 import { ERROR_CLASSES, type KeystrokeEvent, type KeystrokeKind } from '../types';
 
@@ -32,6 +35,7 @@ export const MAX_STEP_MS = 2000;
 
 const KINDS: KeystrokeKind[] = ['hit', 'miss', 'backspace', 'stray'];
 const SHIFTS: Shift[] = ['n', 'f', 'u'];
+const UNKNOWN_SHIFT = 3;
 const NULL_CODE_POINT = 0x1fffff;
 const NO_INDEX = 127;
 const UNKNOWN_LAYER = 31;
@@ -59,8 +63,9 @@ export function packEvents(events: readonly KeystrokeEvent[]): ArrayBuffer {
     const words = new Uint32Array(events.length * WORDS_PER_EVENT);
     events.forEach((e, i) => {
         const o = i * WORDS_PER_EVENT;
-        const parsed = e.path ? parsePathKey(e.path) : null;
-        const shift = SHIFTS.indexOf(parsed?.shift ?? 'n');
+        // A miss's path is the expected one: its shift would not be the pressed key's.
+        const pressed = e.kind === 'hit' ? (e.path ? parsePathKey(e.path)?.shift : undefined) : e.phys.shift;
+        const shift = pressed ? SHIFTS.indexOf(pressed) : UNKNOWN_SHIFT;
         const prereqs = e.prereq.slice(0, 2);
         const errorClass = e.errorClass ? ERROR_CLASSES.indexOf(e.errorClass) + 1 : 0;
         const layer = e.phys.layer < 0 || e.phys.layer >= UNKNOWN_LAYER ? UNKNOWN_LAYER : e.phys.layer;
@@ -94,7 +99,7 @@ export function unpackEvents(buffer: ArrayBuffer): KeystrokeEvent[] {
         const t = words[o] / 10;
         const kind = KINDS[(w1 >>> 21) & 3];
         const errorClass = (w1 >>> 24) & 7;
-        const shift = SHIFTS[(w1 >>> 27) & 3] ?? 'n';
+        const shift: Shift | undefined = SHIFTS[(w1 >>> 27) & 3];
         const prereqCount = (w1 >>> 29) & 3;
         const typed = w2 & 0x1fffff;
         const layer = (w2 >>> 21) & 31;
@@ -109,7 +114,7 @@ export function unpackEvents(buffer: ArrayBuffer): KeystrokeEvent[] {
             t, expected: w1 & 0x1fffff,
             typed: typed === NULL_CODE_POINT ? null : typed,
             kind, raw, ttt,
-            path: index === NO_INDEX || layer === UNKNOWN_LAYER ? '' : pathKey(layer, index, shift),
+            path: kind !== 'hit' || !shift || index === NO_INDEX || layer === UNKNOWN_LAYER ? '' : pathKey(layer, index, shift),
             prereq,
             phys: {
                 index: index === NO_INDEX ? -1 : index,
@@ -120,6 +125,7 @@ export function unpackEvents(buffer: ArrayBuffer): KeystrokeEvent[] {
                 target: unpackMs(w4 >>> 16),
             },
         };
+        if (kind !== 'hit' && shift) event.phys.shift = shift;
         if (errorClass) event.errorClass = ERROR_CLASSES[errorClass - 1];
         if (w1 >>> 31) event.delayed = true;
         events.push(event);

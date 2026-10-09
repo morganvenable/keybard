@@ -21,7 +21,10 @@ export interface KeystrokeEvent {
     raw: number;
     /** Normalized time to type (§6.5); null when dropped (> 2000 ms) or not a hit. */
     ttt: number | null;
-    /** Path key used ("1:27:f"); "" when there is none. */
+    /**
+     * Path key ("1:27:f"): for a hit, the path used; for a miss, the expected path;
+     * "" when there is none (backspace, stray). Stored events rebuild it for hits only.
+     */
     path: string;
     /** Matrix indices of new prerequisites (§6.5), at most 2. */
     prereq: number[];
@@ -31,6 +34,12 @@ export interface KeystrokeEvent {
         /** Effective layer, -1 if unknown. */
         layer: number;
         confidence: 'observed' | 'inferred';
+        /**
+         * Shift of the pressed key, for misses and strays (live: the observed
+         * Shift state; keymap only: the typed character's primary path). A hit's
+         * shift is its path's. Unset when unknown.
+         */
+        shift?: Shift;
         /** ms between the matched edge and the input event (live). */
         skew: number | null;
         reach: number | null;

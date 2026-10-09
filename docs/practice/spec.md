@@ -1452,7 +1452,7 @@ interface KeystrokeEvent {
 }
 ```
 
-**Persisted layout 1:** an `Int32Array` of **5 words (20 B) per event**. `raw` and `ttt` are not stored: `raw` is the difference of consecutive `t`, and `ttt` follows from `raw`, the prerequisite count and the 2,000 ms rule. `path` is rebuilt from `layer`, `index` and `shift`.
+**Persisted layout 1:** an `Int32Array` of **5 words (20 B) per event**. `raw` and `ttt` are not stored: `raw` is the difference of consecutive `t`, and `ttt` follows from `raw`, the prerequisite count and the 2,000 ms rule. `layer`, `index` and `shift` all describe the key **pressed**, so a hit's `path` is rebuilt from them. A miss's expected path is not stored (it is a different key); a miss unpacks with `path` "" and its pressed key, shift included, in `phys`, and the expected path re-resolves from `expected` under the result's keymap fingerprint (`x.km`).
 
 | Word | Bits (from bit 0) | Field |
 |---|---|---|
@@ -1461,7 +1461,7 @@ interface KeystrokeEvent {
 | | 21–22 | `kind` (0 hit, 1 miss, 2 backspace, 3 stray) |
 | | 23 | `confidence` (0 inferred, 1 observed) |
 | | 24–26 | `errorClass` (0 none, 1–6 in §6.6 order) |
-| | 27–28 | shift of the path (0 `n`, 1 `f`, 2 `u`) |
+| | 27–28 | shift of the **pressed** key (0 `n`, 1 `f`, 2 `u`, 3 unknown): a hit's path shift; a miss's or stray's `phys.shift` |
 | | 29–30 | prerequisite count (0–2) |
 | | 31 | delayed output (§6.5) |
 | w2 | 0–20 | `typed` code point (`0x1FFFFF` = null) |

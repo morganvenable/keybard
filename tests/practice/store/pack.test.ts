@@ -41,11 +41,31 @@ describe('event packing, layout 1 (§8.2)', () => {
             expect(e.phys).toEqual(src.phys);
             expect(e.errorClass).toBe(src.errorClass);
             expect(!!e.delayed).toBe(!!src.delayed);
-            // The path is rebuilt from the physical key: exact for hits, the pressed key for misses.
-            const rebuilt = src.phys.index < 0 ? '' : `${src.phys.layer}:${src.phys.index}:${src.path.split(':')[2] ?? 'n'}`;
-            expect(e.path).toBe(rebuilt);
-            if (src.kind === 'hit') expect(e.path).toBe(src.path);
+            // A hit's path is rebuilt from the pressed key; a miss's expected path is not stored.
+            expect(e.path).toBe(src.kind === 'hit' ? src.path : '');
         });
+    });
+
+    it('stores the pressed key of a miss, shift included, never a mix of both keys', () => {
+        // Expected 'A' (0:26:u); the user typed 'q' (0:27, no Shift).
+        const [miss, stray, unknown] = unpackEvents(packEvents([
+            event({ t: 10, expected: 0x41, typed: 0x71, kind: 'miss', path: '0:26:u', errorClass: 'wrong-direction',
+                phys: { index: 27, layer: 0, shift: 'n' } }),
+            event({ t: 20, expected: 0x41, typed: 0x51, kind: 'stray', path: '', phys: { index: 27, layer: 0, shift: 'u' } }),
+            event({ t: 30, expected: 0x41, typed: 0x71, kind: 'miss', path: '0:26:u', phys: { index: 27, layer: 0 } }),
+        ]));
+        expect(miss.path).toBe('');
+        expect(miss.phys).toMatchObject({ index: 27, layer: 0, shift: 'n' });
+        expect(stray.path).toBe('');
+        expect(stray.phys.shift).toBe('u');
+        // No pressed-key shift recorded: stays unknown rather than borrowing the expected path's.
+        expect(unknown.phys.shift).toBeUndefined();
+    });
+
+    it('does not invent a path for a hit that had none', () => {
+        const [e] = unpackEvents(packEvents([event({ path: '', phys: { index: 26, layer: 0 } })]));
+        expect(e.path).toBe('');
+        expect(e.phys).toMatchObject({ index: 26, layer: 0 });
     });
 
     it('rebuilds raw and ttt from t, the previous hit, the prerequisite count and the 2 s rule', () => {
