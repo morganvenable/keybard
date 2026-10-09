@@ -318,6 +318,39 @@ describe("deep links", () => {
         expect(value("workspace")).toBe("overlay");
     });
 
+    it("Back to an entry without a hash returns to the editor and closes the workspace panel", () => {
+        openAt("/");
+        // Typing #practice in the address bar pushes a history entry.
+        act(() => {
+            window.history.pushState(null, "", "/#practice");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("practice");
+        expect(panelOpen()).toBe(true);
+        // Back: the browser restores "/" and fires hashchange with an empty hash.
+        act(() => {
+            window.history.replaceState(null, "", "/");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("editor");
+        expect(value("active")).toBe("null");
+        expect(panelOpen()).toBe(false);
+        expect(window.location.hash).toBe("");
+    });
+
+    it("an empty hash keeps a footer panel open while returning to the editor", () => {
+        openAt("/#overlay");
+        fireEvent.click(nav("Settings"));
+        expect(value("active")).toBe("settings");
+        act(() => {
+            window.history.replaceState(null, "", "/#");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("editor");
+        expect(value("active")).toBe("settings");
+        expect(panelOpen()).toBe(true);
+    });
+
     it("a remount reopens the same workspace and page (a board connect remounts EditorLayout)", () => {
         const view = openAt("/");
         fireEvent.click(nav("Practice"));

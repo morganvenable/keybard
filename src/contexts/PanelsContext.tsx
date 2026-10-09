@@ -96,9 +96,16 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [workspace, practicePage]);
 
     // A workspace hash entered while Keybard is open (the address bar, a link) acts like a nav click,
-    // so the address bar and the page never disagree. Other hash changes are ignored.
+    // so the address bar and the page never disagree. An empty hash (Back or Forward to an entry
+    // without one, or a typed bare "#") returns to the editor. Other hash changes are ignored.
     useEffect(() => {
         const onHashChange = () => {
+            if (window.location.hash === "" || window.location.hash === "#") {
+                setWorkspaceState("editor");
+                // Only the workspace's own panel closes; Settings, About and editor panels stay.
+                setActivePanel(panel => (isPageWorkspace(panel) ? null : panel));
+                return;
+            }
             const route = parseWorkspaceHash(window.location.hash, window.location.search);
             if (!route || route.workspace === "editor") return;
             setWorkspaceState(route.workspace);
