@@ -6,7 +6,6 @@ import {
     isPageWorkspace,
     parseWorkspaceHash,
     syncWorkspaceHash,
-    WORKSPACE_HAS_PANEL,
     type PracticePage,
     type Workspace,
     type WorkspaceRoute,
@@ -53,9 +52,8 @@ interface PanelsContextType {
 
 const PanelsContext = createContext<PanelsContextType | undefined>(undefined);
 
-/** A workspace's nav item opens its panel unless that workspace has none yet (WORKSPACE_HAS_PANEL). */
-const opensPanel = (panel: string | null) =>
-    !!panel && panel !== "matrixtester" && !(isPageWorkspace(panel) && !WORKSPACE_HAS_PANEL[panel]);
+/** Every panel id opens the detail panel, Practice's and Overlay's included; Matrix Tester is an editor mode. */
+const opensPanel = (panel: string | null) => !!panel && panel !== "matrixtester";
 
 export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Deep links (§4.2), and the way Practice and Overlay survive a reconnect: a connect remounts
@@ -83,7 +81,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             openDetails();
         }
 
-        if ((!activePanel || (activePanel !== "matrixtester" && !opensPanel(activePanel))) && detailsOpen) {
+        if (!activePanel && detailsOpen) {
             closeDetails();
         }
     }, [activePanel, detailsOpen, openDetails, closeDetails]);

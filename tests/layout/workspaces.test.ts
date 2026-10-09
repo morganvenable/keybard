@@ -5,7 +5,6 @@ import {
     isPageWorkspace,
     parseWorkspaceHash,
     syncWorkspaceHash,
-    WORKSPACE_HAS_PANEL,
     workspaceHash,
 } from "@/layout/workspaces";
 
@@ -89,9 +88,5 @@ describe("workspace ids", () => {
         expect(isPageWorkspace("trainer")).toBe(false);
         expect(isPageWorkspace("matrixtester")).toBe(false);
         expect(isPageWorkspace(null)).toBe(false);
-    });
-
-    it("keeps Overlay out of the panel auto-open until MO", () => {
-        expect(WORKSPACE_HAS_PANEL).toEqual({ practice: true, overlay: false });
     });
 });

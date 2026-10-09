@@ -38,13 +38,11 @@ const mockLayer = vi.hoisted(() => ({
   setSelectedLayer: vi.fn(),
 }));
 
-// TrainerPage stand-in that keeps a session counter and runs the real Host client, as the real page
-// does, so the tests can see when Keybard first contacts Keybard Host.
-vi.mock("@/features/trainer/TrainerPage", async () => {
+// Overlay page stand-in that keeps a session counter. The real OverlayProvider stays, so its engine
+// runs the real Host client and the tests can see when Keybard first contacts Keybard Host.
+vi.mock("@/features/trainer/OverlayWorkspace", async () => {
   const { useState } = await import("react");
-  const { useHost } = await import("@/features/trainer/host");
   return { default: ({ active }: { active: boolean }) => {
-    useHost();
     const [attempts, setAttempts] = useState(0);
     return <button data-testid="trainer-session" data-active={active} onClick={() => setAttempts(n => n + 1)}>{attempts}</button>;
   } };
@@ -319,12 +317,13 @@ describe("EditorLayout 3D guide sequencing", () => {
     }
   });
 
-  it("fits the interim Overlay page to its box so a docked panel shortens it", () => {
+  it("gives the Overlay page the editor's scroll box, with no trainer.css override", () => {
     mockPanels.workspace = "overlay";
     mockPanels.activePanel = "overlay";
     render(<EditorLayout />);
     const box = document.querySelector(".overlay-workspace") as HTMLElement;
-    expect(box.className).toContain("[&>.trainer-page]:!h-full");
+    expect(box.className).toContain("overflow-auto");
+    expect(box.className).not.toContain("trainer");
   });
 
   it("never remounts the detail panel or the editor content when switching workspaces", () => {

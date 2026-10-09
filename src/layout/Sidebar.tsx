@@ -25,7 +25,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 import { PARANOID } from "@/lib/paranoid";
-import { isPageWorkspace, PRACTICE_NAV_VISIBLE, WORKSPACE_HAS_PANEL } from "./workspaces";
+import { isPageWorkspace, PRACTICE_NAV_VISIBLE } from "./workspaces";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
@@ -179,7 +179,6 @@ const AppSidebar = () => {
         setAlternativeHeader,
         open,
         handleCloseDetails,
-        setOpen,
         workspace,
         setWorkspace,
     } = usePanels();
@@ -203,16 +202,6 @@ const AppSidebar = () => {
 
             if (isPageWorkspace(item.url)) {
                 const target = item.url;
-                if (!WORKSPACE_HAS_PANEL[target]) {
-                    // No panel of its own yet (Overlay until MO): show the page, close any other panel.
-                    setWorkspace(target);
-                    setOpen(false);
-                    setActivePanel(target);
-                    setPanelToGoBack(null);
-                    setAlternativeHeader(false);
-                    setItemToEdit(null);
-                    return;
-                }
                 if (workspace === target && activePanel === target && open) {
                     // Second click closes the panel; the page stays.
                     handleCloseDetails();
@@ -232,7 +221,7 @@ const AppSidebar = () => {
                 showPanel(item.url);
             }
         },
-        [setNavigationOpen, activePanel, open, workspace, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen, setWorkspace]
+        [setNavigationOpen, activePanel, open, workspace, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setWorkspace]
     );
 
     // Build dynamic menu items from keyboard definition

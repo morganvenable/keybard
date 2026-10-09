@@ -18,16 +18,6 @@ export const isPageWorkspace = (id: string | null | undefined): id is PageWorksp
     id === "practice" || id === "overlay";
 
 /**
- * Whether a workspace's nav item opens its own detail panel.
- * TODO(practice): MO sets overlay to true when OverlayPanel replaces TrainerPage's inspector (§12 MW,
- * last scope row). Until then Overlay behaves like today's Trainer: the panel stays closed.
- */
-export const WORKSPACE_HAS_PANEL: Record<PageWorkspace, boolean> = {
-    practice: true,
-    overlay: false,
-};
-
-/**
  * The Practice nav item is hidden until M1b ships the real Lessons page (§12 MW). Development builds
  * (and tests) show it; every build opens Practice from the #practice deep link.
  * TODO(practice): M1b makes this true everywhere.

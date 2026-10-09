@@ -10,6 +10,8 @@ import { createWorkspaceStore } from "@/layout/workspace-store";
 
 const panels = vi.hoisted(() => ({ workspace: "editor" as "editor" | "practice" | "overlay" }));
 vi.mock("@/contexts/PanelsContext", () => ({ usePanels: () => panels }));
+// The engine's real hooks need the keyboard and layout contexts; the shell is what is under test here.
+vi.mock("@/features/trainer/useOverlayController", () => ({ useOverlayController: () => ({}) }));
 
 const mounts = { child: 0 };
 function Child() {

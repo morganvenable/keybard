@@ -180,19 +180,42 @@ describe("editor and footer items", () => {
     });
 });
 
-describe("Overlay nav item (until MO)", () => {
-    it("opens the page with the panel closed, like today's Trainer", () => {
+describe("Overlay nav item", () => {
+    it("opens the page and its panel; a second click closes the panel and keeps the page", () => {
         renderApp();
         fireEvent.click(nav("Layouts"));
         expect(panelOpen()).toBe(true);
         fireEvent.click(nav("Overlay"));
         expect(value("workspace")).toBe("overlay");
         expect(value("active")).toBe("overlay");
-        expect(panelOpen()).toBe(false);
+        expect(panelOpen()).toBe(true);
+        expect(panel()).toHaveAccessibleName("overlay");
         expect(window.location.hash).toBe("#overlay");
         expect(nav("Overlay")).toHaveAttribute("aria-pressed", "true");
-        // A second click keeps the page.
+
         fireEvent.click(nav("Overlay"));
+        expect(panelOpen()).toBe(false);
+        expect(value("workspace")).toBe("overlay");
+        expect(nav("Overlay")).toHaveAttribute("aria-pressed", "true");
+
+        fireEvent.click(nav("Overlay"));
+        expect(panelOpen()).toBe(true);
+        expect(value("active")).toBe("overlay");
+    });
+
+    it("moves focus into its panel when an open editor panel switches to Overlay", () => {
+        renderApp();
+        fireEvent.click(nav("Layouts"));
+        nav("Overlay").focus();
+        fireEvent.click(nav("Overlay"));
+        expect(document.activeElement).toBe(panel());
+    });
+
+    it("closes its panel on Esc and keeps the page", () => {
+        renderApp();
+        fireEvent.click(nav("Overlay"));
+        fireEvent.keyDown(panel(), { key: "Escape" });
+        expect(panelOpen()).toBe(false);
         expect(value("workspace")).toBe("overlay");
     });
 
@@ -286,6 +309,8 @@ describe("deep links", () => {
         expect(value("active")).toBe("overlay");
         expect(window.location.hash).toBe("#overlay");
         expect(nav("Overlay")).toHaveAttribute("aria-pressed", "true");
+        expect(panelOpen()).toBe(true);
+        expect(document.activeElement).toBe(panel());
     });
 
     it("#practice/lab without ?practiceLab=1 opens Practice", () => {
