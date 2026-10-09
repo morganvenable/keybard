@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { type BundleStats, statsFile } from '../../build/bundle-stats';
 
 // Practice's bundle budgets (docs/practice/spec.md §9.8). The numbers come from the last `vite build`
-// (build/bundle-stats.ts), so this check is skipped until a build has run: `npm run check:bundle`
-// builds both outputs and runs it, as the test workflow does.
+// (build/bundle-stats.ts), so only `npm run check:bundle` runs this file (vitest.config.ts leaves it
+// out of `npm test`, where the stats could be stale): it builds both outputs first, as the test
+// workflow does. Missing stats fail here rather than skip.
 
 const root = resolve(__dirname, '../..');
 const KB = 1024;
@@ -17,6 +18,13 @@ const read = (mode: string): BundleStats | null => {
 
 const production = read('production');
 const paranoid = read('paranoid');
+
+describe('Practice bundle stats', () => {
+    it('were recorded by the builds check:bundle just ran', () => {
+        expect(production, 'run npm run build first').not.toBeNull();
+        expect(paranoid, 'run npm run build:paranoid first').not.toBeNull();
+    });
+});
 
 describe.skipIf(!production)('Practice bundle budgets, production build (§9.8)', () => {
     it('adds at most 3 KB gzip to the editor\'s initial chunk', () => {
