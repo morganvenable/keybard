@@ -61,8 +61,9 @@ class Recorder:
   if on.count():self.click(on)
  def save(self,name,result):
   self.frame(1600);self.frames[-1].save(ROOT/f'assets/{name}-still.png')
-  palette=self.frames[len(self.frames)//2].quantize(colors=192)
-  frames=[f.quantize(palette=palette,dither=Image.Dither.NONE) for f in self.frames]
+  # WebP supports full RGB: an indexed palette needlessly damages text and
+  # colors that appear only after a menu or dialog opens.
+  frames=self.frames
   frames[0].save(ROOT/f'assets/{name}.webp',save_all=True,append_images=frames[1:],duration=self.times,loop=0,lossless=True,quality=100,method=6)
   entry={'clip':name,'verifiedResult':result,'frames':len(frames),'durationMs':sum(self.times),'physicalHID':False,'source':'Real Keybard UI with '+('controlled test-board responses' if self.connected else 'bundled offline layout')+'; orange pointer is a recording aid'}
   (ROOT/f'evidence/action-{name}.json').write_text(json.dumps(entry,indent=2)+'\n');self.page.close();return entry

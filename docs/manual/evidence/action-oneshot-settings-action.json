@@ -1,0 +1,8 @@
+{
+  "clip": "oneshot-settings-action",
+  "verifiedResult": "Changed one-shot tap-to-lock count from 5 to 0 and timeout from 5000 ms to 0, verified Apply 2 Changes, and left both changes staged without writing the test board.",
+  "frames": 48,
+  "durationMs": 14250,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid"
+}

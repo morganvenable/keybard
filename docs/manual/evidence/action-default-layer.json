@@ -1,0 +1,13 @@
+{
+  "clip": "default-layer",
+  "verifiedResult": "Right-clicked layer 1, chose Make Default Layer, verified Manual mode staged one change, then applied to the in-memory test board and verified the home/default marker moved to layer 1. Persistence across a physical restart was not tested.",
+  "frames": 34,
+  "durationMs": 11120,
+  "physicalHID": false,
+  "source": "Real Keybard UI with controlled test-board responses; orange pointer is a recording aid",
+  "simulatedWrites": [
+    {
+      "defaultLayer": 1
+    }
+  ]
+}
