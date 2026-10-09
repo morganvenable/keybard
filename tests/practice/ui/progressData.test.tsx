@@ -198,6 +198,12 @@ describe('Progress panel Data rows (§5.9)', () => {
         expect(within(data).getByRole('button', { name: 'Export…' })).toBeInTheDocument();
     });
 
+    it('shows no Heat colors row while OWNER_Q9 is no', async () => {
+        await startController();
+        render(<Providers><ProgressPanel /></Providers>);
+        expect(screen.queryByText('Heat colors')).toBeNull();
+    });
+
     it('renders the same rows docked in bottom-bar layout', async () => {
         await startController();
         render(<Providers><ProgressPanel horizontal /></Providers>);

@@ -281,6 +281,16 @@ export function charsOnKeys(resolution: KeymapResolution, indices: readonly numb
     return out;
 }
 
+/**
+ * Characters whose primary path is on a layer, in the resolver's order: a Layers row's group (§5.7 Drill this
+ * group uses the group's characters on all its keys, practiced or not, as `charsOnKeys` does for keys).
+ */
+export function charsOnLayer(resolution: KeymapResolution, layer: number): number[] {
+    const out: number[] = [];
+    for (const char of resolution.paths.keys()) if (resolution.primary(char)?.layer === layer) out.push(char);
+    return out;
+}
+
 function group(name: string, indices: number[], totals: PhysicalTotals, targetSpeed: number, resolution: KeymapResolution): KeyGroup {
     const sum = emptyTotals();
     for (const i of indices) {
@@ -342,8 +352,6 @@ export interface LayerRow {
     hits: number;
     /** Share of all character samples in scope. */
     share: number;
-    /** Characters typed on the layer (Drill this group). */
-    chars: number[];
 }
 
 export function layerRows(records: readonly StoredResult[], keymap: readonly (readonly number[])[], defaultLayer: number, stringify: (code: number) => string): LayerRow[] {
@@ -391,7 +399,6 @@ export function layerRows(records: readonly StoredResult[], keymap: readonly (re
             reachMs: r && r.n > 0 ? r.time / r.n : null,
             hits: row.h,
             share: all > 0 ? row.h / all : 0,
-            chars: [...row.chars],
         };
     });
 }
@@ -454,15 +461,18 @@ export function historyPage(records: readonly StoredResult[], page: number, size
 
 // ---- Per-lesson series for P5's aggregate sparkline (§5.7)
 
-/** Per-lesson speed (CPM) of a group of keys, oldest first: lessons with no timed hit on them are skipped. */
-export function groupSeries(records: readonly StoredResult[], indices: readonly number[]): number[] {
+/**
+ * Per-lesson speed (CPM) of a group of keys, oldest first: lessons with no timed hit on them are skipped.
+ * With `layer`, only presses on that layer count (a heatmap key's group, whose totals are for the shown layer).
+ */
+export function groupSeries(records: readonly StoredResult[], indices: readonly number[], layer?: number): number[] {
     const keys = new Set(indices);
     const out: number[] = [];
     for (const record of [...records].sort((a, b) => a.ts - b.ts)) {
         let time = 0, timed = 0;
         for (const [key, k] of Object.entries(record.k)) {
-            const index = Number(key.split('@')[0]);
-            if (!keys.has(index) || !(k.t > 0) || k.h <= 0) continue;
+            const [index, on] = key.split('@').map(Number);
+            if (!keys.has(index) || (layer != null && on !== layer) || !(k.t > 0) || k.h <= 0) continue;
             time += k.t * k.h;
             timed += k.h;
         }

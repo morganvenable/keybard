@@ -6,14 +6,27 @@
 // - Usage: the single-hue blue ramp (themed tokens), never red.
 // - No data: the locked look (dashed, transparent) with `—`.
 // - Edges: `border-kb-gray-border` in light theme (kb-key-border equals the page there), kb-key-border in dark.
-//
-// OWNER_Q9 (a color-blind heat palette setting) is answered no, so there is one palette and no setting.
+import { OWNER_Q9_COLORBLIND_HEAT_SETTING } from "@/constants/owner-decisions";
+import type { KeyContent } from "@/types/keyboard.types";
+import { getKeyDisplayText } from "@/utils/key-display";
 import type { HeatLevel, HeatMetric, UsageQuartiles } from "../../state/progressAggregates";
 import { HEAT_THRESHOLDS } from "../../state/progressAggregates";
 import type { SpeedUnit } from "../../state/settings";
 import { formatPercentDown, formatSpeedDown } from "../format";
 
 const EDGE = "border border-kb-gray-border dark:border-kb-key-border";
+
+/**
+ * OWNER_Q9: offer a color-blind heat palette (§5.0.2 item 4). Answered no for v1, so there is one palette
+ * (HEAT_FACE) and the Progress panel shows no Heat colors row.
+ *
+ * TODO(practice): Q9 yes → a `heatPalette: 'standard' | 'color-blind'` setting; a second token set beside
+ * kb-heat-* in src/index.css (viridis-style: #440154 with white text, #21918c and #fde725 with black text,
+ * light and dark); a HEAT_FACE_COLOR_BLIND map chosen here by the setting; and the panel's
+ * "Heat colors: Standard · Color-blind" SegmentedControl (ProgressPanel.tsx, HeatColorsRow). Nothing else
+ * changes: levels, thresholds, printed values and checks stay.
+ */
+export const COLOR_BLIND_HEAT_SETTING = OWNER_Q9_COLORBLIND_HEAT_SETTING;
 
 /** Face classes (background, text, border) per level. */
 export const HEAT_FACE: Record<HeatLevel, string> = {
@@ -28,8 +41,28 @@ export const HEAT_FACE: Record<HeatLevel, string> = {
     none: "bg-transparent border border-dashed border-kb-gray-border text-muted-foreground",
 };
 
+/**
+ * A heat face's legend as plain text, for a key that types no character: §5.0.2 heat faces have no header
+ * strip and no tinted bottom strip, so Key.tsx's keycode rendering (MO/LT header, modifier badge) is not
+ * used. A layer key reads `MO 1`; any other key its center label, or its top label when that is empty.
+ */
+export function heatLegend(keycode: string, label: string, keyContents: KeyContent | undefined, layoutId: string): string {
+    if (keyContents?.type === "layer") {
+        const target = keyContents.top?.split("(")[1]?.replace(")", "") ?? "";
+        return [keyContents.layertext, target].filter(Boolean).join(" ");
+    }
+    const { displayLabel, topLabel } = getKeyDisplayText(keycode, label, keyContents, false, layoutId);
+    return displayLabel || topLabel;
+}
+
 /** The footer strip on a heat face: the face's own text color with a hairline of it above (no bg-black/30 tint). */
 export const HEAT_FOOTER = "border-t border-current/25";
+
+/**
+ * Key.tsx's header strip on a heat face (only an icon strip, such as a mouse key's, can still appear): no
+ * tint, and the face's own text color (important, since Key.tsx appends `text-white` after this class).
+ */
+export const HEAT_HEADER = "bg-transparent text-current!";
 
 /** Printed value of a metric: speed in the unit (whole numbers on a key), shares as whole percents. */
 export function heatValueText(metric: HeatMetric, value: { cpm: number | null; accuracy: number | null; errors: number | null; usage: number | null; reachMs?: number | null }, unit: SpeedUnit): string {

@@ -35,9 +35,12 @@ export interface ProgressP5 {
     drillable: (codePoints: readonly number[]) => number;
 }
 
-/** The aggregate P5 numbers of a key group (a Fingers or Thumbs cell). */
-export function groupStats(group: KeyGroup, records: readonly StoredResult[]): GroupStats {
-    const series = groupSeries(records, group.indices);
+/**
+ * The aggregate P5 numbers of a key group (a Fingers or Thumbs cell, a heatmap key). `layer` limits the
+ * sparkline and Best to presses on one layer, matching totals taken for that layer.
+ */
+export function groupStats(group: KeyGroup, records: readonly StoredResult[], layer?: number): GroupStats {
+    const series = groupSeries(records, group.indices, layer);
     return {
         name: group.name,
         chars: group.chars,

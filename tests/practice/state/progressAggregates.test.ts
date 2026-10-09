@@ -4,7 +4,7 @@ import { resolveKeymap } from '@/features/practice/keymap/resolver';
 import { hasDoubleSouth } from '@/features/practice/lessons/scope';
 import type { PracticeController } from '@/features/practice/state/controller';
 import {
-    fingersGrid, heatLevel, heatmapKeys, historyPage, inferredOnlyChars, layerRows, mostlyInferred, physicalTotals, thumbRows,
+    charsOnLayer, fingersGrid, groupSeries, heatLevel, heatmapKeys, historyPage, inferredOnlyChars, layerRows, mostlyInferred, physicalTotals, thumbRows,
     usageQuartiles,
 } from '@/features/practice/state/progressAggregates';
 import { periodView } from '@/features/practice/state/progressView';
@@ -156,6 +156,26 @@ describe('Layers, Inferred and History (§5.8 items 6, 8)', () => {
         expect(mostlyInferred([keymapOnly, live])).toBe(false);
         expect(mostlyInferred([])).toBe(false);
         expect([...inferredOnlyChars([keymapOnly, live])].sort()).toEqual([cp('d'), cp('s')]);
+    });
+
+    it('a key’s series can be limited to one layer, matching totals taken for that layer (review R7)', () => {
+        const a = stored({ ...record(1), k: { [`${SPACE}@0`]: { h: 10, m: 0, t: 200, s: 0 }, [`${SPACE}@1`]: { h: 10, m: 0, t: 100, s: 0 } } });
+        const b = stored({ ...record(2), k: { [`${SPACE}@1`]: { h: 5, m: 0, t: 400, s: 0 } } });
+        // Any layer: both lessons, layer 0 and 1 mixed in the first.
+        expect(groupSeries([a, b], [SPACE]).length).toBe(2);
+        expect(groupSeries([a, b], [SPACE], 0)).toEqual([300]);
+        expect(groupSeries([a, b], [SPACE], 1)).toEqual([600, 150]);
+    });
+
+    it('charsOnLayer: every character whose primary path is on the layer (review R4)', () => {
+        const base = charsOnLayer(resolution, 0);
+        const one = charsOnLayer(resolution, 1);
+        expect(base).toContain(cp('a'));
+        expect(base).toContain(cp('z'));
+        expect(base).not.toContain(cp('!'));
+        expect(one.length).toBeGreaterThan(0);
+        expect(one.every((ch) => resolution.primary(ch)!.layer === 1)).toBe(true);
+        expect(new Set([...base, ...one]).size).toBe(base.length + one.length);
     });
 
     it('History pages newest first, 50 a page', () => {

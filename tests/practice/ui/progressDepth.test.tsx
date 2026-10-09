@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PracticeController } from '@/features/practice/state/controller';
+import { charsOnLayer } from '@/features/practice/state/progressAggregates';
 import { periodView } from '@/features/practice/state/progressView';
 import { MemoryPracticeStore } from '@/features/practice/store/memory';
 import { formatPercent, formatPercentDown } from '@/features/practice/ui/format';
@@ -96,9 +97,16 @@ describe('Progress sections (§5.8)', () => {
             else expect(footer?.textContent).toMatch(/\d/);
             expect(!!key.querySelector('[data-heat-check]')).toBe(level === 'target');
         }
+        // No tinted strips anywhere (§5.0.2): layer keys read as plain text, no-data keys have no bottom badge.
+        for (const key of keys) expect(key.querySelector('[class*="bg-black"]')).toBeNull();
+        const mo = keys.find((k) => k.textContent!.startsWith('MO 1'));
+        expect(mo).toBeDefined();
+        expect(mo!.firstElementChild!.hasAttribute('data-key-footer')).toBe(false);
         // The scale line prints the Speed thresholds from the target (Start's 25 wpm), in whole numbers.
         expect(section('Keyboard').querySelector('[data-heat-scale]')!.textContent).toMatch(/^< 13·13–19·19–25·≥ 25 wpm·no data$/);
         expect(document.querySelector('[data-heat-toolbar] [role="group"]')!.textContent).toContain('Layer 0');
+        // At the right, under the title row (M-22).
+        expect(document.querySelector('[data-heat-toolbar]')!.className).toContain('justify-end');
     });
 
     it('heatmap values match the Characters table, character for character (fractional values too)', async () => {
@@ -277,5 +285,26 @@ describe('Pressed instead after Import or Reset (M4 review R3)', () => {
         await act(async () => { await c.eventStats(c.session!.records); });
         await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
         expect(document.querySelector('[data-pressed-instead]')).toBeNull();
+    });
+});
+
+describe('Layers rows group every character on the layer (M4 review R4)', () => {
+    it('chips and Drill this group take the layer’s characters, practiced or not', async () => {
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        await completeLessons(c, 1);
+        render(<Providers><ProgressPage /></Providers>);
+        const s = c.session!;
+        const row = section('Layers').querySelector('[data-layer-row="0"]') as HTMLElement;
+        const practiced = Number(row.querySelectorAll('td')[1].textContent);
+        const all = charsOnLayer(s.resolution, 0);
+        expect(all.length).toBeGreaterThan(practiced);
+        expect(all).toContain(cp('z'));
+        expect(all.every((ch) => s.resolution.primary(ch)!.layer === 0)).toBe(true);
+        await act(async () => { fireEvent.click(within(row).getByRole('button')); });
+        const pop = await screen.findByRole('dialog', { name: 'Layer 0' });
+        expect(within(pop).getByText(`+ ${all.length - 16}`)).toBeInTheDocument();
+        await act(async () => { fireEvent.click(within(pop).getByRole('button', { name: 'Drill this group' })); });
+        expect(c.settings.type).toBe('drill');
+        expect(c.settings.drill.keys.length).toBeGreaterThan(practiced);
     });
 });

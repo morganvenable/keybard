@@ -13,7 +13,7 @@ import { fitBoard, useSettledWidth } from "../boardFit";
 import { boardView } from "../boardModel";
 import { charLabel, layerColorHex, layerName, placeName, spokenPlace } from "../format";
 import { LAYER_DIVIDER, LAYER_PILL, LAYER_PILL_OFF, LAYER_PILL_ON } from "../layerPill";
-import { HEAT_FACE, HEAT_FOOTER, heatScale, heatValueText, METRIC_LABELS } from "./heat";
+import { HEAT_FACE, HEAT_FOOTER, HEAT_HEADER, heatLegend, heatScale, heatValueText, METRIC_LABELS } from "./heat";
 import { CharOpener, GroupOpener, OPENER_SELECTED } from "./openers";
 import { groupStats, type ProgressP5 } from "./p5";
 
@@ -63,7 +63,7 @@ export function HeatScale({ metric, targetSpeed, unit, quartiles }: { metric: He
     );
 }
 
-/** The metric control, the divider and the layer pills (§5.8). */
+/** The metric control, the divider and the layer pills (§5.8), at the right under the title row (M-22). */
 export function HeatToolbar({ metric, onMetric, layers, layer, onLayer, board }: {
     metric: HeatMetric;
     onMetric: (metric: HeatMetric) => void;
@@ -73,7 +73,7 @@ export function HeatToolbar({ metric, onMetric, layers, layer, onLayer, board }:
     board: Pick<KeyboardInfo, "cosmetic"> | null | undefined;
 }) {
     return (
-        <div className="flex flex-wrap items-center gap-3" data-heat-toolbar>
+        <div className="flex flex-wrap items-center justify-end gap-3" data-heat-toolbar>
             <SegmentedControl label="Heatmap metric" value={metric} onChange={onMetric} options={HEAT_METRICS.map((m) => ({ value: m, label: METRIC_LABELS[m] }))} />
             {layers.length > 0 && <span aria-hidden="true" className={LAYER_DIVIDER} />}
             <div role="group" aria-label="Heatmap layer" className="flex flex-wrap items-center gap-2">
@@ -136,20 +136,23 @@ export function HeatmapBoard({ board, layoutId, defaultLayer, layer, keys, metri
                     if (!key) return null;
                     const level = keyLevel(key, metric, quartiles);
                     const char = key.char;
-                    const label = char != null ? charLabel(char) : vk.label;
+                    // Every legend is plain text (§5.0.2: no header strip, no tinted bottom strip), so no key
+                    // gets Key.tsx's keycode strips; HEAT_HEADER untints any icon strip it still draws.
+                    const label = char != null ? charLabel(char) : heatLegend(vk.keycode, vk.label, vk.keyContents, layoutId);
                     const value = level === "none" ? "" : heatValueText(metric, key.values, p5.unit);
                     const face = (
                         <Key
                             isRelative
                             x={0} y={0} w={vk.w} h={vk.h} row={vk.row} col={vk.col}
-                            keycode={char != null ? "" : vk.keycode}
+                            keycode=""
                             label={label}
-                            keyContents={char != null ? { type: "text", str: label } : vk.keyContents}
-                            forceLabel={char != null}
+                            keyContents={{ type: "text", str: label }}
+                            forceLabel
                             layerColor="white"
                             variant={variant}
                             disableHover disableDrag disableTooltip
                             className={cn("normal-case cursor-[inherit]", HEAT_FACE[level])}
+                            headerClassName={HEAT_HEADER}
                             footer={value ? <HeatValue level={level} text={value} /> : undefined}
                             footerClassName={HEAT_FOOTER}
                             data-heat-key={vk.index}
@@ -172,10 +175,11 @@ export function HeatmapBoard({ board, layoutId, defaultLayer, layer, keys, metri
                     if (char != null) {
                         return <CharOpener key={vk.index} p5={p5} codePoint={char} open={open === vk.index} onOpenChange={onOpenChange}>{button}</CharOpener>;
                     }
-                    // A key that types no tracked character (Space, Enter): its own samples on this layer, as a group of one.
+                    // A key that types no tracked character (Space, Enter): its own samples on this layer, as a group of one;
+                    // its sparkline and Best are for this layer too.
                     const group = { name: placeName(place), indices: [vk.index], totals: physical.byKeyLayer.get(`${vk.index}@${layer}`) ?? emptyTotals(), values: key.values, chars: [] as number[] };
                     return (
-                        <GroupOpener key={vk.index} p5={p5} group={groupStats(group, p5.records)} open={open === vk.index} onOpenChange={onOpenChange}>
+                        <GroupOpener key={vk.index} p5={p5} group={groupStats(group, p5.records, layer)} open={open === vk.index} onOpenChange={onOpenChange}>
                             {button}
                         </GroupOpener>
                     );

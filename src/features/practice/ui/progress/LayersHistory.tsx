@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { drillGroupLabel } from "../../lessons/scope";
 import type { HistoryRow, LayerRow } from "../../state/progressAggregates";
-import { historyPage, layerSeries } from "../../state/progressAggregates";
+import { charsOnLayer, historyPage, layerSeries } from "../../state/progressAggregates";
 import type { DrillGroup } from "../../state/settings";
 import type { StoredResult } from "../../store/db";
 import { formatDateTime, formatPercent, formatSpeed, layerColorHex, layerName, lessonTypeLabel } from "../format";
@@ -42,7 +42,9 @@ export function LayersTable({ rows, board, p5 }: { rows: readonly LayerRow[]; bo
                         const name = layerName(board, row.layer);
                         const series = layerSeries(p5.records, row.layer);
                         const group = {
-                            name, chars: row.chars, speed: row.cpm, best: series.length ? Math.max(...series) : null, accuracy: row.accuracy,
+                            // Every character on the layer, practiced or not (chips, Drill this group); the
+                            // Characters column counts only those with samples.
+                            name, chars: charsOnLayer(p5.resolution, row.layer), speed: row.cpm, best: series.length ? Math.max(...series) : null, accuracy: row.accuracy,
                             samples: row.hits, confidence: row.cpm != null ? row.cpm / p5.targetSpeed : null, series,
                         };
                         return (

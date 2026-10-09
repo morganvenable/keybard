@@ -13,6 +13,7 @@ import type { PracticeController } from "../../state/controller";
 import type { ProgressPeriod } from "../../state/settings";
 import { type ImportMode, type ParsedImport, readImportFile } from "../../store/export";
 import { AboutRow, GroupLabel, PanelFooter, Row } from "../panelRows";
+import { COLOR_BLIND_HEAT_SETTING } from "./heat";
 
 // G2 Progress panel (docs/practice/spec.md §5.9), the detail panel content while the Progress page shows:
 // Profile (with New profile…), Scope (period), Data (Export with Include keystrokes, Import with Merge or
@@ -65,6 +66,7 @@ function ProgressRows({ controller: c, horizontal }: { controller: PracticeContr
                     </Row>
                 </div>
             </section>
+            {COLOR_BLIND_HEAT_SETTING && <HeatColorsRow group={group} />}
             <DataSection controller={c} group={group} />
             <section aria-labelledby="progress-about" className={horizontal ? "max-w-md" : undefined}>
                 <GroupLabel id="progress-about">About</GroupLabel>
@@ -73,6 +75,22 @@ function ProgressRows({ controller: c, horizontal }: { controller: PracticeContr
             <PanelFooter saving={false} error={c.settingsError} />
             <NewProfileDialog open={creating} onOpenChange={setCreating} onCreate={(name) => c.createProfile(name)} />
         </div>
+    );
+}
+
+/**
+ * OWNER_Q9 stub: the Heat colors row (§5.0.2 item 4), shown only when Q9 is answered yes.
+ * TODO(practice): Q9 yes → bind this to a `heatPalette` setting with a SegmentedControl
+ * (Standard · Color-blind) and the color-blind HEAT_FACE set in heat.ts. Until then it only marks the place.
+ */
+function HeatColorsRow({ group }: { group: string }) {
+    return (
+        <section aria-labelledby="progress-heat">
+            <GroupLabel id="progress-heat">Heatmap</GroupLabel>
+            <div className={group}>
+                <Row title="Heat colors" value="Standard" />
+            </div>
+        </section>
     );
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { OWNER_Q9_COLORBLIND_HEAT_SETTING } from '@/constants/owner-decisions';
 import { floorTo, formatPercentDown, formatSpeedDown, spokenSpeed } from '@/features/practice/ui/format';
-import { heatValueText } from '@/features/practice/ui/progress/heat';
+import { COLOR_BLIND_HEAT_SETTING, heatLegend, heatValueText } from '@/features/practice/ui/progress/heat';
 
 // The heatmap and the Characters table print one character's numbers with the same rounding (§12 M4,
 // "heatmap values match the character table"): rounded down, so nothing just under target prints the target.
@@ -36,5 +37,16 @@ describe('Progress figures round down, in the heatmap and the Characters table a
         expect(formatPercentDown(undefined)).toBe('—');
         expect(heatValueText('speed', values({}), 'wpm')).toBe('—');
         expect(heatValueText('accuracy', values({}), 'wpm')).toBe('—');
+    });
+});
+
+describe('heat faces: legends and the Q9 switch', () => {
+    it('a key that types no character reads as plain text: a layer key as MO 1, others by their center label', () => {
+        expect(heatLegend('MO(1)', 'MO(1)', { type: 'layer', layertext: 'MO', top: 'MO(1)', str: '1' }, 'us')).toBe('MO 1');
+        expect(heatLegend('KC_LSFT', 'Shift', undefined, 'us')).toBe('Shift');
+    });
+
+    it('the color-blind palette follows OWNER_Q9 (answered no: one palette)', () => {
+        expect(COLOR_BLIND_HEAT_SETTING).toBe(OWNER_Q9_COLORBLIND_HEAT_SETTING);
     });
 });
