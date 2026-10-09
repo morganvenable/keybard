@@ -5,6 +5,7 @@
 // toKeybrSettings() turns them into the keybr Settings the vendored engine reads.
 import { OWNER_Q1_DEFAULT_UNLOCK_ORDER } from '@/constants/owner-decisions';
 import { appStorage } from '@/utils/app-storage';
+import type { LessonType } from '../types';
 import { lessonProps } from '../vendor/keybr/lesson/index.ts';
 import { Settings } from '../vendor/keybr/settings/index.ts';
 import { textInputProps } from '../vendor/keybr/textinput/index.ts';
@@ -12,8 +13,30 @@ import { textInputProps } from '../vendor/keybr/textinput/index.ts';
 export const SETTINGS_KEY = 'keybard.practice.v1';
 
 export type UnlockOrder = 'center-first' | 'frequency';
+/** Board hints (§5.2): next key and its cluster, next key only, or none. */
+export type Hints = 'next-cluster' | 'next' | 'off';
+export type SpeedUnit = 'wpm' | 'cpm';
+/** Progress scope (§5.9): the last 7 or 30 days, or everything. */
+export type ProgressPeriod = '7' | '30' | 'all';
+export type ChartAxis = 'lessons' | 'days';
+
+export const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom'];
+
+/**
+ * Lesson types this build can run. Until M3 only Guided exists; a stored Drill, Words or Custom
+ * choice (the Drill my keymap preset) runs as Guided until then.
+ * TODO(practice): M3 adds drill, words and custom.
+ */
+export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['guided'];
+
+/** The lesson type a session runs for the stored choice. */
+export function effectiveLessonType(type: LessonType): LessonType {
+    return AVAILABLE_LESSON_TYPES.includes(type) ? type : 'guided';
+}
 
 export interface PracticeSettings {
+    /** Lesson type (§5.2 type row). */
+    type: LessonType;
     /** Guided unlock order (§6.3); new profiles start with OWNER_Q1. */
     order: UnlockOrder;
     /** Target speed in characters per minute (keybr: 175 CPM = 35 WPM, 75–750). */
@@ -37,12 +60,24 @@ export interface PracticeSettings {
     spaceSkipsWords: boolean;
     /** Live · USB: read key presses from the board while the text has focus (M2). */
     readKeyPresses: boolean;
+    /** Display settings (§5.5): they apply live and keep the current lesson. */
+    hints: Hints;
+    legends: boolean;
+    showBoard: boolean;
+    speedUnit: SpeedUnit;
+    showSpaces: boolean;
+    layerUnderlines: boolean;
+    announceNextKey: boolean;
+    /** Progress page (§5.8, §5.9): period and the speed chart's x axis. */
+    period: ProgressPeriod;
+    chartAxis: ChartAxis;
     customText: { content: string; lowercase: boolean; lettersOnly: boolean; randomize: boolean };
     /** Active profile id (OWNER_Q6 'user' scope). */
     activeProfileId: string | null;
 }
 
 export const DEFAULT_SETTINGS: PracticeSettings = {
+    type: 'guided',
     order: OWNER_Q1_DEFAULT_UNLOCK_ORDER,
     targetSpeed: 175,
     alphabetSize: 0,
@@ -57,6 +92,15 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     forgiveErrors: true,
     spaceSkipsWords: false,
     readKeyPresses: true,
+    hints: 'next-cluster',
+    legends: true,
+    showBoard: true,
+    speedUnit: 'wpm',
+    showSpaces: false,
+    layerUnderlines: false,
+    announceNextKey: false,
+    period: '30',
+    chartAxis: 'lessons',
     customText: { content: 'The quick brown fox jumps over the lazy dog.', lowercase: true, lettersOnly: true, randomize: false },
     activeProfileId: null,
 };
@@ -64,17 +108,36 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
 /**
  * Start (P2) presets (§5.4): each writes only these settings, so other changes
  * made in the Lesson panel survive.
- * TODO(practice): lesson type (Guided, Drill → Weakest) and hints join these once
- * the settings carry them (M1b session and lesson types, M3 Drill).
  */
 export const START_PRESETS = {
-    /** "Learn from the center keys": OWNER_Q1 order, 25 WPM, 15 min a day. */
-    learn: { order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, dailyGoal: 15 },
-    /** "Coming from QWERTY": every letter included at once, 35 WPM, 15 min a day. */
-    qwerty: { targetSpeed: 175, alphabetSize: 1, dailyGoal: 15 },
-    /** "Drill my keymap": 45 WPM, 10 min a day. */
-    drill: { targetSpeed: 225, dailyGoal: 10 },
+    /** "Learn from the center keys": Guided, OWNER_Q1 order, 25 WPM, next key + cluster, 15 min a day. */
+    learn: { type: 'guided', order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, hints: 'next-cluster', dailyGoal: 15 },
+    /** "Coming from QWERTY": Guided, every letter included at once, 35 WPM, next key, 15 min a day. */
+    qwerty: { type: 'guided', targetSpeed: 175, alphabetSize: 1, hints: 'next', dailyGoal: 15 },
+    /**
+     * "Drill my keymap": Drill → Weakest, 45 WPM, no hints, 10 min a day.
+     * TODO(practice): M3 runs Drill → Weakest. Until then the stored Drill choice runs as Guided
+     * (effectiveLessonType), so the preset also includes every letter and follows current
+     * confidence, which is Weakest's focus rule over the letters; M3 drops those two fields.
+     */
+    drill: { type: 'drill', targetSpeed: 225, hints: 'off', dailyGoal: 10, alphabetSize: 1, recoverKeys: true },
 } as const satisfies Record<string, Partial<PracticeSettings>>;
+
+export type StartPreset = keyof typeof START_PRESETS;
+
+/** Settings that shape the lesson text: changing one regenerates the lesson (§5.5 "When settings apply"). */
+export const LESSON_SHAPING: readonly (keyof PracticeSettings)[] = [
+    'type', 'order', 'alphabetSize', 'recoverKeys', 'naturalWords', 'capitals', 'punctuators', 'length',
+    'repeatWords', 'targetSpeed', 'customText', 'stopOnError', 'forgiveErrors', 'spaceSkipsWords',
+];
+
+/** WPM and CPM: keybr counts five characters per word. */
+export const cpmToWpm = (cpm: number) => cpm / 5;
+export const wpmToCpm = (wpm: number) => wpm * 5;
+
+function oneOf<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
+    return typeof value === 'string' && (options as readonly string[]).includes(value) ? (value as T) : fallback;
+}
 
 const MAX_CUSTOM_TEXT = 10_000;
 
@@ -92,6 +155,7 @@ export function practiceSettings(value: unknown): PracticeSettings {
     const data = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
     const custom = data.customText && typeof data.customText === 'object' ? (data.customText as Record<string, unknown>) : {};
     return {
+        type: oneOf(data.type, LESSON_TYPES, d.type),
         order: data.order === 'center-first' || data.order === 'frequency' ? data.order : d.order,
         targetSpeed: Math.round(number(data.targetSpeed, 75, 750, d.targetSpeed)),
         alphabetSize: number(data.alphabetSize, 0, 1, d.alphabetSize),
@@ -106,6 +170,15 @@ export function practiceSettings(value: unknown): PracticeSettings {
         forgiveErrors: bool(data.forgiveErrors, d.forgiveErrors),
         spaceSkipsWords: bool(data.spaceSkipsWords, d.spaceSkipsWords),
         readKeyPresses: bool(data.readKeyPresses, d.readKeyPresses),
+        hints: oneOf(data.hints, ['next-cluster', 'next', 'off'] as const, d.hints),
+        legends: bool(data.legends, d.legends),
+        showBoard: bool(data.showBoard, d.showBoard),
+        speedUnit: oneOf(data.speedUnit, ['wpm', 'cpm'] as const, d.speedUnit),
+        showSpaces: bool(data.showSpaces, d.showSpaces),
+        layerUnderlines: bool(data.layerUnderlines, d.layerUnderlines),
+        announceNextKey: bool(data.announceNextKey, d.announceNextKey),
+        period: oneOf(data.period, ['7', '30', 'all'] as const, d.period),
+        chartAxis: oneOf(data.chartAxis, ['lessons', 'days'] as const, d.chartAxis),
         customText: {
             content: typeof custom.content === 'string' ? custom.content.slice(0, MAX_CUSTOM_TEXT) : d.customText.content,
             lowercase: bool(custom.lowercase, d.customText.lowercase),
@@ -125,11 +198,14 @@ export function loadSettings(): PracticeSettings {
     }
 }
 
-export function saveSettings(settings: PracticeSettings): void {
+/** Writes the settings; false when storage refused them (the panel shows its error footer). */
+export function saveSettings(settings: PracticeSettings): boolean {
     try {
         appStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        return true;
     } catch {
         // Storage full or blocked: settings stay in memory for this session.
+        return false;
     }
 }
 

@@ -131,8 +131,10 @@ describe('Practice settings (§8.1)', () => {
     });
 
     it('Start presets (§5.4): Learn 25 WPM with the OWNER_Q1 order, QWERTY all letters at 35 WPM, Drill 45 WPM', () => {
-        expect(START_PRESETS.learn).toEqual({ order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, dailyGoal: 15 });
-        expect(START_PRESETS.qwerty).toEqual({ targetSpeed: 175, alphabetSize: 1, dailyGoal: 15 });
-        expect(START_PRESETS.drill).toEqual({ targetSpeed: 225, dailyGoal: 10 });
+        // M1b: the presets also set the lesson type and the board hints (§5.4).
+        expect(START_PRESETS.learn).toEqual({ type: 'guided', order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, hints: 'next-cluster', dailyGoal: 15 });
+        expect(START_PRESETS.qwerty).toEqual({ type: 'guided', targetSpeed: 175, alphabetSize: 1, hints: 'next', dailyGoal: 15 });
+        // Drill → Weakest runs as Guided over every letter, following current confidence, until M3.
+        expect(START_PRESETS.drill).toEqual({ type: 'drill', targetSpeed: 225, hints: 'off', dailyGoal: 10, alphabetSize: 1, recoverKeys: true });
     });
 });

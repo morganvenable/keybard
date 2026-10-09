@@ -35,3 +35,14 @@ describe('English content loader (§7.1, §7.5)', () => {
         expect(words[0]).toBe('the');
     });
 });
+
+describe('Paranoid content (§7.5)', () => {
+    it('builds the model and word list from the inlined module', async () => {
+        const { inlinedContent } = await import('@/features/practice/content/loader');
+        expect(inlinedContent(null)).toBeNull();
+        const content = inlinedContent({ model: bytesToBase64(new Uint8Array(readFileSync(MODEL))), words: ['the', 'of'] });
+        expect(content?.words).toEqual(['the', 'of']);
+        expect(content?.model.language).toBe(Language.EN);
+    });
+
+});

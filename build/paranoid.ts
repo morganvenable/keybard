@@ -11,6 +11,8 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 const LAYERS = "virtual:bundled-layers";
 const FONTS = "virtual:paranoid-fonts";
+const PRACTICE = "virtual:practice-content";
+const PRACTICE_ASSETS = "src/features/practice/content/assets";
 export const PARANOID_FILE = "keybard-paranoid.html";
 
 /** The layer library: fetched from public/ normally, compiled in for Paranoid. */
@@ -18,7 +20,7 @@ export function bundledLayersPlugin(paranoid: boolean, root = process.cwd()): Pl
     return {
         name: "keybard-bundled-layers",
         resolveId(id) {
-            if (id === LAYERS || id === FONTS) return "\0" + id;
+            if (id === LAYERS || id === FONTS || id === PRACTICE) return "\0" + id;
         },
         load(id) {
             if (id === "\0" + LAYERS) {
@@ -26,6 +28,16 @@ export function bundledLayersPlugin(paranoid: boolean, root = process.cwd()): Pl
                 const json = readFileSync(path.join(root, "public/layer-library/layers.json"), "utf8");
                 JSON.parse(json);
                 return `export default ${json};`;
+            }
+            // Practice's English content (docs/practice/spec.md §7.5): Paranoid fetches only 'self',
+            // data: and blob:, so the model (base64) and the word list are compiled in. Other builds
+            // load them as lazy assets and get null here.
+            if (id === "\0" + PRACTICE) {
+                if (!paranoid) return "export default null;";
+                const model = readFileSync(path.join(root, PRACTICE_ASSETS, "model-en.data")).toString("base64");
+                const words = readFileSync(path.join(root, PRACTICE_ASSETS, "words-en.json"), "utf8");
+                JSON.parse(words);
+                return `export default { "model": ${JSON.stringify(model)}, "words": ${words.trim()} };`;
             }
             if (id === "\0" + FONTS) {
                 return paranoid ? `import ${JSON.stringify(path.join(root, "src/paranoid/fonts.css").replace(/\\/g, "/"))};` : "";
