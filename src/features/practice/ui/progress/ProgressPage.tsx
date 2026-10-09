@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Notice } from "@/components/shared/Notice";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
@@ -7,29 +7,61 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { PAGE_FRAME } from "../../PracticeWorkspace";
 import { PracticeHeader } from "../../PracticeHeader";
 import { usePractice } from "../../PracticeProvider";
-import { NOTICE_TEXT } from "../../state/controller";
+import { boardGeometry } from "../../keymap/geometry";
+import { hasDoubleSouth } from "../../lessons/scope";
+import { NOTICE_TEXT, type PracticeController } from "../../state/controller";
+import type { EventStats } from "../../state/eventStats";
+import {
+    fingersGrid, heatmapKeys, inferredOnlyChars, layerRows, metricValue, mostlyInferred, physicalTotals, thumbRows, usageQuartiles,
+} from "../../state/progressAggregates";
 import { chartPoints, periodLabel, periodView } from "../../state/progressView";
+import type { StoredResult } from "../../store/db";
+import { keyService } from "@/services/key.service";
 import { formatDuration, formatSpeed, layerColorName } from "../format";
+import { InferredChip } from "../KeyPopover";
 import { StatCell } from "../StatCell";
 import { Well } from "../Wells";
 import { CharTable } from "./CharTable";
+import { FingersGridView, thumbAction, ThumbsView } from "./FingersThumbs";
+import { HeatmapBoard, HeatScale, HeatToolbar } from "./Heatmap";
+import { HistoryTable, LayersTable } from "./LayersHistory";
+import type { ProgressP5 } from "./p5";
 import { SpeedChart } from "./SpeedChart";
 
-// G1 Progress (docs/practice/spec.md §5.8), as M1b ships it: Summary, Speed and Characters for the active
-// profile in the chosen period (set in the Progress panel and echoed in the header).
-// TODO(practice): M4 adds the Keyboard heatmap, Fingers, Thumbs, Layers and History sections.
+// G1 Progress (docs/practice/spec.md §5.8): Summary, Speed, the Keyboard heatmap, Fingers, Thumbs,
+// Layers, Characters and History for the active profile in the chosen period (set in the Progress panel
+// and echoed in the header). The heatmap's metric drives the Fingers and Thumbs faces too. Sections
+// whose samples are mostly inferred from the keymap get the Inferred chip. Every heatmap key, grid cell,
+// Layers row and Characters row opens P5.
 
-function Section({ title, children, tools }: { title: string; children: ReactNode; tools?: ReactNode }) {
+function Section({ title, children, tools, suffix, scale }: { title: string; children: ReactNode; tools?: ReactNode; suffix?: ReactNode; scale?: ReactNode }) {
     const id = `progress-${title.toLowerCase()}`;
     return (
-        <section aria-labelledby={id} className="flex flex-col gap-3" data-progress-section={title}>
-            <div className="flex flex-wrap items-center gap-3">
+        <section aria-labelledby={id} className="flex flex-col gap-3 min-w-0" data-progress-section={title}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <h2 id={id} className="text-lg font-semibold text-kb-ink">{title}</h2>
+                {suffix}
+                {scale}
                 {tools && <div className="ml-auto flex items-center gap-2">{tools}</div>}
             </div>
             {children}
         </section>
     );
+}
+
+const CARD = "bg-kb-surface rounded-2xl border border-gray-200 dark:border-neutral-700";
+
+/** P5's Pressed instead and layer reach for the period, loaded from the stored events (null while loading). */
+function useEventStats(controller: PracticeController | null, records: readonly StoredResult[] | undefined, key: string): EventStats | null {
+    const [state, setState] = useState<{ key: string; stats: EventStats } | null>(null);
+    useEffect(() => {
+        if (!controller || !records) return;
+        let live = true;
+        void controller.eventStats(records).then((stats) => { if (live) setState({ key, stats }); });
+        return () => { live = false; };
+        // `key` names the records (profile, count, period).
+    }, [controller, key]);
+    return state?.key === key ? state.stats : null;
 }
 
 export default function ProgressPage({ active = true }: { active?: boolean }) {
@@ -40,6 +72,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
     const period = settings?.period ?? "30";
     const records = session?.records;
     const count = records?.length ?? 0;
+    const board = session?.keymap.board;
 
     const view = useMemo(() => {
         if (!session) return null;
@@ -51,10 +84,31 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
         // A new lesson appends to the same records array, so its length is part of the key.
     }, [session, period, count]);
 
+    const events = useEventStats(controller, view?.records, `${session?.profile.id}:${count}:${period}:${session?.fingerprint}`);
+
     const layerColorOf = useCallback((codePoint: number) => {
         const path = session?.resolution.primary(codePoint);
-        return layerColorName(controller?.keymap?.board ?? session?.keymap.board, path?.layer ?? 0);
-    }, [session, controller?.keymap?.board]);
+        return layerColorName(controller?.keymap?.board ?? board, path?.layer ?? 0);
+    }, [session, controller?.keymap?.board, board]);
+
+    // The physical sections: totals, the grids, the Inferred rules (M4).
+    const physical = useMemo(() => {
+        if (!session || !view || !board) return null;
+        const places = boardGeometry(board);
+        const totals = physicalTotals(view.records);
+        const target = session.settings.targetSpeed;
+        return {
+            places,
+            totals,
+            fingers: fingersGrid(places, totals, target, session.resolution, hasDoubleSouth(places)),
+            thumbs: thumbRows(places, totals, target, session.resolution),
+            layers: layerRows(view.records, board.keymap ?? [], session.keymap.defaultLayer, (code) => keyService.stringify(code)),
+            inferred: mostlyInferred(view.records),
+            inferredChars: inferredOnlyChars(view.records),
+        };
+    }, [session, view, board]);
+
+    const [chosenLayer, setChosenLayer] = useState<number | null>(null);
 
     const profileName = session?.profile.name ?? "Me";
     const header = <PracticeHeader right={<span className="text-sm text-muted-foreground whitespace-nowrap truncate">{profileName} · {periodLabel(period)}</span>} />;
@@ -73,7 +127,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
         );
     }
 
-    if (!controller || !session || !view || !settings) {
+    if (!controller || !session || !view || !settings || !physical || !board) {
         return (
             <div className={PAGE_FRAME} data-practice-page="progress" data-active={active}>
                 {header}
@@ -81,6 +135,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
                     {Array.from({ length: 5 }, (_, i) => <StatCell key={i} label="" value="" skeleton />)}
                 </div>
                 <div className="h-[240px] rounded-xl bg-muted motion-safe:animate-pulse" aria-hidden="true" />
+                <div className="h-[300px] rounded-xl bg-muted motion-safe:animate-pulse" aria-hidden="true" />
             </div>
         );
     }
@@ -98,8 +153,39 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
     }
 
     const unit = settings.speedUnit;
+    const metric = settings.heatMetric;
+    const target = settings.targetSpeed;
     const s = view.summary;
     const points = chartPoints(view.records, view.results, settings.chartAxis);
+    const defaultLayer = session.keymap.defaultLayer;
+    const layers = physical.totals.layers;
+    const layer = chosenLayer != null && layers.includes(chosenLayer) ? chosenLayer : layers.includes(defaultLayer) ? defaultLayer : layers[0] ?? defaultLayer;
+    const indices = physical.places.map((p) => p.index);
+    const characters = new Map(view.characters.map((c) => [c.codePoint, c]));
+    const heatKeys = heatmapKeys({
+        keymap: board.keymap ?? [], resolution: session.resolution, indices, layer, defaultLayer, totals: physical.totals, characters, targetSpeed: target,
+    });
+    const keyQuartiles = usageQuartiles(heatKeys.map((k) => (k.noData ? 0 : k.values.usage ?? 0)));
+    const gridGroups = [...physical.fingers.cells.flat(), ...physical.thumbs.left.map((r) => r.group), ...physical.thumbs.right.map((r) => r.group)];
+    const gridQuartiles = usageQuartiles(gridGroups.map((g) => (g ? metricValue(g.values, "usage") ?? 0 : 0)));
+    const inferred = physical.inferred ? <InferredChip /> : null;
+    const p5: ProgressP5 = {
+        resolution: session.resolution,
+        cols: board.cols,
+        unit,
+        targetSpeed: target,
+        records: view.records,
+        characters,
+        events,
+        inferredChars: physical.inferredChars,
+        inferred: physical.inferred,
+        layerColor: (l) => layerColorName(board, l),
+        charColor: layerColorOf,
+        onDrillKey: (codePoint) => { controller.drillKey(codePoint); setPracticePage("lessons"); },
+        canDrillKey: (codePoint) => controller.canDrillKey(codePoint),
+        onDrillGroup: (codePoints, name) => { controller.drillGroup(codePoints, name); setPracticePage("lessons"); },
+        drillable: (codePoints) => controller.drillableOf(codePoints).length,
+    };
     return (
         <div className={PAGE_FRAME} data-practice-page="progress" data-active={active}>
             {header}
@@ -120,19 +206,39 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
                 tools={<SegmentedControl label="Speed chart by" value={settings.chartAxis} onChange={(chartAxis) => controller.update({ chartAxis })}
                     options={[{ value: "lessons", label: "Lessons" }, { value: "days", label: "Days" }]} />}
             >
-                <div className="bg-kb-surface rounded-2xl border border-gray-200 dark:border-neutral-700 p-4">
+                <div className={`${CARD} p-4`}>
                     {points.length ? (
-                        <SpeedChart points={points} unit={unit} target={settings.targetSpeed} axis={settings.chartAxis} />
+                        <SpeedChart points={points} unit={unit} target={target} axis={settings.chartAxis} />
                     ) : (
                         <p className="text-sm text-muted-foreground">No lessons in this period</p>
                     )}
                 </div>
             </Section>
+            <Section title="Keyboard" suffix={inferred} scale={<HeatScale metric={metric} targetSpeed={target} unit={unit} quartiles={keyQuartiles} />}>
+                <HeatToolbar metric={metric} onMetric={(heatMetric) => controller.update({ heatMetric })} layers={layers} layer={layer} onLayer={setChosenLayer} board={board} />
+                <HeatmapBoard board={board} layoutId={session.keymap.layoutId} defaultLayer={defaultLayer} layer={layer} keys={heatKeys}
+                    metric={metric} quartiles={keyQuartiles} physical={physical.totals} p5={p5} />
+            </Section>
+            <Section title="Fingers" suffix={inferred} scale={<HeatScale metric={metric} targetSpeed={target} unit={unit} quartiles={gridQuartiles} />}>
+                <FingersGridView grid={physical.fingers} metric={metric} quartiles={gridQuartiles} p5={p5} />
+            </Section>
+            <Section title="Thumbs" suffix={inferred}>
+                <ThumbsView rows={physical.thumbs} metric={metric} quartiles={gridQuartiles} p5={p5}
+                    actionOf={(index) => thumbAction(board, session.resolution, index, defaultLayer, session.keymap.layoutId)} />
+            </Section>
+            <Section title="Layers" suffix={inferred}>
+                <div className={`${CARD} p-2`}>
+                    {physical.layers.length ? <LayersTable rows={physical.layers} board={board} p5={p5} /> : <p className="p-2 text-sm text-muted-foreground">No lessons in this period</p>}
+                </div>
+            </Section>
             <Section title="Characters">
-                <div className="bg-kb-surface rounded-2xl border border-gray-200 dark:border-neutral-700 p-2">
-                    <CharTable rows={view.characters} resolution={session.resolution} cols={session.keymap.board.cols} unit={unit} layerColorOf={layerColorOf}
-                        onDrill={(codePoint) => { controller?.drillKey(codePoint); setPracticePage("lessons"); }}
-                        canDrill={(codePoint) => controller?.canDrillKey(codePoint) ?? false} />
+                <div className={`${CARD} p-2`}>
+                    <CharTable rows={view.characters} p5={p5} />
+                </div>
+            </Section>
+            <Section title="History">
+                <div className={`${CARD} p-2`}>
+                    {view.records.length ? <HistoryTable records={view.records} board={board} unit={unit} /> : <p className="p-2 text-sm text-muted-foreground">No lessons in this period</p>}
                 </div>
             </Section>
         </div>

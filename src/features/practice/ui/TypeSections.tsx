@@ -7,6 +7,7 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 import { cn } from "@/lib/utils";
 import { boardGeometry } from "../keymap/geometry";
 import { drillGroupLabel, hasDoubleSouth, MIN_DRILL_SCOPE } from "../lessons/scope";
+import { LAYER_PILL, LAYER_PILL_OFF, LAYER_PILL_ON } from "./layerPill";
 import type { PracticeController } from "../state/controller";
 import {
     DRILL_DIRECTIONS, DRILL_GROUPS, type DrillDirection, type DrillGroup, type DrillHands, effectiveLessonType, WORD_LIST_MAX, WORD_LIST_MIN,
@@ -27,9 +28,6 @@ const DIRECTION_NAMES: Record<DrillDirection, string> = { C: "Center", N: "North
 /** In scope shows this many caps, then `+ n` (§5.5). */
 const SCOPE_CAPS = 12;
 
-const LAYER_PILL = "inline-flex items-center gap-1.5 px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 whitespace-nowrap";
-const LAYER_PILL_ON = "bg-gray-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-md scale-105";
-const LAYER_PILL_OFF = "bg-transparent text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700";
 
 /** The directions a board offers: 2S only when some finger uses a 6-key cluster (§5.5). */
 export function boardDirections(controller: PracticeController): DrillDirection[] {

@@ -2,13 +2,12 @@ import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { placeOf } from "../../keymap/geometry";
-import type { KeymapResolution } from "../../keymap/resolver";
 import type { CharacterStats } from "../../state/progressView";
-import type { SpeedUnit } from "../../state/settings";
 import { CharCap } from "../CharCap";
 import { formatDate, formatPercent, formatSpeed, spokenPlace, spokenSpeed, targetName } from "../format";
-import { KeyPopover } from "../KeyPopover";
 import { ConfidenceBar } from "../StatCell";
+import { CharOpener } from "./openers";
+import type { ProgressP5 } from "./p5";
 
 // Characters table (docs/practice/spec.md §5.8 item 7): sortable, one row per lesson character, default
 // order confidence ascending. Each row has a button that opens P5. The cap keeps the layer face, since it
@@ -42,17 +41,12 @@ const value = (c: CharacterStats, key: SortKey): number | string => {
 
 interface CharTableProps {
     rows: readonly CharacterStats[];
-    resolution: KeymapResolution | null;
-    cols: number;
-    unit: SpeedUnit;
-    layerColorOf: (codePoint: number) => string;
-    /** P5's Drill this key (§5.7): Drill on the character, then the Lessons page. */
-    onDrill?: (codePoint: number) => void;
-    /** Whether Drill this key has something to drill for the character (not Space). */
-    canDrill?: (codePoint: number) => boolean;
+    /** P5 for each row (§5.7), with Drill this key. */
+    p5: ProgressP5;
 }
 
-export function CharTable({ rows, resolution, cols, unit, layerColorOf, onDrill, canDrill }: CharTableProps) {
+export function CharTable({ rows, p5 }: CharTableProps) {
+    const { cols, unit } = p5;
     const [sort, setSort] = useState<{ key: SortKey; ascending: boolean }>({ key: "confidence", ascending: true });
     const [open, setOpen] = useState<number | null>(null);
     const sorted = useMemo(() => [...rows].sort((a, b) => {
@@ -89,14 +83,12 @@ export function CharTable({ rows, resolution, cols, unit, layerColorOf, onDrill,
                         return (
                             <tr key={c.codePoint} className={cn("h-9 border-t border-kb-gray-border", open === c.codePoint && "ring-2 ring-kb-select ring-inset")} data-char-row={c.label}>
                                 <td className="px-2 py-1">
-                                    <KeyPopover open={open === c.codePoint} onOpenChange={(next) => setOpen(next ? c.codePoint : null)}
-                                        stats={c} resolution={resolution} cols={cols} unit={unit} layerColor={layerColorOf(c.codePoint)} inferred
-                                        onDrill={onDrill && (canDrill?.(c.codePoint) ?? true) ? () => onDrill(c.codePoint) : undefined}>
+                                    <CharOpener p5={p5} codePoint={c.codePoint} open={open === c.codePoint} onOpenChange={(next) => setOpen((cur) => (next ? c.codePoint : cur === c.codePoint ? null : cur))}>
                                         <button type="button" className="block cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                                             aria-label={`${c.label}, ${spokenSpeed(c.speed, unit)}, ${spokenPlace(place)}${(c.confidence ?? 0) >= 1 ? ", at target" : ""}`}>
-                                            <CharCap codePoint={c.codePoint} layerColor={layerColorOf(c.codePoint)} look={c.calibrated ? "included" : "uncalibrated"} />
+                                            <CharCap codePoint={c.codePoint} layerColor={p5.charColor(c.codePoint)} look={c.calibrated ? "included" : "uncalibrated"} />
                                         </button>
-                                    </KeyPopover>
+                                    </CharOpener>
                                 </td>
                                 <td className="px-2 py-1 font-medium">{c.label}</td>
                                 <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{path}</td>

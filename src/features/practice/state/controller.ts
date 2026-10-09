@@ -25,7 +25,9 @@ import { PARANOID } from '@/lib/paranoid';
 import type { PracticeContent } from '../content/loader';
 import { type InputConditions, type InputMode, inputMode, liveAvailability } from '../input/inputMode';
 import type { LiveInput } from '../input/liveInput';
-import type { PracticeStore } from '../store/db';
+import type { PracticeStore, StoredResult } from '../store/db';
+import { loadEvents } from '../store/events';
+import { type EventStats, EventStatsCache } from './eventStats';
 import { boardIdentity, newProfile, profileIdFor } from '../store/profiles';
 import type { ProfileRecord, SnapshotRecord } from '../types';
 import { type IInputEvent, type IKeyboardEvent } from '../vendor/keybr/textinput-events/index.ts';
@@ -200,6 +202,7 @@ export class PracticeController {
     #buildSeq = 0;
     #disposed = false;
     #started = false;
+    #eventStats: EventStatsCache | null = null;
 
     constructor(deps: ControllerDeps) {
         this.#deps = {
@@ -521,7 +524,32 @@ export class PracticeController {
         const target = drillTarget(session.resolution, codePoint, letterFrequency);
         if (target == null) return;
         const keys = clusterScope(session.resolution, target, session.keymap.board.cols, letterFrequency);
-        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: target } });
+        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: target, name: null } });
+    }
+
+    /**
+     * Drill this group (P5 aggregate, §5.7): Drill with the group's characters (all layers) in scope; the focus
+     * is the group's weakest, which Drill picks when none is chosen. The caller shows the Lessons page.
+     */
+    drillGroup(codePoints: readonly number[], name: string) {
+        const session = this.session;
+        if (!session) return;
+        const keys = this.drillableOf(codePoints);
+        if (!keys.length) return;
+        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: null, name } });
+    }
+
+    /** The characters of a group Drill can drill (§5.7): each one's drill target, once. */
+    drillableOf(codePoints: readonly number[]): number[] {
+        const session = this.session;
+        if (!session) return [];
+        const letterFrequency = new Map(session.languageLetters.map((l) => [l.codePoint, l.f]));
+        const out = new Set<number>();
+        for (const c of codePoints) {
+            const target = drillTarget(session.resolution, c, letterFrequency);
+            if (target != null) out.add(target);
+        }
+        return [...out];
     }
 
     /** Whether Drill this key has something to drill for the character (§5.7): not Space or Enter. */
@@ -534,7 +562,7 @@ export class PracticeController {
 
     /** Changes the Drill scope from the Lesson panel; Drill this key's explicit set ends (§5.5). */
     updateDrill(patch: Partial<Omit<DrillSettings, 'keys' | 'focus'>>, options?: { debounce?: boolean }) {
-        this.update({ drill: { ...this.settings.drill, ...patch, keys: null, focus: null } }, options);
+        this.update({ drill: { ...this.settings.drill, ...patch, keys: null, focus: null, name: null } }, options);
     }
 
     // ---- settings
@@ -600,6 +628,17 @@ export class PracticeController {
         this.profiles = [...this.profiles, profile];
         this.selectProfile(profile.id);
         return profile;
+    }
+
+    /**
+     * P5's Pressed instead and layer reach for these lessons (§5.7), from their stored events. Each lesson
+     * is read once; an empty map without a store.
+     */
+    eventStats(records: readonly StoredResult[]): Promise<EventStats> {
+        const store = this.store;
+        if (!store) return Promise.resolve(new Map());
+        this.#eventStats ??= new EventStatsCache((id) => loadEvents(store, id));
+        return this.#eventStats.statsFor(records);
     }
 
     /** Asks the Lesson panel to show a section (the type row's scope button, Change scope; §5.2). */

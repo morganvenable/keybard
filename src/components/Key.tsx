@@ -45,6 +45,12 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     dragItemData?: Partial<DragItem>;
     style?: React.CSSProperties;
     unitSize?: number;
+    /**
+     * A footer strip in place of the keycode's bottom label (Practice's heatmap values, spec §5.0.2).
+     * It carries no tint of its own: `footerClassName` styles it.
+     */
+    footer?: React.ReactNode;
+    footerClassName?: string;
 }
 
 /**
@@ -57,7 +63,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
-        style, unitSize,
+        style, unitSize, footer, footerClassName,
         ...rest
     } = props;
 
@@ -248,7 +254,15 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                 {keyData.centerContent}
             </div>
 
-            {keyData.bottomStr !== "" && (
+            {footer != null ? (
+                <span
+                    className={cn("whitespace-nowrap w-full text-center font-semibold leading-none flex items-center justify-center rounded-b-sm", isSmall ? "text-[10px]" : isMedium ? "text-[11px]" : "text-xs", footerClassName)}
+                    style={headerStyle}
+                    data-key-footer
+                >
+                    {footer}
+                </span>
+            ) : keyData.bottomStr !== "" && (
                 <span className={cn(headerClass, "rounded-t-none rounded-b-sm")} style={{ ...styles.bottomTextStyle, ...headerStyle }}>
                     {keyData.bottomStr}
                 </span>

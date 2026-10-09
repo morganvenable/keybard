@@ -21,6 +21,7 @@ import { CustomTextDialog } from "./CustomTextDialog";
 import { layerColorHex, layerColorName, layerName, spokenPlace } from "./format";
 import { InputStatus } from "./InputStatus";
 import { KeyStrip } from "./KeyStrip";
+import { inferredOnlyChars } from "../state/progressAggregates";
 import { MetricsRow } from "./MetricsRow";
 import { LiveBoard } from "./PracticeKeyboard";
 import { presetWpm, StartView } from "./StartView";
@@ -85,6 +86,12 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const run = controller?.run ?? null;
     const settings = controller?.settings;
     const stats = useCharacterStats(controller);
+    // P5 Inferred only (§5.7): every lesson with the character was Keymap only. Recomputed per lesson, not per keystroke.
+    const recordCount = session?.records.length;
+    const inferredChars = useMemo(() => (session ? inferredOnlyChars(session.records) : new Set<number>()), [session, recordCount]);
+    const inferredOf = useCallback((codePoint: number) => inferredChars.has(codePoint), [inferredChars]);
+    const layerColorOfLayer = useCallback((layer: number) => layerColorName(session?.keymap.board, layer), [session]);
+    const loadEventStats = useCallback(() => controller!.eventStats(controller!.session?.records ?? []), [controller]);
 
     // Closing the Lesson panel returns focus to the (still paused) typing surface (§4.1). The override
     // follows the current textarea on every render but is cleared only when Lessons stops showing: a
@@ -308,6 +315,11 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                         justUnlocked={controller.justUnlocked}
                         onDrill={drillKey}
                         canDrill={canDrillKey}
+                        targetSpeed={settings!.targetSpeed}
+                        inferredOf={inferredOf}
+                        loadEventStats={loadEventStats}
+                        eventsKey={`${s.profile.id}:${s.records.length}`}
+                        layerColorOfLayer={layerColorOfLayer}
                     />
                     <MetricsRow
                         last={s.lastLesson()}

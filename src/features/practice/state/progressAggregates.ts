@@ -338,6 +338,8 @@ export interface LayerRow {
     accuracy: number | null;
     /** Mean layer reach (live) of the keys that hold this layer, ms. */
     reachMs: number | null;
+    /** Character samples (hits) on the layer. */
+    hits: number;
     /** Share of all character samples in scope. */
     share: number;
     /** Characters typed on the layer (Drill this group). */
@@ -387,6 +389,7 @@ export function layerRows(records: readonly StoredResult[], keymap: readonly (re
             cpm: row.timed > 0 && row.time > 0 ? timeToSpeed(row.time / row.timed) : null,
             accuracy: row.h > 0 ? Math.max(0, row.h - row.m) / row.h : null,
             reachMs: r && r.n > 0 ? r.time / r.n : null,
+            hits: row.h,
             share: all > 0 ? row.h / all : 0,
             chars: [...row.chars],
         };
@@ -447,4 +450,39 @@ export function historyPage(records: readonly StoredResult[], page: number, size
             length: r.n, src: r.x.src,
         })),
     };
+}
+
+// ---- Per-lesson series for P5's aggregate sparkline (§5.7)
+
+/** Per-lesson speed (CPM) of a group of keys, oldest first: lessons with no timed hit on them are skipped. */
+export function groupSeries(records: readonly StoredResult[], indices: readonly number[]): number[] {
+    const keys = new Set(indices);
+    const out: number[] = [];
+    for (const record of [...records].sort((a, b) => a.ts - b.ts)) {
+        let time = 0, timed = 0;
+        for (const [key, k] of Object.entries(record.k)) {
+            const index = Number(key.split('@')[0]);
+            if (!keys.has(index) || !(k.t > 0) || k.h <= 0) continue;
+            time += k.t * k.h;
+            timed += k.h;
+        }
+        if (timed > 0 && time > 0) out.push(timeToSpeed(time / timed));
+    }
+    return out;
+}
+
+/** Per-lesson speed (CPM) of the characters typed on a layer, oldest first. */
+export function layerSeries(records: readonly StoredResult[], layer: number): number[] {
+    const out: number[] = [];
+    for (const record of [...records].sort((a, b) => a.ts - b.ts)) {
+        let time = 0, timed = 0;
+        for (const [key, s] of Object.entries(record.h)) {
+            const path = parseSampleKey(key)?.path;
+            if (!path || parsePathKey(path)?.layer !== layer) continue;
+            const n = s.h - s.m;
+            if (s.t > 0 && n > 0) { time += s.t * n; timed += n; }
+        }
+        if (timed > 0 && time > 0) out.push(timeToSpeed(time / timed));
+    }
+    return out;
 }

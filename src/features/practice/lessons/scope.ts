@@ -227,6 +227,7 @@ export function drillGroupLabel(group: DrillGroup): string {
  */
 export function drillScopeLabel(drill: DrillSettings, layerName: (layer: number) => string, directions: readonly DrillDirection[]): string {
     if (drill.keys?.length) {
+        if (drill.name) return drill.name;
         const key = drill.focus ?? drill.keys[0];
         return `${String.fromCodePoint(key)} and its cluster`;
     }

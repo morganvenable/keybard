@@ -19,6 +19,8 @@ export type SpeedUnit = 'wpm' | 'cpm';
 /** Progress scope (§5.9): the last 7 or 30 days, or everything. */
 export type ProgressPeriod = '7' | '30' | 'all';
 export type ChartAxis = 'lessons' | 'days';
+/** The Keyboard heatmap's metric (§5.8), which the Fingers and Thumbs sections follow. */
+export type HeatMetricSetting = 'speed' | 'accuracy' | 'errors' | 'usage';
 
 export const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom'];
 
@@ -54,6 +56,8 @@ export interface DrillSettings {
     keys: number[] | null;
     /** Drill this key: the character focused while it is below target. */
     focus: number | null;
+    /** Drill this group (§5.7, M4): the group's name for the type row ("L-middle · N"); null for Drill this key. */
+    name: string | null;
 }
 
 /**
@@ -61,7 +65,7 @@ export interface DrillSettings {
  * default open, and All over every layer is 60-odd characters, too many for a drill.
  */
 export const DEFAULT_DRILL: DrillSettings = {
-    layer: null, group: 'weakest', dirs: [...DRILL_DIRECTIONS], hands: 'both', thumbs: true, benford: true, keys: null, focus: null,
+    layer: null, group: 'weakest', dirs: [...DRILL_DIRECTIONS], hands: 'both', thumbs: true, benford: true, keys: null, focus: null, name: null,
 };
 
 /** Words (§5.5): the size of the word list (most frequent first) and Long words only. */
@@ -107,6 +111,9 @@ export interface PracticeSettings {
     /** Progress page (§5.8, §5.9): period and the speed chart's x axis. */
     period: ProgressPeriod;
     chartAxis: ChartAxis;
+    heatMetric: HeatMetricSetting;
+    /** Export (§5.9): include the per-keystroke events. */
+    exportKeystrokes: boolean;
     customText: { content: string; lowercase: boolean; lettersOnly: boolean; randomize: boolean };
     drill: DrillSettings;
     words: WordsSettings;
@@ -141,6 +148,8 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     announceNextKey: false,
     period: '30',
     chartAxis: 'lessons',
+    heatMetric: 'speed',
+    exportKeystrokes: true,
     customText: { content: 'The quick brown fox jumps over the lazy dog.', lowercase: true, lettersOnly: true, randomize: false },
     drill: DEFAULT_DRILL,
     words: { size: 200, longOnly: false },
@@ -158,7 +167,7 @@ export const START_PRESETS = {
     /** "Coming from QWERTY": Guided, every letter included at once, 35 WPM, next key, 15 min a day. */
     qwerty: { type: 'guided', targetSpeed: 175, alphabetSize: 1, hints: 'next', dailyGoal: 15 },
     /** "Drill my keymap": Drill → Weakest over the whole keymap, 45 WPM, no hints, 10 min a day. */
-    drill: { type: 'drill', drill: { ...DEFAULT_DRILL, group: 'weakest', layer: null, keys: null, focus: null }, targetSpeed: 225, hints: 'off', dailyGoal: 10 },
+    drill: { type: 'drill', drill: { ...DEFAULT_DRILL, group: 'weakest', layer: null, keys: null, focus: null, name: null }, targetSpeed: 225, hints: 'off', dailyGoal: 10 },
 } as const satisfies Record<string, Partial<PracticeSettings>>;
 
 export type StartPreset = keyof typeof START_PRESETS;
@@ -215,6 +224,7 @@ export function drillSettings(value: unknown): DrillSettings {
         benford: bool(data.benford, d.benford),
         keys,
         focus: keys && focus != null && keys.includes(focus) ? focus : null,
+        name: keys && typeof data.name === 'string' && data.name.trim() ? data.name.slice(0, 60) : null,
     };
 }
 
@@ -257,6 +267,8 @@ export function practiceSettings(value: unknown): PracticeSettings {
         announceNextKey: bool(data.announceNextKey, d.announceNextKey),
         period: oneOf(data.period, ['7', '30', 'all'] as const, d.period),
         chartAxis: oneOf(data.chartAxis, ['lessons', 'days'] as const, d.chartAxis),
+        heatMetric: oneOf(data.heatMetric, ['speed', 'accuracy', 'errors', 'usage'] as const, d.heatMetric),
+        exportKeystrokes: bool(data.exportKeystrokes, d.exportKeystrokes),
         customText: {
             content: typeof custom.content === 'string' ? custom.content.slice(0, MAX_CUSTOM_TEXT) : d.customText.content,
             lowercase: bool(custom.lowercase, d.customText.lowercase),

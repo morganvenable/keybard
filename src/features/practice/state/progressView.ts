@@ -179,3 +179,12 @@ export function stripKeys(keys: Iterable<LessonKey>): StripKey[] {
         ...list.filter((k) => !k.isIncluded).map((key) => ({ key, included: false, focused: false })),
     ];
 }
+
+/** P5's stats for a character with no samples in scope (§5.7 No data). */
+export function emptyCharacterStats(codePoint: number, path: Path | null): CharacterStats {
+    return {
+        codePoint, label: String.fromCodePoint(codePoint), path, speed: null, best: null, accuracy: null, samples: 0,
+        confidence: null, bestConfidence: null, calibrated: false, remainingLessons: null, lastPracticed: null,
+        keyStats: { samples: [], timeToType: null, bestTimeToType: null } as unknown as KeyStats,
+    };
+}

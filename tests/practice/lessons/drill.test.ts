@@ -169,7 +169,7 @@ describe('Drill scope (§5.5, §6.2)', () => {
 
     it('validates stored Drill settings field by field', () => {
         expect(drillSettings({ layer: 1, group: 'symbols', dirs: ['N', 'X', 'S'], hands: 'left', thumbs: false, benford: false }))
-            .toEqual({ layer: 1, group: 'symbols', dirs: ['N', 'S'], hands: 'left', thumbs: false, benford: false, keys: null, focus: null });
+            .toEqual({ layer: 1, group: 'symbols', dirs: ['N', 'S'], hands: 'left', thumbs: false, benford: false, keys: null, focus: null, name: null });
         expect(drillSettings({ layer: -1, group: 'nope', hands: 3, keys: [33, 'x', 49], focus: 99 }))
             .toMatchObject({ layer: null, group: 'weakest', hands: 'both', keys: [33, 49], focus: null });
         expect(drillSettings({ keys: [33, 49], focus: 33 })).toMatchObject({ keys: [33, 49], focus: 33 });

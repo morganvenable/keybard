@@ -1,9 +1,10 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { placeOf } from "../keymap/geometry";
 import type { KeymapResolution } from "../keymap/resolver";
+import { charReach, type EventStats, topConfusions } from "../state/eventStats";
 import type { CharacterStats, StripKey } from "../state/progressView";
 import type { SpeedUnit } from "../state/settings";
 import { CharCap } from "./CharCap";
@@ -29,13 +30,32 @@ interface KeyStripProps {
     onDrill?: (codePoint: number) => void;
     /** Whether Drill this key has something to drill for the character (not Space). */
     canDrill?: (codePoint: number) => boolean;
+    /** Target speed, CPM (P5's sparkline). */
+    targetSpeed?: number;
+    /** Every lesson with the character was Keymap only (P5 Inferred only). */
+    inferredOf?: (codePoint: number) => boolean;
+    /** P5's Pressed instead and layer reach, read from the stored events the first time a popover opens. */
+    loadEventStats?: () => Promise<EventStats>;
+    /** Changes when the history does, so the events are read again. */
+    eventsKey?: string;
+    /** Layer color name of a layer (Pressed instead caps). */
+    layerColorOfLayer?: (layer: number) => string;
 }
 
 const FOCUSED = "ring-2 ring-kb-ink ring-offset-2 ring-offset-kb-gray";
 const SELECTED = "z-10 ring-2 ring-kb-select ring-offset-1 ring-offset-background";
 
-export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked, onDrill, canDrill }: KeyStripProps) {
+export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked, onDrill, canDrill, targetSpeed, inferredOf, loadEventStats, eventsKey, layerColorOfLayer }: KeyStripProps) {
     const [open, setOpen] = useState<number | null>(null);
+    const [events, setEvents] = useState<{ key: string | undefined; stats: EventStats } | null>(null);
+    const current = events && events.key === eventsKey ? events.stats : null;
+    // Typing never waits on the store: the events are read only once a popover is open.
+    useEffect(() => {
+        if (open == null || current || !loadEventStats) return;
+        let live = true;
+        void loadEventStats().then((stats) => { if (live) setEvents({ key: eventsKey, stats }); });
+        return () => { live = false; };
+    }, [open, current, loadEventStats, eventsKey]);
     const focused = keys.find((k) => k.focused);
     const locked = keys.filter((k) => !k.included).length;
     const describe = (codePoint: number) => {
@@ -62,13 +82,17 @@ export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, 
                             <Tooltip>
                                 <KeyPopover
                                     open={open === codePoint}
-                                    onOpenChange={(next) => setOpen(next ? codePoint : null)}
+                                    onOpenChange={(next) => setOpen((cur) => (next ? codePoint : cur === codePoint ? null : cur))}
                                     stats={s}
                                     resolution={resolution}
                                     cols={cols}
                                     unit={unit}
                                     layerColor={layerColorOf(codePoint)}
-                                    inferred
+                                    inferred={inferredOf ? inferredOf(codePoint) : true}
+                                    targetSpeed={targetSpeed}
+                                    confusions={current ? topConfusions(current.get(codePoint)) : undefined}
+                                    reachMs={current ? charReach(current.get(codePoint)) : null}
+                                    layerColorOf={layerColorOfLayer}
                                     onDrill={onDrill && (canDrill?.(codePoint) ?? true) ? () => onDrill(codePoint) : undefined}
                                 >
                                     <TooltipTrigger asChild>
