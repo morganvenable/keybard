@@ -55,7 +55,7 @@ Milestone MW from [spec.md](../spec.md) §12 (D1, D12, D15, OD1, OD3, §4, §5.1
 
 1. **Esc lives on the panel root in `SecondarySidebar`, gated on the `practice` and `overlay` panel ids**, not in `PracticePanel` and `OverlayPanel`. Focus lands on the `aside` when the panel opens; a handler inside the panel content never sees an Esc pressed there. Editor panels are unaffected (the handler isn't attached for them), which is what the spec's placement was for. The logic is one hook, `useWorkspacePanelEscape`.
 2. **The open-layer check doesn't use `[data-state="open"]`.** Radix Accordion and Collapsible content carry `data-state="open"` too, so Esc inside an expanded section would never close the panel. The check is `[role=listbox]`, `[role=dialog]` (Radix popover content), `[role=alertdialog]`, `[role=menu]`, plus a focused combobox or popup trigger with `aria-expanded="true"`. Editable text inputs keep Esc ("an input in edit mode"); read-only and non-text inputs don't.
-3. **A `hashchange` listener** (not in the spec, which only extends the initial-hash check). Without it, typing `#practice` into the address bar of an open Keybard changed the address but not the page. A workspace hash now acts like a nav click; other hashes are ignored. Its own commit (`b19f6c6`).
+3. **A `hashchange` listener** (not in the spec, which only extends the initial-hash check). Without it, typing `#practice` into the address bar of an open Keybard changed the address but not the page. A workspace hash now acts like a nav click, and an empty hash (Back or Forward to an entry without one, or a typed bare `#`) returns to the editor and closes the workspace's own panel; other hashes are ignored. Commits `b19f6c6` and `5240e37` (review MW-1).
 4. **`practicePage` and the hash sync live in `PanelsContext`**, not in `PracticeWorkspace` (§9.1 says the workspace does the hash sync). The initializer has to set workspace, page and panel together from the hash (§4.2), and the Practice page must survive while Practice isn't mounted, so one routing owner is simpler. `PracticeWorkspace` just reads and sets `practicePage`.
 5. **The Practice nav item shows in development builds** (`PRACTICE_NAV_VISIBLE = import.meta.env.DEV`, `src/layout/workspaces.ts`) and is hidden in every production build (test site, next, stable, Paranoid), as "hidden until M1b" asks. `#practice` opens the placeholder in every build. M1b sets the flag to true.
 6. **Overlay interim click:** opening Overlay closes any open panel (today's Trainer did `setOpen(false)` too). A second click on Overlay no longer returns to the editor (Trainer toggled); the workspace model never leaves a workspace from its own item.
@@ -86,7 +86,7 @@ Nothing in MW reads the board. One check needs Keybard Host on Windows (a board 
 
 ## Checks run
 
-- `npx tsc --noEmit -p .` and `npm test` before every commit (final: 110 files, 1065 tests, all passing). The `EditorLayout.guides` run prints "Internal React error: Expected static flag was missing" in the 3D guide test; it prints the same on the base commit, before any MW change.
+- `npx tsc --noEmit -p .` and `npm test` before every commit (final after the review fixes: 110 files, 1070 tests, all passing). The `EditorLayout.guides` run prints "Internal React error: Expected static flag was missing" in the 3D guide test; it prints the same on the base commit, before any MW change.
 - `npm run build` and `npm run build:paranoid` before the push: both pass. The existing warning that the main chunk is over 500 kB still shows (1,446 kB).
 - Headless Chrome against `npm run dev` (port 5291), QWERTY example: every nav flow above in sidebar and bottom-bar modes, light and dark, deep links after a full reload, widths 1600, 1000, 860 and 390 with no horizontal scroll.
 
@@ -94,3 +94,15 @@ Nothing in MW reads the board. One check needs Keybard Host on Windows (a board 
 
 - When M1b shows the Practice nav item, recheck the nav rail height at short viewports: the layout group grows by one item.
 - The `focusKey` rule also re-runs when a workspace panel switches to the other workspace's panel (Practice → Overlay) from inside the panel; it keeps the earlier return target then. Recheck once Overlay has a panel.
+
+## Review
+
+An independent review of `033e447..67e2d2c` found three minor issues and no blockers. All three were verified against the code and fixed.
+
+| Finding | Disposition |
+|---------|-------------|
+| **MW-1** The `hashchange` listener ignored an empty hash, so Back out of a workspace entered by a typed hash left Practice on screen with the address reading `/`. | **Fixed** (`5240e37`). An empty hash or a bare `#` sets the editor workspace and closes the panel only when it is a workspace panel; Settings, About and editor panels stay. Tests: Back after a pushed `#practice`, and an empty hash with Settings open over Overlay. Confirmed in headless Chrome: `location.hash = "#practice"`, then `history.back()`, lands in the editor with the panel closed. |
+| **MW-2** The editor's Ctrl/Cmd+V layer paste wasn't gated on the workspace: in Practice or Overlay it opened the Paste Layer dialog and could overwrite the hidden editor layer. | **Fixed** (`EditorLayout: Ctrl+V layer paste only in the editor`). The handler returns unless `isEditor`; `usePanels` moved above the effect so it can read it. Test: Ctrl+V with a layer clipboard does nothing in Practice and Overlay, and still opens the dialog in the editor. |
+| **MW-3** With a footer panel docked over the interim Overlay in bottom-bar layout, `TrainerPage`'s 100dvh root made the workspace box scroll as well as `.trainer-main`, and the header scrolled away. | **Fixed** (`Overlay: fit the interim page above a docked panel`). The overlay workspace box carries `[&>.trainer-page]:!h-full`, so the page fills the box above the panel's padding. The important modifier is needed: `trainer.css` is unlayered and outranks Tailwind's utilities layer (the plain variant had no effect in the browser). Measured in headless Chrome at 860 x 900 with Settings docked: box 900 px with 540 px padding and no outer scroll; page 360 px; only `.trainer-main` scrolls. Sidebar layout at 1600 x 1000 is unchanged (page 1000 px). Screenshot replaced: `mw-screens/bottom-bar-settings-over-overlay.png`. MO's restyle can drop the override (`TODO(practice)`). |
+
+Checks after the fixes: `npx tsc --noEmit -p .` passes; `npm test` passes (110 files, 1070 tests); `npm run build` and `npm run build:paranoid` pass.
