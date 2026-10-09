@@ -284,6 +284,30 @@ describe("deep links", () => {
         expect(window.location.hash).toBe("#practice");
     });
 
+    it("a workspace hash entered while open acts like a nav click; other hashes are ignored", () => {
+        openAt("/");
+        fireEvent.click(nav("Layouts"));
+        act(() => {
+            window.history.replaceState(null, "", "/#practice/progress");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("practice");
+        expect(value("page")).toBe("progress");
+        expect(value("active")).toBe("practice");
+        expect(panelOpen()).toBe(true);
+        act(() => {
+            window.history.replaceState(null, "", "/#trainer");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("overlay");
+        expect(window.location.hash).toBe("#overlay");
+        act(() => {
+            window.history.replaceState(null, "", "/#unrelated");
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(value("workspace")).toBe("overlay");
+    });
+
     it("a remount reopens the same workspace and page (a board connect remounts EditorLayout)", () => {
         const view = openAt("/");
         fireEvent.click(nav("Practice"));

@@ -95,6 +95,25 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         syncWorkspaceHash({ workspace, practicePage });
     }, [workspace, practicePage]);
 
+    // A workspace hash entered while Keybard is open (the address bar, a link) acts like a nav click,
+    // so the address bar and the page never disagree. Other hash changes are ignored.
+    useEffect(() => {
+        const onHashChange = () => {
+            const route = parseWorkspaceHash(window.location.hash, window.location.search);
+            if (!route || route.workspace === "editor") return;
+            setWorkspaceState(route.workspace);
+            setPracticePage(route.practicePage);
+            setActivePanel(route.workspace);
+            setPanelToGoBack(null);
+            setAlternativeHeader(false);
+            setItemToEdit(null);
+            // Re-canonicalize (#trainer → #overlay) even when the route didn't change.
+            syncWorkspaceHash(route);
+        };
+        window.addEventListener("hashchange", onHashChange);
+        return () => window.removeEventListener("hashchange", onHashChange);
+    }, []);
+
     // The typing-surface override belongs to Practice; drop it whenever Practice isn't showing.
     useEffect(() => {
         if (workspace !== "practice") returnFocusOverride.current = null;
