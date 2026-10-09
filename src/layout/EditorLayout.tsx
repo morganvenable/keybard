@@ -98,6 +98,9 @@ const EditorLayoutInner = () => {
         isThumb3DOffsetActive,
     } = useLayoutSettings();
     const { layerClipboard, openPasteDialog } = useLayoutLibrary();
+    const { isMobile, state, activePanel, itemToEdit, workspace } = usePanels();
+    // Editor-only effects (selection, layer paste) are gated on this; Practice and Overlay pages sit beside it.
+    const isEditor = workspace === "editor";
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
 
     const KC_TRNS = 1;
@@ -987,6 +990,8 @@ const EditorLayoutInner = () => {
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Layer paste belongs to the editor: in Practice or Overlay it would overwrite a hidden layer.
+            if (!isEditor) return;
             // Check for Ctrl+V (or Cmd+V on Mac)
             if (!e.defaultPrevented && !e.repeat && !isEditorInput(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 // Only handle if we have a layer in clipboard
@@ -999,7 +1004,7 @@ const EditorLayoutInner = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [layerClipboard, openPasteDialog]);
+    }, [isEditor, layerClipboard, openPasteDialog]);
 
     const getLayerName = React.useCallback((layerIndex: number) => {
         if (!keyboard) return `Layer ${layerIndex}`;
@@ -1091,9 +1096,7 @@ const EditorLayoutInner = () => {
 
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    const { isMobile, state, activePanel, itemToEdit, workspace } = usePanels();
     // Workspace pages mount on first visit and then stay mounted and hidden (§4.1 "Keep mounted").
-    const isEditor = workspace === "editor";
     const { activated: overlayVisited } = useOverlayWorkspace();
     const { activated: practiceVisited } = usePracticeWorkspace();
     React.useEffect(() => { if (!isEditor) clearSelection(); }, [isEditor, clearSelection]);

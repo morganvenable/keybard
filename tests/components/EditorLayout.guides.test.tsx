@@ -120,11 +120,13 @@ vi.mock("@/hooks/useChanges", () => ({
   }),
 }));
 
+const mockLayoutLibrary = vi.hoisted(() => ({
+  layerClipboard: null as unknown,
+  openPasteDialog: vi.fn(),
+}));
+
 vi.mock("@/contexts/LayoutLibraryContext", () => ({
-  useLayoutLibrary: () => ({
-    layerClipboard: null,
-    openPasteDialog: vi.fn(),
-  }),
+  useLayoutLibrary: () => mockLayoutLibrary,
 }));
 
 vi.mock("@/components/DragOverlay", () => ({
@@ -295,6 +297,26 @@ describe("EditorLayout 3D guide sequencing", () => {
     render(<EditorLayout />);
     expect(screen.getByTestId("trainer-session")).toBeVisible();
     expect(screen.getByTestId("trainer-session")).toHaveAttribute("data-active", "true");
+  });
+
+  it.each(["practice", "overlay"] as const)("Ctrl+V does not open the layer paste dialog in %s", (workspace) => {
+    mockLayoutLibrary.layerClipboard = { layer: { keymap: [] } };
+    mockLayoutLibrary.openPasteDialog.mockClear();
+    try {
+      mockPanels.workspace = workspace;
+      mockPanels.activePanel = workspace;
+      const { rerender } = render(<EditorLayout />);
+      fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
+      expect(mockLayoutLibrary.openPasteDialog).not.toHaveBeenCalled();
+      // The same keystroke in the editor still pastes, so the gate is the workspace.
+      mockPanels.workspace = "editor";
+      mockPanels.activePanel = null;
+      rerender(<EditorLayout />);
+      fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
+      expect(mockLayoutLibrary.openPasteDialog).toHaveBeenCalledTimes(1);
+    } finally {
+      mockLayoutLibrary.layerClipboard = null;
+    }
   });
 
   it("never remounts the detail panel or the editor content when switching workspaces", () => {
