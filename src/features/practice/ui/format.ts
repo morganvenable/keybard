@@ -81,15 +81,23 @@ function prereqChip(p: Prereq, cols: number): string {
     return `hold ${where}`;
 }
 
-/** P5 header chips (§5.7): `Layer 1` `hold R-thumb T5` `L-pinky N`. */
+/** The target of a path: one key, a combo's keys joined with "+", or a double tap (M3). */
+export function targetName(path: Pick<Path, "targets" | "taps">, cols: number): string {
+    const keys = path.targets.map((i) => placeName(placeOf(i, cols))).join(" + ");
+    return path.taps === 2 ? `double tap ${keys}` : keys;
+}
+
+/** P5 header chips (§5.7): `Layer 1` `hold R-thumb T5` `L-pinky N` (a combo: `L-middle C + L-ring C`). */
 export function pathChips(path: Path, cols: number): string[] {
-    return [`Layer ${path.layer}`, ...path.prereqs.map((p) => prereqChip(p, cols)), placeName(placeOf(path.index, cols))];
+    return [`Layer ${path.layer}`, ...path.prereqs.map((p) => prereqChip(p, cols)), targetName(path, cols)];
 }
 
 /** "or hold L-thumb T1" for an alternative path's prerequisites. */
 export function alternativeText(path: Path, primary: Path, cols: number): string {
     const extra = path.prereqs.filter((p) => !primary.prereqs.some((q) => q.index === p.index));
-    if (path.index !== primary.index) return `or ${[...path.prereqs.map((p) => prereqChip(p, cols)), placeName(placeOf(path.index, cols))].join(" + ")}`;
+    if (path.key !== primary.key && (path.index !== primary.index || path.targets.length > 1 || path.taps === 2)) {
+        return `or ${[...path.prereqs.map((p) => prereqChip(p, cols)), targetName(path, cols)].join(" + ")}`;
+    }
     return extra.length ? `or ${extra.map((p) => prereqChip(p, cols)).join(" + ")}` : "";
 }
 

@@ -79,7 +79,6 @@ describe('correlate: rules (§9.3)', () => {
     });
 
     it('late output (a key typed 200 ms after its press) is still found in the history interval', () => {
-        // TODO(practice): M3 resolves tap dances; their taps are then marked delayed too.
         const h = history([[0, []], [10, [A]], [30, []], [250, []]]);
         const a = attributeStep(step('a', 210, 0), h, keymap, new Set());
         expect(a).toMatchObject({ rule: 1, confidence: 'observed', targetEdge: 10 });
@@ -244,5 +243,51 @@ describe('LiveKeymap', () => {
         h.addSample(0, 0, matrixToDown(frame([MO1]), ROWS, COLS));
         h.addMasks(1, 0b11, 1);
         expect(keymap.unexplainedMask(h.latestMask!)).toBe(0);
+    });
+});
+
+describe('correlate: combos and tap dances (M3)', () => {
+    const TD0 = 0x5700;
+    const tdBoard = rebind(svalDefault(), 0, A, TD0);
+    tdBoard.tapdances = [{ idx: 0, tap: 'KC_A', hold: 'KC_NO', doubletap: 'KC_B', taphold: 'KC_NO', tapping_term: 200, enabled: true }];
+    tdBoard.combos = [{ cmbid: 0, keys: ['KC_J', 'KC_K'], output: 'KC_EQUAL', options: 0x8000 }];
+    const full = resolveKeymap({ keymap: tdBoard.keymap!, rows: tdBoard.rows, cols: tdBoard.cols, tapdances: tdBoard.tapdances, combos: tdBoard.combos });
+    const live = new LiveKeymap(full, tdBoard.keymap!, tdBoard.rows, tdBoard.cols);
+    const J = 38, K = 44;
+
+    it('a tap-dance tap typed 200 ms after its press is an observed, delayed hit timed by the press', () => {
+        const h = history([[0, []], [10, [A]], [30, []], [250, []]]);
+        const a = attributeStep(step('a', 210, 0), h, live, new Set());
+        expect(a).toMatchObject({ rule: 1, confidence: 'observed', targetEdge: 10, delayed: true });
+        expect(a.path?.via).toBe('tapdance');
+        expect(a.mismatch).toBeNull();
+    });
+
+    it('a tap-dance double tap uses both presses and is timed from the first', () => {
+        const h = history([[0, []], [10, [A]], [30, []], [60, [A]], [80, []], [300, []]]);
+        const b = attributeStep(step('b', 280, 0), h, live, new Set());
+        expect(b.rule).toBe(1);
+        expect(b.path?.key).toBe('0:26*2:n');
+        expect(b.targetEdge).toBe(10);
+        expect(b.consumed.length).toBe(2);
+    });
+
+    it('a combo is observed when its keys are down together; both presses are consumed', () => {
+        const h = history([[0, []], [10, [J]], [20, [J, K]], [40, []]]);
+        const eq = attributeStep(step('=', 22), h, live, new Set());
+        expect(eq.rule).toBe(1);
+        expect(eq.path?.key).toBe('0:38+44:n');
+        expect(eq.consumed.length).toBe(2);
+        expect(eq.targetEdge).toBe(20);
+        expect(eq.mismatch).toBeNull();
+    });
+
+    it('one key of a combo alone is not the combo', () => {
+        const h = history([[0, []], [10, [J]], [40, []]]);
+        const eq = attributeStep(step('=', 12), h, live, new Set());
+        expect(eq.path?.key).not.toBe('0:38+44:n');
+        // Rule 3: the press of j is the key observed.
+        expect(eq.rule).toBe(3);
+        expect(eq.resolved).toBe(cp('j'));
     });
 });

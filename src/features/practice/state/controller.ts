@@ -372,7 +372,9 @@ export class PracticeController {
         const previous = this.keymap;
         this.keymap = input;
         const same = previous && previous.board.keymap === input.board.keymap && previous.layoutId === input.layoutId
-            && previous.defaultLayer === input.defaultLayer && previous.board.keylayout === input.board.keylayout;
+            && previous.defaultLayer === input.defaultLayer && previous.board.keylayout === input.board.keylayout
+            && previous.board.combos === input.board.combos && previous.board.tapdances === input.board.tapdances
+            && previous.board.key_overrides === input.board.key_overrides;
         if (same) {
             if (previous.unsentChanges !== input.unsentChanges || previous.source !== input.source || previous.sourceLabel !== input.sourceLabel
                 || previous.connected !== input.connected || previous.hidSupported !== input.hidSupported) this.#emit();

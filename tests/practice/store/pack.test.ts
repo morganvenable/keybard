@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { packEvents, unpackEvents, WORDS_PER_EVENT } from '@/features/practice/store/pack';
+import { eventLayoutFor, packEvents, unpackEvents, WORDS_PER_EVENT } from '@/features/practice/store/pack';
 import { ERROR_CLASSES, type KeystrokeEvent } from '@/features/practice/types';
 
 function event(overrides: Omit<Partial<KeystrokeEvent>, 'phys'> & { phys?: Partial<KeystrokeEvent['phys']> } = {}): KeystrokeEvent {
@@ -107,5 +107,34 @@ describe('event packing, layout 1 (§8.2)', () => {
 
     it('rejects a buffer that is not whole events', () => {
         expect(() => unpackEvents(new ArrayBuffer(12))).toThrow();
+    });
+});
+
+describe('event packing, layout 2: combos and double taps (M3, §8.2)', () => {
+    it('keeps layout 1 for a lesson without combo or double-tap hits', () => {
+        expect(eventLayoutFor([event(), event({ path: '1:27:f', phys: { index: 27, layer: 1 } })])).toBe(1);
+    });
+
+    it('round-trips combo targets and double taps, with one extra word per combo hit', () => {
+        const events = [
+            event({ t: 0 }),
+            event({ t: 100, expected: 0x3d, typed: 0x3d, path: '0:38+44:n', phys: { index: 44, layer: 0, confidence: 'observed' } }),
+            event({ t: 200, expected: 0x62, typed: 0x62, path: '0:26*2:n', delayed: true }),
+            event({ t: 300, expected: 0x2b, typed: 0x2b, path: '0:20+26+32+38:u', prereq: [2], phys: { index: 20, layer: 0 } }),
+            event({ t: 400, expected: 0x41, typed: 0x71, kind: 'miss', path: '0:38+44:n', phys: { index: 27, layer: 0, shift: 'n' } }),
+        ];
+        expect(eventLayoutFor(events)).toBe(2);
+        const packed = packEvents(events);
+        expect(packed.byteLength).toBe((events.length * WORDS_PER_EVENT + 2) * 4);
+        const out = unpackEvents(packed, 2);
+        expect(out.map((e) => e.path)).toEqual(['0:26:n', '0:38+44:n', '0:26*2:n', '0:20+26+32+38:u', '']);
+        expect(out[1].phys.index).toBe(44);
+        expect(out[3].prereq).toEqual([2]);
+        expect(out[4].phys).toMatchObject({ index: 27, shift: 'n' });
+    });
+
+    it('refuses a layout-2 row cut inside an extension word', () => {
+        const packed = packEvents([event({ path: '0:38+44:n', phys: { index: 38 } })]);
+        expect(() => unpackEvents(packed.slice(0, WORDS_PER_EVENT * 4), 2)).toThrow();
     });
 });

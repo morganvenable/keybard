@@ -118,7 +118,8 @@ export function boardView(input: BoardInput): BoardView {
     const alternatives = new Set<number>();
     if (showNext && primary) {
         primary.prereqs.forEach((p, i) => steps.set(p.index, i + 1));
-        if (primary.prereqs.length) steps.set(primary.index, primary.prereqs.length + 1);
+        // A combo's keys are all the target (M3): each gets the target's ring and step.
+        if (primary.prereqs.length) for (const t of primary.targets) steps.set(t, primary.prereqs.length + 1);
         for (const path of resolution!.pathsOf(primary.char).slice(1)) {
             if (path.index !== primary.index) continue;
             for (const p of path.prereqs) if (!steps.has(p.index)) alternatives.add(p.index);
@@ -132,11 +133,12 @@ export function boardView(input: BoardInput): BoardView {
         height = Math.max(height, layout.y + layout.h);
         const { code, layer } = resolveBinding(keymap, index, mask);
         const char = charOn(resolution, index, layer);
-        const isTarget = showNext && primary!.index === index;
+        const isTarget = showNext && primary!.targets.includes(index);
         const isPrereq = showNext && primary!.prereqs.some((p) => p.index === index);
         const isAlternative = alternatives.has(index);
         // The ringed target shows the character it will type, on its layer's face (§5.2).
-        const showsTarget = isTarget && (layer !== primary!.layer || char !== primary!.char);
+        // A combo's keys keep their own legends: none of them types the character alone.
+        const showsTarget = isTarget && primary!.targets.length === 1 && (layer !== primary!.layer || char !== primary!.char);
         let keycode = "", label = "", keyContents: KeyContent | undefined = { type: "text", str: "" };
         if (legends) {
             if (showsTarget) {

@@ -98,7 +98,11 @@ export async function loadProfileData(store: PracticeStore, settings: Pick<Pract
 
 /** Builds the keymap resolution and its fingerprint (§9.4). */
 export async function resolvePracticeKeymap(keymap: PracticeKeymap): Promise<{ resolution: KeymapResolution; fingerprint: string }> {
-    const source: KeymapSource = { keymap: keymap.board.keymap ?? [], rows: keymap.board.rows, cols: keymap.board.cols };
+    const { board } = keymap;
+    const source: KeymapSource = {
+        keymap: board.keymap ?? [], rows: board.rows, cols: board.cols,
+        combos: board.combos, tapdances: board.tapdances, key_overrides: board.key_overrides,
+    };
     const resolution = resolveKeymap(source, { defaultLayer: keymap.defaultLayer, layoutId: keymap.layoutId });
     return { resolution, fingerprint: await keymapFingerprint(resolution) };
 }

@@ -6,11 +6,11 @@
 // first (the UI confirms before calling it), in the same transaction as the
 // import. A file with a newer `version` is refused. Every record is validated by
 // resultRecordFromJson before anything is written.
-import type { ProfileRecord, ResultRecord } from '../types';
+import type { EventLayout, ProfileRecord, ResultRecord } from '../types';
 import type { ImportRow, PracticeStore } from './db';
 import { bytesToBase64, base64ToBytes } from './base64';
 import { pruneEvents } from './events';
-import { EVENT_LAYOUT, WORDS_PER_EVENT } from './pack';
+import { EVENT_LAYOUT, EVENT_LAYOUT_COMBOS, unpackEvents } from './pack';
 import { resultRecordFromJson } from './results';
 
 export const EXPORT_FORMAT = 'keybard-practice';
@@ -18,8 +18,9 @@ export const EXPORT_VERSION = 1;
 
 export interface ExportedEvents {
     resultId: number;
-    layout: 1;
-    /** Base64 of the packed layout-1 words. */
+    /** §8.2 layout: 1, or 2 when the lesson had combo or double-tap hits (M3). */
+    layout: EventLayout;
+    /** Base64 of the packed words. */
     packed: string;
 }
 
@@ -60,7 +61,7 @@ export async function exportProfile(
         const events: ExportedEvents[] = [];
         for (const id of await store.listEventIds(profileId)) {
             const row = await store.getEvents(id);
-            if (row) events.push({ resultId: id, layout: EVENT_LAYOUT, packed: bytesToBase64(new Uint8Array(row.packed)) });
+            if (row) events.push({ resultId: id, layout: row.layout, packed: bytesToBase64(new Uint8Array(row.packed)) });
         }
         file.events = events;
     }
@@ -117,7 +118,8 @@ export async function importIntoProfile(
     const eventsByOldId = new Map<number, ExportedEvents>();
     for (const raw of file.events) {
         const e = raw as Partial<ExportedEvents>;
-        if (Number.isSafeInteger(e?.resultId) && e?.layout === EVENT_LAYOUT && typeof e.packed === 'string') eventsByOldId.set(e.resultId!, e as ExportedEvents);
+        const layoutOk = e?.layout === EVENT_LAYOUT || e?.layout === EVENT_LAYOUT_COMBOS;
+        if (Number.isSafeInteger(e?.resultId) && layoutOk && typeof e.packed === 'string') eventsByOldId.set(e.resultId!, e as ExportedEvents);
     }
     const summary: ImportSummary = { added: 0, duplicates: 0, invalid: 0, events: 0 };
     const records = file.results.map((raw) => resultRecordFromJson(raw));
@@ -136,8 +138,10 @@ export async function importIntoProfile(
         if (events) {
             try {
                 const bytes = base64ToBytes(events.packed);
-                if (bytes.byteLength % (WORDS_PER_EVENT * 4) !== 0) throw new Error('bad length');
+                // Unpacking checks the length and, in layout 2, every extension word.
+                unpackEvents(bytes.slice().buffer, events.layout);
                 row.events = bytes.slice().buffer;
+                row.eventsLayout = events.layout;
                 summary.events++;
             } catch {
                 // Events are optional; a damaged row is skipped, the result is kept.

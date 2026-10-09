@@ -55,16 +55,16 @@ export class MemoryPracticeStore implements PracticeStore {
         // Clone everything first: a row that can't be stored throws before anything changes.
         const values = rows.map((row) => {
             const { id: _ignored, ...result } = row.result;
-            return { result: clone({ ...result, profileId }), events: row.events && clone(row.events) };
+            return { result: clone({ ...result, profileId }), events: row.events && clone(row.events), layout: row.eventsLayout ?? EVENT_LAYOUT };
         });
         if (replace) {
             for (const id of await this.listEventIds(profileId)) this.events.delete(id);
             await this.deleteResults(profileId);
         }
-        const ids = values.map(({ result, events }) => {
+        const ids = values.map(({ result, events, layout }) => {
             const id = this.nextId++;
             this.results.set(id, { ...result, id });
-            if (events) this.events.set(id, { schema: RECORD_SCHEMA, resultId: id, profileId, layout: EVENT_LAYOUT, packed: events });
+            if (events) this.events.set(id, { schema: RECORD_SCHEMA, resultId: id, profileId, layout, packed: events });
             return id;
         });
         if (replace || rows.length) this.snapshots.delete(profileId);

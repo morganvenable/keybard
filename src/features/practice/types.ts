@@ -124,12 +124,15 @@ export interface ProfileRecord {
     startDone: boolean;
 }
 
-/** Packed keystrokes of one result (§8.2 layout 1). */
+/** §8.2 event layouts: 1, or 2 for a lesson with combo or double-tap hits (M3). */
+export type EventLayout = 1 | 2;
+
+/** Packed keystrokes of one result (§8.2). */
 export interface EventsRecord {
     schema: 1;
     resultId: number;
     profileId: string;
-    layout: 1;
+    layout: EventLayout;
     packed: ArrayBuffer;
 }
 

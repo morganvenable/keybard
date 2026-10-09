@@ -89,10 +89,13 @@ export class LiveKeymap {
         this.size = rows * cols;
         for (const paths of resolution.paths.values()) {
             for (const path of paths) {
-                const key = `${path.layer}:${path.index}`;
-                let list = this.#pathsAt.get(key);
-                if (!list) this.#pathsAt.set(key, (list = []));
-                list.push(path);
+                // A combo is found from any of its keys (M3).
+                for (const target of path.targets) {
+                    const key = `${path.layer}:${target}`;
+                    let list = this.#pathsAt.get(key);
+                    if (!list) this.#pathsAt.set(key, (list = []));
+                    list.push(path);
+                }
             }
         }
     }
@@ -220,7 +223,8 @@ export class LiveKeymap {
      * firmware-shifted output, or the user-shifted one when Shift is down.
      */
     charAt(index: number, layer: number, shiftDown: boolean): { char: number; shift: Shift } | null {
-        const paths = this.pathsAt(layer, index);
+        // One press of one key: never a combo or a double tap.
+        const paths = this.pathsAt(layer, index).filter((p) => p.targets.length === 1 && p.taps === 1);
         const pick = (shift: Shift) => paths.find((p) => p.shift === shift);
         const found = (shiftDown ? pick('u') : null) ?? pick('n') ?? pick('f');
         return found ? { char: found.char, shift: found.shift } : null;
@@ -359,22 +363,42 @@ export function attributeStep(
         return mask === base && !delayed && !keymap.prereqHeld(sample.down, mask);
     };
 
+    // A combo's other keys are down with this press, and their press edges in the step are its own;
+    // a double tap's first press comes earlier in the step (M3). Null when the path doesn't fit.
+    const companions = (path: Path, edge: MatrixEdge): MatrixEdge[] | null => {
+        if (path.taps === 2) {
+            const first = edges.filter((e) => e.press && e.index === edge.index && e.t < edge.t).sort((a, b) => b.t - a.t)[0];
+            return first ? [first] : null;
+        }
+        const others = path.targets.filter((t) => t !== edge.index);
+        if (others.some((t) => !edge.sample.down[t])) return null;
+        return others.flatMap((t) => edges.filter((e) => e.press && e.index === t && e.t <= edge.t).sort((a, b) => b.t - a.t).slice(0, 1));
+    };
+
     // Rule 1: a press whose key, under the effective layer at that edge, types the character.
     for (const edge of presses) {
         const mask = maskFor(edge);
         const key = keymap.keyAt(edge.index, mask);
-        const candidates = keymap.pathsAt(key.layer, edge.index).filter((p) => p.char === step.typed);
-        if (!candidates.length) continue;
-        const path = bestPath(candidates, edge.sample.down, new Set(oneShotsBefore(edge).map((o) => o.edge.index)));
+        const fits = new Map<Path, MatrixEdge[]>();
+        for (const p of keymap.pathsAt(key.layer, edge.index)) {
+            if (p.char !== step.typed) continue;
+            const with_ = p.targets.length === 1 && p.taps === 1 ? [] : companions(p, edge);
+            if (with_) fits.set(p, with_);
+        }
+        if (!fits.size) continue;
+        const path = bestPath([...fits.keys()], edge.sample.down, new Set(oneShotsBefore(edge).map((o) => o.edge.index)));
+        const companionEdges = fits.get(path)!;
         const prereqEdges = prereqEdgesFor(path, edges, edge.t);
         const pressed: PressedKey = { index: edge.index, layer: key.layer, shift: path.shift };
+        // A double tap is typed from its first press on.
+        const targetEdge = path.taps === 2 ? companionEdges[0].t : edge.t;
         return {
             rule: 1, confidence: 'observed', path, pressed, resolved: path.char,
-            targetEdge: edge.t, delayed: path.delayed, prereqEdges,
+            targetEdge, delayed: path.delayed, prereqEdges,
             skew: edge.t - step.tInput,
-            consumed: [edge.id, ...prereqEdges.map((e) => e.id)],
+            consumed: [edge.id, ...companionEdges.map((e) => e.id), ...prereqEdges.map((e) => e.id)],
             errorClass: classify(pressed),
-            mismatch: eligible(edge.sample, mask, path.delayed || key.tapHold) ? false : null,
+            mismatch: eligible(edge.sample, mask, path.delayed || key.tapHold || path.targets.length > 1) ? false : null,
         };
     }
 

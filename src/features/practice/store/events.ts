@@ -4,17 +4,18 @@ import { OWNER_Q5_EVENT_RETENTION_LESSONS } from '@/constants/owner-decisions';
 import type { KeystrokeEvent } from '../types';
 import type { PracticeStore } from './db';
 import { RECORD_SCHEMA } from './migrations';
-import { EVENT_LAYOUT, packEvents, unpackEvents } from './pack';
+import { EVENT_LAYOUT, EVENT_LAYOUT_COMBOS, eventLayoutFor, packEvents, unpackEvents } from './pack';
 
 export async function saveEvents(store: PracticeStore, profileId: string, resultId: number, events: readonly KeystrokeEvent[]) {
-    await store.putEvents({ schema: RECORD_SCHEMA, resultId, profileId, layout: EVENT_LAYOUT, packed: packEvents(events) });
+    const layout = eventLayoutFor(events);
+    await store.putEvents({ schema: RECORD_SCHEMA, resultId, profileId, layout, packed: packEvents(events, layout) });
 }
 
 export async function loadEvents(store: PracticeStore, resultId: number): Promise<KeystrokeEvent[] | null> {
     const row = await store.getEvents(resultId);
     if (!row) return null;
-    if (row.layout !== EVENT_LAYOUT) return null; // Layout 2 (combos) arrives with M3.
-    return unpackEvents(row.packed);
+    if (row.layout !== EVENT_LAYOUT && row.layout !== EVENT_LAYOUT_COMBOS) return null;
+    return unpackEvents(row.packed, row.layout);
 }
 
 /** Drops event rows beyond the newest `keep` lessons of a profile; returns the pruned result ids. */

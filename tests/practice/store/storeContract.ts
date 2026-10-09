@@ -138,6 +138,23 @@ export function practiceStoreContract(name: string, makeStore: () => PracticeSto
             expect((await loadEvents(b, imported[2].id))?.map((e) => e.t)).toEqual([0, 300]);
         });
 
+        it('keeps layout-2 events (combo and double-tap hits) through save, export and import (M3)', async () => {
+            const a = makeStore();
+            await activeProfile(a, { scope: 'user' });
+            const id = await a.addResult(record(1));
+            const combo = { ...hit(100, 0x3d, '0:38+44:n', 100), phys: { ...hit(100, 0x3d, '0:38+44:n', 100).phys, index: 38 } };
+            await saveEvents(a, 'me', id, [hit(0, 0x61, '0:26:n', null), combo, { ...hit(300, 0x62, '0:26*2:n', 200), phys: { ...hit(0, 0x61, '0:26:n', null).phys } }]);
+            expect((await a.getEvents(id))?.layout).toBe(2);
+            expect((await loadEvents(a, id))?.map((e) => e.path)).toEqual(['0:26:n', '0:38+44:n', '0:26*2:n']);
+            const file = JSON.parse(JSON.stringify(await exportProfile(a, 'me', { includeEvents: true })));
+            expect(file.events[0].layout).toBe(2);
+            const b = makeStore();
+            expect((await importIntoProfile(b, 'me', file, 'merge')).events).toBe(1);
+            const [imported] = await b.listResults('me');
+            expect((await b.getEvents(imported.id))?.layout).toBe(2);
+            expect((await loadEvents(b, imported.id))?.map((e) => e.path)).toEqual(['0:26:n', '0:38+44:n', '0:26*2:n']);
+        });
+
         it('Merge skips results already present (same ts, n, t)', async () => {
             const store = makeStore();
             await store.addResult(record(1));

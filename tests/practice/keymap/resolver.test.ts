@@ -194,8 +194,115 @@ describe('resolver rules', () => {
 
     it('round-trips path keys', () => {
         expect(pathKey(1, 27, 'f')).toBe('1:27:f');
-        expect(parsePathKey('1:27:f')).toEqual({ layer: 1, index: 27, shift: 'f' });
+        // M3 added the targets and taps of combos and double taps to the parsed key.
+        expect(parsePathKey('1:27:f')).toEqual({ layer: 1, index: 27, targets: [27], taps: 1, shift: 'f' });
         expect(parsePathKey('1:27:x')).toBeNull();
+    });
+
+    it('round-trips combo and double-tap path keys (M3)', () => {
+        expect(pathKey(0, [20, 14], 'n')).toBe('0:14+20:n');
+        expect(parsePathKey('0:14+20:n')).toEqual({ layer: 0, index: 14, targets: [14, 20], taps: 1, shift: 'n' });
+        expect(pathKey(0, 26, 'n', 2)).toBe('0:26*2:n');
+        expect(parsePathKey('0:26*2:u')).toEqual({ layer: 0, index: 26, targets: [26], taps: 2, shift: 'u' });
+        expect(parsePathKey('0:14+20*2:n')).toBeNull();
+    });
+});
+
+describe('combos, tap dances and key overrides (M3, §9.4 step 5)', () => {
+    const TD0 = 0x5700;
+    const withTapDance = () => {
+        const board = rebind(svalDefault(), 0, 26, TD0);
+        board.tapdances = [{ idx: 0, tap: 'KC_A', hold: 'KC_NO', doubletap: 'KC_B', taphold: 'KC_NO', tapping_term: 200, enabled: true }];
+        return board;
+    };
+    const resolveFull = (board: ReturnType<typeof svalDefault>) => resolveKeymap(
+        { keymap: board.keymap!, rows: board.rows, cols: board.cols, combos: board.combos, tapdances: board.tapdances, key_overrides: board.key_overrides });
+
+    it('a tap-dance tap types its tap keycode, delayed by the tapping term', () => {
+        const r = resolveFull(withTapDance());
+        const a = r.primary(cp('a'))!;
+        expect(a.key).toBe('0:26:n');
+        expect(a.via).toBe('tapdance');
+        expect(a.delayed).toBe(true);
+        expect(a.emitsOnRelease).toBe(false);
+        expect(a.cost).toBeCloseTo(1 + 1, 5);
+        // User Shift reaches the tap's capital through the same key.
+        expect(r.primary(cp('A'))!.key).toBe('0:26:u');
+    });
+
+    it('a tap-dance double tap is an alternative path pressing its key twice', () => {
+        const r = resolveFull(withTapDance());
+        const paths = r.pathsOf(cp('b'));
+        expect(paths[0].key).toBe('0:19:n');
+        const double = paths.find((p) => p.taps === 2)!;
+        expect(double.key).toBe('0:26*2:n');
+        expect(double.delayed).toBe(true);
+        expect(double.cost).toBeGreaterThan(paths[0].cost);
+        // The reverse map keeps single presses: the key's tap.
+        expect(r.charAt(26, 0, 'n')).toBe(cp('a'));
+        expect(r.byKey.get('0:26*2:n')).toBe(cp('b'));
+    });
+
+    it('a disabled or empty tap dance types nothing', () => {
+        const board = withTapDance();
+        board.tapdances = [{ ...board.tapdances![0], enabled: false }];
+        expect(resolveFull(board).primary(cp('a'))).toBeNull();
+    });
+
+    it('a combo is a multi-target path with cost n and the sorted path key', () => {
+        const board = svalDefault();
+        board.combos = [{ cmbid: 0, keys: ['KC_K', 'KC_J', 'KC_NO', 'KC_NO'], output: 'KC_EQUAL', options: 0x8000 }];
+        const r = resolveFull(board);
+        const eq = r.primary(cp('='))!;
+        expect(eq.key).toBe('0:38+44:n');
+        expect(eq.targets).toEqual([38, 44]);
+        expect(eq.via).toBe('combo');
+        expect(eq.cost).toBeCloseTo(2, 5);
+        expect(eq.delayed).toBe(false);
+        // The layer-1 key stays an alternative.
+        expect(r.pathsOf(cp('=')).some((p) => p.key === '1:25:n')).toBe(true);
+        // Shift + the combo types its shifted output.
+        expect(r.pathsOf(cp('+')).some((p) => p.key === '0:38+44:u')).toBe(true);
+    });
+
+    it('a disabled combo, or one whose key is not on the keymap, is no path', () => {
+        const board = svalDefault();
+        board.combos = [
+            { cmbid: 0, keys: ['KC_K', 'KC_J'], output: 'KC_EQUAL', options: 0 },
+            { cmbid: 1, keys: ['KC_K', 'KC_F13'], output: 'KC_EQUAL', options: 0x8000 },
+        ];
+        expect(resolveFull(board).pathsOf(cp('=')).every((p) => p.targets.length === 1)).toBe(true);
+    });
+
+    it('a Shift key override types its replacement instead of the shifted character', () => {
+        const board = svalDefault();
+        board.key_overrides = [{ koid: 0, trigger: 'KC_COMMA', replacement: 'KC_SCOLON', layers: 0xffff, trigger_mods: 0x02, negative_mod_mask: 0, suppressed_mods: 0x02, options: 0x80 }];
+        const r = resolveFull(board);
+        expect(r.pathsOf(cp(';')).map((p) => p.key)).toContain('0:42:u');
+        expect(r.pathsOf(cp(';')).find((p) => p.key === '0:42:u')!.via).toBe('override');
+        // "<" no longer comes from Shift + comma.
+        expect(r.pathsOf(cp('<')).some((p) => p.key === '0:42:u')).toBe(false);
+        expect(r.charAt(42, 0, 'u')).toBe(cp(';'));
+        expect(r.primary(cp(','))!.key).toBe('0:42:n');
+    });
+
+    it('a key override needing Ctrl, a disabled one, or one off its layers changes nothing', () => {
+        const base = resolveFull(svalDefault());
+        const ko = { koid: 0, trigger: 'KC_COMMA', replacement: 'KC_SCOLON', layers: 0xffff, trigger_mods: 0x02, negative_mod_mask: 0, suppressed_mods: 0x02, options: 0x80 };
+        for (const variant of [{ trigger_mods: 0x01 }, { options: 0 }, { layers: 0b10 }]) {
+            const board = svalDefault();
+            board.key_overrides = [{ ...ko, ...variant }];
+            expect(resolveFull(board).charAt(42, 0, 'u')).toBe(base.charAt(42, 0, 'u'));
+        }
+    });
+
+    it('a key override with no trigger mods replaces the plain character', () => {
+        const board = svalDefault();
+        board.key_overrides = [{ koid: 0, trigger: 'KC_COMMA', replacement: 'KC_SCOLON', layers: 0xffff, trigger_mods: 0, negative_mod_mask: 0, suppressed_mods: 0, options: 0x80 }];
+        const r = resolveFull(board);
+        expect(r.charAt(42, 0, 'n')).toBe(cp(';'));
+        expect(r.charAt(42, 0, 'u')).toBe(cp(':'));
+        expect(r.primary(cp(','))).toBeNull();
     });
 });
 

@@ -1,17 +1,19 @@
 // Practice persistence (spec §8.1): IndexedDB `keybard-practice`, namespaced like
 // appStorage so github.io previews keep their own data. store/memory.ts is the
 // in-memory twin used in tests and when IndexedDB is unavailable (private windows).
-import type { EventsRecord, ProfileRecord, ResultRecord, SnapshotRecord } from '../types';
+import type { EventLayout, EventsRecord, ProfileRecord, ResultRecord, SnapshotRecord } from '../types';
 import { DB_VERSION, migrate, RECORD_SCHEMA, STORES } from './migrations';
 import { EVENT_LAYOUT } from './pack';
 
 /** A stored result always has its id. */
 export type StoredResult = ResultRecord & { id: number };
 
-/** One imported result, with its packed layout-1 events when the file had them. */
+/** One imported result, with its packed events when the file had them. */
 export interface ImportRow {
     result: ResultRecord;
     events?: ArrayBuffer;
+    /** Layout of `events` (§8.2); 1 when absent. */
+    eventsLayout?: EventLayout;
 }
 
 export interface PracticeStore {
@@ -181,7 +183,7 @@ export class IndexedDbPracticeStore implements PracticeStore {
                 req.onsuccess = () => guard(() => {
                     ids[i] = req.result;
                     if (row.events) {
-                        const record: EventsRecord = { schema: RECORD_SCHEMA, resultId: req.result, profileId, layout: EVENT_LAYOUT, packed: row.events };
+                        const record: EventsRecord = { schema: RECORD_SCHEMA, resultId: req.result, profileId, layout: row.eventsLayout ?? EVENT_LAYOUT, packed: row.events };
                         events.put(record);
                     }
                 });
