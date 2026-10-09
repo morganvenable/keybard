@@ -121,8 +121,20 @@ export function staticReferences(html: string): string[] {
     return problems;
 }
 
-/** Add the CSP to a built page, refusing anything that would load from elsewhere. */
-export function lockDown(source: string): string {
+/** Where Keybard's source is: the license notice in the file points here (spec §11). */
+export const SOURCE_URL = "https://github.com/svalboard/keybard";
+
+/** The license notice the file carries: opened from disk, Paranoid can't follow About's Source code link. */
+export function licenseNotice(license: string): string {
+    return [
+        `Keybard Paranoid. Keybard is free software, licensed ${license}.`,
+        `Source code: ${SOURCE_URL}`,
+        "Includes code from keybr.com (https://github.com/aradzie/keybr.com), AGPL-3.0.",
+    ].join("\n");
+}
+
+/** Add the CSP (and a license notice, as a comment) to a built page, refusing anything that would load from elsewhere. */
+export function lockDown(source: string, notice?: string): string {
     // Browsers hash script text after turning CRLF into LF, so hash (and ship) LF text.
     const html = source.replace(/\r\n?/g, "\n");
     const problems = staticReferences(html);
@@ -132,7 +144,12 @@ export function lockDown(source: string): string {
     const meta = `<meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy(hashes)}">`;
     const charset = /<meta\s+charset=["']?utf-8["']?\s*\/?>/i;
     if (!charset.test(html)) throw new Error("Paranoid build lost its charset meta");
-    return html.replace(charset, m => `${m}\n${meta}`);
+    const locked = html.replace(charset, m => `${m}\n${meta}`);
+    if (!notice) return locked;
+    // Nothing in the notice can close the comment early.
+    const comment = `<!--\n${notice.replace(/-{2,}/g, "-").replace(/>/g, ")")}\n-->`;
+    const doctype = /^\s*<!doctype html>/i;
+    return doctype.test(locked) ? locked.replace(doctype, m => `${m}\n${comment}`) : `${comment}\n${locked}`;
 }
 
 export function paranoidPlugins(root: string): Plugin[] {
@@ -152,7 +169,8 @@ export function paranoidPlugins(root: string): Plugin[] {
             },
             closeBundle() {
                 const built = path.join(outDir, "index.html");
-                writeFileSync(built, lockDown(readFileSync(built, "utf8")));
+                const { license } = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as { license: string };
+                writeFileSync(built, lockDown(readFileSync(built, "utf8"), licenseNotice(license)));
                 const final = path.join(outDir, PARANOID_FILE);
                 renameSync(built, final);
                 const digest = createHash("sha256").update(readFileSync(final)).digest("hex");
