@@ -172,3 +172,17 @@ describe('UsbSampler', () => {
         expect(stats.rttP50).not.toBeNull();
     });
 });
+
+describe('UsbSampler restarts', () => {
+    it('a stop during the 2 s retry wait ends it, so a restart reads at once', async () => {
+        const board = new FakeBoard();
+        const s = (current = sampler(board));
+        s.start();
+        for (let i = 1; i <= FAILURES_TO_FALLBACK; i++) await board.fail(i);
+        expect(board.sleeps).toContain(RETRY_MS);
+        const calls = board.pollMatrix.mock.calls.length;
+        s.stop();
+        s.start();
+        await vi.waitFor(() => expect(board.pollMatrix.mock.calls.length).toBe(calls + 1));
+    });
+});

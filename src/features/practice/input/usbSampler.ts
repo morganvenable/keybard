@@ -213,6 +213,8 @@ export class UsbSampler {
     #samples = 0;
     #rtts: number[] = [];
     #loopDone: Promise<void> = Promise.resolve();
+    /** Ends the wait the loop is in (a retry or gate wait), so a stop takes effect at once. */
+    #interrupt: (() => void) | null = null;
 
     constructor(deps: UsbSamplerDeps) {
         this.#deps = {
@@ -257,6 +259,20 @@ export class UsbSampler {
         if (!this.#running) return;
         this.#running = false;
         this.#gen++;
+        this.#interrupt?.();
+    }
+
+    /** The injected sleep, cut short by stop(). */
+    #sleep(ms: number): Promise<void> {
+        if (ms === 0) return this.#deps.sleep(0);
+        return new Promise<void>((resolve) => {
+            const done = () => {
+                if (this.#interrupt === done) this.#interrupt = null;
+                resolve();
+            };
+            this.#interrupt = done;
+            void this.#deps.sleep(ms).then(done);
+        });
     }
 
     stats(): SamplerStats {
@@ -283,7 +299,8 @@ export class UsbSampler {
     }
 
     async #loop(gen: number) {
-        const { clock, pollMatrix, getLayerMasks, canRead, sleep, rows, cols } = this.#deps;
+        const { clock, pollMatrix, getLayerMasks, canRead, rows, cols } = this.#deps;
+        const sleep = (ms: number) => this.#sleep(ms);
         let iteration = 0;
         // A fresh run starts a fresh baseline: edges never span a stop.
         this.history.clear();
