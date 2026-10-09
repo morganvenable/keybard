@@ -1225,7 +1225,11 @@ const EditorLayoutInner = () => {
                 <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
             </div>}
             <AppSidebar />
-            {overlayVisited && <div hidden={workspace !== "overlay"} className="overlay-workspace trainer-shell-content h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>
+            {/* TrainerPage's root is 100dvh; [&>.trainer-page]:!h-full fits it to this box instead, so a panel
+                docked in bottom-bar layout shortens the page rather than adding a second scroll container.
+                Important because trainer.css is unlayered and outranks Tailwind's utilities layer.
+                TODO(practice): MO restyles the page and can drop the override. */}
+            {overlayVisited && <div hidden={workspace !== "overlay"} className="overlay-workspace trainer-shell-content h-dvh max-h-dvh overflow-auto bg-kb-gray [&>.trainer-page]:!h-full" style={contentStyle}>
                 <TrainerPage active={workspace === "overlay"} />
             </div>}
             {practiceVisited && <div hidden={workspace !== "practice"} className="practice-workspace relative flex-1 min-w-0 h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>

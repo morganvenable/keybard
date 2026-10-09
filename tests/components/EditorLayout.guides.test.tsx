@@ -319,6 +319,14 @@ describe("EditorLayout 3D guide sequencing", () => {
     }
   });
 
+  it("fits the interim Overlay page to its box so a docked panel shortens it", () => {
+    mockPanels.workspace = "overlay";
+    mockPanels.activePanel = "overlay";
+    render(<EditorLayout />);
+    const box = document.querySelector(".overlay-workspace") as HTMLElement;
+    expect(box.className).toContain("[&>.trainer-page]:!h-full");
+  });
+
   it("never remounts the detail panel or the editor content when switching workspaces", () => {
     const { rerender } = render(<EditorLayout />);
     expect(mounts).toEqual({ secondarySidebar: 1, layerSelector: 1 });
