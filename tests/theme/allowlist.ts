@@ -6,7 +6,7 @@
  * an entry here. Paths are repo-relative with forward slashes.
  */
 
-export type GuardRule = "hardcoded-chrome" | "svg-attr" | "gray-no-dark" | "header-themed";
+export type GuardRule = "hardcoded-chrome" | "svg-attr" | "gray-no-dark" | "header-themed" | "red-reserved";
 
 export interface AllowedFile {
     /** Exact file, a directory prefix, or a RegExp tested against the repo-relative path. */
@@ -70,4 +70,48 @@ export const ALLOWED_LITERALS: AllowedLiteral[] = [
         rule: "hardcoded-chrome",
         reason: "L/R toggle thumb: a white knob with black lettering on the gray track, legible in both themes.",
     },
+];
+
+// ---------------------------------------------------------------------------
+// red-reserved (docs/practice/spec.md §5.17)
+// ---------------------------------------------------------------------------
+
+/** Why a red utility is allowed. Selection, hover, drop targets and pending edits are never red. */
+export type RedReason = "destructive" | "error" | "wrong-key" | "layer-data";
+
+export interface RedAllowed {
+    file: string;
+    /** Substring of, or RegExp tested against, the literal that holds the red utility. */
+    literal: string | RegExp;
+    reason: RedReason;
+    /** What the red marks, for the reader. */
+    note: string;
+}
+
+/**
+ * The only places a (bg|ring|border|outline)-red-N or ...-kb-red utility may appear in
+ * src/. Unlike ALLOWED_FILES, this rule scans every file, including src/components/ui,
+ * the ProofSheet pages and ScanLab. Unused entries fail the test.
+ * Practice's wrong-key border and badge and its error tint are added with the Practice code.
+ */
+export const RED_ALLOWED: RedAllowed[] = [
+    // Destructive: delete and trash buttons (hover) and destructive confirm buttons.
+    { file: "src/components/LayerRow.tsx", literal: "transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium", reason: "destructive", note: "Delete-layer buttons (two sizes)." },
+    { file: "src/components/LayerRow.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm delete layer." },
+    { file: "src/components/LayoutCard.tsx", literal: "hover:bg-red-50 dark:hover:bg-red-950/40", reason: "destructive", note: "Delete layer from a saved layout." },
+    { file: "src/components/LayoutGroupCard.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Delete layout button." },
+    { file: "src/components/LayoutGroupCard.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm delete layout." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Clear binding (trash)." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm clear binding." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Clear slot (trash)." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/MacroEditorText.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Delete macro text action (trash)." },
+    { file: "src/layout/SecondarySidebar/components/SidebarItemRow.tsx", literal: "hover:bg-red-500 dark:hover:bg-red-500", reason: "destructive", note: "Delete list item." },
+
+    // Errors: error boxes and notices.
+    { file: "src/components/EditingTargetStatus.tsx", literal: "border-red-200 dark:border-red-900", reason: "error", note: "Connection error notice." },
+    { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", literal: "bg-red-50 dark:bg-red-950/40", reason: "error", note: "Layout load error box." },
+    { file: "src/pages/ExploreLayoutsPage.tsx", literal: "bg-red-50 text-red-600 dark:bg-red-950/40", reason: "error", note: "Layout load error box." },
+
+    // Layer color data: a layer the user colors red still has red faces. (.ts, scanned by this rule only)
+    { file: "src/utils/colors.ts", literal: /^(hover:)?(bg|border)-kb-red( text-white)?$/, reason: "layer-data", note: "Red layer color: face, hover border and hover face." },
 ];

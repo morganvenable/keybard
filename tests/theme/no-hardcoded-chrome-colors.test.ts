@@ -20,13 +20,19 @@
  * - header-themed: a headerClassName value containing kb-active or
  *   kb-header. Key headers are layer data and are never themed, so the
  *   colour rules above are not applied inside headerClassName values.
+ * - red-reserved (docs/practice/spec.md §5.17): red means error, destructive
+ *   or wrong key, nothing else. A (bg|ring|border|outline)-red-N or
+ *   ...-kb-red utility (any variant) in a literal is a finding unless
+ *   RED_ALLOWED lists it with a reason. This rule scans every .tsx and .ts
+ *   file under src/, ignoring ALLOWED_FILES, and also reads headerClassName
+ *   values. Selection uses kb-select, pending edits kb-pending.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { ALLOWED_FILES, ALLOWED_LITERALS, type AllowedLiteral, type GuardRule } from "./allowlist";
+import { ALLOWED_FILES, ALLOWED_LITERALS, RED_ALLOWED, type AllowedLiteral, type GuardRule, type RedAllowed } from "./allowlist";
 
 const ROOT = process.cwd();
 const SRC = resolve(ROOT, "src");
@@ -108,17 +114,27 @@ export function analyzeClassString(text: string): { rule: Rule; token: string }[
     return out;
 }
 
+const RED_RE = /^(bg|ring|border|outline)(-[xytrbl]|-[xy]?[se])?-(red-\d{2,3}|kb-red)(\/\d+)?$/;
+
+/** red-reserved: every red background, ring, border or outline utility in one class string. */
+export function analyzeRedClassString(text: string): string[] {
+    return text.split(/\s+/).filter(Boolean).filter((cls) => {
+        const { utility } = parseClass(cls);
+        return RED_RE.test(utility.replace(/!$/, ""));
+    });
+}
+
 const BLACK_VALUES = new Set(["black", "#000", "#000000"]);
 
 // ---------------------------------------------------------------------------
 // File scanning
 // ---------------------------------------------------------------------------
 
-function walk(dir: string, acc: string[] = []): string[] {
+function walk(dir: string, exts: string[] = [".tsx"], acc: string[] = []): string[] {
     for (const name of readdirSync(dir)) {
         const full = join(dir, name);
-        if (statSync(full).isDirectory()) walk(full, acc);
-        else if (full.endsWith(".tsx")) acc.push(full);
+        if (statSync(full).isDirectory()) walk(full, exts, acc);
+        else if (exts.some((e) => full.endsWith(e)) && !full.endsWith(".d.ts")) acc.push(full);
     }
     return acc;
 }
@@ -172,6 +188,47 @@ export function scanSource(file: string, source: string): Finding[] {
     };
     visit(sf);
     return findings;
+}
+
+/** red-reserved findings in one file. Visits every literal, headerClassName values and template parts included. */
+export function scanRedSource(file: string, source: string): Finding[] {
+    const kind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+    const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
+    const findings: Finding[] = [];
+    const visit = (node: ts.Node) => {
+        const text = literalText(node);
+        if (text !== null) {
+            const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+            for (const token of analyzeRedClassString(text)) findings.push({ file, line, rule: "red-reserved", token, literal: text });
+        }
+        // Keep descending: a template's ${...} spans can hold more literals.
+        ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    return findings;
+}
+
+/** Every file the red-reserved rule reads: all .ts and .tsx under src/, with no file exemptions. */
+export function redScanFiles(): string[] {
+    return walk(SRC, [".ts", ".tsx"]).map((full) => toPosix(relative(ROOT, full)));
+}
+
+export function matchesRedAllowed(f: Finding, a: RedAllowed): boolean {
+    if (f.file !== a.file) return false;
+    return typeof a.literal === "string" ? f.literal.includes(a.literal) : a.literal.test(f.literal);
+}
+
+function scanRedRepo(): { findings: Finding[]; unusedRedAllows: RedAllowed[] } {
+    const used = new Set<RedAllowed>();
+    const findings: Finding[] = [];
+    for (const rel of redScanFiles()) {
+        for (const f of scanRedSource(rel, readFileSync(resolve(ROOT, rel), "utf-8"))) {
+            const allow = RED_ALLOWED.find((a) => matchesRedAllowed(f, a));
+            if (allow) used.add(allow);
+            else findings.push(f);
+        }
+    }
+    return { findings, unusedRedAllows: RED_ALLOWED.filter((a) => !used.has(a)) };
 }
 
 function matchesAllowedLiteral(f: Finding, a: AllowedLiteral): boolean {
@@ -242,6 +299,69 @@ describe("theme guard: analyzer self-test", () => {
         ].join("\n");
         const found = scanSource("x.tsx", src).map((f) => `${f.line}:${f.rule}`);
         expect(found).toEqual(["1:svg-attr", "2:svg-attr", "3:hardcoded-chrome", "4:header-themed"]);
+    });
+});
+
+describe("theme guard: red-reserved self-test", () => {
+    it("flags red backgrounds, rings, borders and outlines in any variant", () => {
+        expect(analyzeRedClassString("bg-red-500 text-white ring-2 ring-red-500 ring-offset-1")).toEqual(["bg-red-500", "ring-red-500"]);
+        expect(analyzeRedClassString("hover:border-red-600 !bg-red-600 dark:!bg-red-950/40 bg-red-600!")).toEqual(["hover:border-red-600", "!bg-red-600", "dark:!bg-red-950/40", "bg-red-600!"]);
+        expect(analyzeRedClassString("border-t-red-500 outline-red-500 bg-kb-red hover:ring-kb-red")).toEqual(["border-t-red-500", "outline-red-500", "bg-kb-red", "hover:ring-kb-red"]);
+    });
+
+    it("leaves red text, other hues and the role tokens alone", () => {
+        expect(analyzeRedClassString("text-red-700 dark:text-red-400 text-kb-red decoration-kb-red")).toEqual([]);
+        expect(analyzeRedClassString("bg-kb-select-tint ring-kb-select border-kb-pending bg-kb-surface ring-offset-1")).toEqual([]);
+        expect(analyzeRedClassString("bg-kb-redirect border-reddish")).toEqual([]);
+    });
+
+    it("flags a selected-key literal that is not allowlisted", () => {
+        const src = 'const c = selected ? "bg-red-500 text-white ring-2 ring-red-500 ring-offset-1 ring-offset-background" : "";';
+        const found = scanRedSource("src/components/Key.tsx", src);
+        expect(found.map((f) => f.token)).toEqual(["bg-red-500", "ring-red-500"]);
+        expect(found.filter((f) => !RED_ALLOWED.some((a) => matchesRedAllowed(f, a)))).toHaveLength(2);
+    });
+
+    it("allows a trash-hover literal listed in RED_ALLOWED", () => {
+        const src = '<button className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium" />;';
+        const found = scanRedSource("src/components/LayerRow.tsx", src);
+        expect(found.map((f) => f.token)).toEqual(["hover:bg-red-500"]);
+        expect(found.every((f) => RED_ALLOWED.some((a) => matchesRedAllowed(f, a)))).toBe(true);
+    });
+
+    it("reads headerClassName values, template spans and .ts files", () => {
+        const tsx = [
+            'const a = <Key headerClassName="bg-red-600 text-white" />;',
+            'const b = `px-2 ${on ? "border-red-500" : ""} ring-kb-red`;',
+        ].join("\n");
+        expect(scanRedSource("x.tsx", tsx).map((f) => `${f.line}:${f.token}`)).toEqual(["1:bg-red-600", "2:ring-kb-red", "2:border-red-500"]);
+        const tsSrc = 'export const STYLE = <const>{ pending: "border-red-500" };';
+        expect(scanRedSource("x.ts", tsSrc).map((f) => f.token)).toEqual(["border-red-500"]);
+    });
+
+    it("still scans src/components/ui and the other ALLOWED_FILES", () => {
+        const files = redScanFiles();
+        expect(files.some((f) => f.startsWith("src/components/ui/"))).toBe(true);
+        expect(files.some((f) => f.startsWith("src/pages/ProofSheet/"))).toBe(true);
+        expect(files).toContain("src/layout/SecondarySidebar/Panels/ScanLabPanel.tsx");
+        expect(files).toContain("src/utils/colors.ts");
+        // A red literal in a ui primitive is a finding: no RED_ALLOWED entry covers ui/.
+        const found = scanRedSource("src/components/ui/button.tsx", 'const v = "bg-red-500 text-white";');
+        expect(found).toHaveLength(1);
+        expect(RED_ALLOWED.some((a) => matchesRedAllowed(found[0], a))).toBe(false);
+    });
+});
+
+describe("theme guard: red-reserved over src/", () => {
+    const { findings, unusedRedAllows } = scanRedRepo();
+
+    it("has no red outside RED_ALLOWED (errors, destructive actions, wrong keys, layer data)", () => {
+        const report = findings.map((f) => `${f.file}:${f.line} [${f.rule}] ${f.token}`);
+        expect(report, "Red is reserved: use kb-select for selection, kb-pending for unsent edits (spec §5.17). Allowlist: RED_ALLOWED in tests/theme/allowlist.ts").toEqual([]);
+    });
+
+    it("has no stale RED_ALLOWED entries", () => {
+        expect(unusedRedAllows.map((a) => `${a.file} ${String(a.literal)}`)).toEqual([]);
     });
 });
 
