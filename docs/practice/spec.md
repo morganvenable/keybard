@@ -1774,6 +1774,8 @@ M1b adds a Vitest check that reads `dist/` stats after `vite build` in CI and fa
 
 **Measured in M1b (2026-10-09).** `build/bundle-stats.ts` records Practice's own share of each build and `tests/build/bundle-size.test.ts` checks it (`npm run check:bundle`; the test workflow runs it on Node 24). Production: Practice code in the entry chunk 1.6 KB gzip, measured before minification (the whole entry chunk grew by 1.0 KB gzip against `d288126`); the practice lazy chunks (engine and UI) 66 KB gzip; the English content 60 KB gzip (word list chunk 37 KB, model asset 25 KB). Paranoid: Practice code (minified share) and inlined content add about 392 KB to the single file; the word list is inlined once.
 
+**Measured in M2 (2026-10-09).** Live · USB and the M0 lab: Practice in the entry chunk 1.5 KB gzip; practice lazy chunks 81 KB gzip (the lab is its own 4.5 KB chunk); English content 62 KB gzip; Paranoid growth 437 KB. All within budget.
+
 ### 9.9 Testing
 
 - **Vendored engine:** keybr's tests for the vendored packages ported to Vitest (about 7.1k LOC), with fixtures rebuilt on a fake Svalboard keyboard instead of `loadKeyboard`/`Layout` tables (§9.2). Added tests for each patch: `lessonProps` without code/books, the `Lesson.filter` override, and `makeStats` with gaps and pauses.
