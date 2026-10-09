@@ -131,6 +131,22 @@ describe('event packing, layout 2: combos and double taps (M3, §8.2)', () => {
         expect(out[1].phys.index).toBe(44);
         expect(out[3].prereq).toEqual([2]);
         expect(out[4].phys).toMatchObject({ index: 27, shift: 'n' });
+        // The extension word must not shift the time of the combo hit or of later events.
+        expect(out.map((e) => e.t)).toEqual([0, 100, 200, 300, 400]);
+        expect(out.map((e) => e.raw)).toEqual([0, 100, 100, 100, 100]);
+        expect(out.map((e) => e.ttt)).toEqual([null, 100, 100, 50, null]);
+    });
+
+    it('keeps the time of a combo hit followed by another hit (layout 2)', () => {
+        const events = [
+            event({ t: 0 }),
+            event({ t: 100, expected: 0x3d, typed: 0x3d, path: '0:38+44:n', phys: { index: 44, layer: 0 } }),
+            event({ t: 250 }),
+        ];
+        const out = unpackEvents(packEvents(events), 2);
+        expect(out.map((e) => e.t)).toEqual([0, 100, 250]);
+        expect(out.map((e) => e.raw)).toEqual([0, 100, 150]);
+        expect(out.map((e) => e.ttt)).toEqual([null, 100, 150]);
     });
 
     it('refuses a layout-2 row cut inside an extension word', () => {

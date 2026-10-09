@@ -152,7 +152,12 @@ export function practiceStoreContract(name: string, makeStore: () => PracticeSto
             expect((await importIntoProfile(b, 'me', file, 'merge')).events).toBe(1);
             const [imported] = await b.listResults('me');
             expect((await b.getEvents(imported.id))?.layout).toBe(2);
-            expect((await loadEvents(b, imported.id))?.map((e) => e.path)).toEqual(['0:26:n', '0:38+44:n', '0:26*2:n']);
+            const out = await loadEvents(b, imported.id);
+            expect(out?.map((e) => e.path)).toEqual(['0:26:n', '0:38+44:n', '0:26*2:n']);
+            // The combo's extension word must not shift its time or the next event's.
+            expect(out?.map((e) => e.t)).toEqual([0, 100, 300]);
+            expect(out?.map((e) => e.raw)).toEqual([0, 100, 200]);
+            expect(out?.map((e) => e.ttt)).toEqual([null, 100, 200]);
         });
 
         it('Merge skips results already present (same ts, n, t)', async () => {

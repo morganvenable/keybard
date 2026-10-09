@@ -134,7 +134,7 @@ export function unpackEvents(buffer: ArrayBuffer, layout: EventLayout = EVENT_LA
     let lastHit: number | null = null;
     for (let o = 0; o < words.length; o += WORDS_PER_EVENT) {
         if (o + WORDS_PER_EVENT > words.length) throw new Error('Practice events: bad packed length');
-        const w1 = words[o + 1], w2 = words[o + 2], w3 = words[o + 3], w4 = words[o + 4];
+        const w0 = words[o], w1 = words[o + 1], w2 = words[o + 2], w3 = words[o + 3], w4 = words[o + 4];
         let targets: number[] = [];
         let taps: 1 | 2 = 1;
         if (layout === EVENT_LAYOUT_COMBOS) {
@@ -145,10 +145,11 @@ export function unpackEvents(buffer: ArrayBuffer, layout: EventLayout = EVENT_LA
                 const ext = words[o + WORDS_PER_EVENT];
                 targets = Array.from({ length: Math.min(extra, MAX_EXTRA_TARGETS) }, (_, k) => (ext >>> (7 * k)) & 127)
                     .filter((i) => i !== NO_INDEX);
+                // Skip the extension word; the event's own words are read above.
                 o++;
             }
         }
-        const t = words[o] / 10;
+        const t = w0 / 10;
         const kind = KINDS[(w1 >>> 21) & 3];
         const errorClass = (w1 >>> 24) & 7;
         const shift: Shift | undefined = SHIFTS[(w1 >>> 27) & 3];
