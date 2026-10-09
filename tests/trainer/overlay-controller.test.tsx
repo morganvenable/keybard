@@ -16,7 +16,8 @@ vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => la
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => panels }));
 
 const board = { rows: 10, cols: 6, keymap: [Array(60).fill(4), Array(60).fill(5)], trainerLabels: {}, cosmetic: { layer: { 0: 'Base' }, layer_colors: { 1: 'blue' } },
-    keylayout: { 0: { row: 0, col: 0, x: 0, y: 0, w: 1, h: 1 }, 1: { row: 0, col: 1, x: 1, y: 0, w: 1, h: 1 } } };
+    // Twelve keys, so Preview held keys (keys 8 to 10) has something to light.
+    keylayout: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i, { row: Math.floor(i / 6), col: i % 6, x: i % 6, y: Math.floor(i / 6), w: 1, h: 1 }])) };
 let snapshot: Record<string, unknown>;
 const calls: { path: string; body: Record<string, unknown> }[] = [];
 const fetchMock = vi.fn();
@@ -96,6 +97,15 @@ describe('Host config mirroring', () => {
         await waitFor(() => expect(configWrites().some(c => (c.body.config as { highlightPressed: boolean }).highlightPressed)).toBe(true));
         await waitFor(() => expect(result.current.host.state?.config.highlightPressed).toBe(true));
         expect(result.current.highlightPressed).toBe(true);
+    });
+
+    it("Preview held keys lights keys while following the board, on top of Host's held keys", async () => {
+        snapshot = { ...snapshot, pressed: [1] };
+        const { result } = renderHook(() => useOverlayController(true));
+        await waitFor(() => expect(result.current.following).toBe(true));
+        await waitFor(() => expect([...result.current.held]).toEqual([1]));
+        act(() => result.current.previewHeld());
+        expect([...result.current.held].sort((x, y) => x - y)).toEqual([1, 8, 9, 10]);
     });
 
     it('lists the layers of the board Host reads for Desktop default layer, whatever the preview shows', async () => {

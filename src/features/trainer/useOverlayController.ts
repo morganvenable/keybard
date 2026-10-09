@@ -185,7 +185,9 @@ export function useOverlayController(active: boolean) {
     const sourceName = noBoard ? 'No board' : sourceOptions.find(o => o.value === sourceValue)?.label ?? snapshot;
 
     const pressed = host.state?.pressed;
-    const hostHeld = useMemo(() => new Set(pressed || []), [pressed]);
+    // Following the board, the preview shows Host's held keys; Preview held keys adds its simulated
+    // chord on top, so the button works with Host connected too (spec M-30).
+    const hostHeld = useMemo(() => new Set([...(pressed || []), ...held]), [pressed, held]);
     const layers = useMemo(() => layerOptions(board), [board]);
     // Desktop default layer is a Host-wide setting, so it lists the board Host reads, not the preview's.
     const hostBoard = host.state?.board;
