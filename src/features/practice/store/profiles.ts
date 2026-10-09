@@ -12,6 +12,10 @@ import { RECORD_SCHEMA } from './migrations';
 export const DEFAULT_PROFILE_ID = 'me';
 export const DEFAULT_PROFILE_NAME = 'Me';
 
+/**
+ * `serial` is the board's persistent serial: pass it only when IdentityInfo's
+ * serialSource is not None, as BackupContext's boardKeyFor does.
+ */
 export type BoardSource =
     | { kind: 'connected'; serial?: string | null; kbid?: string | null }
     | { kind: 'file'; kbid?: string | null; kbidRadix?: 10 | 16 }
@@ -34,7 +38,9 @@ export function normalizeUid(kbid: string, radix: 10 | 16 = 16): string | null {
 export function boardIdentity(source: BoardSource): string {
     if (source.kind === 'example') return 'example';
     if ((source.kind === 'connected' || source.kind === 'host') && source.serial) {
-        return source.serial.startsWith('sval:') ? source.serial : `sval:${source.serial}`;
+        const serial = source.serial.startsWith('sval:') ? source.serial : `sval:${source.serial}`;
+        // As boardKeyFor (BackupContext.tsx): an all-zero serial is not persistent, so the UID decides.
+        if (!/^sval:0+$/.test(serial)) return serial;
     }
     const uid = source.kbid ? normalizeUid(source.kbid, source.kind === 'file' ? source.kbidRadix ?? 16 : 16) : null;
     return uid ? `uid:${uid}` : 'unknown';

@@ -213,6 +213,9 @@ describe('profiles and board identity (§8.1, OWNER_Q6)', () => {
         expect(boardIdentity({ kind: 'connected', serial: 'E46498769F365934' })).toBe('sval:E46498769F365934');
         expect(boardIdentity({ kind: 'connected', serial: 'sval:E46498769F365934' })).toBe('sval:E46498769F365934');
         expect(boardIdentity({ kind: 'connected', kbid: '47f55316c11a3d1b' })).toBe('uid:47F55316C11A3D1B');
+        // An all-zero serial is not persistent (boardKeyFor): the UID decides.
+        expect(boardIdentity({ kind: 'connected', serial: 'sval:0000000000000000', kbid: '47f55316c11a3d1b' })).toBe('uid:47F55316C11A3D1B');
+        expect(boardIdentity({ kind: 'host', serial: '0000000000000000' })).toBe('unknown');
         // The same UID from a file, in hex (current loader) or decimal (raw .svil uid).
         expect(boardIdentity({ kind: 'file', kbid: '47f55316c11a3d1b' })).toBe('uid:47F55316C11A3D1B');
         expect(boardIdentity({ kind: 'file', kbid: '5199957870438586395', kbidRadix: 10 })).toBe('uid:4829F621F27D181B');
