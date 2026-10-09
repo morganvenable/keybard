@@ -14,6 +14,11 @@ import { ConfidenceBar, StatCell } from "./StatCell";
 // TODO(practice): M4 adds the sparkline, Pressed instead, Layer reach and the aggregate variant;
 // M3 adds Drill this key.
 
+/**
+ * The §5.0 popover idiom (LayerNameBadge's classes) with p-4 instead of p-2: LayerNameBadge's p-2 frames
+ * menu rows that bring their own padding, while P4 and P5 hold headings, label/value rows and a stats
+ * grid set straight on the card, which p-2 would put 8 px from the rounded-3xl edge.
+ */
 export const POPOVER_CLASSES = "z-[80] w-80 max-w-[calc(100vw-24px)] bg-kb-popover rounded-3xl p-4 shadow-xl border border-gray-200 dark:border-neutral-700 text-kb-ink";
 
 const CHIP = "px-2 py-0.5 rounded-full bg-kb-gray-medium text-xs whitespace-nowrap";

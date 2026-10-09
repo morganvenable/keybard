@@ -334,3 +334,113 @@ describe('Input status (§5.6)', () => {
         expect(within(dialog).queryAllByRole('button')).toHaveLength(0);
     });
 });
+
+describe('Review fixes (M1b review R2, R3, R10, R13)', () => {
+    it('Stop on error off: a wrongly typed character shows in the text with the missed style, not as pending text', async () => {
+        await startController({ settings: { stopOnError: false, forgiveErrors: false } });
+        renderPage();
+        clickCard();
+        typeNext(1);
+        const expected = practice.controller!.run!.expected!;
+        act(() => typeChar(textarea(), expected === 0x71 ? 'z' : 'q'));
+        const garbage = document.querySelector('[data-glyph="garbage"]') as HTMLElement;
+        expect(garbage).not.toBeNull();
+        expect(garbage.textContent).toBe(expected === 0x71 ? 'z' : 'q');
+        expect(garbage.className).toContain('decoration-wavy');
+        expect(garbage.className).toContain('text-kb-red');
+        expect(garbage.className).not.toContain('text-muted-foreground');
+    });
+
+    it('Enter on the scope button is left to the button; Enter on the type control moves to the surface', async () => {
+        await startController();
+        renderPage();
+        const scope = screen.getByRole('button', { name: /Center first/ });
+        scope.focus();
+        // fireEvent returns false when a handler called preventDefault, which would stop the button's click.
+        let notPrevented = true;
+        act(() => { notPrevented = fireEvent.keyDown(scope, { key: 'Enter' }); });
+        expect(notPrevented).toBe(true);
+        expect(document.activeElement).toBe(scope);
+        const radio = within(screen.getByRole('radiogroup', { name: 'Lesson type' })).getByRole('radio');
+        act(() => { notPrevented = fireEvent.keyDown(radio, { key: 'Enter' }); });
+        expect(notPrevented).toBe(false);
+        expect(document.activeElement).toBe(textarea());
+    });
+
+    it('the status pill shows on Start too (§5.1)', async () => {
+        await startController({ firstRun: true });
+        renderPage();
+        expect(screen.getByRole('heading', { name: 'Start practicing' })).toBeInTheDocument();
+        expect(document.querySelector('[data-practice-input-pill]')).not.toBeNull();
+    });
+
+    it('the Keymap row carries the keymap fingerprint as a focusable diagnostic', async () => {
+        const c = await startController();
+        renderPage();
+        fireEvent.click(screen.getByRole('button', { name: /Paused|Keymap only/ }));
+        const dialog = await screen.findByRole('dialog', { name: 'Input' });
+        const value = within(dialog).getByText('QWERTY example');
+        expect(value).toHaveAttribute('tabindex', '0');
+        expect(value.getAttribute('data-diagnostic')).toBe(`Keymap fingerprint ${c.session!.fingerprint.slice(0, 12)}`);
+    });
+});
+
+describe('Status slot notices (§5.3, §9.9)', () => {
+    const slot = () => document.querySelector('[data-status-slot]') as HTMLElement;
+
+    it('Storage off: a compact notice card in the slot', async () => {
+        await startController({ persistent: false });
+        renderPage();
+        const notice = within(slot()).getByRole('status');
+        expect(notice).toHaveAttribute('data-status', 'storage-off');
+        expect(notice).toHaveTextContent(NOTICE_TEXT['storage-off']);
+        expect(notice.className).toContain('py-2');
+        expect(notice.className).toContain('text-amber-800');
+    });
+
+    it('Newer schema', async () => {
+        const { MemoryPracticeStore } = await import('@/features/practice/store/memory');
+        const store = new MemoryPracticeStore();
+        await store.addResult({ schema: 99, profileId: 'me' } as never);
+        await startController({ store });
+        renderPage();
+        expect(within(slot()).getByRole('status')).toHaveTextContent(NOTICE_TEXT['newer-schema']);
+    });
+
+    it('Unsent changes', async () => {
+        await startController({ keymap: { unsentChanges: true, connected: true, source: 'connected' } });
+        renderPage();
+        expect(within(slot()).getByRole('status')).toHaveAttribute('data-status', 'unsent-changes');
+        expect(slot()).toHaveTextContent(NOTICE_TEXT['unsent-changes']);
+    });
+});
+
+describe('Tool buttons (§5.2)', () => {
+    it('Restart lesson regenerates the text and focuses the surface', async () => {
+        const c = await startController();
+        renderPage();
+        clickCard();
+        typeNext(3);
+        const before = c.run;
+        act(() => { textarea().blur(); });
+        fireEvent.click(screen.getByRole('button', { name: 'Restart lesson' }));
+        expect(c.run).not.toBe(before);
+        expect(c.run!.textInput.pos).toBe(0);
+        expect(document.activeElement).toBe(textarea());
+        expect(paused()).toBe(false);
+    });
+
+    it('Hints cycles next key and cluster, next key, off, and keeps the lesson', async () => {
+        const c = await startController({ settings: { hints: 'next-cluster' } });
+        renderPage();
+        const run = c.run;
+        fireEvent.click(screen.getByRole('button', { name: 'Hints: next key and cluster' }));
+        expect(c.settings.hints).toBe('next');
+        fireEvent.click(screen.getByRole('button', { name: 'Hints: next key' }));
+        expect(c.settings.hints).toBe('off');
+        expect(document.querySelector('[data-ring]')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Hints: off' }));
+        expect(c.settings.hints).toBe('next-cluster');
+        expect(c.run).toBe(run);
+    });
+});

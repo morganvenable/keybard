@@ -114,3 +114,43 @@ describe('Progress page (§5.8)', () => {
         expect(screen.getByRole('img', { name: /over 1 days/ })).toBeInTheDocument();
     });
 });
+
+describe('Progress page review fixes (M1b review R7, R9)', () => {
+    it('Content error: the well with Retry, not an endless skeleton', async () => {
+        const c = await startController({ contentFails: true });
+        render(<Providers><ProgressPage /></Providers>);
+        expect(screen.getByRole('heading', { name: "Practice words didn't load" })).toBeInTheDocument();
+        expect(document.querySelectorAll('[data-stat-skeleton]')).toHaveLength(0);
+        const retry = vi.spyOn(c, 'retry');
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(retry).toHaveBeenCalled();
+    });
+});
+
+describe('Speed chart (§5.8, N-10)', () => {
+    const points = [
+        { x: 1, ts: new Date(2026, 9, 1).getTime(), speed: 150, accuracy: 0.95, count: 1, type: 'guided' },
+        { x: 2, ts: new Date(2026, 9, 2).getTime(), speed: 175, accuracy: 0.97, count: 3, type: '' },
+    ];
+
+    it('scales through its viewBox, so a narrow container never clips the right-end labels', async () => {
+        const { SpeedChart } = await import('@/features/practice/ui/progress/SpeedChart');
+        render(<SpeedChart points={points} unit="wpm" target={175} axis="lessons" />);
+        const svg = document.querySelector('[data-practice-speed-chart] svg') as SVGElement;
+        expect(svg.getAttribute('viewBox')).toBe(`0 0 ${svg.getAttribute('width')} 240`);
+        expect(svg.getAttribute('class')).toContain('h-auto');
+    });
+
+    it('tooltip: the lesson type by name, and "1 lesson" by Days', async () => {
+        const { SpeedChart } = await import('@/features/practice/ui/progress/SpeedChart');
+        const { rerender } = render(<SpeedChart points={points} unit="wpm" target={175} axis="lessons" />);
+        const svg = () => document.querySelector('[data-practice-speed-chart] svg') as SVGElement;
+        fireEvent.mouseMove(svg(), { clientX: 0 });
+        expect(screen.getByText(/· Guided$/)).toBeInTheDocument();
+        rerender(<SpeedChart points={[{ ...points[0], count: 1, type: '' }, points[1]]} unit="wpm" target={175} axis="days" />);
+        fireEvent.mouseMove(svg(), { clientX: 0 });
+        expect(screen.getByText(/· 1 lesson$/)).toBeInTheDocument();
+        fireEvent.mouseMove(svg(), { clientX: 10_000 });
+        expect(screen.getByText(/· 3 lessons$/)).toBeInTheDocument();
+    });
+});

@@ -2,7 +2,7 @@ import { useCallback, useMemo, type ReactNode } from "react";
 
 import { Notice } from "@/components/shared/Notice";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
-import { PILL_BRAND } from "@/components/shared/pills";
+import { PILL_BRAND, PILL_INK } from "@/components/shared/pills";
 import { usePanels } from "@/contexts/PanelsContext";
 import { PAGE_FRAME } from "../../PracticeWorkspace";
 import { PracticeHeader } from "../../PracticeHeader";
@@ -54,7 +54,20 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
 
     const profileName = session?.profile.name ?? "Me";
     const header = <PracticeHeader right={<span className="text-sm text-muted-foreground whitespace-nowrap truncate">{profileName} · {periodLabel(period)}</span>} />;
-    const storageOff = controller?.store && !controller.persistent ? <Notice>{NOTICE_TEXT["storage-off"]}</Notice> : null;
+    const storageOff = controller?.storageOff ? <Notice>{NOTICE_TEXT["storage-off"]}</Notice> : null;
+
+    // Without the content there is no lesson to replay the history through: the Lessons page's well and Retry.
+    if (controller?.loadState === "content-error") {
+        return (
+            <div className={PAGE_FRAME} data-practice-page="progress" data-active={active}>
+                {header}
+                {storageOff}
+                <Well title="Practice words didn't load">
+                    <button type="button" className={PILL_INK} onClick={() => controller.retry()}>Retry</button>
+                </Well>
+            </div>
+        );
+    }
 
     if (!controller || !session || !view || !settings) {
         return (

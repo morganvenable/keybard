@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { Notice } from "@/components/shared/Notice";
 import { SegmentedControl, type SegmentedChangeSource } from "@/components/shared/SegmentedControl";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -8,13 +9,11 @@ import type { StatusItem } from "../state/controller";
 import { AVAILABLE_LESSON_TYPES, type SpeedUnit } from "../state/settings";
 import type { LessonType } from "../types";
 import { CharCap } from "./CharCap";
-import { formatSpeed, pathChips } from "./format";
+import { formatSpeed, LESSON_TYPE_LABELS, pathChips } from "./format";
 
 // Type row and status slot (docs/practice/spec.md §5.2, N-1, N-4): the lesson type control and the
 // current type's scope on the left; on the right a fixed-height slot that shows one banner or notice at
 // a time, so the text card below never moves when one appears or goes.
-
-const TYPE_LABELS: Record<LessonType, string> = { guided: "Guided", drill: "Drill", words: "Words", custom: "Custom" };
 
 interface TypeRowProps {
     type: LessonType;
@@ -36,14 +35,17 @@ export function TypeRow({ type, scope, onType, onScope, onEnter, status }: TypeR
     return (
         <div className="@container" data-practice-type-row>
             <div className="flex flex-col @min-[900px]:flex-row @min-[900px]:items-center gap-x-4">
-                <div className="flex h-10 @min-[900px]:h-12 items-center gap-4 min-w-0" onKeyDown={onKeyDown}>
-                    <SegmentedControl
-                        label="Lesson type"
-                        size="md"
-                        value={type}
-                        onChange={onType}
-                        options={AVAILABLE_LESSON_TYPES.map((value) => ({ value, label: TYPE_LABELS[value] }))}
-                    />
+                <div className="flex h-10 @min-[900px]:h-12 items-center gap-4 min-w-0">
+                    {/* Only the type control sends Enter to the surface; Enter on the scope button opens the panel. */}
+                    <div className="contents" onKeyDown={onKeyDown}>
+                        <SegmentedControl
+                            label="Lesson type"
+                            size="md"
+                            value={type}
+                            onChange={onType}
+                            options={AVAILABLE_LESSON_TYPES.map((value) => ({ value, label: LESSON_TYPE_LABELS[value] }))}
+                        />
+                    </div>
                     <button
                         type="button"
                         onClick={onScope}
@@ -78,7 +80,6 @@ function OneLine({ text, children, className }: { text: string; children?: React
     );
 }
 
-const NOTICE = "rounded-md border bg-kb-surface px-3 py-2 text-sm shadow-sm border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300";
 const BANNER = "rounded-xl px-3 py-2 bg-kb-surface shadow-lg border border-gray-200 dark:border-neutral-700 text-kb-ink";
 
 interface StatusSlotItemProps {
@@ -94,9 +95,9 @@ export function StatusSlotItem({ item, resolution, cols, unit, layerColorOf }: S
     if (!item) return null;
     if (item.kind === "notice") {
         return (
-            <div role="status" data-status={item.id} className={cn(NOTICE, "max-w-full min-w-0")}>
+            <Notice compact data-status={item.id} className="max-w-full min-w-0">
                 <OneLine text={item.text} />
-            </div>
+            </Notice>
         );
     }
     if (item.id === "new-key") {

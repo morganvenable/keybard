@@ -2,13 +2,15 @@ import { Popover } from "radix-ui";
 import { Unplug } from "lucide-react";
 
 import { PILL_BRAND, PILL_INK } from "@/components/shared/pills";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { PracticeController } from "../state/controller";
 import { POPOVER_CLASSES } from "./KeyPopover";
 
 // P4 Input status pill and popover (docs/practice/spec.md §3.2, §5.6). M1b is Keymap only: the pill reads
 // Keymap only, or Paused while the lesson is paused. The popover says what the user gets and, when not,
-// why, as row values; unavailable actions are not drawn as disabled buttons.
+// why, as row values; unavailable actions are not drawn as disabled buttons. Diagnostics (the keymap
+// fingerprint; M2 adds the sample rate) sit in the row's tooltip on focus or hover, not in the row.
 // TODO(practice): M2 adds Live · USB (green dot, Pressed keys Shown, Layer Live).
 
 export type InputPillState = "keymap" | "paused";
@@ -44,10 +46,11 @@ interface InputStatusProps {
 export function InputStatus({ controller, onConnect }: InputStatusProps) {
     const state = inputPillState(controller);
     const k = controller.keymap;
-    const rows: [string, string][] = [
+    const fingerprint = controller.session?.fingerprint;
+    const rows: [string, string, string?][] = [
         ["Pressed keys", pressedKeysValue(controller)],
         ["Layer", "From keymap"],
-        ["Keymap", controller.sourceName || "—"],
+        ["Keymap", controller.sourceName || "—", fingerprint ? `Keymap fingerprint ${fingerprint.slice(0, 12)}` : undefined],
     ];
     const canConnect = !!k?.hidSupported && !k.connected;
     return (
@@ -66,10 +69,19 @@ export function InputStatus({ controller, onConnect }: InputStatusProps) {
                 <Popover.Content aria-label="Input" side="bottom" align="end" sideOffset={8} collisionPadding={12} className={cn(POPOVER_CLASSES, "flex flex-col gap-3")}>
                     <h2 className="text-base font-semibold">Input</h2>
                     <dl className="flex flex-col gap-2 text-sm">
-                        {rows.map(([label, value]) => (
+                        {rows.map(([label, value, diagnostic]) => (
                             <div key={label} className="flex items-start justify-between gap-4">
                                 <dt className="text-muted-foreground whitespace-nowrap">{label}</dt>
-                                <dd className="text-right">{value}</dd>
+                                {diagnostic ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <dd tabIndex={0} data-diagnostic={diagnostic} className="text-right rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{value}</dd>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="left">{diagnostic}</TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <dd className="text-right">{value}</dd>
+                                )}
                             </div>
                         ))}
                     </dl>

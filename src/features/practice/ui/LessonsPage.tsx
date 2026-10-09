@@ -68,14 +68,22 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const settings = controller?.settings;
     const stats = useCharacterStats(controller);
 
-    // Closing the Lesson panel returns focus to the (still paused) typing surface (§4.1).
+    // Closing the Lesson panel returns focus to the (still paused) typing surface (§4.1). The override
+    // follows the current textarea on every render but is cleared only when Lessons stops showing: a
+    // per-render cleanup would clear it in the very commit that closes the panel, before the panel's
+    // own cleanup reads it (React runs every effect cleanup of a commit before any effect).
+    const override = useRef<HTMLElement | null>(null);
     useEffect(() => {
         if (!active) return;
-        returnFocusOverride.current = surface.current?.textarea ?? null;
-        return () => {
-            if (returnFocusOverride.current === surface.current?.textarea) returnFocusOverride.current = null;
-        };
+        override.current = surface.current?.textarea ?? null;
+        returnFocusOverride.current = override.current;
     });
+    useEffect(() => {
+        if (!active) return;
+        return () => {
+            if (returnFocusOverride.current === override.current) returnFocusOverride.current = null;
+        };
+    }, [active, returnFocusOverride]);
 
     const focusSurface = useCallback(() => {
         surface.current?.focus();
@@ -152,7 +160,8 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         return layerColorName(board, path?.layer ?? defaultLayer);
     }, [session, board, defaultLayer]);
 
-    const statusPill = controller && session && !session.firstRun ? <InputStatus controller={controller} onConnect={() => void connect()} /> : null;
+    // The pill shows whenever Lessons does (§5.1), Start and Loading included, once the keymap is known.
+    const statusPill = controller?.keymap ? <InputStatus controller={controller} onConnect={() => void connect()} /> : null;
     const narrow = width > 0 && width < 480;
     const boardHidden = !settings?.showBoard;
 

@@ -30,8 +30,15 @@ export function fitBoard(containerWidth: number, boardUnits: number, { allowScal
     return { variant: "small", unit: UNIT_PX.small, scale: MIN_BOARD_SCALE, hidden: true };
 }
 
+/** An element's content width: clientWidth less its horizontal padding (the page frame's px-6, §5.1). */
+export function contentWidth(el: HTMLElement): number {
+    const style = typeof getComputedStyle === "function" ? getComputedStyle(el) : null;
+    const padding = style ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) : 0;
+    return Math.max(0, el.clientWidth - padding);
+}
+
 /**
- * The width of an element, re-read after the panel's 320 ms margin transition settles rather than
+ * The content width of an element (contentWidth), re-read after the panel's 320 ms margin transition settles rather than
  * on every frame of it (§5.1 "Panel effect on size").
  */
 export function useSettledWidth(ref: RefObject<HTMLElement | null>, settleMs = 340): number {
@@ -40,11 +47,11 @@ export function useSettledWidth(ref: RefObject<HTMLElement | null>, settleMs = 3
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
-        setWidth(el.clientWidth);
+        setWidth(contentWidth(el));
         if (typeof ResizeObserver === "undefined") return;
         const observer = new ResizeObserver(() => {
             if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(() => setWidth(el.clientWidth), settleMs);
+            timer.current = setTimeout(() => setWidth(contentWidth(el)), settleMs);
         });
         observer.observe(el);
         return () => {

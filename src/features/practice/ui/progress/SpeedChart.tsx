@@ -3,12 +3,14 @@ import { useRef, useState, type MouseEvent } from "react";
 import type { ChartPoint } from "../../state/progressView";
 import type { SpeedUnit } from "../../state/settings";
 import { useSettledWidth } from "../boardFit";
-import { formatDate, formatDateTime, formatSpeed, speedValue } from "../format";
+import { formatDate, formatDateTime, formatSpeed, lessonTypeLabel, speedValue } from "../format";
 
 // N-10 Speed chart (docs/practice/spec.md §5.8): speed in the selected unit as a solid kb-blue line on
 // the left axis, accuracy as a dashed kb-purple line on the right axis, the target as a dotted ink line.
-// Lines differ in stroke as well as hue, and each is labelled at its right end in ink, led by a sample
-// of its stroke. Hover shows a rule and the point's values; keyboard users get them in the table.
+// Lines differ in stroke as well as hue, and each is labeled at its right end in ink, led by a sample
+// of its stroke. Hover shows a rule and the point's values; keyboard users get them in the table. The
+// SVG draws at the measured width (at least 320 px) and scales down through its viewBox when its
+// container is narrower, so the right-end labels are never clipped.
 
 const HEIGHT = 240;
 const M = { left: 44, right: 132, top: 12, bottom: 28 };
@@ -52,10 +54,14 @@ export function SpeedChart({ points, unit, target, axis }: SpeedChartProps) {
         : [lastSpeedY, lastAccY];
     const unitLabel = unit;
 
+    // Drawn width over logical width: below 1 when the viewBox scales the chart down.
+    const shown = box.current?.clientWidth || width;
+    const scale = Math.min(1, shown / width);
+
     const onMove = (event: MouseEvent<SVGSVGElement>) => {
         if (!points.length) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        const x = event.clientX - rect.left;
+        const x = (event.clientX - rect.left) * (rect.width > 0 ? width / rect.width : 1);
         const i = points.length <= 1 ? 0 : Math.round(((x - M.left) / plotW) * (points.length - 1));
         setHover(Math.max(0, Math.min(points.length - 1, i)));
     };
@@ -68,11 +74,12 @@ export function SpeedChart({ points, unit, target, axis }: SpeedChartProps) {
             <svg
                 width={width}
                 height={HEIGHT}
+                viewBox={`0 0 ${width} ${HEIGHT}`}
                 role="img"
                 aria-label={`Speed and accuracy over ${points.length} ${axis === "lessons" ? "lessons" : "days"}`}
                 onMouseMove={onMove}
                 onMouseLeave={() => setHover(null)}
-                className="block max-w-full"
+                className="block max-w-full h-auto"
             >
                 {ticks.map((t) => (
                     <g key={t}>
@@ -119,10 +126,10 @@ export function SpeedChart({ points, unit, target, axis }: SpeedChartProps) {
                 <div
                     role="presentation"
                     className="pointer-events-none absolute top-2 z-10 rounded-md border border-kb-gray-border bg-kb-surface px-3 py-2 text-xs text-kb-ink shadow-lg whitespace-nowrap"
-                    style={{ left: Math.min(Math.max(0, xOf(hover!) + 8), width - 180) }}
+                    style={{ left: Math.max(0, Math.min((xOf(hover!) + 8) * scale, shown - 180)) }}
                 >
-                    <div className="font-medium">{axis === "lessons" ? formatDateTime(hovered.ts) : `${formatDate(hovered.ts)} · ${hovered.count} lessons`}</div>
-                    <div className="tabular-nums">{formatSpeed(hovered.speed, unit)} {unitLabel} · {(hovered.accuracy * 100).toFixed(1)}%{hovered.type ? ` · ${hovered.type}` : ""}</div>
+                    <div className="font-medium">{axis === "lessons" ? formatDateTime(hovered.ts) : `${formatDate(hovered.ts)} · ${hovered.count} ${hovered.count === 1 ? "lesson" : "lessons"}`}</div>
+                    <div className="tabular-nums">{formatSpeed(hovered.speed, unit)} {unitLabel} · {(hovered.accuracy * 100).toFixed(1)}%{hovered.type ? ` · ${lessonTypeLabel(hovered.type)}` : ""}</div>
                 </div>
             )}
         </div>

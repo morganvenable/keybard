@@ -132,16 +132,20 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
     const renderGlyph = ({ char, index, cursor }: Glyph): ReactNode => {
         const isSpace = char.codePoint === 0x20;
         const typed = (char.attrs & Attr.Hit) !== 0;
-        const missed = (char.attrs & Attr.Miss) !== 0;
+        // Garbage: a wrong character keybr keeps in the text when Stop on error is off. It gets
+        // the missed style too, so every error has its non-color cue (§5.12).
+        const garbage = (char.attrs & Attr.Garbage) !== 0;
+        const missed = garbage || (char.attrs & Attr.Miss) !== 0;
         const pending = !typed && !missed;
         const layer = pending && layerUnderlines && resolution ? resolution.primary(char.codePoint)?.layer ?? defaultLayer : defaultLayer;
         const underline = pending && layer !== defaultLayer;
-        const text = isSpace ? (showSpaces ? "·" : " ") : String.fromCodePoint(char.codePoint);
+        // A wrongly typed space shows as a dot, or its underline would be all there is to see.
+        const text = isSpace ? (showSpaces || garbage ? "·" : " ") : String.fromCodePoint(char.codePoint);
         return (
             <span
                 key={index}
                 data-cursor={cursor || undefined}
-                data-glyph={missed ? "missed" : typed ? "typed" : "pending"}
+                data-glyph={garbage ? "garbage" : missed ? "missed" : typed ? "typed" : "pending"}
                 className={cn(
                     cursor && "relative",
                     typed && "text-kb-ink",

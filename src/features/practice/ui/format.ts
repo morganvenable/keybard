@@ -4,6 +4,15 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { placeOf, type KeyPlace } from "../keymap/geometry";
 import type { Path, Prereq } from "../keymap/resolver";
 import type { SpeedUnit } from "../state/settings";
+import type { LessonType } from "../types";
+
+/** Lesson type names, as the type control shows them (§5.2). */
+export const LESSON_TYPE_LABELS: Record<LessonType, string> = { guided: "Guided", drill: "Drill", words: "Words", custom: "Custom" };
+
+/** A stored lesson type id as its name; an unknown id as it is. */
+export function lessonTypeLabel(type: string): string {
+    return (LESSON_TYPE_LABELS as Record<string, string>)[type] ?? type;
+}
 
 /** A speed in CPM shown in the chosen unit: WPM with one decimal, CPM whole. */
 export function formatSpeed(cpm: number | null | undefined, unit: SpeedUnit): string {
