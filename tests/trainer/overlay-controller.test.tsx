@@ -36,7 +36,12 @@ beforeEach(() => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
         const path = String(url);
         if (path.endsWith('/api/host/bootstrap')) return new Response(JSON.stringify({ token: 't', apiVersion: 1, version: 'vLaunch2.2' }));
-        if (path.includes('/api/host/state')) return new Response(JSON.stringify(snapshot));
+        // Like Host (state.py), leave the board out once the caller already has this layout revision,
+        // so polls keep the same board object and don't reset the preview between assertions.
+        if (path.includes('/api/host/state')) {
+            const known = Number(new URL(path, 'http://host').searchParams.get('layout'));
+            return new Response(JSON.stringify(known === snapshot.layoutRevision ? { ...snapshot, board: null } : snapshot));
+        }
         const body = JSON.parse(String(init?.body ?? '{}'));
         calls.push({ path, body });
         if (path.endsWith('/config')) { snapshot = { ...snapshot, revision: (snapshot.revision as number) + 1, config: body.config }; return new Response(JSON.stringify({ revision: snapshot.revision })); }

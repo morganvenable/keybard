@@ -141,3 +141,12 @@ An independent review (`/code-review high`, `0b08c3c..888f47d`) produced ten can
 | MO-4 | The engine test changed the workspace and checked nothing, so the clear-on-leave gate in OverlayEngine was untested | **Fixed**: it rerenders after leaving the workspace, asserts the clearing `practice` command, and checks a second later that nothing is published again. The failed-write test from MO-1 was added too |
 
 Also found while fixing MO-1: the 160 ms mirroring write dropped its pending change (`hostDirty` cleared) when `configure` returned early because a panel choice's write had just started. It now waits for that write and sends after it (deviation 14).
+
+### After merging feat/practice-engine (M1a) into feat/practice-trainer
+
+The merge (`1c311fb`) had no textual conflicts. With the engine's tests added, the full suite runs slower,
+and "Preview held keys lights keys while following the board" failed once under that load. The cause was
+in the test, not the controller: its mocked `/api/host/state` sent the board on every 80 ms poll, so each
+poll gave the board a new identity, `keys` were recomputed, and the held preview was cleared. Real Host
+(`state.py`) leaves the board out once the caller passes the current `layout` revision, and `host.ts`
+keeps the board it already has. The mock now does the same. The controller code is unchanged.
