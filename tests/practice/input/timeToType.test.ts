@@ -84,6 +84,20 @@ describe('time to type, live (§6.5)', () => {
         expect(next.raw).toBe(200);
     });
 
+    it('a prerequisite seen in the same late sample as its target still counts (sample stamped after the input)', () => {
+        const timer = new PracticeTimeToType();
+        timer.measure({ tInput: 0, path: path('a'), prereqEdges: [], targetEdge: 0 });
+        // Shift and a in one 10 ms sample stamped at 105; the browser's A came at 102.
+        const upper = path('A');
+        expect(upper.prereqs.map((p) => p.index)).toEqual([2]);
+        const step = timer.measure({ tInput: 102, path: upper, prereqEdges: [{ t: 105, index: 2 }], targetEdge: 105 });
+        expect(step.tStep).toBe(102);
+        expect(step.presses).toBe(2);
+        expect(step.ttt).toBe(51);
+        expect(step.reach).toBe(105);
+        expect(step.target).toBe(0);
+    });
+
     it('firmware Shift is never a prerequisite edge', () => {
         const timer = new PracticeTimeToType();
         timer.measure({ tInput: 0, path: path('a'), prereqEdges: [] });

@@ -9,7 +9,9 @@
 //   timeToType(c) = raw / presses, or null when raw > 2,000 ms (a pause)
 //
 // newPrereqs counts only prerequisite presses made for this character: live, the
-// prerequisite press edges in (t_step(previous), t_step(c)]; keymap only, the
+// prerequisite press edges in (t_step(previous), max(t_step(c), target edge)]
+// (a Shift or MO(1) seen in the same late sample as its target still counts,
+// though that sample is stamped after the input); keymap only, the
 // prerequisites of c's path that the previous step's path did not have. A hold
 // kept down through several characters therefore counts once, on the first.
 import type { Path, Prereq } from '../keymap/resolver';
@@ -57,13 +59,13 @@ export function newPrereqsKeymapOnly(path: Path | null, previous: Path | null): 
     return path.prereqs.filter((p) => p.kind === 'oneshot' || !held.has(p.index));
 }
 
-/** Live: prerequisite press edges of `path` in (tPrev, tStep], earliest first, one per key. */
-export function newPrereqsLive(path: Path | null, edges: readonly PressEdge[], tPrev: number, tStep: number): PressEdge[] {
+/** Live: prerequisite press edges of `path` in (tPrev, upTo], earliest first, one per key. */
+export function newPrereqsLive(path: Path | null, edges: readonly PressEdge[], tPrev: number, upTo: number): PressEdge[] {
     if (!path) return [];
     const wanted = new Set(path.prereqs.map((p) => p.index));
     const seen = new Set<number>();
     return [...edges]
-        .filter((e) => wanted.has(e.index) && e.t > tPrev && e.t <= tStep)
+        .filter((e) => wanted.has(e.index) && e.t > tPrev && e.t <= upTo)
         .sort((a, b) => a.t - b.t)
         .filter((e) => (seen.has(e.index) ? false : (seen.add(e.index), true)));
 }
@@ -89,7 +91,8 @@ export class PracticeTimeToType {
         let reach: number | null = null;
         let target: number | null = null;
         if (live) {
-            const edges = newPrereqsLive(step.path, step.prereqEdges ?? [], previous.tStep, tStep);
+            const upTo = step.targetEdge != null ? Math.max(tStep, step.targetEdge) : tStep;
+            const edges = newPrereqsLive(step.path, step.prereqEdges ?? [], previous.tStep, upTo);
             newPrereqs = edges.map((e) => e.index);
             if (edges.length) reach = edges[0].t - previous.tStep;
             if (step.targetEdge != null) target = step.targetEdge - (edges.length ? edges[edges.length - 1].t : previous.tStep);
