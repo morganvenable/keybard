@@ -20,10 +20,16 @@ import AboutPanel from "./SecondarySidebar/Panels/AboutPanel";
 import QuickStartPanel from "./SecondarySidebar/Panels/QuickStartPanel";
 
 import FragmentsPanel from "./SecondarySidebar/Panels/FragmentsPanel";
+import PracticePanel from "@/features/practice/PracticePanel";
+import OverlayPanel from "@/features/trainer/OverlayPanel";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
+import type { PracticePage } from "./workspaces";
 
-export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuItem[]): string => {
+export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuItem[], practicePage?: PracticePage): string => {
     if (!panel) return "Details";
+
+    // Practice's panel follows its page (docs/practice/spec.md §5.13).
+    if (panel === "practice") return practicePage === "progress" ? "Progress" : "Lesson";
 
     // Handle dynamic menu panels
     if (panel.startsWith("dynamic-menu-")) {
@@ -56,6 +62,7 @@ export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUI
         scanlab: "Scan Lab",
         quickstart: "Quick Start",
         about: "About",
+        overlay: "Overlay",
     };
 
     return titles[panel] ?? "Details";
@@ -80,6 +87,8 @@ export function PanelContent({ panel, horizontal = false, isPicker = false }: { 
         qmksettings: QMKSettingsPanel, scanlab: ScanLabPanel, settings: SettingsPanel,
         quickstart: QuickStartPanel, about: AboutPanel,
     };
+    if (panel === "practice") return <PracticePanel horizontal={horizontal} />;
+    if (panel === "overlay") return <OverlayPanel horizontal={horizontal} />;
     const Content = panels[panel as keyof typeof panels];
     return Content ? <Content /> : <p className="p-4 text-sm text-muted-foreground">Select a panel to view its settings.</p>;
 }

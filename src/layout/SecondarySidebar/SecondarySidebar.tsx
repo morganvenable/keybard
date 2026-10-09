@@ -22,10 +22,12 @@ import { cn } from "@/lib/utils";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 
 import { getPanelTitle, PanelContent } from "../PanelContent";
+import { isPageWorkspace } from "../workspaces";
+import { useWorkspacePanelEscape } from "@/hooks/useWorkspacePanelEscape";
 
 export const DETAIL_SIDEBAR_WIDTH = "32rem";
 export const getDetailPanelHeight = (panel: string | null | undefined, height: number): string | number =>
-    ["settings", "qmksettings", "scanlab", "quickstart", "about", "fragments", "layouts"].includes(panel ?? "")
+    ["settings", "qmksettings", "scanlab", "quickstart", "about", "fragments", "layouts", "practice", "overlay"].includes(panel ?? "")
         ? "min(60dvh, 36rem)" : height;
 
 /**
@@ -37,9 +39,9 @@ interface AlternativeHeaderProps {
 }
 
 const AlternativeHeader = ({ onBack, menus }: AlternativeHeaderProps) => {
-    const { activePanel, handleCloseEditor } = usePanels();
+    const { activePanel, handleCloseEditor, practicePage } = usePanels();
 
-    const title = `Add Keys to ${getPanelTitle(activePanel, menus)}`;
+    const title = `Add Keys to ${getPanelTitle(activePanel, menus, practicePage)}`;
 
     return (
         <div className="flex items-center justify-start gap-4">
@@ -72,19 +74,33 @@ interface SecondarySidebarProps {
 }
 const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: SecondarySidebarProps) => {
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    const { activePanel, handleCloseDetails, state, alternativeHeader, itemToEdit, setItemToEdit } = usePanels();
+    const { activePanel, handleCloseDetails, state, alternativeHeader, itemToEdit, setItemToEdit, practicePage, returnFocusOverride } = usePanels();
     const { keyboard } = useKeyboard();
+    const title = getPanelTitle(activePanel, keyboard?.menus, practicePage);
 
     const panelRef = React.useRef<HTMLElement>(null);
     const returnFocus = React.useRef<HTMLElement | null>(null);
+    const stateRef = React.useRef(state);
+    stateRef.current = state;
+    // Focus moves into the panel when it expands, and again when the panel, already open, switches to
+    // Practice or Overlay (a nav click then changes only activePanel). Editor panels keep focusing on
+    // expand only. docs/practice/spec.md §4.1 "Focus on open".
+    const focusKey = isPageWorkspace(activePanel) ? activePanel : "";
     React.useEffect(() => {
         if (state !== "expanded") return;
-        returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        // A switch made from inside the panel keeps the earlier return target.
+        if (!active || !panelRef.current?.contains(active)) returnFocus.current = active;
         panelRef.current?.focus({ preventScroll: true });
         return () => {
-            if (returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true });
+            // Only a close returns focus; a switch to another panel keeps it in the panel.
+            if (stateRef.current === "expanded") return;
+            // Practice may send focus back to its typing surface instead of the opener.
+            const override = returnFocusOverride?.current;
+            const target = override?.isConnected ? override : returnFocus.current;
+            if (target?.isConnected) target.focus({ preventScroll: true });
         };
-    }, [state]);
+    }, [state, focusKey, returnFocusOverride]);
 
     // Calculate dynamic offset based on primary sidebar state
     const primaryOffset = primarySidebar.state === "collapsed"
@@ -95,6 +111,10 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
         setItemToEdit(null);
         handleCloseDetails();
     }, [handleCloseDetails, setItemToEdit]);
+
+    // Esc closes the Practice and Overlay panels only; editor panels keep Esc for their inline edits.
+    // It sits on the panel root because focus lands there when the panel opens.
+    const workspaceEscape = useWorkspacePanelEscape(handleClose);
 
     // Check if we should show the key picker overlay
     // We show it if we are editing an item and we are in a panel that supports key picking
@@ -129,11 +149,12 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
         <aside
             ref={panelRef}
             tabIndex={-1}
-            aria-label={getPanelTitle(activePanel, keyboard?.menus)}
+            aria-label={title}
             aria-hidden={state !== "expanded"}
             inert={state !== "expanded"}
             data-binding-open={showPicker ? "true" : undefined}
             data-placement={bottom ? "bottom" : "side"}
+            onKeyDown={isPageWorkspace(activePanel) ? workspaceEscape : undefined}
             className={cn("detail-panel fixed z-[60] flex flex-col bg-kb-surface border shadow-lg min-h-0", bottom ? "bottom-panel bottom-0 right-0" : "top-2 bottom-2 rounded-2xl", state !== "expanded" && "hidden")}
             style={{
                 left: leftOffset ?? primaryOffset,
@@ -152,7 +173,7 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230 }: Secondar
                     <div className="flex items-center justify-between gap-4 pt-1.5">
                         <div>
                             <h2 className="text-[22px] font-semibold leading-none text-kb-ink">
-                                {getPanelTitle(activePanel, keyboard?.menus)}
+                                {title}
                             </h2>
                         </div>
                         <Button

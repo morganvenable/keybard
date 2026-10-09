@@ -2,7 +2,9 @@ import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 import { isEditorInput } from "@/utils/editor-input";
 import * as React from "react";
 import TrainerPage from "@/features/trainer/TrainerPage";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { OverlayProvider, useOverlayWorkspace } from "@/features/trainer/OverlayProvider";
+import { PracticeProvider, usePracticeWorkspace } from "@/features/practice/PracticeProvider";
+import PracticeWorkspace from "@/features/practice/PracticeWorkspace";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
@@ -62,7 +64,13 @@ const EditorLayout = () => {
                 <LayoutSettingsProvider>
                     <LayerProvider>
                         <DragProvider>
-                            <EditorLayoutInner />
+                            {/* Always mounted, same shape on every render, so nothing below remounts
+                                when a workspace is first opened (docs/practice/spec.md §4.1 Mounting). */}
+                            <OverlayProvider>
+                                <PracticeProvider>
+                                    <EditorLayoutInner />
+                                </PracticeProvider>
+                            </OverlayProvider>
                             <DragOverlay />
                         </DragProvider>
                     </LayerProvider>
@@ -1083,10 +1091,12 @@ const EditorLayoutInner = () => {
 
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    const { isMobile, state, activePanel, itemToEdit } = usePanels();
-    const isTrainer = activePanel === "trainer";
-    const [trainerVisited, setTrainerVisited] = React.useState(isTrainer);
-    React.useEffect(() => { if (isTrainer) { setTrainerVisited(true); clearSelection(); } }, [isTrainer, clearSelection]);
+    const { isMobile, state, activePanel, itemToEdit, workspace } = usePanels();
+    // Workspace pages mount on first visit and then stay mounted and hidden (§4.1 "Keep mounted").
+    const isEditor = workspace === "editor";
+    const { activated: overlayVisited } = useOverlayWorkspace();
+    const { activated: practiceVisited } = usePracticeWorkspace();
+    React.useEffect(() => { if (!isEditor) clearSelection(); }, [isEditor, clearSelection]);
 
     // Editor overlay state for bottom bar mode
 
@@ -1123,8 +1133,9 @@ const EditorLayoutInner = () => {
 
     // In sidebar mode: show detail sidebar on right
     // In bottom bar mode: no detail sidebar, use bottom panel instead
-    const showDetailsSidebar = !isTrainer && useSidebarLayout && !isMobile && state === "expanded";
-    const showBottomPanel = !isTrainer && useBottomLayout && state === "expanded";
+    // The detail panel serves every workspace, with the same push and dock rules (§4.1).
+    const showDetailsSidebar = useSidebarLayout && !isMobile && state === "expanded";
+    const showBottomPanel = useBottomLayout && state === "expanded";
 
     const [isConstrainedViewport, setIsConstrainedViewport] = React.useState(() => window.innerWidth < 1100);
     React.useEffect(() => {
@@ -1211,13 +1222,15 @@ const EditorLayoutInner = () => {
                 <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
             </div>}
             <AppSidebar />
-            {(trainerVisited || isTrainer) && <div hidden={!isTrainer} className="trainer-shell-content" style={{ marginLeft: primaryOffset }}>
-                {primarySidebar.isMobile && <div className="trainer-mobile-nav"><SidebarTrigger name="primary-nav" /></div>}
-                <TrainerPage active={isTrainer} />
+            {overlayVisited && <div hidden={workspace !== "overlay"} className="overlay-workspace trainer-shell-content h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>
+                <TrainerPage active={workspace === "overlay"} />
             </div>}
-            <div className={isTrainer ? "hidden" : "contents"}>
-            {/* Keep the panel mounted when its placement changes. */}
+            {practiceVisited && <div hidden={workspace !== "practice"} className="practice-workspace relative flex-1 min-w-0 h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>
+                <PracticeWorkspace active={workspace === "practice"} />
+            </div>}
+            {/* Keep the panel mounted when its placement or the workspace changes. */}
             <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />
+            <div className={isEditor ? "contents" : "hidden"}>
             <div
                 ref={contentContainerRef}
                 className={cn(

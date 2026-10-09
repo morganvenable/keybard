@@ -6,7 +6,7 @@ vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => state }));
 vi.mock('@/layout/EditorLayout', () => ({ default: () => <div>Editor workspace</div> }));
 vi.mock('../../src/components/ConnectKeyboard', () => ({ default: () => <button>Connect Keyboard</button> }));
 afterEach(() => { window.location.hash = ''; state.keyboard = null; });
-it('requires the normal connection flow even when the URL requests Trainer', () => {
+it('requires the normal connection flow even when the URL requests Overlay through #trainer', () => {
     window.location.hash = '#trainer';
     const { rerender } = render(<MainScreen />);
     expect(screen.getByRole('button', { name: 'Connect Keyboard' })).toBeInTheDocument();
