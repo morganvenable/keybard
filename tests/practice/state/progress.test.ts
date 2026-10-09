@@ -130,8 +130,9 @@ describe('Practice settings (§8.1)', () => {
         expect(toKeybrSettings({ ...DEFAULT_SETTINGS, order: 'frequency' }).get(lessonProps.guided.keyboardOrder)).toBe(false);
     });
 
-    it('Start presets: Learn = 25 WPM with the OWNER_Q1 order, QWERTY = all letters at 35 WPM', () => {
-        expect(START_PRESETS.learn).toEqual({ order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0 });
-        expect(START_PRESETS.qwerty).toEqual({ targetSpeed: 175, alphabetSize: 1 });
+    it('Start presets (§5.4): Learn 25 WPM with the OWNER_Q1 order, QWERTY all letters at 35 WPM, Drill 45 WPM', () => {
+        expect(START_PRESETS.learn).toEqual({ order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, dailyGoal: 15 });
+        expect(START_PRESETS.qwerty).toEqual({ targetSpeed: 175, alphabetSize: 1, dailyGoal: 15 });
+        expect(START_PRESETS.drill).toEqual({ targetSpeed: 225, dailyGoal: 10 });
     });
 });

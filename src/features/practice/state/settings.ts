@@ -61,12 +61,19 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     activeProfileId: null,
 };
 
-/** Start (P2) presets (§5.4): each writes these settings. */
+/**
+ * Start (P2) presets (§5.4): each writes only these settings, so other changes
+ * made in the Lesson panel survive.
+ * TODO(practice): lesson type (Guided, Drill → Weakest) and hints join these once
+ * the settings carry them (M1b session and lesson types, M3 Drill).
+ */
 export const START_PRESETS = {
-    /** "Learn from the center keys": OWNER_Q1 order, 25 WPM. */
-    learn: { order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0 },
-    /** "Coming from QWERTY": every letter included at once, 35 WPM. */
-    qwerty: { targetSpeed: 175, alphabetSize: 1 },
+    /** "Learn from the center keys": OWNER_Q1 order, 25 WPM, 15 min a day. */
+    learn: { order: OWNER_Q1_DEFAULT_UNLOCK_ORDER, targetSpeed: 125, alphabetSize: 0, dailyGoal: 15 },
+    /** "Coming from QWERTY": every letter included at once, 35 WPM, 15 min a day. */
+    qwerty: { targetSpeed: 175, alphabetSize: 1, dailyGoal: 15 },
+    /** "Drill my keymap": 45 WPM, 10 min a day. */
+    drill: { targetSpeed: 225, dailyGoal: 10 },
 } as const satisfies Record<string, Partial<PracticeSettings>>;
 
 const MAX_CUSTOM_TEXT = 10_000;
