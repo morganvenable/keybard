@@ -127,18 +127,19 @@ export class PracticeDrillLesson extends Lesson {
         const otherNumbers = numberTokens({ digits, focus: null, benford: false }, rng);
         const spaceTypeable = this.resolution.primary(0x20) != null;
         const templateAlphabet = new Set([...symbols, ...digits]);
-        const wrap = (inner: () => string) => symbolTokens({
-            alphabet: templateAlphabet, spaceTypeable, focus: null, word: inner, number: () => otherNumbers?.() ?? null,
+        // A wrapped token keeps the focused character: its number slots take the same tokens as its word slots.
+        const wrap = (inner: () => string, number: () => string | null) => symbolTokens({
+            alphabet: templateAlphabet, spaceTypeable, focus: null, word: inner, number,
         }, rng);
 
         let next: () => string;
         if (focusClass === 'symbol' || (focusClass == null && symbols.length)) {
             next = symbolTokens({ alphabet: templateAlphabet, spaceTypeable, focus, word: plainWords, number: () => otherNumbers?.() ?? null }, rng);
         } else if (focusClass === 'digit' && numbers) {
-            const wrapped = symbols.length ? wrap(numbers) : null;
+            const wrapped = symbols.length ? wrap(numbers, numbers) : null;
             next = () => (wrapped && rng() < WRAP_CHANCE ? wrapped() : numbers());
         } else {
-            const wrapped = symbols.length ? wrap(words) : null;
+            const wrapped = symbols.length ? wrap(words, () => null) : null;
             next = () => (wrapped && rng() < WRAP_CHANCE ? wrapped() : words());
         }
         return generateFragment(this.settings, uniqueWords(next), { repeatWords: 1 });
