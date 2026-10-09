@@ -129,6 +129,11 @@ function isModTap(name: string) {
     return /^\w+_T\(.*\)$/.test(name) || /^MT\(.*\)$/.test(name);
 }
 
+/** LT and mod-tap keys: their tap side types on release, their hold side decides late (§6.7). */
+export function isTapHold(name: string): boolean {
+    return isLayerTap(name) || isModTap(name);
+}
+
 /** Shift keys, and mod-taps whose hold side is Shift alone. */
 export function shiftRole(name: string): { tapHold: boolean } | null {
     if (/^KC_(L|R)S(HIFT|FT)$/.test(name)) return { tapHold: false };

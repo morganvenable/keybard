@@ -48,6 +48,10 @@ export interface KeystrokeEvent {
     errorClass?: ErrorClass;
     /** Output came after the target's press edge (§6.5). */
     delayed?: boolean;
+    /** In memory only (not packed): the keystroke this event records, numbered within the lesson. Live attribution finds its events by it. */
+    seq?: number;
+    /** In memory only (not packed): the TextInput position a hit closed. */
+    pos?: number;
 }
 
 export type LessonType = 'guided' | 'drill' | 'words' | 'custom';
