@@ -123,6 +123,8 @@ export class PracticeController {
     justUnlocked: number | null = null;
     /** Last completion, for the metrics' delta animation. */
     lastCompletion: Completion | null = null;
+    /** A Lesson panel section to scroll to when the panel next shows (the type row's scope button). */
+    panelSection: string | null = null;
     version = 0;
 
     readonly #deps: Required<ControllerDeps>;
@@ -376,6 +378,19 @@ export class PracticeController {
         this.profiles = [...this.profiles, profile];
         this.selectProfile(profile.id);
         return profile;
+    }
+
+    /** Asks the Lesson panel to show a section (the type row's scope button, Change scope; §5.2). */
+    requestPanelSection(section: string) {
+        this.panelSection = section;
+        this.#emit();
+    }
+
+    /** The Lesson panel took the request. */
+    takePanelSection(): string | null {
+        const section = this.panelSection;
+        this.panelSection = null;
+        return section;
     }
 
     // ---- activity, focus and pause

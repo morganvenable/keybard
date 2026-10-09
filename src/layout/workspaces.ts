@@ -17,12 +17,8 @@ export const PAGE_WORKSPACES: readonly PageWorkspace[] = ["practice", "overlay"]
 export const isPageWorkspace = (id: string | null | undefined): id is PageWorkspace =>
     id === "practice" || id === "overlay";
 
-/**
- * The Practice nav item is hidden until M1b ships the real Lessons page (§12 MW). Development builds
- * (and tests) show it; every build opens Practice from the #practice deep link.
- * TODO(practice): M1b makes this true everywhere.
- */
-export const PRACTICE_NAV_VISIBLE: boolean = import.meta.env.DEV;
+/** The Practice nav item shows in every build since M1b shipped the Lessons and Progress pages (§12). */
+export const PRACTICE_NAV_VISIBLE = true;
 
 export interface WorkspaceRoute {
     workspace: Workspace;

@@ -29,7 +29,7 @@ import type { KeyboardInfo } from '@/types/keyboard.types';
 
 /** The keymap a session practices (§5.4 sources) and how Keybard reads it. */
 export interface PracticeKeymap {
-    board: Pick<KeyboardInfo, 'keymap' | 'keylayout' | 'rows' | 'cols'>;
+    board: KeyboardInfo;
     /** Keybard's OS layout id (internationalLayout). */
     layoutId: string;
     /** Default layer (the board's, or 0). */

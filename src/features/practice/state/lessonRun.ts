@@ -51,6 +51,7 @@ export class LessonRun {
     #pausedAt: number | null = null;
     #lastInputAt: number | null = null;
     #capsLock = false;
+    #typo = false;
 
     constructor({ text, textInput, resolution, cols }: LessonRunOptions) {
         this.textInput = new TextInput(text, textInput);
@@ -79,6 +80,11 @@ export class LessonRun {
 
     get capsLock(): boolean {
         return this.#capsLock;
+    }
+
+    /** A miss is waiting on the current character (stop on error): the text tints it red (§5.2). */
+    get typoPending(): boolean {
+        return this.#typo;
     }
 
     /** Paused intervals, on the DOM clock; an open pause runs to `now`. */
@@ -129,6 +135,8 @@ export class LessonRun {
                 phys: { index: -1, layer: -1, confidence: 'inferred', skew: null, reach: null, target: null },
             });
             const feedback = this.textInput.onInput({ ...event, timeToType: 0 });
+            // As keybr's TextInput: after a correction the next character counts as a typo.
+            this.#typo = true;
             return { ignored: false, feedback, completed: false };
         }
 
@@ -142,6 +150,7 @@ export class LessonRun {
         // keybr ignores a stray Space before a word: nothing to record.
         if (this.textInput.pos === before && feedback === Feedback.Succeeded) return { ignored: false, feedback, completed: false };
         const hit = typed === expected || filterText.normalize(expected) === typed;
+        this.#typo = !hit && this.textInput.pos === before;
         const expectedPath = this.resolution.primary(expected);
         this.events.push({
             t, expected, typed,

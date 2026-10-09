@@ -6,6 +6,8 @@
 // - Tab is no longer prevented, so Tab leaves the practice text (§5.11).
 // - `Focusable` from @keybr/widget is not vendored; the methods are kept.
 // - `process.env.NODE_ENV` checks use Vite's `import.meta.env.PROD`.
+// - `setInput` takes `{ focus: false }` so attaching the handler doesn't take
+//   focus from the detail panel the user is in (spec §4.1).
 import { mapEvent, timeStampOf } from "./events.ts";
 import { ModifierState } from "./modifiers.ts";
 import { type IInputEvent, type IKeyboardEvent, type InputListener } from "./types.ts";
@@ -52,10 +54,10 @@ export class InputHandler {
     this.#callbacks = callbacks;
   }
 
-  setInput(input: HTMLTextAreaElement | null) {
+  setInput(input: HTMLTextAreaElement | null, { focus = true }: { focus?: boolean } = {}) {
     if (input != null) {
       this.#input = input;
-      this.#attachInput();
+      this.#attachInput(focus);
     } else {
       this.#detachInput();
       this.#input = null;
@@ -70,7 +72,7 @@ export class InputHandler {
     this.#input?.blur();
   }
 
-  #attachInput() {
+  #attachInput(focus: boolean) {
     ModifierState.initialize();
     const input = this.#input;
     if (input != null) {
@@ -83,7 +85,9 @@ export class InputHandler {
       input.addEventListener("compositionupdate", this.handleComposition);
       input.addEventListener("compositionend", this.handleComposition);
     }
-    this.focus();
+    if (focus) {
+      this.focus();
+    }
     this.#clearInput();
   }
 
