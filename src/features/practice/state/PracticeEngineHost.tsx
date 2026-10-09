@@ -1,10 +1,14 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import type { WorkspaceStore } from "@/layout/workspace-store";
+import { PARANOID, userIsLooking } from "@/lib/paranoid";
+import { keyboardService } from "@/services/keyboard.service";
+import type { KeyboardInfo } from "@/types/keyboard.types";
 import { loadEnglishContent } from "../content/loader";
+import { LiveInput } from "../input/liveInput";
 import type { PracticeEngineState } from "../PracticeProvider";
 import { openPracticeStore } from "../store/db";
 import { MemoryPracticeStore } from "../store/memory";
@@ -13,7 +17,27 @@ import { loadSettings, saveSettings } from "./settings";
 
 // The engine half of PracticeProvider, in Practice's lazy chunk (docs/practice/spec.md §4.1, §9.8).
 // It owns the PracticeController and feeds it what the editor's contexts know: the keymap Practice
-// follows (§5.4 sources), the OS layout, and whether the Lessons page is showing. It renders nothing.
+// follows (§5.4 sources), the OS layout, whether the Lessons page is showing and whether the tab is
+// visible. It also owns the Live · USB reader (§9.3), which calls keyboardService directly, never the
+// context's pollMatrix (that wrapper sets a heartbeat state on every poll and would re-render every
+// useKeyboard() consumer about 100 times a second). It renders nothing.
+
+/** Reads the connected board's matrix and layer masks for Live · USB; null when no board is connected. */
+export function boardReader(board: () => KeyboardInfo | null) {
+    return {
+        pollMatrix: async () => {
+            const kb = board();
+            return kb ? keyboardService.pollMatrix(kb) : [];
+        },
+        getLayerMasks: async () => {
+            const kb = board();
+            if (!kb) throw new Error("No board connected");
+            return keyboardService.getLayerStateMasks(kb);
+        },
+        // D10 in every build: never while the tab is hidden. Paranoid: only while Keybard is in front.
+        canRead: () => (typeof document === "undefined" || document.visibilityState === "visible") && (!PARANOID || userIsLooking()),
+    };
+}
 
 /** The QWERTY example's loadedFrom (KeyboardContext.loadFromFile with source "demo"). */
 export const EXAMPLE_LOADED_FROM = "QWERTY example (demo)";
@@ -23,6 +47,8 @@ export default function PracticeEngineHost({ store }: { store: WorkspaceStore<Pr
     const { internationalLayout } = useLayoutSettings();
     const { workspace, practicePage } = usePanels();
     const [controller, setController] = useState<PracticeController | null>(null);
+    const connectedBoard = useRef<KeyboardInfo | null>(null);
+    connectedBoard.current = isConnected ? originalKeyboard ?? keyboard : null;
 
     useEffect(() => {
         const created = new PracticeController({
@@ -31,10 +57,14 @@ export default function PracticeEngineHost({ store }: { store: WorkspaceStore<Pr
             openStore: () => openPracticeStore(() => new MemoryPracticeStore()),
             loadContent: loadEnglishContent,
         });
+        // Created with the controller (not in state), so StrictMode's second mount gets a fresh one.
+        const live = new LiveInput(boardReader(() => connectedBoard.current));
         setController(created);
+        created.attachLive(live);
         void created.start();
         return () => {
             created.dispose();
+            live.dispose();
             setController(null);
         };
     }, []);
@@ -66,12 +96,11 @@ export default function PracticeEngineHost({ store }: { store: WorkspaceStore<Pr
         controller?.setActive(workspace === "practice" && practicePage === "lessons");
     }, [controller, workspace, practicePage]);
 
-    // A hidden tab pauses too (D10).
+    // A hidden tab pauses too, and stops reading the board (D10).
     useEffect(() => {
         if (!controller) return;
-        const onVisibility = () => {
-            if (document.visibilityState !== "visible") controller.pause();
-        };
+        const onVisibility = () => controller.setVisible(document.visibilityState === "visible");
+        onVisibility();
         document.addEventListener("visibilitychange", onVisibility);
         return () => document.removeEventListener("visibilitychange", onVisibility);
     }, [controller]);

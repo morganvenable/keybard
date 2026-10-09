@@ -3,8 +3,9 @@
 //
 // A plain class, so its rules can be tested without React. PracticeEngine feeds
 // it the keymap and the workspace state (usePracticeController) and publishes it;
-// the pages and panels read it and call its methods. It never reads the board:
-// M1b is Keymap only (Live · USB is M2).
+// the pages and panels read it and call its methods. It never reads the board
+// itself: PracticeEngineHost attaches a LiveInput (input/liveInput.ts), and the
+// controller decides when it reads (the §3.2 input mode) and feeds it keystrokes.
 //
 // What it decides:
 // - loading: the store (IndexedDB, or memory with a Storage off notice), the
@@ -16,9 +17,14 @@
 //   it is done; a rebuild asked for while a lesson is being saved waits for it;
 // - the lesson: a LessonRun, paused on blur, Esc, a hidden tab, leaving the page
 //   or 10 s idle; kept 10 minutes while paused, then replaced;
-// - the status slot: one notice or banner at a time, by the §5.2 priority.
-import { OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE } from '@/constants/owner-decisions';
+// - the status slot: one notice or banner at a time, by the §5.2 priority;
+// - Live · USB (§3.2, §9.3): the input mode, reading only while it is Live · USB
+//   and the lesson isn't paused, attribution of each keystroke, and Layer locked on.
+import { OWNER_Q4_PARANOID_READS_KEYS, OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE, OWNER_Q12_LAYER_LOCK_DROPS_KEYSTROKES } from '@/constants/owner-decisions';
+import { PARANOID } from '@/lib/paranoid';
 import type { PracticeContent } from '../content/loader';
+import { type InputConditions, type InputMode, inputMode, liveAvailability } from '../input/inputMode';
+import type { LiveInput } from '../input/liveInput';
 import type { PracticeStore } from '../store/db';
 import { boardIdentity, newProfile, profileIdFor } from '../store/profiles';
 import type { ProfileRecord, SnapshotRecord } from '../types';
@@ -53,7 +59,7 @@ export const SOURCE_NAMES: Record<KeymapSourceKind, string> = {
     example: 'QWERTY example',
 };
 
-/** Status slot items, highest priority first (§5.2). OS layout mismatch and Layer locked on are live only (M2). */
+/** Status slot items, highest priority first (§5.2). OS layout mismatch and Layer locked on are live only. */
 export const SPEC_STATUS_PRIORITY = [
     'storage-off', 'newer-schema', 'os-mismatch', 'caps-lock', 'layer-locked', 'keymap-changed',
     'unsent-changes', 'board-connected', 'new-key', 'daily-goal', 'top-speed',
@@ -150,6 +156,8 @@ export class PracticeController {
     lastCompletion: Completion | null = null;
     /** A Lesson panel section to scroll to when the panel next shows (the type row's scope button). */
     panelSection: string | null = null;
+    /** Live · USB: the sampler and correlator, attached by PracticeEngineHost (null in Keymap-only setups). */
+    live: LiveInput | null = null;
     version = 0;
 
     readonly #deps: Required<ControllerDeps>;
@@ -161,6 +169,8 @@ export class PracticeController {
     #profileSeq = 0;
     #active = false;
     #focused = false;
+    #visible = true;
+    #emitQueued = false;
     #banner: Extract<StatusItem, { kind: 'banner' }> | null = null;
     #transient = new Map<StatusId, number>();
     #timers = new Set<ReturnType<typeof setTimeout>>();
@@ -197,8 +207,19 @@ export class PracticeController {
 
     #emit() {
         if (this.#disposed) return;
+        this.#syncLive();
         this.version++;
         for (const listener of [...this.#listeners]) listener();
+    }
+
+    /** An emit from LiveInput's callbacks, outside whatever call is running. */
+    #emitSoon() {
+        if (this.#emitQueued) return;
+        this.#emitQueued = true;
+        queueMicrotask(() => {
+            this.#emitQueued = false;
+            this.#emit();
+        });
     }
 
     #later(ms: number, run: () => void) {
@@ -214,6 +235,78 @@ export class PracticeController {
         if (this.#idleTimer) clearTimeout(this.#idleTimer);
         if (this.#rebuildTimer) clearTimeout(this.#rebuildTimer);
         if (this.run?.started && !this.run.textInput.completed) pageSession.hadLesson = true;
+        this.attachLive(null);
+    }
+
+    // ---- Live · USB (§3.2, §9.3)
+
+    /** Attaches (or detaches) the board reader. PracticeEngineHost owns it. */
+    attachLive(live: LiveInput | null) {
+        if (live === this.live) return;
+        if (this.live) {
+            this.live.onChange = null;
+            this.live.setWanted(false);
+            this.live.bindRun(null);
+        }
+        this.live = live;
+        if (!live) return;
+        live.onChange = () => this.#emitSoon();
+        this.#liveKeymap();
+        live.bindRun(this.run);
+        this.#emit();
+    }
+
+    #liveKeymap() {
+        const resolved = this.#resolved;
+        if (!this.live || !resolved) return;
+        const board = resolved.keymap.board;
+        this.live.setKeymap({ resolution: resolved.resolution, keymap: board.keymap ?? [], rows: board.rows, cols: board.cols });
+    }
+
+    get inputConditions(): InputConditions {
+        const k = this.keymap;
+        return {
+            hidSupported: !!k?.hidSupported,
+            connected: !!k?.connected,
+            connectedSource: k?.source === 'connected',
+            readKeyPresses: this.settings.readKeyPresses,
+            paranoid: PARANOID,
+            paranoidReads: OWNER_Q4_PARANOID_READS_KEYS,
+            sampler: !!this.live,
+            failed: !!this.live?.failed,
+            focused: this.#focused,
+            visible: this.#visible,
+            active: this.#active,
+        };
+    }
+
+    /** Live · USB is available: the P4 rows say Shown and Live, whatever the focus (§5.6). */
+    get liveAvailable(): boolean {
+        return liveAvailability(this.inputConditions).available;
+    }
+
+    /** P4 Pressed keys value (§5.6). */
+    get pressedKeysValue(): string {
+        return liveAvailability(this.inputConditions).pressedKeys;
+    }
+
+    /** The §3.2 input mode. The pill shows Paused instead while the lesson is paused. */
+    get inputMode(): InputMode {
+        return inputMode(this.inputConditions);
+    }
+
+    /** Layer locked on (§5.3): the layer, while Live · USB sees it. */
+    get layerLocked(): number | null {
+        return this.inputMode === 'usb' ? this.live?.layerLocked ?? null : null;
+    }
+
+    /** Reads the board only in Live · USB with a lesson that isn't paused (§9.3 Lifecycle, D10). */
+    #syncLive() {
+        const live = this.live;
+        if (!live) return;
+        const run = this.run;
+        const lesson = !!run && (run.phase === 'ready' || run.phase === 'typing' || this.#completing);
+        live.setWanted(!this.#disposed && lesson && this.inputMode === 'usb');
     }
 
     // ---- loading
@@ -289,6 +382,7 @@ export class PracticeController {
             const changed = this.#resolved && this.#resolved.fingerprint !== fingerprint;
             const first = !this.#resolved;
             this.#resolved = { resolution, fingerprint, keymap };
+            this.#liveKeymap();
             // Same paths (a layer color or a layer name changed, say): keep the lesson, redraw.
             if (!first && !changed) { this.#emit(); return; }
             if (changed && this.session) this.#notify('keymap-changed');
@@ -372,11 +466,13 @@ export class PracticeController {
         this.#pausedSince = null;
         if (!session || session.noLetters || session.firstRun) {
             this.run = null;
+            this.live?.bindRun(null);
             this.#emit();
             return;
         }
         this.run = session.newRun();
-        if (!this.#focused || !this.#active) this.#pause();
+        this.live?.bindRun(this.run);
+        if (!this.#focused || !this.#active || !this.#visible) this.#pause();
         this.#emit();
     }
 
@@ -470,6 +566,15 @@ export class PracticeController {
         if (active === this.#active) return;
         this.#active = active;
         if (!active) this.pause();
+        this.#syncLive();
+    }
+
+    /** The tab became visible or hidden. Hidden pauses, and the board is never read while hidden (D10). */
+    setVisible(visible: boolean) {
+        if (visible === this.#visible) return;
+        this.#visible = visible;
+        if (!visible) this.pause();
+        this.#emit();
     }
 
     get active() {
@@ -481,7 +586,8 @@ export class PracticeController {
         if (focused === this.#focused) return;
         this.#focused = focused;
         if (!focused) this.pause();
-        else this.#emit();
+        // Reading stops on blur whether or not there was a lesson to pause (§9.3, D10).
+        this.#emit();
     }
 
     get focused() {
@@ -553,12 +659,18 @@ export class PracticeController {
     onInput(event: IInputEvent) {
         const run = this.run;
         if (!run || this.#completing) return;
+        if (OWNER_Q12_LAYER_LOCK_DROPS_KEYSTROKES && this.layerLocked != null && run.phase !== 'paused') {
+            // Layer locked on: dropped like Caps Lock's, with the notice showing (§5.3, OWNER_Q12).
+            this.#emit();
+            return;
+        }
         const outcome = run.onInput(event);
         if (outcome.ignored) {
             // Caps Lock keystrokes are dropped, but the notice must show (§5.3).
             if (run.capsLock) this.#emit();
             return;
         }
+        if (outcome.keystroke) this.live?.enqueue(outcome.keystroke);
         // A banner clears on the next keystroke; the slot stays, so nothing moves (§5.3).
         this.#banner = null;
         this.justUnlocked = null;
@@ -573,8 +685,10 @@ export class PracticeController {
         this.#completing = true;
         this.#clearIdle();
         try {
+            // The last keystrokes' evidence arrives up to ε after them (§9.3).
+            await this.live?.settle();
             const completion = await session.complete(run, {
-                ts: this.#deps.now(), src: 'keymap', board: this.boardId, os: this.keymap.layoutId,
+                ts: this.#deps.now(), src: run.observed > 0 ? 'usb' : 'keymap', board: this.boardId, os: this.keymap.layoutId,
             });
             if (this.#disposed) return;
             this.storageError = completion.storageError;
@@ -652,18 +766,29 @@ export class PracticeController {
                 case 'unsent-changes':
                     if (this.keymap?.unsentChanges) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
                     break;
+                case 'layer-locked': {
+                    const layer = this.layerLocked;
+                    if (layer != null) return { id, kind: 'notice', text: layerLockedText(this.keymap?.board, layer) };
+                    break;
+                }
                 case 'new-key':
                 case 'daily-goal':
                 case 'top-speed':
                     if (this.#banner?.id === id) return this.#banner;
                     break;
                 default:
-                    // os-mismatch and layer-locked need live input (M2).
+                    // TODO(practice): M4 shows os-mismatch (LiveInput.mismatch counts it already).
                     break;
             }
         }
         return null;
     }
+}
+
+/** "Layer 1 is locked on", with the layer's name from `cosmetic.layer` when it has one (§5.3). */
+export function layerLockedText(board: Pick<KeyboardInfo, 'cosmetic'> | undefined, layer: number): string {
+    const name = board?.cosmetic?.layer?.[layer];
+    return `${name && name.trim() ? name : `Layer ${layer}`} is locked on`;
 }
 
 /** Speed (CPM) and accuracy of a completion's record, as keybr's Result computes them. */

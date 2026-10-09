@@ -20,7 +20,7 @@ import { layerColorHex, layerColorName, spokenPlace } from "./format";
 import { InputStatus } from "./InputStatus";
 import { KeyStrip } from "./KeyStrip";
 import { MetricsRow } from "./MetricsRow";
-import { PracticeKeyboard } from "./PracticeKeyboard";
+import { LiveBoard } from "./PracticeKeyboard";
 import { presetWpm, StartView } from "./StartView";
 import { StatusSlotItem, TypeRow } from "./TypeRow";
 import { TypingSurface, type TypingSurfaceHandle } from "./TypingSurface";
@@ -136,16 +136,17 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const defaultLayer = session?.keymap.defaultLayer ?? 0;
     const next = run?.expected ?? null;
     const noLesson = !session || session.noLetters || controller?.loadState === "content-error";
-    const view = useMemo(() => {
-        if (!board) return null;
+    // The displayed layer (§5.2): the live layer while the board is read (LiveBoard passes it), else the
+    // next character's layer once typing started, else the base layer.
+    const viewFor = useCallback((liveLayer: number | null) => {
         const resolution = session?.resolution ?? null;
         const firstRun = !!session?.firstRun;
         return boardView({
-            keyboard: board,
+            keyboard: board!,
             resolution,
             layoutId: session?.keymap.layoutId ?? "us",
             defaultLayer,
-            displayedLayer: displayedLayerFor(resolution, next, !!run?.started, defaultLayer),
+            displayedLayer: liveLayer ?? displayedLayerFor(resolution, next, !!run?.started, defaultLayer),
             included: firstRun ? preview?.included ?? EMPTY : included,
             locked: firstRun ? preview?.locked ?? locked : locked,
             next: firstRun ? null : settings?.hints === "off" ? null : next,
@@ -154,6 +155,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
             noLesson,
         });
     }, [board, session, defaultLayer, next, run?.started, preview, included, locked, settings?.hints, settings?.legends, noLesson]);
+    const live = controller?.live ?? null;
 
     const layerColorOf = useCallback((codePoint: number) => {
         const path = session?.resolution.primary(codePoint);
@@ -165,15 +167,15 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const narrow = width > 0 && width < 480;
     const boardHidden = !settings?.showBoard;
 
-    const boardBlock = view && !boardHidden && (
+    const boardBlock = board && !boardHidden && (
         fit.hidden ? (
             boardSheet && (
                 <div className="fixed inset-x-2 bottom-2 z-40 overflow-x-auto rounded-2xl bg-kb-surface p-4 shadow-xl border border-gray-200 dark:border-neutral-700" data-practice-board-sheet>
-                    <PracticeKeyboard view={view} fit={{ ...fit, hidden: false }} dimmed={controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
+                    <LiveBoard live={live} viewFor={viewFor} fit={{ ...fit, hidden: false }} dimmed={controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
                 </div>
             )
         ) : (
-            <PracticeKeyboard view={view} fit={fit} dimmed={!!run && controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
+            <LiveBoard live={live} viewFor={viewFor} fit={fit} dimmed={!!run && controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
         )
     );
 

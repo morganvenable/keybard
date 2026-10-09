@@ -7,22 +7,23 @@ import { cn } from "@/lib/utils";
 import type { PracticeController } from "../state/controller";
 import { POPOVER_CLASSES } from "./KeyPopover";
 
-// P4 Input status pill and popover (docs/practice/spec.md §3.2, §5.6). M1b is Keymap only: the pill reads
-// Keymap only, or Paused while the lesson is paused. The popover says what the user gets and, when not,
-// why, as row values; unavailable actions are not drawn as disabled buttons. Diagnostics (the keymap
-// fingerprint; M2 adds the sample rate) sit in the row's tooltip on focus or hover, not in the row.
-// TODO(practice): M2 adds Live · USB (green dot, Pressed keys Shown, Layer Live).
+// P4 Input status pill and popover (docs/practice/spec.md §3.2, §5.6). The pill reads Live · USB (green dot)
+// or Keymap only (gray ring), or Paused (gray dot) while the lesson is paused, whatever the mode. The
+// popover says what the user gets and, when not, why, as row values; unavailable actions are not drawn as
+// disabled buttons. Diagnostics (the sample rate and round trip, the keymap fingerprint) sit in the row's
+// tooltip on focus or hover, not in the row. Live · Host is M5 (OWNER_Q3).
 
-export type InputPillState = "keymap" | "paused";
+export type InputPillState = "usb" | "keymap" | "paused";
 
 export function inputPillState(controller: PracticeController): InputPillState {
-    return controller.paused ? "paused" : "keymap";
+    return controller.paused ? "paused" : controller.inputMode;
 }
 
-export const PILL_TEXT: Record<InputPillState, string> = { keymap: "Keymap only", paused: "Paused" };
+export const PILL_TEXT: Record<InputPillState, string> = { usb: "Live · USB", keymap: "Keymap only", paused: "Paused" };
 
-/** The pill's dot: a gray ring for Keymap only, a gray dot while paused (§5.6). */
+/** The pill's dot: brand green for a live source, a gray ring for Keymap only, a gray dot while paused (§5.6). */
 export function InputDot({ state }: { state: InputPillState }) {
+    if (state === "usb") return <span aria-hidden="true" className="size-2 rounded-full bg-kb-primary" />;
     return state === "paused"
         ? <span aria-hidden="true" className="size-2 rounded-full bg-kb-gray-border" />
         : <span aria-hidden="true" className="size-2 rounded-full border-2 border-kb-gray-border" />;
@@ -30,12 +31,15 @@ export function InputDot({ state }: { state: InputPillState }) {
 
 /** Pressed keys row value (§5.6). */
 export function pressedKeysValue(controller: PracticeController): string {
-    const k = controller.keymap;
-    if (!k?.hidSupported) return "Not shown · needs Chrome or Edge";
-    if (!k.connected) return "Not shown · connect the board";
-    if (!controller.settings.readKeyPresses) return "Not shown · reading is off";
-    // TODO(practice): M2 reads the board (Live · USB); until then Practice is Keymap only.
-    return "Not shown · keymap only for now";
+    return controller.pressedKeysValue;
+}
+
+/** The sampler's numbers for the Pressed keys tooltip, or undefined before it has read anything. */
+export function samplerDiagnostic(controller: PracticeController): string | undefined {
+    const stats = controller.live?.stats();
+    if (!controller.liveAvailable || !stats || stats.samples === 0) return undefined;
+    const ms = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)} ms`);
+    return `${stats.rate} samples/s · round trip ${ms(stats.rttP50)} (p95 ${ms(stats.rttP95)})`;
 }
 
 interface InputStatusProps {
@@ -48,8 +52,8 @@ export function InputStatus({ controller, onConnect }: InputStatusProps) {
     const k = controller.keymap;
     const fingerprint = controller.session?.fingerprint;
     const rows: [string, string, string?][] = [
-        ["Pressed keys", pressedKeysValue(controller)],
-        ["Layer", "From keymap"],
+        ["Pressed keys", pressedKeysValue(controller), samplerDiagnostic(controller)],
+        ["Layer", controller.liveAvailable ? "Live" : "From keymap"],
         ["Keymap", controller.sourceName || "—", fingerprint ? `Keymap fingerprint ${fingerprint.slice(0, 12)}` : undefined],
     ];
     const canConnect = !!k?.hidSupported && !k.connected;

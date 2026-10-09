@@ -51,3 +51,13 @@ export const OWNER_Q10_NEW_COLOR_ROLES = true;
  * the spec's order exactly.
  */
 export const OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE = true;
+
+/**
+ * Q12 (raised by M2; not in spec rev 3). While **Layer N is locked on** shows (§5.3,
+ * Live · USB), keystrokes are dropped like Caps Lock's: not saved and the lesson
+ * doesn't advance. The spec says only "excluded from stats"; with a layer stuck on,
+ * nearly every character typed is wrong, so counting the lesson on would fill it
+ * with misses the user can't fix until the layer is off. Recommended: yes. false
+ * keeps the notice but counts the keystrokes normally.
+ */
+export const OWNER_Q12_LAYER_LOCK_DROPS_KEYSTROKES = true;

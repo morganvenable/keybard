@@ -121,6 +121,10 @@ export const RED_ALLOWED: RedAllowed[] = [
     { file: "src/features/trainer/HostInstall.tsx", literal: "bg-kb-red", tokens: ["bg-kb-red"], reason: "error", note: "Overlay status pill dot: Keybard Host connection lost." },
     { file: "src/features/practice/ui/TypingSurface.tsx", literal: "bg-kb-red/15 rounded-sm", tokens: ["bg-kb-red/15"], reason: "error", note: "Practice text: the current character after a miss (spec §5.2), tinted beside its wavy red underline." },
 
+    // Wrong keys: the Practice board's wrong-key border and × badge (Live · USB).
+    { file: "src/features/practice/ui/PracticeKeyboard.tsx", literal: "border-2 border-kb-red", tokens: ["border-kb-red"], reason: "wrong-key", note: "Practice board: a key pressed by mistake, from the press until 600 ms after release (spec §5.2)." },
+    { file: "src/features/practice/ui/PracticeKeyboard.tsx", literal: "bg-kb-red text-white", tokens: ["bg-kb-red"], reason: "wrong-key", note: "Practice board: the × badge on a wrong key, the cue that doesn't rely on hue (spec §5.0)." },
+
     // Layer color data: a layer the user colors red still has red faces. (.ts, scanned by this rule only)
     { file: "src/utils/colors.ts", literal: /^(hover:)?(bg|border)-kb-red( text-white)?$/, tokens: ["bg-kb-red", "hover:border-kb-red", "hover:bg-kb-red"], reason: "layer-data", note: "Red layer color: face, hover border and hover face." },
 ];
