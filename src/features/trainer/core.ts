@@ -1,6 +1,7 @@
 import { LAYOUTS } from '@/components/Keyboards/layouts';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 import { SVALBOARD_LAYOUT } from '@/constants/svalboard-layout';
+import { HEX_COLOR } from '@/components/shared/color-swatches';
 
 export interface Appearance {
     fill: string; fillAlpha: number; outline: string; outlineAlpha: number;
@@ -25,7 +26,7 @@ export function preferences(value: unknown): Preferences {
     const colors = data.appearance as Record<string, unknown> | undefined;
     if (colors && typeof colors === 'object') {
         for (const name of ['fill', 'outline', 'legend', 'changed', 'pressed'] as const)
-            if (typeof colors[name] === 'string' && /^#[\da-f]{6}$/i.test(colors[name] as string)) result.appearance[name] = colors[name] as string;
+            if (typeof colors[name] === 'string' && HEX_COLOR.test(colors[name] as string)) result.appearance[name] = colors[name] as string;
         for (const name of ['fillAlpha', 'outlineAlpha', 'legendAlpha', 'width'] as const)
             if (typeof colors[name] === 'number' && Number.isFinite(colors[name])) result.appearance[name] = Math.max(0, Math.min(name === 'width' ? 4 : 100, colors[name] as number));
         if (typeof colors.halo === 'boolean') result.appearance.halo = colors.halo;

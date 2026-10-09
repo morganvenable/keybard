@@ -9,7 +9,8 @@ export interface ColorSwatch {
     name: string;
 }
 
-const title = (name: string) => name.replace("-", " ");
+// Display names in American spelling; the layer color keys are data ("grey", "light-grey").
+const title = (name: string) => name.replace(/-/g, " ").replace(/grey/g, "gray");
 
 export const COLOR_FIELD_SWATCHES: ColorSwatch[] = [
     ...layerColors.filter((c) => c.name !== "white").map((c) => ({ hex: c.hex.toLowerCase(), name: `Brand ${title(c.name)}, ${c.hex.toLowerCase()}` })),

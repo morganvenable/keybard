@@ -118,7 +118,8 @@ function ColorRow({ overlay, title, name, alpha }: { overlay: OverlayModel; titl
 function WindowRows({ overlay: o }: { overlay: OverlayModel }) {
     const state = o.host.state;
     const command = o.host.command;
-    const manualDefault = state ? Math.max(0, Math.log2(state.config.manualDefault || 1)) : 0;
+    // The highest default layer wins when several bits are set (core.ts resolveBinding scans down).
+    const manualDefault = state ? Math.max(0, 31 - Math.clz32(state.config.manualDefault >>> 0)) : 0;
     return <>
         <Row title="Hands">
             <SegmentedControl label="Hands" value={o.prefs.hands} onChange={v => o.update('hands', v)} options={HANDS.map(h => ({ value: h, label: h }))} />
@@ -140,7 +141,7 @@ function WindowRows({ overlay: o }: { overlay: OverlayModel }) {
             {state.default === null && <Row title={<span id="overlay-desktop-default-label">Desktop default layer</span>} value="Older firmware">
                 <Select value={String(manualDefault)} onValueChange={v => o.setManualDefault(Number(v))}>
                     <SelectTrigger aria-labelledby="overlay-desktop-default-label" className="min-w-36 max-w-full bg-kb-surface"><SelectValue /></SelectTrigger>
-                    <SelectContent>{o.layers.map(l => <SelectItem key={l.index} value={String(l.index)}>{l.label}</SelectItem>)}</SelectContent>
+                    <SelectContent>{o.hostLayers.map(l => <SelectItem key={l.index} value={String(l.index)}>{l.label}</SelectItem>)}</SelectContent>
                 </Select>
             </Row>}
         </>}
@@ -183,7 +184,7 @@ function FeedbackRows({ overlay: o }: { overlay: OverlayModel }) {
         {/* Hidden rather than disabled while the highlight is off. */}
         {o.prefs.effect !== 'Off' && <SliderRow title="Duration" display={`${o.prefs.duration} ms`} value={o.prefs.duration} min={50} max={750} step={25} onChange={v => o.update('duration', v)} />}
         {state && <Row title="Highlight held keys">
-            <OnOffToggle label="Highlight held keys" value={state.config.highlightPressed} onToggle={v => { if (!o.host.busy) o.setHighlightPressed(v); }} />
+            <OnOffToggle label="Highlight held keys" value={o.highlightPressed} onToggle={o.setHighlightPressed} />
         </Row>}
         {state?.matrixAvailable === false && <Row title="Held keys"><span className="text-sm text-muted-foreground">Unavailable on this firmware</span></Row>}
         <Row title="Preview">
@@ -231,7 +232,7 @@ function RecallRows({ overlay: o }: { overlay: OverlayModel }) {
 function PanelFooter({ overlay: o }: { overlay: OverlayModel }) {
     if (!o.saving && !o.storageError) return null;
     return (
-        <div role="status" className="sticky bottom-0 mt-2 flex items-center gap-2 bg-sidebar-background px-1 py-3 text-xs text-muted-foreground">
+        <div role="status" className="sticky bottom-0 mt-2 flex items-center gap-2 bg-kb-surface px-1 py-3 text-xs text-muted-foreground">
             {o.storageError
                 ? <span className="text-red-700 dark:text-red-400">Settings couldn't be saved</span>
                 : <><span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-kb-pending" />Saving…</>}

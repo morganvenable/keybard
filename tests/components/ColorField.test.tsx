@@ -40,6 +40,10 @@ describe("ColorField", () => {
         expect(within(popover).getByRole("button", { name: "White, #ffffff" })).toHaveAttribute("aria-pressed", "false");
         expect(within(popover).getByRole("button", { name: "Black, #000000" })).toBeInTheDocument();
         for (const swatch of COLOR_FIELD_SWATCHES) expect(swatch.hex).toMatch(HEX_COLOR);
+        // Display names are American English, whatever the layer color keys say.
+        expect(within(popover).getByRole("button", { name: "Brand gray, #85929b" })).toBeInTheDocument();
+        expect(within(popover).getByRole("button", { name: "Brand light gray, #d8d8d8" })).toBeInTheDocument();
+        expect(COLOR_FIELD_SWATCHES.some((swatch) => /grey/i.test(swatch.name))).toBe(false);
     });
 
     it("picks a swatch and closes", () => {

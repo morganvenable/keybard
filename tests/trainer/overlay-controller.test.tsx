@@ -78,6 +78,34 @@ describe('Host config mirroring', () => {
         expect(result.current.prefs.layoutId).toBe('german');
     });
 
+    it('sends Highlight held keys once a Host write in flight has finished', async () => {
+        let release: (() => void) | undefined;
+        const base = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (String(url).endsWith('/config') && !release) await new Promise<void>(r => { release = r; });
+            return base(url, init);
+        });
+        const { result } = renderHook(() => useOverlayController(true));
+        await waitFor(() => expect(result.current.host.state).not.toBeNull());
+        act(() => result.current.update('scale', 110));
+        await waitFor(() => expect(result.current.host.busy).toBe(true));
+        act(() => result.current.setHighlightPressed(true));
+        expect(result.current.highlightPressed).toBe(true);
+        expect(configWrites()).toHaveLength(0);
+        await act(async () => { release!(); });
+        await waitFor(() => expect(configWrites().some(c => (c.body.config as { highlightPressed: boolean }).highlightPressed)).toBe(true));
+        await waitFor(() => expect(result.current.host.state?.config.highlightPressed).toBe(true));
+        expect(result.current.highlightPressed).toBe(true);
+    });
+
+    it('lists the layers of the board Host reads for Desktop default layer, whatever the preview shows', async () => {
+        const { result } = renderHook(() => useOverlayController(true));
+        await waitFor(() => expect(result.current.host.state).not.toBeNull());
+        act(() => result.current.chooseSource('example'));
+        expect(result.current.hostLayers.map(l => l.label)).toEqual(['0 · Base', '1 · Layer 1']);
+        expect(result.current.layers.length).not.toBe(2);
+    });
+
     it('never shows Saving… without Host', async () => {
         delete document.documentElement.dataset.keybardHost;
         const { result } = renderHook(() => useOverlayController(true));

@@ -79,6 +79,8 @@ export function useOverlayController(active: boolean) {
     const [cue, setCue] = useState(0), [attempts, setAttempts] = useState(0), [correct, setCorrect] = useState(0);
     const [familiar, setFamiliar] = useState<Set<string>>(new Set()), [hideFamiliar, setHideFamiliar] = useState(false);
     const [selected, setSelected] = useState<number | null>(null);
+    // Highlight held keys chosen while another Host write is in flight; sent once Host is free.
+    const [pendingHighlight, setPendingHighlight] = useState<boolean | null>(null);
     const importGeneration = useRef(0);
     useEffect(() => () => { importGeneration.current++; }, []);
     useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); setStorageError(false); } catch { setStorageError(true); } }, [prefs]);
@@ -120,6 +122,11 @@ export function useOverlayController(active: boolean) {
         return () => clearTimeout(timer);
     }, [keys, prefs.duration]);
     useEffect(() => { if (!held.size) return; const timer = setTimeout(() => setHeld(new Set()), 800); return () => clearTimeout(timer); }, [held]);
+    useEffect(() => {
+        if (pendingHighlight === null || !host.state || host.busy) return;
+        if (host.state.config.highlightPressed === pendingHighlight) { setPendingHighlight(null); return; }
+        void host.configure({ ...host.state.config, highlightPressed: pendingHighlight }).then(ok => { if (ok) setPendingHighlight(null); });
+    }, [pendingHighlight, host.busy, host.state?.config.highlightPressed]);
     const learnable = useMemo(() => keys.filter(k => k.code > 1), [keys]);
     const target = learnable.length ? learnable[cue % learnable.length] : undefined;
     const hidden = useMemo(() => new Set(keys.filter(k => (recall && !revealed) || (hideFamiliar && familiar.has(`${k.id}:${k.code}`) && !revealed)).map(k => k.id)),
@@ -137,7 +144,7 @@ export function useOverlayController(active: boolean) {
 
     const chosen = keys.find(k => k.id === selected);
     const appearance = prefs.appearance;
-    const preset = Object.entries(PRESETS).find(([, a]) => JSON.stringify(a) === JSON.stringify(appearance))?.[0] || 'Custom';
+    const preset = useMemo(() => Object.entries(PRESETS).find(([, a]) => JSON.stringify(a) === JSON.stringify(appearance))?.[0] || 'Custom', [appearance]);
     const update = useCallback(<K extends keyof Preferences>(key: K, value: Preferences[K]) => { setHostDirty(true); setPrefs(p => ({ ...p, [key]: value })); }, []);
     const setAppearance = useCallback(<K extends keyof Appearance>(key: K, value: Appearance[K]) => {
         setHostDirty(true); setPrefs(p => ({ ...p, appearance: { ...p.appearance, [key]: value } }));
@@ -151,24 +158,18 @@ export function useOverlayController(active: boolean) {
     const chooseSource = (value: LayoutSource) => { setLive(value === 'live'); if (value !== 'live') setSource(value); };
     /** Choosing a board on the Host card sends `connect` and follows it again, as before. */
     const connectBoard = (id: string) => { setLive(true); void host.command({ op: 'connect', id }); };
-    const setHighlightPressed = (value: boolean) => { if (host.state) void host.configure({ ...host.state.config, highlightPressed: value }); };
+    const setHighlightPressed = (value: boolean) => { if (host.state) setPendingHighlight(value); };
     const setManualDefault = (layerIndex: number) => { if (host.state) void host.configure({ ...host.state.config, manualDefault: (1 << layerIndex) >>> 0 }); };
 
     async function importLayout(file: File | undefined) {
         if (!file) return;
         const generation = ++importGeneration.current;
-        try {
-            const loaded = await fileService.loadFile(file);
-            if (generation !== importGeneration.current) return;
-            if (loaded.rows !== 10 || loaded.cols !== 6 || !loaded.keymap?.length) throw new Error('Choose a Svalboard layout with a 10 × 6 matrix');
-            setImported(loaded); setLive(false); setSource('import'); setImportError('');
-        } catch (e) {
-            if (generation !== importGeneration.current) return;
-            // The 10 × 6 check names what to do; anything else the file service threw means the file
-            // couldn't be read as a layout.
-            const message = e instanceof Error ? e.message : '';
-            setImportError(message.startsWith('Choose a Svalboard') ? message : "Couldn't read this layout");
-        }
+        let loaded: KeyboardInfo;
+        try { loaded = await fileService.loadFile(file); }
+        catch { if (generation === importGeneration.current) setImportError("Couldn't read this layout"); return; }
+        if (generation !== importGeneration.current) return;
+        if (loaded.rows !== 10 || loaded.cols !== 6 || !loaded.keymap?.length) { setImportError('Choose a Svalboard layout with a 10 × 6 matrix'); return; }
+        setImported(loaded); setLive(false); setSource('import'); setImportError('');
     }
 
     const snapshot = snapshotName(isConnected, loadedFrom, !!originalKeyboard);
@@ -183,16 +184,25 @@ export function useOverlayController(active: boolean) {
     const noBoard = following && !host.state!.selectedDevice;
     const sourceName = noBoard ? 'No board' : sourceOptions.find(o => o.value === sourceValue)?.label ?? snapshot;
 
+    const pressed = host.state?.pressed;
+    const hostHeld = useMemo(() => new Set(pressed || []), [pressed]);
+    const layers = useMemo(() => layerOptions(board), [board]);
+    // Desktop default layer is a Host-wide setting, so it lists the board Host reads, not the preview's.
+    const hostBoard = host.state?.board;
+    const hostLayers = useMemo(() => hostBoard ? layerOptions(hostBoard) : layers, [hostBoard, layers]);
+
     return {
         host, following, board, keys, changed,
-        held: following ? new Set(host.state?.pressed || []) : held,
+        held: following ? hostHeld : held,
         hidden, target, revealed, recall, attempts, correct, learnable, selected, chosen, familiar, hideFamiliar,
         prefs, appearance, preset, storageError,
         /** A Host write is pending or in flight (§5.15 footer). */
         saving: !!host.state && (hostDirty || host.busy),
         tile, background, layer, base, importError,
         sourceOptions, sourceValue, sourceName, noBoard,
-        layers: layerOptions(board),
+        layers, hostLayers,
+        /** Highlight held keys as shown: a choice waiting for Host, else Host's config. */
+        highlightPressed: pendingHighlight ?? !!host.state?.config.highlightPressed,
         setTile, setBackground, setLayer, setBase, setSelected, setHideFamiliar, setRecall,
         update, setAppearance, applyPreset, resetPreferences, grade, reveal: () => setRevealed(true), markFamiliar,
         clearFamiliar: () => setFamiliar(new Set()), previewHeld, chooseSource, importLayout, connectBoard,
