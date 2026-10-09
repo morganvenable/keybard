@@ -171,6 +171,18 @@ describe('Controller: Drill this key and the Drill scope (§5.5, §5.7)', () => 
         expect(String(c.run!.textInput.text)).toContain('!');
     });
 
+    it('Drill this key on a capital drills its lowercase letter; Space has nothing to drill (M3-R2)', async () => {
+        const c = await ready();
+        expect(c.canDrillKey(cp('A'))).toBe(true);
+        expect(c.canDrillKey(cp(' '))).toBe(false);
+        c.drillKey(cp('A'));
+        await vi.waitFor(() => expect(c.session?.type).toBe('drill'));
+        expect(c.settings.drill.focus).toBe(cp('a'));
+        expect(c.settings.drill.keys).not.toContain(cp('A'));
+        expect(c.session!.lessonKeys.findFocusedKey()?.letter.codePoint).toBe(cp('a'));
+        expect(String(c.run!.textInput.text)).not.toMatch(/[A-Z]/);
+    });
+
     it('changing the scope in the panel ends Drill this key', async () => {
         const c = await ready();
         c.drillKey(cp('!'));

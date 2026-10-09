@@ -123,6 +123,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         controller?.drillKey(codePoint);
         focusSurface();
     }, [controller, focusSurface]);
+    const canDrillKey = useCallback((codePoint: number) => controller?.canDrillKey(codePoint) ?? false, [controller]);
 
     const openPanelAt = useCallback((section: string) => {
         controller?.requestPanelSection(section);
@@ -306,6 +307,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                         layerColorOf={layerColorOf}
                         justUnlocked={controller.justUnlocked}
                         onDrill={drillKey}
+                        canDrill={canDrillKey}
                     />
                     <MetricsRow
                         last={s.lastLesson()}

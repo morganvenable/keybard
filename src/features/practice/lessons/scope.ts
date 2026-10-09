@@ -105,7 +105,9 @@ export function scopeCandidates(input: DrillScopeInput): number[] {
     const letters = new Set(letterFrequency.keys());
     const frequency = (c: number) => charFrequency(c, letterFrequency);
     if (drill.keys) {
-        return unlockOrder(drill.keys.filter((c) => resolution.primary(c) != null), input.weight, frequency, letters);
+        // A stored or imported set can't bring back characters Drill never drills (capitals).
+        const keys = drill.keys.filter((c) => charClass(c, letters) != null && resolution.primary(c) != null);
+        return unlockOrder(keys, input.weight, frequency, letters);
     }
     const classes = GROUP_CLASSES[drill.group];
     const chars: number[] = [];
@@ -186,6 +188,24 @@ export function clusterScope(resolution: KeymapResolution, codePoint: number, co
     };
     const onLayer = members(true);
     return onLayer.length >= MIN_DRILL_SCOPE ? onLayer : members(false);
+}
+
+/**
+ * The character Drill this key (§5.7) drills for `codePoint`, or null when it has none.
+ * A drilled character is itself; a capital is its lowercase letter when that is the
+ * same key on the same layer (Drill never drills capitals on their own); anything
+ * else, such as Space, has none and the popover offers no Drill this key.
+ */
+export function drillTarget(resolution: KeymapResolution, codePoint: number, letterFrequency: ReadonlyMap<number, number>): number | null {
+    const path = resolution.primary(codePoint);
+    if (!path) return null;
+    const letters = new Set(letterFrequency.keys());
+    if (charClass(codePoint, letters)) return codePoint;
+    const lower = String.fromCodePoint(codePoint).toLowerCase();
+    const lowerCodePoint = lower.codePointAt(0)!;
+    if ([...lower].length !== 1 || lowerCodePoint === codePoint || !charClass(lowerCodePoint, letters)) return null;
+    const lowerPath = resolution.primary(lowerCodePoint);
+    return lowerPath && lowerPath.layer === path.layer && lowerPath.index === path.index ? lowerCodePoint : null;
 }
 
 /** The board has a 2S key on some finger cluster (6-key clusters, §5.5 Directions). */

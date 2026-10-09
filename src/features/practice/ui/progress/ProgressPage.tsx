@@ -131,7 +131,8 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
             <Section title="Characters">
                 <div className="bg-kb-surface rounded-2xl border border-gray-200 dark:border-neutral-700 p-2">
                     <CharTable rows={view.characters} resolution={session.resolution} cols={session.keymap.board.cols} unit={unit} layerColorOf={layerColorOf}
-                        onDrill={(codePoint) => { controller?.drillKey(codePoint); setPracticePage("lessons"); }} />
+                        onDrill={(codePoint) => { controller?.drillKey(codePoint); setPracticePage("lessons"); }}
+                        canDrill={(codePoint) => controller?.canDrillKey(codePoint) ?? false} />
                 </div>
             </Section>
         </div>

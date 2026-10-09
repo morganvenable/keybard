@@ -63,8 +63,9 @@ function DrillSection({ controller: c, group }: SectionProps) {
     const layers = resolution ? [...resolution.layers.keys()].sort((a, b) => a - b) : [0];
     const directions = boardDirections(c);
     const keysMode = !!d.keys;
-    // The scope as the session runs it (it follows the settings once rebuilt).
-    const scope = c.session?.type === "drill" ? c.session.lessonKeys.findIncludedKeys().map((k) => k.letter.codePoint) : [];
+    // The scope as the session runs it (it follows the settings once rebuilt). Until a Drill
+    // session exists (first load, the history replay, a rebuild from another type) it is unknown.
+    const scope = c.session?.type === "drill" ? c.session.lessonKeys.findIncludedKeys().map((k) => k.letter.codePoint) : null;
     const pill = (value: number | null, label: string, color: string | null) => {
         const on = !keysMode && d.layer === value;
         return (
@@ -133,7 +134,14 @@ function DrillSection({ controller: c, group }: SectionProps) {
     );
 }
 
-function InScopeRow({ scope, layerColorOf }: { scope: number[]; layerColorOf: (codePoint: number) => string }) {
+function InScopeRow({ scope, layerColorOf }: { scope: number[] | null; layerColorOf: (codePoint: number) => string }) {
+    if (!scope) {
+        return (
+            <Row title="In scope">
+                <span className="text-sm text-muted-foreground" data-drill-in-scope-pending>—</span>
+            </Row>
+        );
+    }
     const few = scope.length < MIN_DRILL_SCOPE;
     return (
         <Row

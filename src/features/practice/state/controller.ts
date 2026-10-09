@@ -31,7 +31,7 @@ import type { ProfileRecord, SnapshotRecord } from '../types';
 import { type IInputEvent, type IKeyboardEvent } from '../vendor/keybr/textinput-events/index.ts';
 import type { LessonRun } from './lessonRun';
 import { type Completion, type LessonEvent, loadProfileData, PracticeSession, type PracticeKeymap, type ProfileData, resolvePracticeKeymap } from './session';
-import { clusterScope } from '../lessons/scope';
+import { clusterScope, drillTarget } from '../lessons/scope';
 import { type DrillSettings, LESSON_SHAPING, type PracticeSettings, START_PRESETS, type StartPreset } from './settings';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 
@@ -495,8 +495,18 @@ export class PracticeController {
         const session = this.session;
         if (!session) return;
         const letterFrequency = new Map(session.languageLetters.map((l) => [l.codePoint, l.f]));
-        const keys = clusterScope(session.resolution, codePoint, session.keymap.board.cols, letterFrequency);
-        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: codePoint } });
+        const target = drillTarget(session.resolution, codePoint, letterFrequency);
+        if (target == null) return;
+        const keys = clusterScope(session.resolution, target, session.keymap.board.cols, letterFrequency);
+        this.update({ type: 'drill', drill: { ...this.settings.drill, keys, focus: target } });
+    }
+
+    /** Whether Drill this key has something to drill for the character (§5.7): not Space or Enter. */
+    canDrillKey(codePoint: number): boolean {
+        const session = this.session;
+        if (!session) return false;
+        const letterFrequency = new Map(session.languageLetters.map((l) => [l.codePoint, l.f]));
+        return drillTarget(session.resolution, codePoint, letterFrequency) != null;
     }
 
     /** Changes the Drill scope from the Lesson panel; Drill this key's explicit set ends (§5.5). */

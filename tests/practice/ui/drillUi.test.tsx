@@ -166,6 +166,16 @@ describe('Lesson panel: Drill, Words and Custom sections (§5.5)', () => {
         expect(few.className).toContain('text-red-700');
     });
 
+    it('Drill: before a Drill session exists In scope is neutral, not Too few characters (M3-R3)', async () => {
+        // No session yet: the content hasn't loaded (as on first load or during the history replay).
+        const c = await startController({ contentFails: true, settings: drill({ layer: 1, group: 'symbols' }) });
+        expect(c.session).toBeNull();
+        render(<Providers><LessonPanel /></Providers>);
+        expect(document.querySelector('[data-lesson-section="drill"]')).not.toBeNull();
+        expect(document.querySelector('[data-drill-in-scope-pending]')).not.toBeNull();
+        expect(document.querySelector('[data-drill-too-few]')).toBeNull();
+    });
+
     it('Words: word list size and Long words only', async () => {
         const c = await startWith({ type: 'words' });
         render(<Providers><LessonPanel /></Providers>);
@@ -195,6 +205,23 @@ describe('Lesson panel: Drill, Words and Custom sections (§5.5)', () => {
         fireEvent.click(within(screen.getByRole('group', { name: 'Layer underlines' })).getByRole('button', { name: 'OFF' }));
         expect(c.settings.drillLayerUnderlines).toBe(false);
         expect(c.settings.layerUnderlines).toBe(false);
+    });
+});
+
+describe('Lesson panel sections in the bottom bar (M3-R4)', () => {
+    it.each([
+        ['drill', drill({ layer: 1, group: 'symbols' })],
+        ['words', { type: 'words' } as Partial<PracticeSettings>],
+        ['custom', { type: 'custom' } as Partial<PracticeSettings>],
+    ] as const)('%s lays its rows out in a grid', async (type, settings) => {
+        await startWith(settings);
+        render(<Providers><LessonPanel horizontal /></Providers>);
+        const rows = document.querySelector(`[data-lesson-section="${type}"] > div`);
+        expect(rows?.className).toContain('grid');
+        if (type === 'drill') {
+            expect(within(rows as HTMLElement).getByRole('group', { name: 'Group' })).toBeInTheDocument();
+            expect(Number(rows!.querySelector('[data-drill-in-scope]')?.getAttribute('data-drill-in-scope'))).toBeGreaterThanOrEqual(3);
+        }
     });
 });
 
@@ -245,6 +272,34 @@ describe('Drill this key (§5.7)', () => {
         await vi.waitFor(() => expect(c.session?.type).toBe('drill'));
         expect(screen.getByTestId('page').textContent).toBe('lessons');
         expect(practice.controller!.settings.drill.focus).toBe(cp('a'));
+    });
+
+    it('offers no Drill this key for a character with nothing to drill', async () => {
+        const c = await startController();
+        await completeLesson(c);
+        act(() => { c.setActive(false); });
+        vi.spyOn(c, 'canDrillKey').mockReturnValue(false);
+        render(<Providers><ProgressPage /></Providers>);
+        fireEvent.click(document.querySelector('[data-char-row="a"] button')!);
+        await screen.findByRole('dialog', { name: 'Key a' });
+        expect(screen.queryByRole('button', { name: 'Drill this key' })).toBeNull();
+    });
+
+    it('from a capital in the Characters table: drills its lowercase letter, never the capital (M3-R2)', async () => {
+        const c = await startWith({ capitals: 1 });
+        await completeLesson(c);
+        act(() => { c.setActive(false); });
+        render(<Providers><ProgressPage /></Providers>);
+        const row = [...document.querySelectorAll('tr[data-char-row]')].find((r) => /^[A-Z]$/.test(r.getAttribute('data-char-row')!))!;
+        expect(row).toBeTruthy();
+        const capital = cp(row.getAttribute('data-char-row')!);
+        fireEvent.click(row.querySelector('button')!);
+        fireEvent.click(await screen.findByRole('button', { name: 'Drill this key' }));
+        await vi.waitFor(() => expect(c.session?.type).toBe('drill'));
+        const lower = cp(String.fromCodePoint(capital).toLowerCase());
+        expect(c.settings.drill.focus).toBe(lower);
+        expect(c.settings.drill.keys).not.toContain(capital);
+        expect(String(c.run!.textInput.text)).not.toMatch(/[A-Z]/);
     });
 });
 

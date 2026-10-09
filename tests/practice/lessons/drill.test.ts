@@ -7,7 +7,7 @@ import { PracticeCustomLesson, stripUntypeable, untypeableChars } from '@/featur
 import { PracticeDrillLesson } from '@/features/practice/lessons/drill';
 import { numberTokens } from '@/features/practice/lessons/numbers';
 import {
-    charClass, clusterScope, drillFocus, drillScope, drillScopeLabel, hasDoubleSouth, isAsciiSymbol, MIN_DRILL_SCOPE, weakest,
+    charClass, clusterScope, drillFocus, drillScope, drillScopeLabel, drillTarget, hasDoubleSouth, isAsciiSymbol, MIN_DRILL_SCOPE, weakest,
 } from '@/features/practice/lessons/scope';
 import { PracticeWordsLesson } from '@/features/practice/lessons/words';
 import { trackedLetters } from '@/features/practice/state/progress';
@@ -133,6 +133,23 @@ describe('Drill scope (§5.5, §6.2)', () => {
         expect(keys.length).toBeGreaterThanOrEqual(MIN_DRILL_SCOPE);
         // The scope is those characters, whatever else the Drill settings say.
         expect(new Set(scope({ keys, focus: cp('!'), layer: 0, group: 'letters' }))).toEqual(new Set(keys));
+    });
+
+    it('Drill this key drills a capital as its lowercase letter, and never Space (M3-R2)', () => {
+        expect(drillTarget(resolution, cp('!'), letterFrequency)).toBe(cp('!'));
+        expect(drillTarget(resolution, cp('a'), letterFrequency)).toBe(cp('a'));
+        expect(drillTarget(resolution, cp('A'), letterFrequency)).toBe(cp('a'));
+        expect(drillTarget(resolution, cp('J'), letterFrequency)).toBe(cp('j'));
+        expect(drillTarget(resolution, cp(' '), letterFrequency)).toBeNull();
+        expect(drillTarget(resolution, 0x2603, letterFrequency)).toBeNull();
+    });
+
+    it('a stored Drill this key set never brings capitals into the scope (M3-R2)', () => {
+        const keys = [cp('A'), cp('a'), cp('q'), cp('z'), cp('{')];
+        expect(str(scope({ keys, focus: cp('A') }))).not.toContain('A');
+        const lesson = drillLesson({ keys, focus: cp('A') });
+        const text = String(lesson.generate(lesson.update(makeKeyStatsMap(lesson.letters, [])), LCG(4)));
+        expect(text).not.toMatch(/[A-Z]/);
     });
 
     it('labels the scope for the type row (§5.2)', () => {

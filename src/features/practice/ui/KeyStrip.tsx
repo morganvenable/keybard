@@ -27,12 +27,14 @@ interface KeyStripProps {
     justUnlocked: number | null;
     /** P5's Drill this key (§5.7). */
     onDrill?: (codePoint: number) => void;
+    /** Whether Drill this key has something to drill for the character (not Space). */
+    canDrill?: (codePoint: number) => boolean;
 }
 
 const FOCUSED = "ring-2 ring-kb-ink ring-offset-2 ring-offset-kb-gray";
 const SELECTED = "z-10 ring-2 ring-kb-select ring-offset-1 ring-offset-background";
 
-export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked, onDrill }: KeyStripProps) {
+export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked, onDrill, canDrill }: KeyStripProps) {
     const [open, setOpen] = useState<number | null>(null);
     const focused = keys.find((k) => k.focused);
     const locked = keys.filter((k) => !k.included).length;
@@ -67,7 +69,7 @@ export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, 
                                     unit={unit}
                                     layerColor={layerColorOf(codePoint)}
                                     inferred
-                                    onDrill={onDrill && (() => onDrill(codePoint))}
+                                    onDrill={onDrill && (canDrill?.(codePoint) ?? true) ? () => onDrill(codePoint) : undefined}
                                 >
                                     <TooltipTrigger asChild>
                                         <button

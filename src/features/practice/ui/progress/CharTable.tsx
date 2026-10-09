@@ -48,9 +48,11 @@ interface CharTableProps {
     layerColorOf: (codePoint: number) => string;
     /** P5's Drill this key (§5.7): Drill on the character, then the Lessons page. */
     onDrill?: (codePoint: number) => void;
+    /** Whether Drill this key has something to drill for the character (not Space). */
+    canDrill?: (codePoint: number) => boolean;
 }
 
-export function CharTable({ rows, resolution, cols, unit, layerColorOf, onDrill }: CharTableProps) {
+export function CharTable({ rows, resolution, cols, unit, layerColorOf, onDrill, canDrill }: CharTableProps) {
     const [sort, setSort] = useState<{ key: SortKey; ascending: boolean }>({ key: "confidence", ascending: true });
     const [open, setOpen] = useState<number | null>(null);
     const sorted = useMemo(() => [...rows].sort((a, b) => {
@@ -89,7 +91,7 @@ export function CharTable({ rows, resolution, cols, unit, layerColorOf, onDrill 
                                 <td className="px-2 py-1">
                                     <KeyPopover open={open === c.codePoint} onOpenChange={(next) => setOpen(next ? c.codePoint : null)}
                                         stats={c} resolution={resolution} cols={cols} unit={unit} layerColor={layerColorOf(c.codePoint)} inferred
-                                        onDrill={onDrill && (() => onDrill(c.codePoint))}>
+                                        onDrill={onDrill && (canDrill?.(c.codePoint) ?? true) ? () => onDrill(c.codePoint) : undefined}>
                                         <button type="button" className="block cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                                             aria-label={`${c.label}, ${spokenSpeed(c.speed, unit)}, ${spokenPlace(place)}${(c.confidence ?? 0) >= 1 ? ", at target" : ""}`}>
                                             <CharCap codePoint={c.codePoint} layerColor={layerColorOf(c.codePoint)} look={c.calibrated ? "included" : "uncalibrated"} />
