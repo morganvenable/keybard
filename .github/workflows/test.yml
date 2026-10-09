@@ -37,6 +37,12 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:coverage
 
+    # Practice's bundle budgets (docs/practice/spec.md §9.8): builds the site and the Paranoid file,
+    # then checks the sizes build/bundle-stats.ts recorded.
+    - name: Check Practice bundle budgets
+      if: matrix.node-version == '24.x'
+      run: npm run check:bundle
+
     - name: Upload coverage to Codecov
       if: matrix.node-version == '24.x'
       uses: codecov/codecov-action@v4

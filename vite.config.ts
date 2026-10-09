@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import { execSync } from "child_process";
 import { paranoidPlugins, bundledLayersPlugin } from "./build/paranoid";
 import { manualPlugin } from "./build/manual";
+import { bundleStatsPlugin } from "./build/bundle-stats";
 
 // Get current git branch for labeling and port assignment.
 // Falls back to env var (set by CI: GitHub Actions detached-HEAD checkouts
@@ -67,6 +68,8 @@ export default defineConfig(({ mode }) => {
         // The user manual at <base>/manual/. Paranoid is one offline file, so it has none.
         manualPlugin(!paranoid, path.resolve(__dirname)),
         ...(paranoid ? paranoidPlugins(path.resolve(__dirname)) : []),
+        // Practice's bundle budgets (docs/practice/spec.md §9.8), checked by tests/build/bundle-size.test.ts.
+        bundleStatsPlugin(mode, path.resolve(__dirname)),
         {
             name: "git-branch-endpoint",
             configureServer(server) {

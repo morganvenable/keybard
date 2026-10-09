@@ -16,6 +16,7 @@
         "build:svalboard": "tsc && vite build --mode svalboard",
         "build:next": "tsc && vite build --mode next",
         "build:paranoid": "tsc && vite build --mode paranoid",
+        "check:bundle": "npm run build && npm run build:paranoid && vitest run tests/build/bundle-size.test.ts",
         "dev:sval-preview": "vite --mode sval-preview --host 127.0.0.1 --port 5176"
     },
     "repository": {
