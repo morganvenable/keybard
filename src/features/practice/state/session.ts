@@ -4,8 +4,9 @@
 //
 // The session is rebuilt, never mutated, when the keymap fingerprint, the
 // profile or a lesson-shaping setting changes. Rebuilding replays the profile's
-// results through the new lesson (or restores the snapshot when it still fits,
+// results through the new lesson (or restores a snapshot when it still fits,
 // §6.8), so a remap restarts only the characters whose path changed (§6.1).
+// A long replay can be deferred and run in chunks that yield (seed(), §9.7).
 // Nothing here touches React; usePracticeSession wires it to the UI.
 import type { PracticeContent } from '../content/loader';
 import { keymapFingerprint } from '../keymap/fingerprint';
@@ -23,7 +24,7 @@ import { type RNGStream } from '../vendor/keybr/rand/index.ts';
 import type { KeyStatsMap } from '../vendor/keybr/result/index.ts';
 import type { StyledText } from '../vendor/keybr/textinput/index.ts';
 import { LessonRun } from './lessonRun';
-import { Progress, snapshotIsUsable } from './progress';
+import { Progress, SEED_CHUNK, snapshotIsUsable } from './progress';
 import { effectiveLessonType, type PracticeSettings, toKeybrSettings } from './settings';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 
@@ -130,6 +131,7 @@ export class PracticeSession {
     /** Valid results of the profile as PracticeResults, oldest first, parallel to `data.records`. */
     readonly results: PracticeResult[];
     #lessonKeys: LessonKeys;
+    #seeded = false;
 
     constructor(
         readonly store: PracticeStore,
@@ -142,6 +144,8 @@ export class PracticeSession {
         readonly settings: PracticeSettings,
         readonly data: ProfileData,
         snapshot?: Parameters<typeof snapshotIsUsable>[0],
+        /** Leave a replay longer than one chunk to seed(), so it can yield (§9.7). */
+        { deferSeed = false }: { deferSeed?: boolean } = {},
     ) {
         this.keyboard = svalKeyboard(keymap.board, resolution);
         this.lesson = lessonFor(settings.type, settings, this.keyboard, content);
@@ -149,10 +153,34 @@ export class PracticeSession {
         this.results = data.records.map((r) => new PracticeResult(r));
         if (snapshotIsUsable(snapshot, { resultCount: this.results.length, keymapFingerprint: fingerprint })) {
             this.progress.restore(snapshot, this.results);
-        } else {
+            this.#seeded = true;
+        } else if (!deferSeed || this.results.length <= SEED_CHUNK) {
             this.progress.seed(this.results);
+            this.#seeded = true;
         }
         this.#lessonKeys = this.lesson.update(this.progress.keyStatsMap);
+    }
+
+    /** The history is replayed (or restored): the session can run lessons. */
+    get seeded(): boolean {
+        return this.#seeded;
+    }
+
+    /**
+     * Finishes a deferred replay in chunks of SEED_CHUNK results, awaiting
+     * `yieldToBrowser` after each so typing and painting go on (§6.8, §9.7).
+     * Resolves false, unfinished, as soon as `current()` is false (a newer build).
+     */
+    async seed(yieldToBrowser: () => Promise<void>, current: () => boolean = () => true): Promise<boolean> {
+        if (this.#seeded) return true;
+        const replay = this.progress.seedAsync(this.results);
+        while (!(await replay.next()).done) {
+            await yieldToBrowser();
+            if (!current()) return false;
+        }
+        this.#seeded = true;
+        this.#lessonKeys = this.lesson.update(this.progress.keyStatsMap);
+        return true;
     }
 
     get profile(): ProfileRecord {

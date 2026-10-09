@@ -42,3 +42,12 @@ export const OWNER_Q9_COLORBLIND_HEAT_SETTING = false;
 
 /** Q10. Keep the new color roles (selected blue, pending amber, red for errors) after the trial. */
 export const OWNER_Q10_NEW_COLOR_ROLES = true;
+
+/**
+ * Q11 (raised by the M1b review; not in spec rev 3). Caps Lock is on outranks the
+ * persistent Storage off and Newer schema notices in the status slot. Under the
+ * spec's §5.2 order those two never clear, so in a private window Caps Lock would
+ * drop every keystroke with no visible reason. Recommended: yes. false restores
+ * the spec's order exactly.
+ */
+export const OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE = true;

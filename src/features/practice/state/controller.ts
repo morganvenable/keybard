@@ -10,10 +10,14 @@
 // - loading: the store (IndexedDB, or memory with a Storage off notice), the
 //   English content, and the active profile's results;
 // - the session (state/session.ts): rebuilt when the keymap fingerprint, the
-//   profile or a lesson-shaping setting changes (sliders debounced 300 ms);
+//   profile or a lesson-shaping setting changes (sliders debounced 300 ms). A
+//   rebuild on the same keymap and history starts from the current key stats; a
+//   long replay runs in chunks that yield, the old session staying (paused) until
+//   it is done; a rebuild asked for while a lesson is being saved waits for it;
 // - the lesson: a LessonRun, paused on blur, Esc, a hidden tab, leaving the page
 //   or 10 s idle; kept 10 minutes while paused, then replaced;
 // - the status slot: one notice or banner at a time, by the §5.2 priority.
+import { OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE } from '@/constants/owner-decisions';
 import type { PracticeContent } from '../content/loader';
 import type { PracticeStore } from '../store/db';
 import { boardIdentity, newProfile, profileIdFor } from '../store/profiles';
@@ -50,11 +54,20 @@ export const SOURCE_NAMES: Record<KeymapSourceKind, string> = {
 };
 
 /** Status slot items, highest priority first (§5.2). OS layout mismatch and Layer locked on are live only (M2). */
-export const STATUS_PRIORITY = [
+export const SPEC_STATUS_PRIORITY = [
     'storage-off', 'newer-schema', 'os-mismatch', 'caps-lock', 'layer-locked', 'keymap-changed',
     'unsent-changes', 'board-connected', 'new-key', 'daily-goal', 'top-speed',
 ] as const;
-export type StatusId = (typeof STATUS_PRIORITY)[number];
+export type StatusId = (typeof SPEC_STATUS_PRIORITY)[number];
+
+/**
+ * The priority in use. Storage off and Newer schema never clear in a session, so
+ * under the spec's order they would hide Caps Lock is on for good while it drops
+ * every keystroke (a private window, say). OWNER_Q11 moves Caps Lock above them.
+ */
+export const STATUS_PRIORITY: readonly StatusId[] = OWNER_Q11_CAPS_LOCK_OUTRANKS_STORAGE
+    ? ['caps-lock', ...SPEC_STATUS_PRIORITY.filter((id) => id !== 'caps-lock')]
+    : SPEC_STATUS_PRIORITY;
 
 export type StatusItem =
     | { id: Exclude<StatusId, 'new-key' | 'daily-goal' | 'top-speed'>; kind: 'notice'; text: string }
@@ -91,6 +104,18 @@ export interface ControllerDeps {
     now?: () => number;
     /** The DOM event clock (performance.now), for pauses. */
     clock?: () => number;
+    /** Resolves on a later task, between the chunks of a long history replay (§9.7). */
+    yieldToBrowser?: () => Promise<void>;
+}
+
+/** A new task, unclamped where MessageChannel exists (nested setTimeout(0) waits 4 ms). */
+export function nextTask(): Promise<void> {
+    if (typeof MessageChannel === 'undefined') return new Promise((resolve) => setTimeout(resolve, 0));
+    return new Promise((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+        channel.port2.postMessage(null);
+    });
 }
 
 /** Survives an EditorLayout remount (a board connect, §5.3): a lesson was underway in this page session. */
@@ -115,7 +140,7 @@ export class PracticeController {
     settingsError = false;
     /** A lesson-shaping slider change is waiting for its debounce (panel footer Saving…). */
     saving = false;
-    /** The last completed lesson could not be stored. */
+    /** The last completed lesson could not be stored: Storage off shows until one is (§5.3). */
     storageError = false;
     /** The most recent aria-live message (§5.12). */
     announcement = '';
@@ -143,6 +168,11 @@ export class PracticeController {
     #rebuildTimer: ReturnType<typeof setTimeout> | null = null;
     #pausedSince: number | null = null;
     #completing = false;
+    /** A rebuild was asked for while a lesson was being saved; it runs after the save (§5.3). */
+    #rebuildAfterComplete = false;
+    /** A deferred history replay is running; #buildSeq tells a stale one to stop. */
+    #building = false;
+    #buildSeq = 0;
     #disposed = false;
     #started = false;
 
@@ -150,6 +180,7 @@ export class PracticeController {
         this.#deps = {
             now: () => Date.now(),
             clock: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+            yieldToBrowser: nextTask,
             ...deps,
         };
         this.settings = deps.loadSettings();
@@ -279,20 +310,58 @@ export class PracticeController {
 
     // ---- session
 
+    /** A history replay is running in chunks (§9.7); the old session shows, paused, until it ends. */
+    get building(): boolean {
+        return this.#building;
+    }
+
     #rebuild() {
         if (this.#rebuildTimer) { clearTimeout(this.#rebuildTimer); this.#rebuildTimer = null; }
         this.saving = false;
-        const resolved = this.#resolved;
-        if (this.loadState !== 'ready' || !this.store || !this.content || !this.#profileData || !resolved) {
+        // The finishing lesson is about to join the history: build once it has (§5.3).
+        if (this.#completing) {
+            this.#rebuildAfterComplete = true;
             this.#emit();
             return;
         }
+        const resolved = this.#resolved;
+        const data = this.#profileData;
+        if (this.loadState !== 'ready' || !this.store || !this.content || !data || !resolved) {
+            this.#emit();
+            return;
+        }
+        const seq = ++this.#buildSeq;
+        // The stored snapshot speeds up a profile's first build. Later, the same history on
+        // the same keymap starts from the current key stats; anything else replays (§6.8).
+        let snapshot = this.#snapshot;
+        this.#snapshot = undefined;
+        const current = this.session;
+        if (!snapshot && current?.seeded && current.data === data && current.fingerprint === resolved.fingerprint
+            && current.results.length === data.records.length) {
+            snapshot = current.progress.snapshot(data.profile.id, resolved.fingerprint);
+        }
+        const session = new PracticeSession(this.store, this.persistent, this.content, resolved.keymap, resolved.resolution,
+            resolved.fingerprint, this.settings, data, snapshot, { deferSeed: true });
+        if (session.seeded) {
+            this.#building = false;
+            this.#install(session);
+            return;
+        }
+        this.#building = true;
+        this.#pause();
+        this.#emit();
+        const live = () => seq === this.#buildSeq && !this.#disposed;
+        void session.seed(this.#deps.yieldToBrowser, live).then((done) => {
+            if (!done || !live()) return;
+            this.#building = false;
+            this.#install(session);
+        });
+    }
+
+    #install(session: PracticeSession) {
         const hadLesson = pageSession.hadLesson;
         pageSession.hadLesson = false;
-        this.session = new PracticeSession(this.store, this.persistent, this.content, resolved.keymap, resolved.resolution,
-            resolved.fingerprint, this.settings, this.#profileData, this.#snapshot);
-        // The snapshot only speeds up the first build; later builds replay (§6.8).
-        this.#snapshot = undefined;
+        this.session = session;
         if (hadLesson && this.keymap?.connected) this.#notify('board-connected');
         this.#newRun();
     }
@@ -507,9 +576,10 @@ export class PracticeController {
             const completion = await session.complete(run, {
                 ts: this.#deps.now(), src: 'keymap', board: this.boardId, os: this.keymap.layoutId,
             });
-            if (this.#disposed || this.session !== session) return;
-            this.lastCompletion = completion;
+            if (this.#disposed) return;
             this.storageError = completion.storageError;
+            if (this.session !== session) return;
+            this.lastCompletion = completion;
             if (completion.valid) {
                 const { speed, accuracy } = recordSpeed(completion);
                 const said = this.settings.speedUnit === 'cpm' ? `${Math.round(speed)} characters per minute` : `${(speed / 5).toFixed(1)} words per minute`;
@@ -519,7 +589,14 @@ export class PracticeController {
         } finally {
             this.#completing = false;
         }
-        if (this.session === session) this.#newRun();
+        // A rebuild asked for during the save, or a replay that began before this lesson
+        // joined the history, builds again from the history as it is now.
+        if (this.#rebuildAfterComplete || this.#building) {
+            this.#rebuildAfterComplete = false;
+            this.#rebuild();
+        } else if (this.session === session) {
+            this.#newRun();
+        }
     }
 
     #onEvents(events: readonly LessonEvent[]) {
@@ -548,14 +625,19 @@ export class PracticeController {
         this.#later(TRANSIENT_NOTICE_MS + 1, () => this.#emit());
     }
 
-    /** The one item the status slot shows (§5.2 priority). */
+    /** Progress isn't being saved: no IndexedDB, or the last lesson's write failed (§5.3). */
+    get storageOff(): boolean {
+        return !!this.store && (!this.persistent || this.storageError);
+    }
+
+    /** The one item the status slot shows (§5.2 priority, as OWNER_Q11 sets it). */
     get status(): StatusItem | null {
         const now = this.#deps.now();
         const live = (id: StatusId) => (this.#transient.get(id) ?? 0) > now;
         for (const id of STATUS_PRIORITY) {
             switch (id) {
                 case 'storage-off':
-                    if (this.store && !this.persistent) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
+                    if (this.storageOff) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
                     break;
                 case 'newer-schema':
                     if (this.session?.readOnly) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
