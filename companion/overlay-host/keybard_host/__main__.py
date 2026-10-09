@@ -138,6 +138,9 @@ def overlay_control_icon(kind):
     if kind == 'move':
         for x1, y1, x2, y2 in ((8,1,8,15), (1,8,15,8), (6.4,2.6,8,1), (8,1,9.6,2.6), (6.4,13.4,8,15), (8,15,9.6,13.4), (2.6,6.4,1,8), (1,8,2.6,9.6), (13.4,6.4,15,8), (15,8,13.4,9.6)):
             painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+    elif kind == 'resize':
+        for x1, y1, x2, y2 in ((2,14,14,2), (9,2,14,2), (14,2,14,7), (2,9,2,14), (2,14,7,14)):
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
     else:
         painter.setPen(Qt.NoPen); painter.setBrush(QColor('#eeeeee'))
         for x in (3, 8, 13): painter.drawEllipse(QPointF(x, 8), 1.2, 1.2)
@@ -175,9 +178,50 @@ class DragHandle(QToolButton):
         event.accept()
 
 
+class ResizeHandle(QToolButton):
+    """Drag up and right to grow the overlay, down and left to shrink it; the bottom-left corner stays put."""
+    def __init__(self, surface, parent, get_scale, set_scale):
+        super().__init__(parent)
+        self.surface, self.get_scale, self.set_scale = surface, get_scale, set_scale
+        self.start = None
+        self.setIcon(overlay_control_icon('resize'))
+        self.setIconSize(QSize(16, 16))
+        self.setToolTip('Drag to resize overlay')
+        self.setAccessibleName('Resize overlay')
+        self.setCursor(Qt.SizeBDiagCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.start = (event.globalPosition().toPoint(), self.get_scale(), self.surface.width(), self.surface.height())
+            self.scale = self.start[1]
+            event.accept()
+
+    def scale_at(self, point):
+        origin, scale, width, height = self.start
+        delta = point - origin
+        # Follow whichever direction the pointer moved further, relative to the overlay's size.
+        grow = max((width + delta.x()) / width, (height - delta.y()) / height, key=lambda f: abs(f - 1))
+        return max(SCALE_MIN, min(SCALE_MAX, round(scale * grow)))
+
+    def mouseMoveEvent(self, event):
+        if self.start is not None and event.buttons() & Qt.LeftButton:
+            scale = self.scale_at(event.globalPosition().toPoint())
+            if scale != self.scale: self.scale = scale; self.set_scale(scale, False)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if self.start is not None:
+            self.start = None
+            self.set_scale(self.scale, True)
+        event.accept()
+
+
+SCALE_MIN, SCALE_MAX = 50, 150
+
+
 class OverlayControls(QWidget):
     """A separate input window: the handle moves the overlay while the keyboard passes clicks through."""
-    def __init__(self, surface, hide, open_controls, set_drag_by_keys):
+    def __init__(self, surface, hide, open_controls, set_drag_by_keys, get_scale=lambda: 100, set_scale=lambda scale, final: None):
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus)
         self.surface = surface
         self.setWindowTitle('Keybard · Overlay controls')
@@ -186,6 +230,7 @@ class OverlayControls(QWidget):
         self.setStyleSheet('QToolButton {color:#eee;background:#303436;border:1px solid #666;border-radius:2px;padding:0;} QToolButton:hover {background:#505456;} QToolButton::menu-indicator {image:none;width:0;height:0;}')
         layout = QHBoxLayout(self); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(4)
         self.handle = DragHandle(surface, self)
+        self.resizer = ResizeHandle(surface, self, get_scale, set_scale)
         self.more = QToolButton(self); self.more.setIcon(overlay_control_icon('more')); self.more.setIconSize(QSize(16, 16)); self.more.setToolTip('Overlay controls'); self.more.setAccessibleName('Overlay controls')
         self.more.setPopupMode(QToolButton.InstantPopup)
         menu = QMenu(self.more)
@@ -194,9 +239,9 @@ class OverlayControls(QWidget):
         self.drag_by_keys = menu.addAction('Drag by keys'); self.drag_by_keys.setCheckable(True)
         self.drag_by_keys.triggered.connect(set_drag_by_keys)
         self.more.setMenu(menu)
-        for button in (self.handle, self.more):
+        for button in (self.handle, self.resizer, self.more):
             button.setFixedSize(24, 24); layout.addWidget(button)
-        self.setFixedSize(52, 24)
+        self.setFixedSize(80, 24)
         surface.geometry_changed.connect(self.reposition)
         self.reposition()
 
@@ -235,7 +280,8 @@ class Host(QObject):
         self.place()
         self.controls = OverlayControls(self.surface,
             lambda: self.command(dict(op='show', value=False)), self.open_controls,
-            lambda value: self.command(dict(op='arrange', value=value)))
+            lambda value: self.command(dict(op='arrange', value=value)),
+            lambda: self.state.config['scale'], self.resize_overlay)
         self.controls.drag_by_keys.setChecked(state.arrange)
         self.controls.show()
         icon = QIcon(str(Path(__file__).parent / 'assets' / 'svalboard.png'))
@@ -295,10 +341,23 @@ class Host(QObject):
         from PySide6.QtGui import QDesktopServices
         QDesktopServices.openUrl(QUrl(controls_url(False, self.url, self.keybard_url)))
 
-    def size_surface(self):
+    def resize_overlay(self, scale, final):
+        """The resize handle: follow the pointer live, then save the size as the overlay preference."""
+        bottom, area = self.surface.geometry().bottom(), (self.surface.screen() or self.app.primaryScreen()).availableGeometry()
+        self.size_surface(scale)
+        self.surface.move(self.surface.x(), max(area.top(), bottom - self.surface.height() + 1))
+        if not final: return
+        with self.state.lock:
+            if self.state.config['scale'] == scale: return
+            config = dict(self.state.config, scale=scale)
+            try: self.state.configure(config, self.state.revision)
+            except (OSError, RuntimeError, ValueError): return self.size_surface()
+        self.publish_state()
+
+    def size_surface(self, scale=None):
         screen = self.surface.screen() or self.app.primaryScreen()
         area = screen.availableGeometry()
-        width = min(int(1050 * self.state.config['scale'] / 100), area.width() - 32)
+        width = min(int(1050 * (scale or self.state.config['scale']) / 100), area.width() - 32)
         board = self.state.board
         layout = list(board['keylayout'].values()) if board else []
         hands = self.state.config['hands']

@@ -4,6 +4,10 @@ Keybard Host shows your Svalboard layout as a transparent overlay on your deskto
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer.
 
+## Unreleased
+
+- **Resize the overlay where it is.** Drag the new resize grip, between the move grip and the menu above the overlay's corner: up or right makes the overlay bigger, down or left smaller. Its bottom-left corner stays put, and the size is saved like Trainer's **Overlay size** slider.
+
 ## New in vLaunch2.2
 
 - **Clicks go through the overlay.** The overlay no longer catches clicks anywhere in its rectangle: everything you click reaches the window underneath. Move it with the grip above its top-right corner.

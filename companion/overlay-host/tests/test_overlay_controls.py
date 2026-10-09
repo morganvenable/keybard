@@ -100,3 +100,21 @@ class OverlayControlsTest(unittest.TestCase):
         with patch('keybard_host.__main__.time.monotonic', return_value=10.3):
             Host.publish_state(host)
             self.assertIn('keybard-host-heartbeat', page.runJavaScript.call_args.args[0])
+
+    def test_resize_handle_scales_from_the_drag_and_saves_on_release(self):
+        calls = []
+        self.controls.close()
+        self.controls = OverlayControls(self.surface, lambda: None, lambda: None, lambda value: None, lambda: 100, lambda scale, final: calls.append((scale, final)))
+        self.surface.setFixedSize(1000, 300)
+        handle = self.controls.resizer
+        press = lambda kind, x, y, button, buttons: QMouseEvent(kind, QPointF(4,4), QPointF(x,y), button, buttons, Qt.NoModifier)
+        handle.mousePressEvent(press(QMouseEvent.MouseButtonPress, 500, 500, Qt.LeftButton, Qt.LeftButton))
+        # 200 px right on a 1000 px overlay: 20% bigger.
+        handle.mouseMoveEvent(press(QMouseEvent.MouseMove, 700, 500, Qt.NoButton, Qt.LeftButton))
+        # Up grows it too: 150 px on a 300 px overlay, capped at the largest size.
+        handle.mouseMoveEvent(press(QMouseEvent.MouseMove, 500, 350, Qt.NoButton, Qt.LeftButton))
+        # Down and left shrinks it, no smaller than the smallest size.
+        handle.mouseMoveEvent(press(QMouseEvent.MouseMove, 0, 500, Qt.NoButton, Qt.LeftButton))
+        handle.mouseReleaseEvent(press(QMouseEvent.MouseButtonRelease, 0, 500, Qt.LeftButton, Qt.NoButton))
+        self.assertEqual(calls, [(120, False), (150, False), (50, False), (50, True)])
+        self.assertIsNone(handle.start)
