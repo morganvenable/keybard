@@ -161,7 +161,7 @@ describe('Key details (§5.7)', () => {
         c.resume();
         let t = 1000;
         await act(async () => {
-            while (!run.textInput.completed) c.onInput({ type: 'input', timeStamp: (t += 150), inputType: 'appendChar', codePoint: run.expected!, timeToType: 0 });
+            for (let guard = 0; guard < 3000 && !run.textInput.completed; guard++) c.onInput({ type: 'input', timeStamp: (t += 150), inputType: 'appendChar', codePoint: run.expected!, timeToType: 0 });
         });
         await vi.waitFor(() => expect(c.session!.records.length).toBe(1));
         const s = c.session!;

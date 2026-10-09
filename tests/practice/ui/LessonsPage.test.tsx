@@ -202,7 +202,7 @@ describe('Status slot (§5.2, N-4)', () => {
         const run = c.run!;
         let t = performance.now();
         await act(async () => {
-            while (!run.textInput.completed) {
+            for (let guard = 0; guard < 3000 && !run.textInput.completed; guard++) {
                 c.onInput({ type: 'input', timeStamp: (t += 100), inputType: 'appendChar', codePoint: run.expected!, timeToType: 0 });
             }
         });

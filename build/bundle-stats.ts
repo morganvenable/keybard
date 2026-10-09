@@ -22,7 +22,7 @@ export interface BundleStats {
     practiceLazy: number;
     /** gzip bytes of the English content (word list chunk + model asset). */
     contentEn: number;
-    /** Uncompressed bytes of Practice code and content across all chunks (the Paranoid file growth). */
+    /** Uncompressed bytes of Practice code (minified share) and content across all chunks (the Paranoid file growth). */
     practiceRaw: number;
     chunks: { file: string; entry: boolean; gzip: number; practice: boolean; content: boolean }[];
 }
@@ -58,7 +58,11 @@ export function bundleStatsPlugin(mode: string, root = process.cwd()): Plugin {
                 }).join("\n");
                 const practiceCode = codeOf(practiceIds.filter((id) => !CONTENT_MODULES.test(id)));
                 const contentCode = codeOf(contentIds);
-                stats.practiceRaw += practiceCode.length + contentCode.length;
+                // Module code is measured before minification; scale code by the chunk's minified share.
+                // Content (the word list, the base64 model) barely minifies, so it counts as it is.
+                const rendered = Object.values(output.modules).reduce((sum, m) => sum + (m.code?.length ?? 0), 0);
+                const minified = rendered > 0 ? Math.min(1, output.code.length / rendered) : 1;
+                stats.practiceRaw += Math.round(practiceCode.length * minified) + contentCode.length;
                 const isContent = contentIds.length > 0 && contentIds.length === practiceIds.length;
                 const isPractice = practiceIds.length > 0 && !isContent;
                 const size = gzip(output.code);

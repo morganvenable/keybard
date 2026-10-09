@@ -34,7 +34,7 @@ function backspace(timeStamp: number): IInputEvent {
 /** Types the rest of a run's text, `ms` apart. */
 function typeAll(run: LessonRun, start = 1000, ms = 200): number {
     let t = start;
-    while (!run.textInput.completed) {
+    for (let guard = 0; guard < 3000 && !run.textInput.completed; guard++) {
         run.onInput(input(String.fromCodePoint(run.expected!), t));
         t += ms;
     }
@@ -374,7 +374,7 @@ describe('PracticeController (§4.4, §5.3)', () => {
         c.resume();
         const run = c.run!;
         let t = 1000;
-        while (!run.textInput.completed) { c.onInput(input(String.fromCodePoint(run.expected!), t)); t += 120; }
+        for (let guard = 0; guard < 3000 && !run.textInput.completed; guard++) { c.onInput(input(String.fromCodePoint(run.expected!), t)); t += 120; }
         await vi.waitFor(() => expect(c.run).not.toBe(run));
         expect(c.announcement).toMatch(/^Lesson complete\. [\d.]+ words per minute, \d+ percent\./);
         expect(c.status?.id).toBe('new-key');

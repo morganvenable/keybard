@@ -39,7 +39,7 @@ async function completeLessons(c: PracticeController, n: number) {
         const run = c.run!;
         let t = 1000 + i * 100_000;
         await act(async () => {
-            while (!run.textInput.completed) c.onInput({ type: 'input', timeStamp: (t += 140), inputType: 'appendChar', codePoint: run.expected!, timeToType: 0 });
+            for (let guard = 0; guard < 3000 && !run.textInput.completed; guard++) c.onInput({ type: 'input', timeStamp: (t += 140), inputType: 'appendChar', codePoint: run.expected!, timeToType: 0 });
         });
         await vi.waitFor(() => expect(c.run).not.toBe(run));
     }
