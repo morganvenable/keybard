@@ -274,9 +274,11 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                     </p>
                 )}
                 {boardBlock}
-                <div className={cn("sticky bottom-9 z-30 mt-auto pointer-events-none", narrow && "pb-12")}>
+                {/* In the page flow at its bottom-left, not floating over it: the page scrolls, and in
+                    bottom-bar layout a floating group would sit on the metrics above the docked panel. */}
+                <div className="mt-auto pt-2">
                     <FloatingTools
-                        className="pointer-events-auto w-fit"
+                        className="w-fit"
                         hints={settings!.hints}
                         onHints={(hints) => controller.update({ hints })}
                         onRestart={() => { controller.regenerate(); focusSurface(); }}
