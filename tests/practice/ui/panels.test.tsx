@@ -119,10 +119,10 @@ describe('Lesson panel (§5.5)', () => {
 });
 
 describe('Progress panel (§5.9)', () => {
-    it('Profile, Scope and About; the period updates the settings', async () => {
+    it('Profile, Scope, Data and About; the period updates the settings', async () => {
         const c = await startController();
         render(<Providers><ProgressPanel /></Providers>);
-        expect(groups()).toEqual(['Profile', 'Scope', 'About']);
+        expect(groups()).toEqual(['Profile', 'Scope', 'Data', 'About']);
         fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Period' })).getByRole('radio', { name: '7 days' }));
         expect(c.settings.period).toBe('7');
     });

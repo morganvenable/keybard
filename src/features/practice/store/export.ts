@@ -98,6 +98,30 @@ export function parseExport(json: unknown): { results: unknown[]; events: unknow
     return { results: file.results, events: Array.isArray(file.events) ? file.events : [], settings: file.settings ?? null };
 }
 
+/** What the Import row shows once a file is read (§5.9): its parsed JSON and the counts found. */
+export interface ParsedImport {
+    json: unknown;
+    /** Valid lessons in the file. */
+    lessons: number;
+    /** Profiles they came from. */
+    profiles: number;
+}
+
+/** Reads an export file's text for the Import row; throws ImportError when it isn't one (§5.9 Invalid file). */
+export function readImportFile(text: string): ParsedImport {
+    let json: unknown;
+    try {
+        json = JSON.parse(text);
+    } catch {
+        throw new ImportError('This is not a Keybard Practice file.', 'format');
+    }
+    const file = parseExport(json);
+    const valid = file.results.map((r) => resultRecordFromJson(r)).filter((r): r is ResultRecord => r != null);
+    const listed = Array.isArray((json as { profiles?: unknown }).profiles) ? ((json as { profiles: unknown[] }).profiles.length) : 0;
+    const profiles = Math.max(listed, new Set(valid.map((r) => r.profileId)).size);
+    return { json, lessons: valid.length, profiles };
+}
+
 const dedupeKey = (r: Pick<ResultRecord, 'ts' | 'n' | 't'>) => `${r.ts}|${r.n}|${r.t}`;
 
 /**

@@ -28,6 +28,7 @@ import type { LiveInput } from '../input/liveInput';
 import type { PracticeStore, StoredResult } from '../store/db';
 import { loadEvents } from '../store/events';
 import { type EventStats, EventStatsCache } from './eventStats';
+import { exportProfile, ImportError, type ImportMode, importIntoProfile, type ImportSummary } from '../store/export';
 import { boardIdentity, newProfile, profileIdFor } from '../store/profiles';
 import type { ProfileRecord, SnapshotRecord } from '../types';
 import { type IInputEvent, type IKeyboardEvent } from '../vendor/keybr/textinput-events/index.ts';
@@ -639,6 +640,61 @@ export class PracticeController {
         if (!store) return Promise.resolve(new Map());
         this.#eventStats ??= new EventStatsCache((id) => loadEvents(store, id));
         return this.#eventStats.statsFor(records);
+    }
+
+    // ---- data (§5.9 Data, §8.4)
+
+    /**
+     * Import and Reset need persistent storage that this build may write: with Storage off they would act on
+     * this session's memory only, and a newer schema makes Practice read-only (§8.6). Export always works.
+     */
+    get dataWritable(): boolean {
+        return !this.storageOff && !this.session?.readOnly;
+    }
+
+    /** The export file of the active profile (§8.4): `keybard-practice-<profile>-<yyyy-mm-dd>.json`. */
+    async exportData(includeKeystrokes = this.settings.exportKeystrokes): Promise<{ filename: string; text: string }> {
+        const store = this.store;
+        const profile = this.session?.profile ?? this.#profileData?.profile;
+        if (!store || !profile) throw new Error('Practice is not loaded');
+        const now = new Date(this.#deps.now());
+        const file = await exportProfile(store, profile.id, { includeEvents: includeKeystrokes, settings: this.settings, now });
+        const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const slug = profile.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || profile.id;
+        return { filename: `keybard-practice-${slug}-${day}.json`, text: JSON.stringify(file) };
+    }
+
+    /** Lessons in the active profile now (the Replace confirm's "120 lessons will be deleted"). */
+    get lessonCount(): number {
+        return this.session?.records.length ?? this.#profileData?.records.length ?? 0;
+    }
+
+    /** Imports a parsed file into the active profile, then reloads its history (§8.4). */
+    async importData(json: unknown, mode: ImportMode): Promise<ImportSummary> {
+        const store = this.store;
+        const profile = this.session?.profile ?? this.#profileData?.profile;
+        if (!store || !profile || !this.dataWritable) throw new ImportError('Progress is not being saved', 'format');
+        const summary = await importIntoProfile(store, profile.id, json, mode);
+        await this.#reloadHistory();
+        return summary;
+    }
+
+    /** Deletes the active profile's results, events and snapshot (§5.9 Reset); the profile itself stays. */
+    async resetProgress(): Promise<void> {
+        const store = this.store;
+        const profile = this.session?.profile ?? this.#profileData?.profile;
+        if (!store || !profile || !this.dataWritable) return;
+        await store.deleteEvents(await store.listEventIds(profile.id));
+        await store.deleteResults(profile.id);
+        await store.deleteSnapshot(profile.id);
+        await this.#reloadHistory();
+    }
+
+    async #reloadHistory() {
+        this.#eventStats?.clear();
+        this.#snapshot = undefined;
+        await this.#loadProfile();
+        this.#rebuild();
     }
 
     /** Asks the Lesson panel to show a section (the type row's scope button, Change scope; §5.2). */
