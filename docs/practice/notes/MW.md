@@ -16,7 +16,7 @@ Milestone MW from [spec.md](../spec.md) §12 (D1, D12, D15, OD1, OD3, §4, §5.1
 | Practice placeholder: P0 frame (title, **Lessons · Progress** pills) and a placeholder panel, both modes | `src/features/practice/PracticeWorkspace.tsx`, `src/features/practice/PracticePanel.tsx` |
 | Overlay panel placeholder (not reachable until MO) | `src/features/trainer/OverlayPanel.tsx` |
 | SegmentedControl (N-1): sm and md, radiogroup with one tab stop, arrows/Home/End skip disabled segments, `onChange(value, "pointer" \| "keyboard")` | `src/components/shared/SegmentedControl.tsx` |
-| README: Overlay name, `/#overlay`, `/#trainer` still works | `README.md` |
+| README: Overlay name, `/#overlay`, `/#trainer` still works; a one-line README in the Overlay directory (§9.1) | `README.md`, `src/features/trainer/README.md` |
 | Screenshots (headless Chrome against `npm run dev`, QWERTY example) | `docs/practice/notes/mw-screens/` |
 
 ### Tests
@@ -78,7 +78,7 @@ Milestone MW from [spec.md](../spec.md) §12 (D1, D12, D15, OD1, OD3, §4, §5.1
 - **`returnFocusOverride` is never set yet.** M1b points it at the typing surface while Lessons shows. The close path and its test are done.
 - §4.1 "Typing and the panel" (pause on blur, close on focus at 900–1099 px, `scrollIntoView` in bottom-bar layout) is M1b.
 - The Esc test with an open select uses a stand-in panel with a `ui/select`; the real **Preset** select arrives in MO, which should repeat the test there.
-- Interim copy still says Trainer in places a user can see: `TrainerPage`'s header and install text ("select **Trainer**"), and `FirmwareUpdate.tsx:103` ("lets the Trainer follow your layers"). The first two go with MO's restyle; the firmware notice line needs a one-word change when MO lands (record it in MO's docs list). The manual, its capture scripts and `companion/overlay-host/README.md` are MO's docs items.
+- Interim copy still says Trainer where a user can see it: `TrainerPage`'s header and its install text ("select **Trainer**"). Both go with MO's restyle. The firmware notice (`FirmwareUpdate.tsx:103`) now says "lets the Overlay follow your layers", since the nav item it points to is Overlay. The manual, its capture scripts and `companion/overlay-host/README.md` are MO's docs items.
 
 ## Needs Mule testing
 
@@ -87,7 +87,7 @@ Nothing in MW reads the board. One check needs Keybard Host on Windows (a board 
 ## Checks run
 
 - `npx tsc --noEmit -p .` and `npm test` before every commit (final: 110 files, 1065 tests, all passing). The `EditorLayout.guides` run prints "Internal React error: Expected static flag was missing" in the 3D guide test; it prints the same on the base commit, before any MW change.
-- `npm run build` and `npm run build:paranoid` before the push: both pass (the main chunk is 1,446 kB, unchanged in kind: the existing over-500 kB warning).
+- `npm run build` and `npm run build:paranoid` before the push: both pass. The existing warning that the main chunk is over 500 kB still shows (1,446 kB).
 - Headless Chrome against `npm run dev` (port 5291), QWERTY example: every nav flow above in sidebar and bottom-bar modes, light and dark, deep links after a full reload, widths 1600, 1000, 860 and 390 with no horizontal scroll.
 
 ## Follow-ups
