@@ -174,8 +174,10 @@ export const MatrixTester: FC = () => {
                             label=""
                             row={row}
                             col={col}
-                            selected={isPressed}
+                            selectedStrong={isPressed}
                             layerColor={wasPressed ? "black" : "white"}
+                            // Black on the dark page vanishes (1.15:1), so "was pressed" keys get an outline there
+                            className={wasPressed && !isPressed ? "dark:border-kb-gray-border" : undefined}
                             variant={keyVariant}
                             disableHover
                             keyContents={{ type: "text", str: "" }}

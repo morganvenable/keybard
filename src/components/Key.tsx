@@ -7,6 +7,7 @@ import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { getKeyDisplayText } from "@/utils/key-display";
+import { HELD_KEY_CLASSES, HOVER_RING_CLASSES, PENDING_KEY_CLASSES, SELECTED_KEY_CLASSES, SELECTED_STRIP_CLASSES } from "@/constants/color-roles";
 
 
 export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDoubleClick' | 'title'> {
@@ -20,6 +21,8 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     col: number;
     layerIndex?: number;
     selected?: boolean;
+    /** Matrix Tester held key: the strong select look (blue face, 3 px ring). */
+    selectedStrong?: boolean;
     onClick?: (row: number, col: number) => void;
     onDoubleClick?: (row: number, col: number) => void;
     title?: string; // Override default tooltip
@@ -50,7 +53,7 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
 export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const {
         x, y, w, h, keycode, label, row, col, layerIndex = 0, layerColor = "primary",
-        selected = false, onClick, onDoubleClick, title, keyContents,
+        selected = false, selectedStrong = false, onClick, onDoubleClick, title, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
@@ -127,7 +130,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
 
 
         // For subsection keys, only highlight container if "full" is selected
-        // For "inner" selection, the container should not be red
+        // For "inner" selection, the container keeps its layer face
         const shouldHighlightContainer = selected;
 
         const containerClasses = cn(
@@ -137,23 +140,25 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             isSmall ? "rounded-[5px] border" : isMedium ? "rounded-[5px] border" : "rounded-md border",
 
             (shouldHighlightContainer || drag.isDragHover)
-                ? "bg-red-500 text-white border-kb-key-border ring-2 ring-red-500 ring-offset-1 ring-offset-background" // Selected: Red BG + Red Ring
-                : drag.isDragSource
-                    ? cn(colorClass, "bg-kb-light-grey border-kb-light-grey opacity-60 dark:bg-neutral-700 dark:border-neutral-700")
-                    : cn(
-                        colorClass, "border-kb-key-border",
-                        // Hover: Use ring-inset instead of border-2 to prevent shifting
-                        !disableHover && (hoverBorderColor || "hover:border-red-500 hover:ring-2 hover:ring-inset hover:ring-red-500"),
-                        !disableHover && hoverBackgroundColor,
-                        !disableHover && hoverTextClass
-                    ),
-            // Pending: Thicker Red Border (2px) - Only if NOT selected/active
-            hasPendingChange && (!shouldHighlightContainer && !drag.isDragHover) && "border-2 border-red-500",
+                ? SELECTED_KEY_CLASSES // Selected or drop target: select tint face + select ring outside
+                : selectedStrong
+                    ? cn(colorClass, "border-kb-key-border", HELD_KEY_CLASSES) // Matrix Tester held key
+                    : drag.isDragSource
+                        ? cn(colorClass, "bg-kb-light-grey border-kb-light-grey opacity-60 dark:bg-neutral-700 dark:border-neutral-700")
+                        : cn(
+                            colorClass, "border-kb-key-border",
+                            // Hover: a ring outside the key (box-shadow, so nothing shifts)
+                            !disableHover && (hoverBorderColor || HOVER_RING_CLASSES),
+                            !disableHover && hoverBackgroundColor,
+                            !disableHover && hoverTextClass
+                        ),
+            // Pending: dashed 2px border, also on selected keys (the ring sits outside it)
+            hasPendingChange && PENDING_KEY_CLASSES,
             className
         );
 
         return { boxStyle, textStyle, bottomTextStyle, containerClasses };
-    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className, style]);
+    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, selectedStrong, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className, style]);
 
     // Forced height logic for strict grid alignment without !important
     const forcedHeight = isSmall ? "10px" : isMedium ? "14px" : "18px";
@@ -170,7 +175,9 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             ? "text-[10px] rounded-t-[4px]"
             : isMedium
                 ? "text-[11px] rounded-t-[4px]"
-                : "text-sm rounded-t-sm"
+                : "text-sm rounded-t-sm",
+        // Selected keys have a light face, so their strips turn light with ink text
+        (selected || drag.isDragHover) && SELECTED_STRIP_CLASSES
     );
 
     const handleClick = (e: React.MouseEvent) => {
