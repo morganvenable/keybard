@@ -235,6 +235,23 @@ describe('Board (§5.2, §5.11)', () => {
     });
 });
 
+describe('Key strip (§5.2)', () => {
+    it('lists the alphabet in unlock order, included first; each cap is a named button that opens P5', async () => {
+        const c = await startController();
+        renderPage();
+        const caps = [...document.querySelectorAll('[data-strip-key]')].map((el) => el.getAttribute('data-strip-key'));
+        expect(caps).toHaveLength(c.session!.lesson.letters.length);
+        expect(new Set(caps.slice(0, 6))).toEqual(new Set('adfkls'));
+        const a = screen.getByRole('button', { name: /^a, no speed yet, no accuracy yet, left pinky center$/ });
+        expect(a.querySelector('[data-cap-look="uncalibrated"]')).not.toBeNull();
+        expect(document.querySelector('[data-strip-key="e"] [data-cap-look="locked"]')).not.toBeNull();
+        fireEvent.click(a);
+        const pop = await screen.findByRole('dialog', { name: 'Key a' });
+        expect(within(pop).getByText('No samples yet')).toBeInTheDocument();
+        expect(document.querySelector('[data-practice-focus]')).toHaveTextContent('Focus');
+    });
+});
+
 describe('Type row (§5.2)', () => {
     it('offers Guided until M3; the scope button opens the Lesson panel; Enter moves focus to the surface', async () => {
         await startController();
