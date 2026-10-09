@@ -83,6 +83,12 @@ export interface RedAllowed {
     file: string;
     /** Substring of, or RegExp tested against, the literal that holds the red utility. */
     literal: string | RegExp;
+    /**
+     * The exact red utilities this entry allows in that literal. A red utility the
+     * literal also holds but this list doesn't name is still a finding, so a selection
+     * red added next to an allowed trash hover can't ride on the entry.
+     */
+    tokens: string[];
     reason: RedReason;
     /** What the red marks, for the reader. */
     note: string;
@@ -96,22 +102,22 @@ export interface RedAllowed {
  */
 export const RED_ALLOWED: RedAllowed[] = [
     // Destructive: delete and trash buttons (hover) and destructive confirm buttons.
-    { file: "src/components/LayerRow.tsx", literal: "transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium", reason: "destructive", note: "Delete-layer buttons (two sizes)." },
-    { file: "src/components/LayerRow.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm delete layer." },
-    { file: "src/components/LayoutCard.tsx", literal: "hover:bg-red-50 dark:hover:bg-red-950/40", reason: "destructive", note: "Delete layer from a saved layout." },
-    { file: "src/components/LayoutGroupCard.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Delete layout button." },
-    { file: "src/components/LayoutGroupCard.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm delete layout." },
-    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Clear binding (trash)." },
-    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "bg-red-600 hover:bg-red-700", reason: "destructive", note: "Confirm clear binding." },
-    { file: "src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Clear slot (trash)." },
-    { file: "src/layout/SecondarySidebar/components/BindingEditor/MacroEditorText.tsx", literal: "hover:bg-red-500 hover:text-white", reason: "destructive", note: "Delete macro text action (trash)." },
-    { file: "src/layout/SecondarySidebar/components/SidebarItemRow.tsx", literal: "hover:bg-red-500 dark:hover:bg-red-500", reason: "destructive", note: "Delete list item." },
+    { file: "src/components/LayerRow.tsx", literal: "transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium", tokens: ["hover:bg-red-500"], reason: "destructive", note: "Delete-layer buttons (two sizes)." },
+    { file: "src/components/LayerRow.tsx", literal: "bg-red-600 hover:bg-red-700", tokens: ["bg-red-600", "hover:bg-red-700"], reason: "destructive", note: "Confirm delete layer." },
+    { file: "src/components/LayoutCard.tsx", literal: "hover:bg-red-50 dark:hover:bg-red-950/40", tokens: ["hover:bg-red-50", "dark:hover:bg-red-950/40"], reason: "destructive", note: "Delete layer from a saved layout." },
+    { file: "src/components/LayoutGroupCard.tsx", literal: "hover:bg-red-500 hover:text-white", tokens: ["hover:bg-red-500"], reason: "destructive", note: "Delete layout button." },
+    { file: "src/components/LayoutGroupCard.tsx", literal: "bg-red-600 hover:bg-red-700", tokens: ["bg-red-600", "hover:bg-red-700"], reason: "destructive", note: "Confirm delete layout." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "hover:bg-red-500 hover:text-white", tokens: ["hover:bg-red-500"], reason: "destructive", note: "Clear binding (trash)." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/BindingEditorContainer.tsx", literal: "bg-red-600 hover:bg-red-700", tokens: ["bg-red-600", "hover:bg-red-700", "dark:bg-red-600", "dark:hover:bg-red-700"], reason: "destructive", note: "Confirm clear binding." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", literal: "hover:bg-red-500 hover:text-white", tokens: ["hover:bg-red-500"], reason: "destructive", note: "Clear slot (trash)." },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/MacroEditorText.tsx", literal: "hover:bg-red-500 hover:text-white", tokens: ["hover:bg-red-500"], reason: "destructive", note: "Delete macro text action (trash)." },
+    { file: "src/layout/SecondarySidebar/components/SidebarItemRow.tsx", literal: "hover:bg-red-500 dark:hover:bg-red-500", tokens: ["hover:bg-red-500", "dark:hover:bg-red-500"], reason: "destructive", note: "Delete list item." },
 
     // Errors: error boxes and notices.
-    { file: "src/components/EditingTargetStatus.tsx", literal: "border-red-200 dark:border-red-900", reason: "error", note: "Connection error notice." },
-    { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", literal: "bg-red-50 dark:bg-red-950/40", reason: "error", note: "Layout load error box." },
-    { file: "src/pages/ExploreLayoutsPage.tsx", literal: "bg-red-50 text-red-600 dark:bg-red-950/40", reason: "error", note: "Layout load error box." },
+    { file: "src/components/EditingTargetStatus.tsx", literal: "border-red-200 dark:border-red-900", tokens: ["border-red-200", "dark:border-red-900"], reason: "error", note: "Connection error notice." },
+    { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", literal: "bg-red-50 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
+    { file: "src/pages/ExploreLayoutsPage.tsx", literal: "bg-red-50 text-red-600 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
 
     // Layer color data: a layer the user colors red still has red faces. (.ts, scanned by this rule only)
-    { file: "src/utils/colors.ts", literal: /^(hover:)?(bg|border)-kb-red( text-white)?$/, reason: "layer-data", note: "Red layer color: face, hover border and hover face." },
+    { file: "src/utils/colors.ts", literal: /^(hover:)?(bg|border)-kb-red( text-white)?$/, tokens: ["bg-kb-red", "hover:border-kb-red", "hover:bg-kb-red"], reason: "layer-data", note: "Red layer color: face, hover border and hover face." },
 ];

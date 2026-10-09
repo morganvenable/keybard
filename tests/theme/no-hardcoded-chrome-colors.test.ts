@@ -213,22 +213,26 @@ export function redScanFiles(): string[] {
     return walk(SRC, [".ts", ".tsx"]).map((full) => toPosix(relative(ROOT, full)));
 }
 
+/** An entry allows a finding only for the red utilities it names, in a literal it matches. */
 export function matchesRedAllowed(f: Finding, a: RedAllowed): boolean {
-    if (f.file !== a.file) return false;
+    if (f.file !== a.file || !a.tokens.includes(f.token)) return false;
     return typeof a.literal === "string" ? f.literal.includes(a.literal) : a.literal.test(f.literal);
 }
 
-function scanRedRepo(): { findings: Finding[]; unusedRedAllows: RedAllowed[] } {
-    const used = new Set<RedAllowed>();
+function scanRedRepo(): { findings: Finding[]; unusedRedAllows: string[] } {
+    const used = new Map<RedAllowed, Set<string>>();
     const findings: Finding[] = [];
     for (const rel of redScanFiles()) {
         for (const f of scanRedSource(rel, readFileSync(resolve(ROOT, rel), "utf-8"))) {
             const allow = RED_ALLOWED.find((a) => matchesRedAllowed(f, a));
-            if (allow) used.add(allow);
+            if (allow) used.set(allow, (used.get(allow) ?? new Set()).add(f.token));
             else findings.push(f);
         }
     }
-    return { findings, unusedRedAllows: RED_ALLOWED.filter((a) => !used.has(a)) };
+    // An entry, or a token it names, that no longer matches anything is stale.
+    const unusedRedAllows = RED_ALLOWED.flatMap((a) =>
+        a.tokens.filter((t) => !used.get(a)?.has(t)).map((t) => `${a.file} ${String(a.literal)} ${t}`));
+    return { findings, unusedRedAllows };
 }
 
 function matchesAllowedLiteral(f: Finding, a: AllowedLiteral): boolean {
@@ -329,6 +333,15 @@ describe("theme guard: red-reserved self-test", () => {
         expect(found.every((f) => RED_ALLOWED.some((a) => matchesRedAllowed(f, a)))).toBe(true);
     });
 
+    it("still flags a red the entry doesn't name, inside an allowed literal", () => {
+        // The trash hover is allowed; a selection ring added to the same literal is not.
+        const src = '<button className="p-1.5 hover:bg-red-500 hover:text-white ring-2 ring-red-500 rounded-full" />;';
+        const found = scanRedSource("src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", src);
+        expect(found.map((f) => f.token)).toEqual(["hover:bg-red-500", "ring-red-500"]);
+        const unallowed = found.filter((f) => !RED_ALLOWED.some((a) => matchesRedAllowed(f, a)));
+        expect(unallowed.map((f) => f.token)).toEqual(["ring-red-500"]);
+    });
+
     it("reads headerClassName values, template spans and .ts files", () => {
         const tsx = [
             'const a = <Key headerClassName="bg-red-600 text-white" />;',
@@ -361,7 +374,7 @@ describe("theme guard: red-reserved over src/", () => {
     });
 
     it("has no stale RED_ALLOWED entries", () => {
-        expect(unusedRedAllows.map((a) => `${a.file} ${String(a.literal)}`)).toEqual([]);
+        expect(unusedRedAllows).toEqual([]);
     });
 });
 
