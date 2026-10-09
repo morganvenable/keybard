@@ -1168,7 +1168,7 @@ The color roles apply to the whole app. This section lists every place in [kb] `
 
 The learning unit is the **character** (Unicode code point), as in keybr ([up] `packages/keybr-textinput/lib/histogram.ts:11-38`, `packages/keybr-result/lib/keystats.ts:131-155`, `packages/keybr-lesson/lib/key.ts:104-109`).
 
-Each character `c` has one or more **paths** from the keymap resolver (§9.4): a **primary** path (lowest cost) and any **alternatives** (a duplicated character, Space on two thumbs, `!` through `MO(1)` or `LT1`). Each path has a **path key** `"<layer>:<target>:<shift>"`, where `<target>` is the matrix index of the key that emits the character (M3 combos: the sorted indices joined with `+`, for example `0:14+20:n`), and shift ∈ `n` (none), `f` (firmware modmask), `u` (user Shift).
+Each character `c` has one or more **paths** from the keymap resolver (§9.4): a **primary** path (lowest cost) and any **alternatives** (a duplicated character, Space on two thumbs, `!` through `MO(1)` or `LT1`). Each path has a **path key** `"<layer>:<target>:<shift>"`, where `<target>` is the matrix index of the key that emits the character (M3 combos: the sorted indices joined with `+`, for example `0:14+20:n`; a tap-dance double tap marks its target `*2`, for example `0:26*2:n`, so the reverse map keeps the key's single tap), and shift ∈ `n` (none), `f` (firmware modmask), `u` (user Shift).
 
 **The path key names the target key only (DECISION).** Prerequisites (which thumb holds the layer, which key gives Shift) are not part of it. Moving `MO(1)` to another thumb therefore does not restart `!`; the change shows up in the layer-key stats (Thumbs, layer reach) instead. Restarting every layer-1 character because the layer key moved would throw away what the target finger learned.
 
@@ -1466,7 +1466,7 @@ interface KeystrokeEvent {
 | | 31 | delayed output (§6.5) |
 | w2 | 0–20 | `typed` code point (`0x1FFFFF` = null) |
 | | 21–25 | `layer` (31 = unknown) |
-| | 26–31 | reserved (layout 2: combo flag and target count, M3) |
+| | 26–31 | layout 1: reserved. Layout 2 (M3): bit 26 double tap; bits 27–29 the number of other combo targets (0–4); 30–31 reserved |
 | w3 | 0–6 | `index` (127 = none) |
 | | 7–13 | `prereq[0]` (127 = none) |
 | | 14–20 | `prereq[1]` (127 = none) |
@@ -1476,7 +1476,7 @@ interface KeystrokeEvent {
 
 - **Size:** a 150-character lesson has about 165 events once misses, backspaces and strays are added (assumption: about 10% extra events), so about **3.3 KB** per lesson. The first draft said 1.8 KB, which was off by about 4× (12 words × 4 B × 150 = 7.2 KB).
 - **Retention (pending Q5):** the most recent **1,000 lessons per profile** keep events, about **3.3 MB**. Older event rows are pruned after each lesson; results and aggregates are kept forever. (2,000 lessons would be about 6.6 MB.)
-- Combos (M3) need more than one target index. They move to layout 2 using w2's reserved bits; the `layout` field on each `events` row says which layout it uses.
+- Combos (M3) need more than one target index. They move to layout 2 using w2's reserved bits; the `layout` field on each `events` row says which layout it uses. **As built in M3:** a lesson is stored in layout 2 only when one of its hits is a combo or a double tap. An event whose bits 27–29 are not 0 is followed by one extension word holding the other targets as 4 × 7-bit matrix indices (127 = none), so a combo hit costs 24 B and every other event stays 20 B. Export files carry each row's `layout`.
 
 ### 8.3 Result record
 
@@ -1775,6 +1775,8 @@ M1b adds a Vitest check that reads `dist/` stats after `vite build` in CI and fa
 **Measured in M1b (2026-10-09).** `build/bundle-stats.ts` records Practice's own share of each build and `tests/build/bundle-size.test.ts` checks it (`npm run check:bundle`; the test workflow runs it on Node 24). Production: Practice code in the entry chunk 1.6 KB gzip, measured before minification (the whole entry chunk grew by 1.0 KB gzip against `d288126`); the practice lazy chunks (engine and UI) 66 KB gzip; the English content 60 KB gzip (word list chunk 37 KB, model asset 25 KB). Paranoid: Practice code (minified share) and inlined content add about 392 KB to the single file; the word list is inlined once.
 
 **Measured in M2 (2026-10-09).** Live · USB and the M0 lab: Practice in the entry chunk 1.5 KB gzip; practice lazy chunks 81 KB gzip (the lab is its own 4.5 KB chunk); English content 62 KB gzip; Paranoid growth 437 KB. All within budget.
+
+**Measured in M3 (2026-10-09).** Drill, Words, Custom, the symbol generator and the resolver's combos, tap dances and key overrides: Practice in the entry chunk 1.4 KB gzip; practice lazy chunks 90 KB gzip; English content 60 KB gzip; Paranoid growth 457 KB. All within budget.
 
 ### 9.9 Testing
 
