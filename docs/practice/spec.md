@@ -1232,7 +1232,7 @@ Within a tier, letters follow language frequency.
 
 keybr sorts by weight before frequency (`weight(a) - weight(b) || b.f - a.f`, [up] `packages/keybr-phonetic-model/lib/letter.ts:131-138`), so no tier-2 letter can unlock before every tier-1 letter. The mockups' sample state (Appendix A.1) follows this order.
 
-**Trade-off:** t, n and h are frequent letters but unlock late. Frequency order (keybr's default, `keyboardOrder` off, [up] `settings.ts:17`) starts with roughly e t a o i n, which mixes all directions from lesson 1. Q1 asks the owner to choose the default for new profiles.
+**Trade-off:** t, n and h are frequent letters but unlock late. Frequency order (keybr's default, `keyboardOrder` off, [up] `settings.ts:17`) starts with e n i a r l with keybr's English model (measured in M1a; an earlier draft guessed e t a o i n), which mixes all directions from lesson 1. Q1 asks the owner to choose the default for new profiles. M1a confirmed the Center-first worked example above on `sval-default.svil`: the initial six are a d f k l s, the 7th unlock is j, the 8th e, then the rest of tier 2, then the E/W letters t n h y g b in frequency order (`tests/practice/lessons/guided.test.ts`).
 
 ### 6.4 Target speed and confidence
 
@@ -1769,6 +1769,8 @@ The adapter is the only thing keybr's `Lesson` sees. The UI never uses keybr sha
 | Paranoid single file growth | ≤ 550 KB uncompressed | Inline + base64; raised with the engine estimate |
 
 M1b adds a Vitest check that reads `dist/` stats after `vite build` in CI and fails over budget. The exact mechanism is UNVERIFIED, because Keybard has no size check today ([kb] `package.json` scripts). M1a records the measured engine size so the budgets can be fixed before M1b.
+
+**Measured in M1a (2026-10-08).** The trimmed vendored engine is **9,473 non-test LOC** (keyboard 1,542 after trimming `layout.ts` to `Layout.custom` + `EN_US`; lesson 1,115; result 1,136; phonetic-model 959; unicode 910; textinput 846; math 737; textinput-events 507; lang 463; binary 446; settings 337; rand 238; result-io 206; content 24), plus about 2.2k LOC of Practice engine code (`keymap/`, `store/`, `input/timeToType.ts`, `lessons/`, `state/`). A Vite library build of everything M1a exports (minified, ES2022, Keybard's own modules external) is **136 KB raw, 36 KB gzip**, including the EN blacklist; the vendored engine alone with every export kept is 139 KB raw, 34 KB gzip. Content: `model-en.data` 47,054 B (25.2 KB gzip), `words-en.json` 128,321 B (37.8 KB gzip), 63 KB gzip together. The 130 KB `practice` and 75 KB `content-en` budgets above therefore hold with room for the M1b UI; the M1b check uses them as they are. Ported keybr tests: 6.7k LOC.
 
 ### 9.9 Testing
 
