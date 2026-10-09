@@ -257,10 +257,13 @@ export class LessonRun {
             const rewritten = skipped ? garbage : garbage.slice(1);
             rewritten.forEach((g, i) => {
                 const old = this.events[g.event];
+                // Live: a keystroke already attributed keeps the path the board showed.
+                const seen = old.phys.confidence === 'observed' ? this.#keystrokes.find((k) => k.seq === old.seq)?.attribution?.path : undefined;
+                const path = seen ?? g.pressed;
                 this.events[g.event] = {
-                    ...old, expected: steps[1 + i].codePoint, kind: 'hit', ttt: g.ttt, path: g.pressed?.key ?? '',
+                    ...old, expected: steps[1 + i].codePoint, kind: 'hit', ttt: g.ttt, path: path?.key ?? '',
                     phys: { ...old.phys, shift: undefined }, errorClass: undefined,
-                    delayed: g.pressed?.delayed ? true : undefined, pos: before + 1 + i,
+                    delayed: path?.delayed ? true : undefined, pos: before + 1 + i,
                 };
             });
             this.events.push(hit(steps[steps.length - 1].codePoint, before + appended - 1));

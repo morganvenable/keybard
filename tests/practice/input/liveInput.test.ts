@@ -252,3 +252,27 @@ describe('LessonRun.attribute (§8.2)', () => {
         expect(run.events[2].raw).toBe(302 - 140);
     });
 });
+
+describe('LessonRun.attribute with Forgive errors', () => {
+    it('a waiting keystroke the board already attributed stays observed, with its path, when a recovery makes it a hit', () => {
+        const keymap = new LiveKeymap(resolution, board.keymap!, board.rows, board.cols);
+        const h = new MatrixHistory(ROWS * COLS);
+        h.addMasks(0, 1, 1);
+        for (const [t, down] of [[0, []], [10, [A]], [20, []], [30, [at('d')]], [40, []]] as [number, number[]][]) {
+            h.addSample(t, t, matrixToDown(frame(down), ROWS, COLS));
+        }
+        const run = lesson('asdfg');
+        run.onInput(input('a', 12));
+        run.attribute(0, attributeStep({ typed: cp('a'), expected: cp('a'), tInput: 12, tPrev: null }, h, keymap, new Set()));
+        // s is skipped: d waits as a miss and is attributed; f and g then recover it (keybr's skipped character).
+        run.onInput(input('d', 32));
+        const seen = attributeStep({ typed: cp('d'), expected: cp('s'), tInput: 32, tPrev: 12 }, h, keymap, new Set());
+        run.attribute(1, seen);
+        expect(run.events.find((e) => e.seq === 1)).toMatchObject({ kind: 'miss' });
+        run.onInput(input('f', 52));
+        run.onInput(input('g', 72));
+        const d = run.events.find((e) => e.seq === 1)!;
+        expect(d).toMatchObject({ kind: 'hit', expected: cp('d'), path: seen.path!.key, errorClass: undefined });
+        expect(d.phys).toMatchObject({ confidence: 'observed', index: at('d') });
+    });
+});
