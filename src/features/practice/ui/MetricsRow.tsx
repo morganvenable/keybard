@@ -10,7 +10,7 @@ import { StatCell, TodayRing } from "./StatCell";
 interface MetricsRowProps {
     last: LastLessonMetrics | null;
     unit: SpeedUnit;
-    /** Keys in the lesson; Drill: keys at target out of the scope, labelled At target (§5.2). */
+    /** Keys in the lesson; Drill: keys at target out of the scope, labeled At target (§5.2). */
     keys: { included: number; alphabet: number; label?: string };
     today: { minutes: number; goal: number };
     /** A lesson just completed: deltas fade in. */
