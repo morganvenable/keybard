@@ -10,8 +10,9 @@ export const OWNER_Q1_DEFAULT_UNLOCK_ORDER: 'center-first' | 'frequency' = 'cent
 
 /**
  * Q2. Keybard's license identifier, needed before the vendored keybr engine merges.
- * Recommended: AGPL-3.0-or-later. Not applied to package.json/LICENSE yet; that
- * change is a separate, owner-approved commit.
+ * Recommended: AGPL-3.0-or-later. Applied on branch feat/practice-engine in its own
+ * commit ("License Keybard as AGPL-3.0-or-later (OWNER_Q2)": package.json `license`
+ * and the root LICENSE file), so it can be dropped or changed on its own.
  */
 export const OWNER_Q2_LICENSE = 'AGPL-3.0-or-later';
 
