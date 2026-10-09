@@ -34,8 +34,14 @@ it('reports an unreachable host only when the user asked to connect', async () =
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
     const { result } = renderHook(() => useHost());
     act(() => result.current.connect());
-    await waitFor(() => expect(result.current.error).toMatch(/Could not reach Keybard Host/));
+    // Overlay names the address and offers Try again (docs/practice/spec.md §5.16); the old sentence of
+    // instructions moved to the button's tooltip.
+    await waitFor(() => expect(result.current.error).toBe("Can't reach Keybard Host at 127.0.0.1:5178"));
+    expect(result.current.unreachable).toBe(true);
+    expect(result.current.lost).toBe(false);
     expect(localStorage.getItem('keybard-host-remote')).toBeNull();
+    act(() => result.current.connect());
+    expect(result.current.unreachable).toBe(false);
 });
 
 it('uses relative URLs on the copy of Keybard served by the host', async () => {

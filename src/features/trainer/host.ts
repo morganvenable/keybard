@@ -9,6 +9,8 @@ import { PARANOID } from '@/lib/paranoid';
 // the host allows for that origin. Probing loopback can show a browser
 // permission prompt, so hosted pages only connect after the user asks to.
 export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string | undefined) || 'http://127.0.0.1:5178';
+/** The Host's address as the Overlay page names it (no scheme). */
+export const HOST_ADDRESS = HOST_ORIGIN.replace(/^https?:\/\//, '');
 const REMOTE_KEY = 'keybard-host-remote';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
 function rememberedRemote() { try { return appStorage.getItem(REMOTE_KEY) === '1'; } catch { return false; } }
@@ -28,6 +30,12 @@ declare global { interface Window { __keybardNativeState?: boolean } }
 export function useHost() {
     const [state, setState] = useState<HostSnapshot | null>(null);
     const [error, setError] = useState('');
+    // Host answered and then stopped (poll failure or no data for 1.2 s). Never set before the first
+    // snapshot, cleared by the next one. Kept apart from `error` so the page can tell "lost" from
+    // "never connected" (docs/practice/spec.md §5.16).
+    const [lost, setLost] = useState(false);
+    // The user asked to connect and no Host answered the bootstrap.
+    const [unreachable, setUnreachable] = useState(false);
     const token = useRef('');
     const current = useRef<HostSnapshot | null>(null);
     const [busy, setBusy] = useState(false);
@@ -64,10 +72,11 @@ export function useHost() {
         let alive = true, timer: ReturnType<typeof setTimeout>;
         const abort = new AbortController();
         let lastReceived = Date.now();
-        const watchdog = setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setError('Host connection stale. The preview is paused.'); } }, 200);
+        let received = false;
+        const watchdog = setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setLost(true); } }, 200);
         function receive(data: HostSnapshot) {
             if (!alive || data.apiVersion !== 1) return;
-            lastReceived = Date.now();
+            lastReceived = Date.now(); received = true; setLost(false);
             if (current.current?.session !== data.session) current.current = null;
             if (current.current && data.revision < current.current.revision) { data.revision = current.current.revision; data.config = current.current.config; }
             if (data.layoutRevision === current.current?.layoutRevision && !data.board) data.board = current.current.board;
@@ -86,7 +95,7 @@ export function useHost() {
                 if (!r.ok) throw new Error('Host connection lost');
                 receive(await r.json() as HostSnapshot);
             } catch {
-                if (alive) { current.current = null; setState(null); setError('Host connection lost. The preview is paused.'); }
+                if (alive) { current.current = null; setState(null); if (received) setLost(true); }
             }
             if (alive && !native) timer = setTimeout(poll, 80);
         }
@@ -94,16 +103,16 @@ export function useHost() {
             try {
                 if (!await bootstrap(abort.signal) || !alive) return;
                 if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
-                setError(''); void poll();
+                setError(''); setUnreachable(false); void poll();
             } catch {
                 // Browser-only Keybard has no host endpoint; only report it when the user asked to connect.
-                if (alive && asked.current) setError(`Could not reach Keybard Host at ${HOST_ORIGIN}. Start Keybard Host, allow this site to access apps on your device if the browser asks, then try again.`);
+                if (alive && asked.current) { setUnreachable(true); setError(`Can't reach Keybard Host at ${HOST_ADDRESS}`); }
             }
         })();
         return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
     }, [attempt, base, local, bootstrap]);
     /** Connect a hosted Keybard page to a running Keybard Host (user-initiated). */
-    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
+    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setUnreachable(false); setAttempt(n => n + 1); }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
             await post('/api/host/command', () => value); setError('');
@@ -121,7 +130,7 @@ export function useHost() {
         } catch (e) { setError(e instanceof Error ? e.message : 'Could not save host settings'); return false; }
         finally { busyRef.current = false; setBusy(false); }
     }, [post]);
-    return { state, error, command, configure, busy, connect, local, build };
+    return { state, error, lost, unreachable, command, configure, busy, connect, local, build };
 }
 
 const HOST_REFRESH_DELAY_MS = 500;
