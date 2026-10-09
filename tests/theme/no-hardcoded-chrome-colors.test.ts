@@ -390,6 +390,14 @@ describe("theme guard: src/**/*.tsx", () => {
         expect(unusedLiteralAllows.map((a) => `${a.file} ${String(a.literal)}`)).toEqual([]);
     });
 
+    it("scans the shared components (src/components/shared), unlike src/components/ui", () => {
+        // docs/practice/spec.md §9.9: the new shared components must not drift into an allowlisted directory.
+        const rel = "src/components/shared/SegmentedControl.tsx";
+        expect(() => statSync(resolve(ROOT, rel))).not.toThrow();
+        expect(isAllowedFile(rel)).toBe(false);
+        expect(isAllowedFile("src/components/ui/OnOffToggle.tsx")).toBe(true);
+    });
+
     it("every allowlisted file still exists", () => {
         const missing = ALLOWED_FILES.filter((a) => typeof a.path === "string").filter((a) => {
             try {
