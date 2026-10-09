@@ -12,7 +12,7 @@ with sync_playwright() as p:
  page.add_init_script('window.__keybardNativeState = true;')
  def route(r):r.fulfill(json={'apiVersion':1,'token':'manual'} if '/bootstrap' in r.request.url else state)
  page.route('**/api/host/**',route)
- page.goto(KEYBARD_URL+'?hostOverlay=1');page.wait_for_selector('svg[aria-label="Trainer keyboard preview"]');page.wait_for_timeout(150)
+ page.goto(KEYBARD_URL+'?hostOverlay=1');page.wait_for_selector('svg[aria-label="Overlay keyboard preview"]');page.wait_for_timeout(150)
  page.screenshot(path=str(root/'assets/overlay-renderer.png'),omit_background=True)
  print('Actual shared native renderer captured with bundled example, simulated host state; no real board used')
  b.close()

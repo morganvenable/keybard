@@ -2,27 +2,27 @@
 
 Keybard Host shows your Svalboard layout as a transparent overlay on your desktop. It follows the layer you're on, so you can glance at it while you type in any app. It runs in the system tray and only reads from the keyboard: it never changes your layout or flashes firmware.
 
-You choose what the overlay looks like in the **Trainer** panel of [Keybard](https://keybard.svalboard.com).
+You choose what the overlay looks like in **Overlay** in [Keybard](https://keybard.svalboard.com) (called Trainer before; links to `#trainer` still open it).
 
 ## Install (Windows)
 
 1. Download `KeybardHost-Windows.zip` from [Releases](https://github.com/svalboard/keybard/releases) and extract the whole ZIP to a folder you'll keep.
 2. Run `Start-Windows.cmd`. The first launch downloads its own copy of Python and Qt, so you need to be online. No admin rights or system changes are needed.
 
-Keybard Host is now in your system tray, and it opens Trainer on [keybard.svalboard.com](https://keybard.svalboard.com) in your browser.
+Keybard Host is now in your system tray, and it opens Overlay on [keybard.svalboard.com](https://keybard.svalboard.com) in your browser.
 
 ## Set up the overlay
 
-1. In Trainer, connect your keyboard if it isn't already, and click **Connect to Keybard Host**. If the browser asks whether the site can access apps on this device, allow it. Next time it reconnects on its own.
+1. In Overlay, connect your keyboard if it isn't already, and click **Connect to Keybard Host**. If the browser asks whether the site can access apps on this device, allow it. Next time it reconnects on its own.
 2. Pick the board to show, if you have more than one, and set the overlay's colors, size and other options. They're saved on this computer.
 
-Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Trainer. Offline, the Host's built-in copy of Keybard at `http://127.0.0.1:5178/` works the same way.
+Use Chrome or Edge. **Open Keybard** in the tray menu takes you back to Overlay. Offline, the Host's built-in copy of Keybard at `http://127.0.0.1:5178/` works the same way.
 
 ## Using it
 
-- **Place it:** drag the move grip above the overlay's top-right corner. **Size it:** drag the resize grip next to it, up or right to grow, down or left to shrink. Clicks anywhere else pass through to the window underneath. To drag the overlay by its keys as well, turn on **Drag by keys** in Trainer, the overlay's small menu or the tray menu; the space between keys still passes clicks.
-- **Tray menu:** show or hide the overlay, drag or place it at the bottom of the screen, reload the layout, open Keybard's Trainer, or quit. Closing the browser leaves the overlay running.
-- **After you edit your layout in Keybard**, the overlay updates by itself about a second after the change reaches the keyboard, as long as Keybard is connected to Keybard Host (the Trainer's **Connect to Keybard Host**, once). For changes made elsewhere, choose **Reload layout** from the tray.
+- **Place it:** drag the move grip above the overlay's top-right corner. **Size it:** drag the resize grip next to it, up or right to grow, down or left to shrink. Clicks anywhere else pass through to the window underneath. To drag the overlay by its keys as well, turn on **Drag by keys** in Overlay's **Window** tile, the overlay's small menu or the tray menu; the space between keys still passes clicks.
+- **Tray menu:** show or hide the overlay, drag or place it at the bottom of the screen, reload the layout, open Keybard's Overlay, or quit. Closing the browser leaves the overlay running.
+- **After you edit your layout in Keybard**, the overlay updates by itself about a second after the change reaches the keyboard, as long as Keybard is connected to Keybard Host (Overlay's **Connect to Keybard Host**, once). For changes made elsewhere, choose **Reload layout** from the tray.
 - **Held keys:** optionally highlight the keys you're holding. Very short taps can be missed.
 - **Shift and Caps Lock** change the letters and symbols shown, using the keyboard language chosen in Keybard. This doesn't work on Wayland.
 
@@ -91,6 +91,6 @@ These don't cover moving the window, focus, click-through, fullscreen, or live l
 3. Build with `npm run build:svalboard`, then run `python3 companion/overlay-host/scripts/package.py`.
 4. In `dist`, run `sha256sum KeybardHost-Windows.zip > SHA256SUMS.txt`.
 5. Tag the commit (`keybard-host-vX.Y.Z-preview.N`, or a launch tag shared with the firmware such as `vLaunch2`) and publish a GitHub prerelease with the ZIP and the checksum. Set `KEYBARD_HOST_VERSION` to the tag when packaging, so the host reports it.
-6. Set `HOST_RELEASE_TAG` in `src/features/trainer/HostInstall.tsx` to the new tag, so Trainer's install link finds it. Link the tag itself, not GitHub's `latest` redirect, which skips prereleases.
+6. Set `HOST_RELEASE_TAG` in `src/features/trainer/HostInstall.tsx` to the new tag, so Overlay's download link finds it. Link the tag itself, not GitHub's `latest` redirect, which skips prereleases.
 
 Instead of steps 3–5, you can run the **Package Keybard Host preview** workflow with an existing tag. It builds a draft prerelease with both files, stamps the release and the bundled Keybard commit into the host and the release notes; test the ZIP before you publish it.

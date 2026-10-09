@@ -6,7 +6,7 @@ Published at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manua
 
 Keybard `78cc7db` (the `vLaunch2` tag, 2026-10-08) and the published [Svalboard-QMK vLaunch2 release](https://github.com/svalboard/qmk/releases/tag/vLaunch2) (2026-10-08). This is an end-user walkthrough, not a claim that every firmware control, sensor, migration path or native platform has been hardware-validated.
 
-The guide covers first-time offline exploration, a safe first connected edit, migration from supported Vial firmware, returning users, layers and the bundled layout groups, behavior authoring/assignment, pointing, settings/diagnostics, automatic backups, files/library/printing, and the read-only Trainer companion. It distinguishes board state, pending draft state and exported files throughout.
+The guide covers first-time offline exploration, a safe first connected edit, migration from supported Vial firmware, returning users, layers and the bundled layout groups, behavior authoring/assignment, pointing, settings/diagnostics, automatic backups, files/library/printing, and the read-only Overlay companion (formerly Trainer). It distinguishes board state, pending draft state and exported files throughout.
 
 ## Planned process
 
@@ -36,7 +36,7 @@ The guide covers first-time offline exploration, a safe first connected edit, mi
 | Behavior workflows | `src/layout/SecondarySidebar/components/BindingEditor/` and `Panels/` |
 | Immediate board identity operations | `src/layout/SecondarySidebar/Panels/BoardIdentitySection.tsx` |
 | Physical matrix display | `src/components/MatrixTester.tsx` |
-| Trainer and native overlay | `src/features/trainer/`, `companion/overlay-host/README.md` |
+| Overlay and native overlay | `src/features/trainer/`, `companion/overlay-host/README.md` |
 | Firmware migration and limitations | [Firmware launch notes](https://github.com/svalboard/qmk/blob/svalboard/keyboards/svalboard/docs/release/launch.md) |
 
 ## Original launch review record

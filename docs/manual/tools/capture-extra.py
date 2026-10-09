@@ -58,9 +58,12 @@ def num_sym(r):
  bundled(r,1,'tenkey','Left-hand tenkey + right-hand nav')
  return 'Dragged the bundled left-hand tenkey + right-hand nav layer onto layer 1, replacing its numbers and symbols'
 def familiar(r):
- r.nav('Trainer');r.click(r.page.get_by_role('tab',name='Practice',exact=True));select=r.page.get_by_label('Familiar binding',exact=True);value=select.locator('option').nth(1).get_attribute('value');r.select(select,value);r.nav('Mark familiar');r.click(r.page.get_by_label('Hide familiar legends',exact=True));assert r.page.get_by_label('Hide familiar legends',exact=True).get_attribute('aria-checked')=='true';return 'Marked one binding familiar and hid its preview legend'
+ r.nav('Overlay');r.nav('Recall');r.choose(r.page.get_by_role('combobox',name='Binding',exact=True),1);r.nav('Mark familiar');r.toggle('Hide familiar legends')
+ assert r.page.get_by_role('group',name='Hide familiar legends',exact=True).get_by_role('button',name='ON',exact=True).get_attribute('aria-pressed')=='true';return 'Marked one binding familiar and hid its preview legend'
 def trainer_layers(r):
- r.nav('Trainer');r.select(r.page.locator('select').nth(2),'1');r.frame(1200);r.select(r.page.locator('select').nth(2),'2');r.frame(1200);r.select(r.page.locator('select').nth(2),'0');return 'Previewed symbols and function layers, then returned to base; appearance preview only'
+ # The Preview layer pills below the preview, in layer order.
+ r.nav('Overlay');pills=r.page.get_by_role('group',name='Preview',exact=True).get_by_role('button')
+ r.click(pills.nth(1));r.frame(1200);r.click(pills.nth(2));r.frame(1200);r.click(pills.nth(0));return 'Previewed symbols and function layers, then returned to base; appearance preview only'
 def fragments(r):
  r.nav('Settings');r.click(r.page.get_by_text('Fragments',exact=True));control=r.page.get_by_role('combobox').first;before=control.inner_text();r.click(control)
  choice=r.page.get_by_role('option').filter(has_not_text=before).first;after=choice.inner_text();r.click(choice);assert control.inner_text()==after;r.frame(1200)

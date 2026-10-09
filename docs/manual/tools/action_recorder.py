@@ -47,6 +47,14 @@ class Recorder:
   loc.press('Tab');self.frame(400)
  def select(self,loc,value):
   self.move(loc);loc.select_option(value);self.frame(850)
+ def choose(self,trigger,option):
+  # Keybard's ui/select (Radix): open the list from its trigger, then pick the option by name or index.
+  self.click(trigger)
+  item=self.page.get_by_role('option').nth(option) if isinstance(option,int) else self.page.get_by_role('option',name=option,exact=True)
+  self.click(item)
+ def toggle(self,label,value=True):
+  # OnOffToggle: a group named after its row with ON and OFF buttons.
+  self.click(self.page.get_by_role('group',name=label,exact=True).get_by_role('button',name='ON' if value else 'OFF',exact=True))
  def drag(self,source,target):
   self.move(source);self.page.mouse.down();self.frame(400);self.move(target,12);self.frame(400);self.page.mouse.up();self.page.wait_for_timeout(220);self.frame(900)
  def picker(self,key):

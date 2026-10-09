@@ -58,8 +58,8 @@
       "passed": true,
       "detail": {
         "target": "settings",
-        "start": 105.484375,
-        "settled": 105.484375
+        "start": 104.578125,
+        "settled": 104.578125
       }
     },
     {
@@ -67,17 +67,17 @@
       "passed": true,
       "detail": {
         "target": "files",
-        "start": 104.921875,
-        "settled": 104.921875
+        "start": 105.15625,
+        "settled": 105.15625
       }
     },
     {
       "check": "stable mobile deep link",
       "passed": true,
       "detail": {
-        "target": "trainer",
-        "start": 105.40625,
-        "settled": 105.40625
+        "target": "overlay",
+        "start": 105.28125,
+        "settled": 105.28125
       }
     },
     {

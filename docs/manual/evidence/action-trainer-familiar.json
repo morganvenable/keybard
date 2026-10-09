@@ -1,8 +1,8 @@
 {
   "clip": "trainer-familiar",
   "verifiedResult": "Marked one binding familiar and hid its preview legend",
-  "frames": 36,
-  "durationMs": 8890,
+  "frames": 44,
+  "durationMs": 10160,
   "physicalHID": false,
   "source": "Real Keybard UI with bundled offline layout; orange pointer is a recording aid"
 }

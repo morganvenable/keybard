@@ -6,7 +6,7 @@ A modern Vite-based keyboard configuration UI built with React and TypeScript.
 
 ## User manual
 
-The illustrated user manual, at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/), walks through connecting, editing, layers, behaviors, backups and Trainer. Its source is in [docs/manual](docs/manual/README.md), with a printable PDF; that README covers regenerating the screenshots and the review record. The production build copies it to `dist/manual/` (see `build/manual.ts`).
+The illustrated user manual, at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/), walks through connecting, editing, layers, behaviors, backups and Overlay. Its source is in [docs/manual](docs/manual/README.md), with a printable PDF; that README covers regenerating the screenshots and the review record. The production build copies it to `dist/manual/` (see `build/manual.ts`).
 
 ## Quick Start
 
@@ -116,9 +116,9 @@ function MyComponent() {
 ✅ Basic connection UI
 ✅ File loading (.svil and .vil configuration files)
 
-## Configuration and Trainer
+## Configuration and Overlay
 
-The editor includes keymaps, macros, combos, tap dances, overrides, leaders and pointing settings. Trainer configures the separate native Keybard Host overlay. See [the companion README](companion/overlay-host/README.md) for setup.
+The editor includes keymaps, macros, combos, tap dances, overrides, leaders and pointing settings. Overlay configures the separate native Keybard Host overlay. See [the companion README](companion/overlay-host/README.md) for setup.
 
 ## Theming
 
@@ -237,6 +237,6 @@ See [VITE_SETUP.md](./VITE_SETUP.md) for detailed setup and development document
 
 ## Overlay (formerly Trainer) and native overlay preview
 
-Overlay is available from the left navigation panel, or directly at `/#overlay` when serving with a root base path (`/#trainer` still works and opens Overlay). It has independent appearance controls, saved presets, a shared SVG keyboard renderer, offline/imported previews, and recall practice. Trainer imports do not replace the editor draft.
+Overlay is available from the left navigation panel, or directly at `/#overlay` when serving with a root base path (`/#trainer` still works and opens Overlay). It has independent appearance controls, saved presets, a shared SVG keyboard renderer, offline/imported previews, and recall practice. Its imports do not replace the editor draft.
 
 The [native Keybard Host](companion/overlay-host/README.md) serves this same web UI and runs its renderer as a transparent tray-managed desktop overlay. It has an isolated Windows runtime and read-only Svalboard device worker. Host mode supports live active/default layers, optional held-key feedback, remembered-board reconnect, and configuration from Keybard. Keybard keeps its standard WebHID connection flow; the native overlay uses a separate read-only client.

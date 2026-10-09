@@ -49,12 +49,12 @@ with sync_playwright() as p:
  page=b.new_page(viewport={'width':1280,'height':900},reduced_motion='no-preference');page.goto(URL)
  first=page.locator('figure[data-animation]').first;first.scroll_into_view_if_needed();page.wait_for_timeout(400)
  assert first.get_attribute('data-playing')=='true'
- page.locator('#trainer').scroll_into_view_if_needed();page.wait_for_timeout(200);assert first.get_attribute('data-playing')=='false'
+ page.locator('#overlay').scroll_into_view_if_needed();page.wait_for_timeout(200);assert first.get_attribute('data-playing')=='false'
  first.scroll_into_view_if_needed();page.wait_for_timeout(200);assert first.get_attribute('data-playing')=='true'
  page.emulate_media(reduced_motion='reduce');page.wait_for_timeout(200);assert first.get_attribute('data-playing')=='true'
  record('autoplay with either motion preference and no control rows',page.locator('figure[data-animation]').count());page.close()
  # Cold deep links must not drift while images load.
- for target in ['settings','files','trainer']:
+ for target in ['settings','files','overlay']:
   page=b.new_page(viewport={'width':390,'height':844},reduced_motion='reduce');page.goto(URL+'#'+target);page.wait_for_timeout(500)
   start=page.locator('#'+target).bounding_box()['y'];page.wait_for_timeout(700);end=page.locator('#'+target).bounding_box()['y']
   assert 50<=end<=130,(target,start,end)

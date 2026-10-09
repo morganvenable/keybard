@@ -49,13 +49,14 @@ def reopen(r):
 def imports(r):
  with r.page.expect_file_chooser() as chooser:r.nav('Import Layout')
  chooser.value.set_files(str(ROOT.parents[1]/'src/default-layouts/sval-default.svil'));r.page.wait_for_timeout(300);r.frame(1200);r.nav('Open layout');r.page.get_by_role('dialog').wait_for(state='hidden');return 'Reviewed the import and opened it in the offline editor'
+# Overlay (formerly Trainer): the nav item opens the page and its panel, on the Appearance tile.
 def trainer_appearance(r):
- r.nav('Trainer');r.select(r.page.locator('select').nth(3),'High contrast');r.click(r.button('Busy'));r.frame(1200);return 'Applied High contrast preset and Busy preview background'
+ r.nav('Overlay');r.choose(r.page.get_by_role('combobox',name='Preset',exact=True),'High contrast');r.click(r.page.get_by_role('radio',name='Busy',exact=True));r.frame(1200);return 'Applied High contrast preset and Busy preview background'
 def trainer_practice(r):
- r.nav('Trainer');r.click(r.page.get_by_role('tab',name='Practice',exact=True));r.click(r.page.get_by_label('Recall practice',exact=True));r.nav('Reveal');r.frame(1300);r.nav('Remembered');r.frame(1200);return 'Enabled recall, revealed a prompt and advanced with Remembered'
+ r.nav('Overlay');r.nav('Recall');r.toggle('Recall');r.nav('Reveal');r.frame(1300);r.nav('Remembered');r.frame(1200);return 'Turned on Recall, revealed a prompt and advanced with Remembered'
 def trainer_feedback(r):
- r.nav('Trainer');r.click(r.page.get_by_role('tab',name='Feedback',exact=True));print(r.page.locator('body').inner_text()[-2000:],flush=True)
- r.select(r.page.get_by_label('Layer-change highlight',exact=True),'Short fade');r.nav('Preview held keys');return 'Selected Short fade and previewed held-key highlighting'
+ r.nav('Overlay');r.nav('Feedback')
+ r.click(r.page.get_by_role('radio',name='Fade',exact=True));r.nav('Preview held keys');return 'Chose the Fade layer-change highlight and previewed held-key highlighting'
 def timing(r):
  r.nav('Settings');r.nav('QMK Settings...');r.fill(r.page.get_by_role('spinbutton').first,'210',paste=True);assert r.page.get_by_role('button',name='Apply 1 Change',exact=True).count();r.move(r.page.get_by_text('Pending (1)',exact=True));r.frame(1000);return 'Changed tapping term to 210 ms; Pending (1) and Apply 1 Change appeared; controlled board, no hardware write'
 def pointing(r):
