@@ -356,6 +356,21 @@ describe('PracticeController (§4.4, §5.3)', () => {
         expect(c.status).toMatchObject({ id: 'keymap-changed', text: NOTICE_TEXT['keymap-changed'] });
     });
 
+    it('a layer color change keeps the lesson and redraws', async () => {
+        const c = controller();
+        await ready(c);
+        await c.startPractice('learn', 125);
+        const run = c.run;
+        const board = svalDefault();
+        board.cosmetic = { ...board.cosmetic, layer_colors: { ...board.cosmetic?.layer_colors, 0: 'purple' } };
+        const version = c.version;
+        c.setKeymap(keymapInput({ board }));
+        await vi.waitFor(() => expect(c.version).toBeGreaterThan(version));
+        expect(c.run).toBe(run);
+        expect(c.keymap?.board.cosmetic?.layer_colors?.[0]).toBe('purple');
+        expect(c.status).toBeNull();
+    });
+
     it('status slot priority: storage off over unsent changes over banners', async () => {
         const c = controller(new MemoryPracticeStore(), false);
         await ready(c, keymapInput({ unsentChanges: true, connected: true, source: 'connected' }));

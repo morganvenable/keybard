@@ -49,8 +49,8 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
 
     const layerColorOf = useCallback((codePoint: number) => {
         const path = session?.resolution.primary(codePoint);
-        return layerColorName(session?.keymap.board, path?.layer ?? 0);
-    }, [session]);
+        return layerColorName(controller?.keymap?.board ?? session?.keymap.board, path?.layer ?? 0);
+    }, [session, controller?.keymap?.board]);
 
     const profileName = session?.profile.name ?? "Me";
     const header = <PracticeHeader right={<span className="text-sm text-muted-foreground whitespace-nowrap truncate">{profileName} · {periodLabel(period)}</span>} />;

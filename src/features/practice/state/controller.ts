@@ -258,7 +258,8 @@ export class PracticeController {
             const changed = this.#resolved && this.#resolved.fingerprint !== fingerprint;
             const first = !this.#resolved;
             this.#resolved = { resolution, fingerprint, keymap };
-            if (!first && !changed) return;
+            // Same paths (a layer color or a layer name changed, say): keep the lesson, redraw.
+            if (!first && !changed) { this.#emit(); return; }
             if (changed && this.session) this.#notify('keymap-changed');
             this.#rebuild();
         });
