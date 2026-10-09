@@ -17,6 +17,7 @@ import {
     buildResultRecord,
     isValidResult,
     PracticeResult,
+    type PracticeStep,
     resultRecordFromJson,
     sampleKey,
     selectByPaths,
@@ -31,6 +32,10 @@ function hit(t: number, expected: number, path: string, ttt: number | null, extr
         t, expected, typed: expected, kind: 'hit', raw: ttt ?? 0, ttt, path, prereq: [],
         phys: { index, layer, confidence: 'inferred', skew: null, reach: null, target: null }, ...extra,
     };
+}
+
+function step(timeStamp: number, codePoint: number, path: string, timeToType: number, typo = false): PracticeStep {
+    return { timeStamp, codePoint, timeToType, typo, path };
 }
 
 function record(ts: number, profileId = 'me', h: ResultRecord['h'] = {
@@ -55,15 +60,24 @@ describe('result records (§8.3)', () => {
             { ...hit(800, 0x20, '0:38:n', null), kind: 'stray', typed: 0x6a },
             hit(1000, 0x21, '1:27:f', 150, { prereq: [32], phys: { index: 27, layer: 1, confidence: 'observed', skew: 3, reach: 120, target: 180 } }),
         ];
+        const steps: PracticeStep[] = [
+            step(0, 0x61, '0:26:n', 0),
+            step(200, 0x61, '0:26:n', 200),
+            step(450, 0x73, '0:20:n', 0, true),
+            step(700, 0x73, '0:20:n', 250),
+            step(1000, 0x21, '1:27:f', 150),
+        ];
         const r = buildResultRecord({
-            profileId: 'me', type: 'guided', textType: 'generated', ts: 1, stats: { length: 6, time: 1000, errors: 1 },
+            profileId: 'me', type: 'guided', textType: 'generated', ts: 1, steps,
             events, target: 175, src: 'usb', board: 'sval:E464', os: 'us', km: 'abcd',
         });
+        // The trigger step (the first 'a') is ignored, as in keybr's makeStats.
         expect(r.h).toEqual({
-            '97|0:26:n': { h: 2, m: 0, t: 200 },
+            '97|0:26:n': { h: 1, m: 0, t: 200 },
             '115|0:20:n': { h: 2, m: 1, t: 250 },
             '33|1:27:f': { h: 1, m: 0, t: 150 },
         });
+        expect([r.n, r.t, r.e]).toEqual([5, 1000, 1]);
         expect(r.k['20@0']).toEqual({ h: 2, m: 1, t: 250, s: 0 });
         expect(r.k['38@0']).toEqual({ h: 0, m: 0, t: 0, s: 1 });
         expect(r.k['27@1']).toEqual({ h: 1, m: 0, t: 180, s: 0 });
@@ -74,10 +88,21 @@ describe('result records (§8.3)', () => {
 
     it('drops samples outside keybr\'s 40–12,000 ms window', () => {
         const r = buildResultRecord({
-            profileId: 'me', type: 'guided', textType: 'generated', ts: 1, stats: { length: 2, time: 30, errors: 0 },
+            profileId: 'me', type: 'guided', textType: 'generated', ts: 1,
+            steps: [step(0, 0x61, '0:26:n', 0), step(30, 0x61, '0:26:n', 30)],
             events: [hit(0, 0x61, '0:26:n', null), hit(30, 0x61, '0:26:n', 30)], target: 175, src: 'keymap', board: 'example', os: 'us', km: '',
         });
         expect(r.h).toEqual({});
+    });
+
+    it('leaves the step after a pause untimed, as makeStats does', () => {
+        const r = buildResultRecord({
+            profileId: 'me', type: 'guided', textType: 'generated', ts: 1,
+            steps: [step(0, 0x61, '0:26:n', 0), step(200, 0x61, '0:26:n', 200), step(5200, 0x73, '0:20:n', 1000), step(5450, 0x73, '0:20:n', 250)],
+            events: [], target: 175, src: 'keymap', board: 'example', os: 'us', km: '',
+        });
+        expect(r.h['115|0:20:n']).toEqual({ h: 2, m: 0, t: 250 });
+        expect(r.t).toBe(450);
     });
 
     it('validates records field by field', () => {

@@ -8,7 +8,14 @@
 import { PRACTICE_LAYOUT } from '../keymap/svalKeyboard';
 import { parsePathKey, type KeymapResolution } from '../keymap/resolver';
 import { Result, TextType } from '../vendor/keybr/result/index.ts';
-import { Histogram, type Sample, type Stats, validateSample } from '../vendor/keybr/textinput/index.ts';
+import {
+    Histogram,
+    makeStats,
+    type Sample,
+    type StatsOptions,
+    type Step,
+    validateSample,
+} from '../vendor/keybr/textinput/index.ts';
 import {
     type DrillScope,
     type InputSource,
@@ -20,6 +27,7 @@ import {
     type ResultRecord,
 } from '../types';
 import { RECORD_SCHEMA } from './migrations';
+import { MAX_STEP_MS } from './pack';
 
 /** "<code point>|<path key>". */
 export function sampleKey(char: number, path: string): string {
@@ -84,14 +92,29 @@ export function selectByPaths(record: ResultRecord, resolution: KeymapResolution
         histogramOf(record, (char, path) => path !== '' && resolution.isCurrentPath(char, path)));
 }
 
+/**
+ * A keybr TextInput step with the path key it is charged to. For a position the
+ * user typed, the path used; for a position keybr's forgiveErrors closed without
+ * a correct key (a replaced or skipped character, or Space skipping a word), the
+ * expected (primary) path, so the miss still counts against that character (§6.6).
+ */
+export interface PracticeStep extends Step {
+    path: string;
+}
+
 export interface LessonResultInput {
     profileId: string;
     type: LessonType;
     textType: 'generated' | 'natural' | 'numbers';
     ts: number;
-    /** makeStats() of the lesson's steps, with the 2 s gap and pause options (§6.5). */
-    stats: Pick<Stats, 'length' | 'time' | 'errors'>;
-    /** The lesson's keystroke events, in order. */
+    /**
+     * The lesson's final TextInput steps (`TextInput.steps`), in order, with paths.
+     * `timeToType` is the normalized time to type (§6.5), 0 when unmeasured.
+     */
+    steps: readonly PracticeStep[];
+    /** Paused intervals, removed from the lesson time (§6.5). */
+    paused?: StatsOptions['paused'];
+    /** The lesson's keystroke events, in order: physical key stats, reach and confidence. */
     events: readonly KeystrokeEvent[];
     /** Target speed, CPM. */
     target: number;
@@ -105,13 +128,22 @@ export interface LessonResultInput {
 const DEFAULT_SCOPE: DrillScope = { layer: null, group: null, dirs: null, hands: null, thumbs: true };
 
 /**
- * Builds the §8.3 record of a finished lesson. Per path, a hit closes a character
- * position, and a position is a miss when a wrong key was typed there first, as in
- * keybr's Histogram. Times are the normalized `ttt` of clean hits (`target` for
- * physical keys when live), and samples outside keybr's 40–12,000 ms window are
- * dropped like keybr's.
+ * Builds the §8.3 record of a finished lesson.
+ *
+ * `n`, `t`, `e` and `h` come from the TextInput steps, exactly as keybr's
+ * makeStats() and Histogram.from() compute them (the 2 s gap rule included), with
+ * `h` split per path. So positions that forgiveErrors closed without a correct
+ * key are counted, every miss lands on the character keybr charges it to, the
+ * trigger step is ignored as in keybr, and the sum of `h[*].m` equals `e` unless
+ * the trigger step itself was a typo. Samples outside keybr's 40–12,000 ms window
+ * are dropped like keybr's.
+ *
+ * `k`, `r`, `obs` and `inf` come from the keystroke events: per physical key, a
+ * hit closes its key's attempt, which is a miss when a wrong key was typed for
+ * it first. Times are `target` when live, else the normalized `ttt`.
  */
 export function buildResultRecord(input: LessonResultInput): ResultRecord {
+    const stats = makeStats(input.steps, { maxGap: MAX_STEP_MS, paused: input.paused });
     const h = new Map<string, { h: number; m: number; time: number; timed: number }>();
     const k = new Map<string, { h: number; m: number; s: number; time: number; timed: number }>();
     const r = new Map<string, { n: number; time: number }>();
@@ -120,6 +152,17 @@ export function buildResultRecord(input: LessonResultInput): ResultRecord {
         if (!value) map.set(key, (value = init()));
         return value;
     };
+    // As makeStats: the trigger step is ignored, and a step after a pause is untimed.
+    for (let i = 1; i < input.steps.length; i++) {
+        const step = input.steps[i];
+        const sample = counter(h, sampleKey(step.codePoint, step.path), () => ({ h: 0, m: 0, time: 0, timed: 0 }));
+        sample.h++;
+        if (step.typo) sample.m++;
+        else if (step.timeToType > 0 && step.timeStamp - input.steps[i - 1].timeStamp <= MAX_STEP_MS) {
+            sample.time += step.timeToType;
+            sample.timed++;
+        }
+    }
     let typo = false;
     let obs = 0, inf = 0;
     for (const event of input.events) {
@@ -137,10 +180,6 @@ export function buildResultRecord(input: LessonResultInput): ResultRecord {
         }
         if (event.kind !== 'hit') continue;
         if (event.phys.confidence === 'observed') obs++; else inf++;
-        const sample = counter(h, sampleKey(event.expected, event.path), () => ({ h: 0, m: 0, time: 0, timed: 0 }));
-        sample.h++;
-        if (typo) sample.m++;
-        else if (event.ttt != null && event.ttt > 0) { sample.time += event.ttt; sample.timed++; }
         if (event.phys.index >= 0 && event.phys.layer >= 0) {
             const key = counter(k, keySampleKey(event.phys.index, event.phys.layer), () => ({ h: 0, m: 0, s: 0, time: 0, timed: 0 }));
             key.h++;
@@ -170,9 +209,9 @@ export function buildResultRecord(input: LessonResultInput): ResultRecord {
         l: 'custom',
         m: input.textType,
         ts: input.ts,
-        n: input.stats.length,
-        t: input.stats.time,
-        e: input.stats.errors,
+        n: stats.length,
+        t: stats.time,
+        e: stats.errors,
         h: hRecord,
         k: kRecord,
         r: rRecord,

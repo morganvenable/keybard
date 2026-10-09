@@ -4,7 +4,7 @@ import { resolveKeymap } from '@/features/practice/keymap/resolver';
 import { svalKeyboard, TIER_WEIGHTS } from '@/features/practice/keymap/svalKeyboard';
 import { PracticeGuidedLesson } from '@/features/practice/lessons/guided';
 import { DEFAULT_SETTINGS, toKeybrSettings, type PracticeSettings } from '@/features/practice/state/settings';
-import { buildResultRecord, PracticeResult } from '@/features/practice/store/results';
+import { buildResultRecord, PracticeResult, type PracticeStep } from '@/features/practice/store/results';
 import { LessonKeys } from '@/features/practice/vendor/keybr/lesson/index.ts';
 import { Letter } from '@/features/practice/vendor/keybr/phonetic-model/index.ts';
 import { LCG } from '@/features/practice/vendor/keybr/rand/index.ts';
@@ -26,21 +26,21 @@ const letters = (keys: LessonKeys) => keys.findIncludedKeys().map((k) => String.
 /** A one-lesson result where every listed letter was typed at `ms` per character. */
 function resultAt(lesson: PracticeGuidedLesson, chars: string, ms: number, ts: number) {
     const events: KeystrokeEvent[] = [];
+    const steps: PracticeStep[] = [];
     let t = 0;
-    for (let round = 0; round < 3; round++) {
-        for (const ch of chars) {
-            const c = ch.codePointAt(0)!;
-            const path = lesson.resolution.primary(c)!;
-            events.push({
-                t, expected: c, typed: c, kind: 'hit', raw: ms, ttt: t === 0 ? null : ms, path: path.key, prereq: [],
-                phys: { index: path.index, layer: path.layer, confidence: 'inferred', skew: null, reach: null, target: null },
-            });
-            t += ms;
-        }
+    // A leading trigger step, which keybr ignores, so every listed letter gets three samples.
+    for (const ch of chars[0] + chars.repeat(3)) {
+        const c = ch.codePointAt(0)!;
+        const path = lesson.resolution.primary(c)!;
+        events.push({
+            t, expected: c, typed: c, kind: 'hit', raw: ms, ttt: t === 0 ? null : ms, path: path.key, prereq: [],
+            phys: { index: path.index, layer: path.layer, confidence: 'inferred', skew: null, reach: null, target: null },
+        });
+        steps.push({ timeStamp: t, codePoint: c, timeToType: t === 0 ? 0 : ms, typo: false, path: path.key });
+        t += ms;
     }
     return new PracticeResult(buildResultRecord({
-        profileId: 'me', type: 'guided', textType: 'generated', ts,
-        stats: { length: events.length, time: t, errors: 0 }, events,
+        profileId: 'me', type: 'guided', textType: 'generated', ts, steps, events,
         target: 175, src: 'keymap', board: 'example', os: 'us', km: 'test',
     }));
 }
