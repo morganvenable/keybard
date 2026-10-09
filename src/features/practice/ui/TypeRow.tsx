@@ -2,7 +2,10 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode }
 
 import { Notice } from "@/components/shared/Notice";
 import { SegmentedControl, type SegmentedChangeSource } from "@/components/shared/SegmentedControl";
+import { LAYOUTS } from "@/components/Keyboards/layouts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { cn } from "@/lib/utils";
 import type { KeymapResolution } from "../keymap/resolver";
 import type { StatusItem } from "../state/controller";
@@ -93,6 +96,7 @@ interface StatusSlotItemProps {
 /** The slot's content: nothing, a notice card or a floating-card banner. */
 export function StatusSlotItem({ item, resolution, cols, unit, layerColorOf }: StatusSlotItemProps) {
     if (!item) return null;
+    if (item.id === "os-mismatch") return <OsLayoutNotice text={item.text} layoutId={item.layoutId} />;
     if (item.kind === "notice") {
         return (
             <Notice compact data-status={item.id} className="max-w-full min-w-0">
@@ -120,6 +124,27 @@ export function StatusSlotItem({ item, resolution, cols, unit, layerColorOf }: S
                 <span className="tabular-nums text-muted-foreground">{value}</span>
             </OneLine>
         </div>
+    );
+}
+
+/**
+ * OS layout mismatch (§5.3): the notice with an inline select of Keybard's OS layouts. Choosing one writes
+ * `internationalLayout`, which changes the keymap fingerprint, so the lesson restarts on the new layout.
+ */
+function OsLayoutNotice({ text, layoutId }: { text: string; layoutId: string }) {
+    const { setInternationalLayout } = useLayoutSettings();
+    return (
+        <Notice compact data-status="os-mismatch" className="max-w-full min-w-0 py-1.5"
+            action={
+                <Select value={layoutId} onValueChange={setInternationalLayout}>
+                    <SelectTrigger size="sm" aria-label="OS layout" className="h-7 shrink-0 bg-kb-surface text-kb-ink"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {Object.entries(LAYOUTS).map(([id, layout]) => <SelectItem key={id} value={id}>{layout.label}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            }>
+            <OneLine text={text} />
+        </Notice>
     );
 }
 

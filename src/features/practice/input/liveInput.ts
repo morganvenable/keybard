@@ -17,6 +17,11 @@
 //   than Svalboard's auto-mouse layer.
 // - While the board isn't answering, keystrokes aren't queued: they stay
 //   inferred, and the next step's interval starts after them.
+// - Stray presses (§6.6, M4): once a step is attributed, character-producing
+//   presses between the previous step and it that no step used are recorded
+//   in the LessonRun as `stray` keystrokes, against the key pressed.
+// - OS layout mismatch (§3.1, M4): the eligible steps' evidence; onChange fires
+//   when the notice should show or clear.
 // - onChange tells the controller about what its notices and pill show: the
 //   sampler failing or recovering, and Layer locked on.
 //
@@ -25,7 +30,7 @@
 import type { KeymapResolution } from '../keymap/resolver';
 import { layerAction } from '../keymap/resolver';
 import type { LessonRun, TypedKeystroke } from '../state/lessonRun';
-import { attributeStep, EPSILON_MS, LiveKeymap, MismatchCounter, topLayer } from './correlate';
+import { attributeStep, EPSILON_MS, LiveKeymap, MismatchCounter, strayPresses, topLayer } from './correlate';
 import { type LayerMasks, type MaskSample, type MatrixEdge, type MatrixSample, type SamplerStats, UsbSampler } from './usbSampler';
 
 /** A wrong key keeps its mark this long after release (§5.2). */
@@ -78,7 +83,7 @@ export class LiveInput {
     onChange: (() => void) | null = null;
     /** The layer locked on (§5.3), or null. */
     layerLocked: number | null = null;
-    /** OS layout mismatch evidence (§3.1). TODO(practice): M4 shows its notice. */
+    /** OS layout mismatch evidence (§3.1): the controller shows its notice while `triggered`. */
     readonly mismatch = new MismatchCounter();
 
     readonly #deps: LiveInputDeps;
@@ -90,6 +95,8 @@ export class LiveInput {
     #pending: TypedKeystroke[] = [];
     #consumed = new Set<number>();
     #tPrev: number | null = null;
+    /** Strays are looked for after this step time (the previous attributed step); null before the first. */
+    #strayFrom: number | null = null;
     /** Recent keystrokes: a press seen after its own input is not a wrong key. */
     #recent: TypedKeystroke[] = [];
     /** Wrong keys: release time, or null while held. */
@@ -180,9 +187,12 @@ export class LiveInput {
         this.#pending = [];
         this.#consumed = new Set();
         this.#tPrev = null;
+        this.#strayFrom = null;
         this.#recent = [];
         this.#oneShots.clear();
+        const wasMismatch = this.mismatch.triggered;
         this.mismatch.reset();
+        if (wasMismatch) this.onChange?.();
         if (this.#wrong.size) {
             this.#clearWrong();
             this.#publish(this.#board.pressed, this.#board.mask);
@@ -200,6 +210,7 @@ export class LiveInput {
             // No evidence is coming for it: it stays inferred, and the next step
             // looks only at what the board shows after it (§9.3 Errors).
             this.#tPrev = keystroke.tInput;
+            this.#strayFrom = null;
             return;
         }
         this.#pending.push(keystroke);
@@ -390,8 +401,20 @@ export class LiveInput {
         );
         for (const id of attribution.consumed) this.#consumed.add(id);
         run.attribute(keystroke.seq, attribution);
+        const wasMismatch = this.mismatch.triggered;
         this.mismatch.add(attribution.mismatch);
-        this.#tPrev = attribution.delayed && attribution.targetEdge != null ? attribution.targetEdge : keystroke.tInput;
+        if (this.mismatch.triggered !== wasMismatch) this.onChange?.();
+        const tStep = attribution.delayed && attribution.targetEdge != null ? attribution.targetEdge : keystroke.tInput;
+        // Presses between the previous step and this one that no step used: no later step's
+        // interval reaches back before this step, so they are strays now (§6.6).
+        if (this.#strayFrom != null) {
+            for (const stray of strayPresses(history, keymap, this.#consumed, tStep, this.#strayFrom)) {
+                this.#consumed.add(stray.edge.id);
+                run.addStray({ t: stray.edge.t, expected: keystroke.expected, typed: stray.char, index: stray.index, layer: stray.layer, shift: stray.shift });
+            }
+        }
+        this.#strayFrom = Math.max(tStep, this.#strayFrom ?? -Infinity);
+        this.#tPrev = tStep;
     }
 
     // ---- publishing

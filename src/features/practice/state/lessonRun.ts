@@ -16,11 +16,13 @@
 // lesson's timing is measured again from the press edges when the lesson ends
 // (finalizeTiming), so a held layer or Shift counts once and delayed output is
 // timed by its press (§6.5). practiceSteps() charges each typed position to the
-// path observed for it.
+// path observed for it. Stray presses (§6.6, M4) are kept apart from the
+// keystrokes, since recoveries index into `events`; recordedEvents() merges them
+// in time order for the result and the stored events.
 import { classifyMiss, classifyPress } from '../input/classify';
 import type { Attribution } from '../input/correlate';
 import { PracticeTimeToType, type StepTiming } from '../input/timeToType';
-import type { KeymapResolution, Path } from '../keymap/resolver';
+import type { KeymapResolution, Path, Shift } from '../keymap/resolver';
 import type { PracticeStep } from '../store/results';
 import type { KeystrokeEvent } from '../types';
 import { filterText } from '../vendor/keybr/keyboard/index.ts';
@@ -54,6 +56,19 @@ export interface TypedKeystroke {
     expected: number;
 }
 
+/** A press of a key that types a character, which no keystroke used (§6.6 Strays, live only). */
+export interface StrayInput {
+    /** Press edge time, on the DOM clock. */
+    t: number;
+    /** The character the lesson expected at the time. */
+    expected: number;
+    /** The character the key types under the keymap. */
+    typed: number;
+    index: number;
+    layer: number;
+    shift: Shift;
+}
+
 /** Every character keystroke in order, with what live attribution found for it. */
 interface KeystrokeRecord {
     seq: number;
@@ -83,6 +98,8 @@ export class LessonRun {
     readonly resolution: KeymapResolution;
     readonly cols: number;
     readonly events: KeystrokeEvent[] = [];
+    /** Stray presses (live), in the order they were found. */
+    readonly strays: KeystrokeEvent[] = [];
     readonly #timer = new PracticeTimeToType();
     readonly #paused: [number, number][] = [];
     #startedAt: number | null = null;
@@ -315,6 +332,30 @@ export class LessonRun {
                 };
             }
         }
+    }
+
+    /** Live · USB: a stray press the correlator found (§6.6). Before the first keystroke there is no lesson time to put it at. */
+    addStray(stray: StrayInput) {
+        if (this.#startedAt == null) return;
+        this.strays.push({
+            t: Math.max(0, stray.t - this.#startedAt), expected: stray.expected, typed: stray.typed, kind: 'stray',
+            raw: 0, ttt: null, path: '', prereq: [],
+            phys: { index: stray.index, layer: stray.layer, confidence: 'observed', shift: stray.shift, skew: null, reach: null, target: null },
+        });
+    }
+
+    /** The lesson's keystroke events with its stray presses merged in by time, for the result and the store (§8.2). */
+    recordedEvents(): KeystrokeEvent[] {
+        if (!this.strays.length) return this.events;
+        const strays = [...this.strays].sort((a, b) => a.t - b.t);
+        const out: KeystrokeEvent[] = [];
+        let s = 0;
+        for (const event of this.events) {
+            while (s < strays.length && strays[s].t < event.t) out.push(strays[s++]);
+            out.push(event);
+        }
+        while (s < strays.length) out.push(strays[s++]);
+        return out;
     }
 
     /**

@@ -35,7 +35,10 @@ export const keyboardState = {
     loadFromFile: vi.fn(async () => true),
 };
 
-export const layoutState = { internationalLayout: 'us', keyVariant: 'default', layoutMode: 'sidebar' as 'sidebar' | 'bottombar' };
+export const layoutState = {
+    internationalLayout: 'us', keyVariant: 'default', layoutMode: 'sidebar' as 'sidebar' | 'bottombar',
+    setInternationalLayout: vi.fn((id: string) => { layoutState.internationalLayout = id; }),
+};
 
 export function keymapInput(overrides: Partial<KeymapInput> = {}): KeymapInput {
     return {

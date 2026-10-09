@@ -442,20 +442,48 @@ export function attributeStep(
     return { ...INFERRED, errorClass: null };
 }
 
+/** A stray press (§6.6): the key, the layer it was pressed on and the character it types there. */
+export interface StrayPress {
+    edge: MatrixEdge;
+    index: number;
+    layer: number;
+    char: number;
+    shift: Shift;
+}
+
 /**
- * Character-producing press edges no step used, up to `upTo` (§6.6 Strays):
+ * Character-producing press edges no step used, in `(from, upTo]` (§6.6 Strays):
  * modifiers, layer keys, tap-hold keys and keys that type nothing (Backspace,
- * navigation) are never strays.
- * TODO(practice): M4 records these as `stray` keystrokes and in the heatmap's Errors metric.
+ * navigation) are never strays. A one-shot layer tapped before a press (and not
+ * used up by another press since) applies to it, as in attributeStep.
  */
-export function strayEdges(history: MatrixHistory, keymap: LiveKeymap, consumed: ReadonlySet<number>, upTo: number): MatrixEdge[] {
-    return history.edges.filter((edge) => {
-        if (!edge.press || consumed.has(edge.id) || edge.t > upTo) return false;
-        const mask = keymap.effectiveMask(history, edge.sample);
+export function strayPresses(
+    history: MatrixHistory, keymap: LiveKeymap, consumed: ReadonlySet<number>, upTo: number, from = -Infinity,
+): StrayPress[] {
+    const out: StrayPress[] = [];
+    let oneShot = 0;
+    for (const edge of history.edges) {
+        if (!edge.press || edge.t <= from || edge.t > upTo) continue;
+        const layer = keymap.oneShotLayer(history, edge);
+        if (layer != null) {
+            oneShot = (oneShot | (1 << layer)) >>> 0;
+            continue;
+        }
+        const mask = keymap.effectiveMask(history, edge.sample, oneShot);
         const key = keymap.keyAt(edge.index, mask);
-        if (key.prereqKey || key.tapHold) return false;
-        return keymap.charAt(edge.index, key.layer, keymap.shiftHeld(edge.sample.down, mask)) != null;
-    });
+        if (key.prereqKey || key.tapHold) continue;
+        const char = keymap.charAt(edge.index, key.layer, keymap.shiftHeld(edge.sample.down, mask));
+        // A one-shot is used up by the next key that types something, stray or not.
+        if (char) oneShot = 0;
+        if (!char || consumed.has(edge.id)) continue;
+        out.push({ edge, index: edge.index, layer: key.layer, char: char.char, shift: char.shift });
+    }
+    return out;
+}
+
+/** The edges of strayPresses(), up to `upTo`. */
+export function strayEdges(history: MatrixHistory, keymap: LiveKeymap, consumed: ReadonlySet<number>, upTo: number, from = -Infinity): MatrixEdge[] {
+    return strayPresses(history, keymap, consumed, upTo, from).map((s) => s.edge);
 }
 
 /** OS layout mismatch counter (§3.1): at least 5 of the last 20 eligible steps. */
@@ -475,7 +503,7 @@ export class MismatchCounter {
         return this.#window.filter(Boolean).length;
     }
 
-    /** The notice should show. TODO(practice): M4 shows it (§5.3 OS layout mismatch). */
+    /** The OS layout mismatch notice should show (§5.3). */
     get triggered(): boolean {
         return this.count >= this.threshold;
     }

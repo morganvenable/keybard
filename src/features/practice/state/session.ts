@@ -353,7 +353,7 @@ export class PracticeSession {
             ts: meta.ts,
             steps: run.practiceSteps(),
             paused: run.pausedIntervals(),
-            events: run.events,
+            events: run.recordedEvents(),
             target: this.settings.targetSpeed,
             src: meta.src,
             board: meta.board,
@@ -374,7 +374,7 @@ export class PracticeSession {
             try {
                 const id = await this.store.addResult(record);
                 stored = { ...record, id };
-                await saveEvents(this.store, record.profileId, id, run.events);
+                await saveEvents(this.store, record.profileId, id, run.recordedEvents());
                 await pruneEvents(this.store, record.profileId);
                 saved = true;
             } catch {

@@ -34,6 +34,7 @@ import { type Completion, type LessonEvent, loadProfileData, PracticeSession, ty
 import { clusterScope, drillTarget } from '../lessons/scope';
 import { type DrillSettings, LESSON_SHAPING, type PracticeSettings, START_PRESETS, type StartPreset } from './settings';
 import type { KeyboardInfo } from '@/types/keyboard.types';
+import { LAYOUTS } from '@/components/Keyboards/layouts';
 
 export type KeymapSourceKind = 'connected' | 'file' | 'example';
 
@@ -77,7 +78,9 @@ export const STATUS_PRIORITY: readonly StatusId[] = OWNER_Q11_CAPS_LOCK_OUTRANKS
     : SPEC_STATUS_PRIORITY;
 
 export type StatusItem =
-    | { id: Exclude<StatusId, 'new-key' | 'daily-goal' | 'top-speed'>; kind: 'notice'; text: string }
+    | { id: Exclude<StatusId, 'new-key' | 'daily-goal' | 'top-speed' | 'os-mismatch'>; kind: 'notice'; text: string }
+    /** OS layout mismatch (§5.3): the notice carries a select of Keybard's OS layouts, at the current one. */
+    | { id: 'os-mismatch'; kind: 'notice'; text: string; layoutId: string }
     | { id: 'new-key'; kind: 'banner'; codePoint: number }
     | { id: 'top-speed'; kind: 'banner'; speed: number }
     | { id: 'daily-goal'; kind: 'banner'; minutes: number };
@@ -90,6 +93,17 @@ export const NOTICE_TEXT = {
     'unsent-changes': "Practicing the board's keymap · unsent edits excluded",
     'board-connected': 'Board connected · lesson restarted',
 } as const;
+
+/** An OS layout's short name for the mismatch notice: "US" for English (US), else Keybard's label. */
+export function osLayoutName(layoutId: string): string {
+    const label = LAYOUTS[layoutId]?.label ?? layoutId;
+    return /^English \((.+)\)$/.exec(label)?.[1] ?? label;
+}
+
+/** "Typed characters don't match US layout" (§5.3 OS layout mismatch). */
+export function osMismatchText(layoutId: string): string {
+    return `Typed characters don't match ${osLayoutName(layoutId)} layout`;
+}
 
 /** How long the Keymap changed and Board connected notices stay (§5.3). */
 export const TRANSIENT_NOTICE_MS = 4000;
@@ -294,6 +308,15 @@ export class PracticeController {
     /** The §3.2 input mode. The pill shows Paused instead while the lesson is paused. */
     get inputMode(): InputMode {
         return inputMode(this.inputConditions);
+    }
+
+    /**
+     * OS layout mismatch (§3.1, §5.3): at least 5 of the last 20 eligible steps typed something other
+     * than the key pressed. It needs Live · USB to be available, not the focus: choosing a layout in the
+     * notice's select blurs the text, and the notice must stay until the new layout restarts the lesson.
+     */
+    get osMismatch(): boolean {
+        return this.liveAvailable && !!this.live?.mismatch.triggered;
     }
 
     /** Layer locked on (§5.3): the layer, while Live · USB sees it. */
@@ -809,8 +832,11 @@ export class PracticeController {
                 case 'top-speed':
                     if (this.#banner?.id === id) return this.#banner;
                     break;
-                default:
-                    // TODO(practice): M4 shows os-mismatch (LiveInput.mismatch counts it already).
+                case 'os-mismatch':
+                    if (this.osMismatch) {
+                        const layoutId = this.keymap?.layoutId ?? 'us';
+                        return { id, kind: 'notice', text: osMismatchText(layoutId), layoutId };
+                    }
                     break;
             }
         }
