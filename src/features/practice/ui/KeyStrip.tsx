@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ interface KeyStripProps {
 const FOCUSED = "ring-2 ring-kb-ink ring-offset-2 ring-offset-kb-gray";
 const SELECTED = "z-10 ring-2 ring-kb-select ring-offset-1 ring-offset-background";
 
-export function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked }: KeyStripProps) {
+export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, justUnlocked }: KeyStripProps) {
     const [open, setOpen] = useState<number | null>(null);
     const focused = keys.find((k) => k.focused);
     const locked = keys.filter((k) => !k.included).length;
@@ -102,6 +102,6 @@ export function KeyStrip({ keys, stats, resolution, cols, unit, layerColorOf, ju
             )}
         </div>
     );
-}
+});
 
 export default KeyStrip;

@@ -34,7 +34,10 @@ const EMPTY = new Set<number>();
 
 function useCharacterStats(controller: PracticeController | null) {
     const session = controller?.session ?? null;
-    const version = controller?.version;
+    // The stats change only when a lesson completes (new records, new lesson keys) or the session is rebuilt,
+    // not on every keystroke, so the key strip doesn't re-render while typing (§9.7).
+    const records = session?.records.length;
+    const lessonKeys = session?.lessonKeys;
     return useMemo(() => {
         const cache = new Map<number, CharacterStats>();
         return (codePoint: number): CharacterStats => {
@@ -45,8 +48,7 @@ function useCharacterStats(controller: PracticeController | null) {
             cache.set(codePoint, stats);
             return stats;
         };
-        // The stats change with every completed lesson (the version) and every new session.
-    }, [session, version]);
+    }, [session, records, lessonKeys]);
 }
 
 export default function LessonsPage({ active = true }: { active?: boolean }) {
@@ -115,6 +117,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     }, [session, preset, controller?.content]);
 
     const lessonKeys = session?.lessonKeys ?? null;
+    const strip = useMemo(() => (lessonKeys ? stripKeys(lessonKeys) : []), [lessonKeys]);
     const included = useMemo(() => new Set(lessonKeys?.findIncludedKeys().map((k) => k.letter.codePoint) ?? []), [lessonKeys]);
     const locked = useMemo(() => new Set(lessonKeys?.findExcludedKeys().map((k) => k.letter.codePoint) ?? []), [lessonKeys]);
 
@@ -221,7 +224,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         body = (
             <>
                 <KeyStrip
-                    keys={stripKeys(s.lessonKeys)}
+                    keys={strip}
                     stats={stats}
                     resolution={s.resolution}
                     cols={s.keymap.board.cols}
