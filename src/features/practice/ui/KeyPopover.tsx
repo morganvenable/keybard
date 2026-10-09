@@ -10,7 +10,7 @@ import type { SpeedUnit } from "../state/settings";
 import type { ErrorClass } from "../types";
 import { timeToSpeed } from "../vendor/keybr/result/index.ts";
 import { CharCap } from "./CharCap";
-import { alternativeText, charLabel, formatPercent, formatSpeed, pathChips } from "./format";
+import { alternativeText, charLabel, formatPercentDown, formatSpeedDown, pathChips } from "./format";
 import { Sparkline } from "./Sparkline";
 import { ConfidenceBar, StatCell } from "./StatCell";
 
@@ -115,14 +115,14 @@ export function KeyDetails({ stats, resolution, cols, unit, layerColor, inferred
             </div>
             {hasData ? (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <StatCell label="Speed" value={formatSpeed(stats.speed, unit)} unit={unitLabel} />
-                    <StatCell label="Best" value={formatSpeed(stats.best, unit)} unit={unitLabel} />
-                    <StatCell label="Accuracy" value={formatPercent(stats.accuracy)} unit="%" />
+                    <StatCell label="Speed" value={formatSpeedDown(stats.speed, unit)} unit={unitLabel} />
+                    <StatCell label="Best" value={formatSpeedDown(stats.best, unit)} unit={unitLabel} />
+                    <StatCell label="Accuracy" value={formatPercentDown(stats.accuracy)} unit="%" />
                     <StatCell label="Samples" value={stats.samples} />
                     <div className="flex flex-col gap-2">
                         <span className="text-xs text-muted-foreground">Confidence</span>
                         <ConfidenceBar value={stats.confidence} />
-                        <span className="text-xs tabular-nums text-muted-foreground">{formatPercent(stats.confidence)} %</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{formatPercentDown(stats.confidence)} %</span>
                     </div>
                     <StatCell label="To target" value={stats.remainingLessons != null ? `≈ ${stats.remainingLessons}` : "—"} unit={stats.remainingLessons != null ? (stats.remainingLessons === 1 ? "lesson" : "lessons") : undefined} />
                 </div>
@@ -221,14 +221,14 @@ export function GroupDetails({ group, unit, targetSpeed, glyph, inferred, onDril
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                     {group.reachMs != null
                         ? <StatCell label="Layer reach" value={Math.round(group.reachMs)} unit="ms" />
-                        : <StatCell label="Speed" value={formatSpeed(group.speed, unit)} unit={unitLabel} />}
-                    <StatCell label="Best" value={formatSpeed(group.best, unit)} unit={unitLabel} />
-                    <StatCell label="Accuracy" value={formatPercent(group.accuracy)} unit="%" />
+                        : <StatCell label="Speed" value={formatSpeedDown(group.speed, unit)} unit={unitLabel} />}
+                    <StatCell label="Best" value={formatSpeedDown(group.best, unit)} unit={unitLabel} />
+                    <StatCell label="Accuracy" value={formatPercentDown(group.accuracy)} unit="%" />
                     <StatCell label="Samples" value={group.samples.toLocaleString("en-US")} />
                     <div className="flex flex-col gap-2">
                         <span className="text-xs text-muted-foreground">Confidence</span>
                         <ConfidenceBar value={group.confidence} />
-                        <span className="text-xs tabular-nums text-muted-foreground">{formatPercent(group.confidence)} %</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{formatPercentDown(group.confidence)} %</span>
                     </div>
                     <StatCell label="To target" value="—" />
                 </div>

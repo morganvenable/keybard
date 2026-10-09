@@ -1,7 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PracticeController } from '@/features/practice/state/controller';
+import { periodView } from '@/features/practice/state/progressView';
 import { MemoryPracticeStore } from '@/features/practice/store/memory';
+import { formatPercent, formatPercentDown } from '@/features/practice/ui/format';
 import ProgressPage from '@/features/practice/ui/progress/ProgressPage';
 import { Providers, resetHarness, startController } from './harness';
 
@@ -99,35 +101,46 @@ describe('Progress sections (§5.8)', () => {
         expect(document.querySelector('[data-heat-toolbar] [role="group"]')!.textContent).toContain('Layer 0');
     });
 
-    it('heatmap values match the Characters table', async () => {
+    it('heatmap values match the Characters table, character for character (fractional values too)', async () => {
         const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
-        await completeLessons(c, 2);
+        // Misses give fractional accuracies (41 of 42 is 97.6%): both views must round them the same way.
+        await completeLessons(c, 2, { miss: true });
         render(<Providers><ProgressPage /></Providers>);
         const s = c.session!;
+        const view = periodView(s.lesson, s.records, s.target, (ch) => s.resolution.primary(ch), '30', Date.now(), {
+            tracked: s.trackedLetters, always: new Set(s.languageLetters.map((l) => l.codePoint)),
+        });
+        // The data must include a case where rounding to nearest and rounding down differ, or this test proves nothing.
+        expect(view.characters.some((ch) => ch.accuracy != null && formatPercent(ch.accuracy) !== formatPercentDown(ch.accuracy))).toBe(true);
+        const rows = () => [...document.querySelectorAll('[data-char-row]')].flatMap((row) => {
+            const path = s.resolution.primary(cp(row.getAttribute('data-char-row')!));
+            if (!path || path.layer !== 0) return [];
+            const footer = document.querySelector(`[data-heat-key="${path.index}"]`)!.querySelector('[data-key-footer]')?.textContent ?? '—';
+            return [{ cells: [...row.querySelectorAll('td')].map((td) => td.textContent!), footer }];
+        });
+        const radio = (name: string) => within(screen.getByRole('radiogroup', { name: 'Heatmap metric' })).getByRole('radio', { name });
+
+        // Speed in WPM: the key prints the table's value without its decimal.
         let compared = 0;
-        for (const row of document.querySelectorAll('[data-char-row]')) {
-            const label = row.getAttribute('data-char-row')!;
-            const path = s.resolution.primary(cp(label));
-            if (!path || path.layer !== 0) continue;
-            const tableSpeed = row.querySelectorAll('td')[3].textContent!;
-            const key = document.querySelector(`[data-heat-key="${path.index}"]`)!;
-            const footer = key.querySelector('[data-key-footer]')?.textContent ?? '—';
-            if (tableSpeed === '—') { expect(footer).toBe('—'); continue; }
-            expect(footer.replace(/\D/g, '')).toBe(String(Math.floor(Number(tableSpeed))));
+        for (const { cells, footer } of rows()) {
+            if (cells[3] === '—') { expect(footer).toBe('—'); continue; }
+            expect(footer.trim()).toBe(cells[3].split('.')[0]);
             compared++;
         }
         expect(compared).toBeGreaterThanOrEqual(6);
-        // Accuracy too.
-        fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Heatmap metric' })).getByRole('radio', { name: 'Accuracy' }));
+        // Speed in CPM: the same string.
+        await act(async () => { c.update({ speedUnit: 'cpm' }); });
+        for (const { cells, footer } of rows()) if (cells[3] !== '—') expect(footer.trim()).toBe(cells[3]);
+        // Accuracy: the same string.
+        await act(async () => { fireEvent.click(radio('Accuracy')); });
         expect(c.settings.heatMetric).toBe('accuracy');
-        for (const row of document.querySelectorAll('[data-char-row]')) {
-            const path = s.resolution.primary(cp(row.getAttribute('data-char-row')!));
-            if (!path || path.layer !== 0) continue;
-            const tableAcc = row.querySelectorAll('td')[5].textContent!;
-            if (tableAcc === '—') continue;
-            const footer = document.querySelector(`[data-heat-key="${path.index}"] [data-key-footer]`)!.textContent!;
-            expect(Number(footer.replace(/\D/g, ''))).toBe(Math.floor(Number(tableAcc.replace('%', ''))));
+        compared = 0;
+        for (const { cells, footer } of rows()) {
+            if (cells[5] === '—') continue;
+            expect(footer.trim()).toBe(cells[5]);
+            compared++;
         }
+        expect(compared).toBeGreaterThanOrEqual(6);
     });
 
     it('Usage colors every key with samples on the blue ramp, never red', async () => {

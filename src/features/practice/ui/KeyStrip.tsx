@@ -8,7 +8,7 @@ import { charReach, type EventStats, topConfusions } from "../state/eventStats";
 import type { CharacterStats, StripKey } from "../state/progressView";
 import type { SpeedUnit } from "../state/settings";
 import { CharCap } from "./CharCap";
-import { formatPercent, formatSpeed, placeName, spokenPlace, spokenSpeed } from "./format";
+import { formatPercentDown, formatSpeedDown, placeName, spokenPlace, spokenSpeed } from "./format";
 import { KeyPopover } from "./KeyPopover";
 import { ConfidenceBar } from "./StatCell";
 
@@ -64,8 +64,8 @@ export const KeyStrip = memo(function KeyStrip({ keys, stats, resolution, cols, 
         const place = path ? placeOf(path.index, cols) : null;
         return {
             s,
-            spoken: `${s.label}, ${spokenSpeed(s.speed, unit)}, ${s.accuracy != null ? `${formatPercent(s.accuracy)} percent` : "no accuracy yet"}, ${spokenPlace(place)}`,
-            tip: `${s.label} · ${formatSpeed(s.speed, unit)} ${unit} · ${formatPercent(s.accuracy)}% · Layer ${path?.layer ?? "—"} · ${placeName(place)}`,
+            spoken: `${s.label}, ${spokenSpeed(s.speed, unit, true)}, ${s.accuracy != null ? `${formatPercentDown(s.accuracy)} percent` : "no accuracy yet"}, ${spokenPlace(place)}`,
+            tip: `${s.label} · ${formatSpeedDown(s.speed, unit)} ${unit} · ${formatPercentDown(s.accuracy)}% · Layer ${path?.layer ?? "—"} · ${placeName(place)}`,
         };
     };
     return (

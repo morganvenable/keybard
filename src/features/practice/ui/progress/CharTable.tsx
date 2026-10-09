@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { placeOf } from "../../keymap/geometry";
 import type { CharacterStats } from "../../state/progressView";
 import { CharCap } from "../CharCap";
-import { formatDate, formatPercent, formatSpeed, spokenPlace, spokenSpeed, targetName } from "../format";
+import { formatDate, formatPercentDown, formatSpeedDown, spokenPlace, spokenSpeed, targetName } from "../format";
 import { ConfidenceBar } from "../StatCell";
 import { CharOpener } from "./openers";
 import type { ProgressP5 } from "./p5";
@@ -85,16 +85,16 @@ export function CharTable({ rows, p5 }: CharTableProps) {
                                 <td className="px-2 py-1">
                                     <CharOpener p5={p5} codePoint={c.codePoint} open={open === c.codePoint} onOpenChange={(next) => setOpen((cur) => (next ? c.codePoint : cur === c.codePoint ? null : cur))}>
                                         <button type="button" className="block cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                                            aria-label={`${c.label}, ${spokenSpeed(c.speed, unit)}, ${spokenPlace(place)}${(c.confidence ?? 0) >= 1 ? ", at target" : ""}`}>
+                                            aria-label={`${c.label}, ${spokenSpeed(c.speed, unit, true)}, ${spokenPlace(place)}${(c.confidence ?? 0) >= 1 ? ", at target" : ""}`}>
                                             <CharCap codePoint={c.codePoint} layerColor={p5.charColor(c.codePoint)} look={c.calibrated ? "included" : "uncalibrated"} />
                                         </button>
                                     </CharOpener>
                                 </td>
                                 <td className="px-2 py-1 font-medium">{c.label}</td>
                                 <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{path}</td>
-                                <td className="px-2 py-1 text-right tabular-nums">{formatSpeed(c.speed, unit)}</td>
-                                <td className="px-2 py-1 text-right tabular-nums">{formatSpeed(c.best, unit)}</td>
-                                <td className="px-2 py-1 text-right tabular-nums">{c.accuracy != null ? `${formatPercent(c.accuracy)}%` : "—"}</td>
+                                <td className="px-2 py-1 text-right tabular-nums">{formatSpeedDown(c.speed, unit)}</td>
+                                <td className="px-2 py-1 text-right tabular-nums">{formatSpeedDown(c.best, unit)}</td>
+                                <td className="px-2 py-1 text-right tabular-nums">{c.accuracy != null ? `${formatPercentDown(c.accuracy)}%` : "—"}</td>
                                 <td className="px-2 py-1 text-right tabular-nums">{c.samples}</td>
                                 <td className="px-2 py-1 w-28"><ConfidenceBar value={c.confidence} /></td>
                                 <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{c.lastPracticed ? formatDate(c.lastPracticed) : "—"}</td>

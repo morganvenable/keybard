@@ -11,6 +11,7 @@
 import type { HeatLevel, HeatMetric, UsageQuartiles } from "../../state/progressAggregates";
 import { HEAT_THRESHOLDS } from "../../state/progressAggregates";
 import type { SpeedUnit } from "../../state/settings";
+import { formatPercentDown, formatSpeedDown } from "../format";
 
 const EDGE = "border border-kb-gray-border dark:border-kb-key-border";
 
@@ -35,10 +36,11 @@ export function heatValueText(metric: HeatMetric, value: { cpm: number | null; a
     switch (metric) {
         case "speed":
             if (value.reachMs != null) return `${Math.round(value.reachMs)} ms`;
-            // Rounded down, like Accuracy, so a key just under target never prints the target.
-            return value.cpm != null ? String(Math.floor(unit === "wpm" ? value.cpm / 5 : value.cpm)) : "—";
+            // Rounded down with the Characters table's formatter, so a key just under target never prints the
+            // target and its value is the table's with the decimal dropped.
+            return formatSpeedDown(value.cpm, unit, 0);
         case "accuracy":
-            return value.accuracy != null ? `${Math.floor(value.accuracy * 100)}%` : "—";
+            return value.accuracy != null ? `${formatPercentDown(value.accuracy)}%` : "—";
         case "errors":
             // Rounded up, so a key over the 2% target never prints 2%.
             return value.errors != null ? `${Math.ceil(value.errors * 100 - 1e-9)}%` : "—";

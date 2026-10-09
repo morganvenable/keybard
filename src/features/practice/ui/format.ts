@@ -24,15 +24,37 @@ export function speedValue(cpm: number, unit: SpeedUnit): number {
     return unit === "wpm" ? cpm / 5 : cpm;
 }
 
-/** "31.6 words per minute" for screen readers and accessible names. */
-export function spokenSpeed(cpm: number | null | undefined, unit: SpeedUnit): string {
+/** "31.6 words per minute" for screen readers and accessible names; `down` rounds as `formatSpeedDown` does. */
+export function spokenSpeed(cpm: number | null | undefined, unit: SpeedUnit, down = false): string {
     if (cpm == null || !Number.isFinite(cpm)) return "no speed yet";
-    return `${formatSpeed(cpm, unit)} ${unit === "wpm" ? "words" : "characters"} per minute`;
+    return `${down ? formatSpeedDown(cpm, unit) : formatSpeed(cpm, unit)} ${unit === "wpm" ? "words" : "characters"} per minute`;
 }
 
 export function formatPercent(fraction: number | null | undefined, digits = 0): string {
     if (fraction == null || !Number.isFinite(fraction)) return "—";
     return (fraction * 100).toFixed(digits);
+}
+
+/** `value` rounded down to `digits` decimals, allowing for float error (0.29 × 100 is 28.999…). */
+export function floorTo(value: number, digits = 0): number {
+    const scale = 10 ** digits;
+    return Math.floor(value * scale + 1e-9) / scale;
+}
+
+/**
+ * A character's speed against its target (the Characters table, heatmap keys, P5), rounded down so a key
+ * just under target never prints the target: WPM with `wpmDigits` decimals, CPM whole. The heatmap prints
+ * whole WPM (`wpmDigits` 0), which is the table's value with its decimal dropped.
+ */
+export function formatSpeedDown(cpm: number | null | undefined, unit: SpeedUnit, wpmDigits = 1): string {
+    if (cpm == null || !Number.isFinite(cpm)) return "—";
+    return unit === "wpm" ? floorTo(cpm / 5, wpmDigits).toFixed(wpmDigits) : String(floorTo(cpm));
+}
+
+/** A character's accuracy as a whole percent, rounded down like its speed: 41 of 42 is `97`, never `98`. */
+export function formatPercentDown(fraction: number | null | undefined, digits = 0): string {
+    if (fraction == null || !Number.isFinite(fraction)) return "—";
+    return floorTo(fraction * 100, digits).toFixed(digits);
 }
 
 /** "12 min", "1 h 5 min". */
