@@ -30,6 +30,14 @@ export const SELECTED_KEY_CLASSES =
  */
 export const SELECTED_STRIP_CLASSES = "bg-kb-select-strip text-kb-ink group-hover:bg-kb-select-strip";
 
+/**
+ * Selected binding-editor slot (combo, tap dance, leader...; mockup M-37 `.slotk.n-sel`):
+ * a 2 px select border on the tint and no ring. Passed as Key's className on top of
+ * SELECTED_KEY_CLASSES, so it also cancels that ring and its offset: the slot sits in a
+ * labelled column, and a ring around the border would draw a double outline.
+ */
+export const SELECTED_SLOT_CLASSES = "border-2 border-kb-select bg-kb-select-tint ring-0 ring-offset-0";
+
 /** Default key hover: the selection ring it previews, outside the key. Rings are box-shadows, so nothing shifts. */
 export const HOVER_RING_CLASSES =
     "hover:z-10 hover:ring-2 hover:ring-kb-select hover:ring-offset-1 hover:ring-offset-background";

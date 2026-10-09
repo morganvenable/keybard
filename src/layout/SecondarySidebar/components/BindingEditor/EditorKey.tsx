@@ -7,7 +7,7 @@ import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
 import { hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
 import { DragItem, useDrag } from "@/contexts/DragContext";
-import { SELECTED_KEY_CLASSES, SELECTED_STRIP_CLASSES } from "@/constants/color-roles";
+import { SELECTED_SLOT_CLASSES } from "@/constants/color-roles";
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditorKeyProps {
@@ -61,20 +61,25 @@ const EditorKey: FC<EditorKeyProps> = ({
     const hasContent = (keyContents?.top && keyContents.top !== "KC_NO") ||
         (keyContents?.str && keyContents.str !== "KC_NO" && keyContents.str !== "");
 
-    // Determine visual style
+    // Determine visual style. Selected and drop-target slots go through Key's own
+    // selected path, which applies the select face and puts the light strip
+    // (SELECTED_STRIP_CLASSES) after the strip's base text-white; a strip passed in
+    // headerClassName would lose that text color to it.
+    const isDropTarget = !selected && isDragHover && isDragging && !!onDrop;
     let keyColor: string | undefined;
-    let keyClassName: string;
-    let headerClass: string;
+    let keyClassName: string | undefined;
+    let headerClass: string | undefined;
 
     if (selected) {
+        // Selected slot (spec §5.17, mockup M-37): a 2px select border on the tint, no ring.
         keyColor = undefined;
-        keyClassName = "border-2 border-kb-select bg-kb-select-tint";
-        headerClass = SELECTED_STRIP_CLASSES;
-    } else if (isDragHover && isDragging && onDrop) {
-        // Drag Hover State: the selected look (this slot is where the key will land)
+        keyClassName = SELECTED_SLOT_CLASSES;
+        headerClass = undefined;
+    } else if (isDropTarget) {
+        // Drag Hover State: the selected-key look, ring included (this slot is where the key will land)
         keyColor = undefined;
-        keyClassName = SELECTED_KEY_CLASSES;
-        headerClass = SELECTED_STRIP_CLASSES;
+        keyClassName = undefined;
+        headerClass = undefined;
     } else if (hasContent) {
         keyColor = "sidebar";
         keyClassName = "border-kb-key-border";
@@ -135,7 +140,7 @@ const EditorKey: FC<EditorKeyProps> = ({
                     label={displayLabel}
                     forceLabel={!!displayLabel}
                     keyContents={keyContents}
-                    selected={selected}
+                    selected={selected || isDropTarget}
                     onClick={() => {
                         onClick();
                     }}

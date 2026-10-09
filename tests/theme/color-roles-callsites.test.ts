@@ -19,8 +19,8 @@ const SITES: { file: string; uses: string[]; not: string[] }[] = [
     { file: "src/layout/LayerSelector.tsx", uses: ["PENDING_OUTLINE_CLASSES", "hover:bg-kb-active/80"], not: ["ring-red-500"] },
     { file: "src/layout/KeyboardViewInstance.tsx", uses: ["bg-kb-select-tint text-kb-ink shadow-md scale-105 ring-2 ring-kb-select"], not: [] },
     { file: "src/components/MatrixTester.tsx", uses: ["selectedStrong={isPressed}", "dark:border-kb-gray-border"], not: ["selected={isPressed}"] },
-    { file: "src/layout/SecondarySidebar/components/EditorKey.tsx", uses: ["hover:border-kb-select", "!bg-kb-select-tint border-2 border-kb-select text-kb-ink"], not: [] },
-    { file: "src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", uses: ["border-2 border-kb-select bg-kb-select-tint", "SELECTED_KEY_CLASSES", "SELECTED_STRIP_CLASSES"], not: [] },
+    { file: "src/layout/SecondarySidebar/components/EditorKey.tsx", uses: ["hover:border-kb-select", "!bg-kb-select-tint border-2 border-kb-select text-kb-ink", "!bg-kb-select-tint !border-2 text-kb-ink"], not: [] },
+    { file: "src/layout/SecondarySidebar/components/BindingEditor/EditorKey.tsx", uses: ["SELECTED_SLOT_CLASSES", "selected={selected || isDropTarget}"], not: ["headerClass = SELECTED_STRIP_CLASSES"] },
     { file: "src/layout/SecondarySidebar/components/BindingsList.tsx", uses: ["hover:border-kb-select"], not: [] },
     { file: "src/components/DragOverlay.tsx", uses: ["border-kb-select"], not: [] },
 ];

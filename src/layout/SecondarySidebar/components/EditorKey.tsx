@@ -17,7 +17,7 @@ const classes = {
         "bg-kb-green text-white w-12 h-12 rounded-md cursor-pointer hover:border-2 border-2 border border-transparent hover:border-kb-select transition-all flex items-center justify-center text-wrap text-center text-xs flex-col select-none",
     selectedKey: "!bg-kb-select-tint border-2 border-kb-select text-kb-ink",
     dragSource: "!bg-kb-light-grey border-kb-light-grey dark:!bg-neutral-700 dark:border-neutral-700 text-transparent opacity-65 select-none",
-    dragHover: "!border-kb-select !bg-kb-select-tint !border-2",
+    dragHover: "!border-kb-select !bg-kb-select-tint !border-2 text-kb-ink",
 };
 
 const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDrop }) => {
