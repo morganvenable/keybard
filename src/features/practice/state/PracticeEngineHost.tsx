@@ -4,10 +4,9 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import type { WorkspaceStore } from "@/layout/workspace-store";
-import { PARANOID, userIsLooking } from "@/lib/paranoid";
-import { keyboardService } from "@/services/keyboard.service";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { loadEnglishContent } from "../content/loader";
+import { boardReader } from "../input/boardReader";
 import { LiveInput } from "../input/liveInput";
 import type { PracticeEngineState } from "../PracticeProvider";
 import { openPracticeStore } from "../store/db";
@@ -21,23 +20,6 @@ import { loadSettings, saveSettings } from "./settings";
 // visible. It also owns the Live · USB reader (§9.3), which calls keyboardService directly, never the
 // context's pollMatrix (that wrapper sets a heartbeat state on every poll and would re-render every
 // useKeyboard() consumer about 100 times a second). It renders nothing.
-
-/** Reads the connected board's matrix and layer masks for Live · USB; null when no board is connected. */
-export function boardReader(board: () => KeyboardInfo | null) {
-    return {
-        pollMatrix: async () => {
-            const kb = board();
-            return kb ? keyboardService.pollMatrix(kb) : [];
-        },
-        getLayerMasks: async () => {
-            const kb = board();
-            if (!kb) throw new Error("No board connected");
-            return keyboardService.getLayerStateMasks(kb);
-        },
-        // D10 in every build: never while the tab is hidden. Paranoid: only while Keybard is in front.
-        canRead: () => (typeof document === "undefined" || document.visibilityState === "visible") && (!PARANOID || userIsLooking()),
-    };
-}
 
 /** The QWERTY example's loadedFrom (KeyboardContext.loadFromFile with source "demo"). */
 export const EXAMPLE_LOADED_FROM = "QWERTY example (demo)";
