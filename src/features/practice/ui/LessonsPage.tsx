@@ -1,3 +1,4 @@
+import { ContentChooser } from "./ContentChooser";
 import { usePracticePresentation } from "../presentation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -44,6 +45,9 @@ export function scopeText(settings: PracticeSettings, layer: (n: number) => stri
             return drillScopeLabel(settings.drill, layer, directions);
         case "words":
             return `${settings.words.size} words`;
+        case "books": return "Book passage";
+        case "code": return "Programming syntax";
+        case "numbers": return "Numbers";
         case "custom":
             return textPreview(settings.customText.content, 24) || "Empty text";
         default:
@@ -267,7 +271,10 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         const s = session!;
         const type = effectiveLessonType(settings!.type);
         const nextPath = next != null ? s.resolution.primary(next) : null;
-        const typeRow = (
+        const typeRow = presentation.standalone && type !== 'guided' ? (
+            controller.status ? <StatusSlotItem item={controller.status} resolution={s.resolution} cols={s.keymap.board.cols}
+                unit={settings!.speedUnit} layerColorOf={layerColorOf} /> : null
+        ) : (
             <TypeRow
                 type={type}
                 scope={scopeText(settings!, (n) => layerName(board, n), boardDirections(controller))}
@@ -379,6 +386,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     return (
         <div ref={frame} className={cn(PAGE_FRAME, narrow && "pb-24")} data-practice-page="lessons">
             <PracticeHeader right={statusPill} />
+            {presentation.standalone && controller && <ContentChooser controller={controller} onMore={() => openPanelAt(settings?.type ?? "guided")} />}
             {body}
             <div className="sr-only" aria-live="polite" data-practice-announce>{controller?.announcement}</div>
         </div>

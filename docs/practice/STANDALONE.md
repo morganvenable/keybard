@@ -33,3 +33,19 @@ The branch is `feat/svalbr-standalone`, based on `feat/practice-trainer` at `9ed
 The standalone integration tests mount the real providers, keymap importer, key renderer, lesson engine, and IndexedDB. They exercise example loading, failed-load recovery, typing, mode changes, OS layout controls, progress/data, and routing without the editor. Existing Practice and key-renderer tests cover the shared implementation.
 
 Real-board USB timing and browser visual checks from the Practice handoff remain relevant. The original license and attribution are retained. Before a hosted release, publish the corresponding source revision and make the source link point to that released source.
+
+
+## Content-selection prototype
+
+The standalone sidebar follows Keybr's content types: Guided, Words, Books, Custom, Source code, and Numbers, with Drill retained for physical keymap practice. Guided starts immediately; other modes show their content controls above the lesson. Changes regenerate the lesson and leave it paused for review.
+
+- Words: common-word vocabulary size, long-word filtering, and the actual vocabulary preview. Capitals, punctuation, and repetition are available in Lesson settings.
+- Books: Keybr's three English public-domain books, paragraph selection, passage preview, lowercase and letters-only controls. Uses the restored upstream BooksLesson with complete book text.
+- Custom: paste/edit text, Keybr's three examples, text preview, lowercase, letters-only, and shuffle.
+- Source code: Keybr's grammar generator, all 16 syntax choices, syntax-specific flags, and generated code preview. Missing keymap characters are reported.
+- Numbers: the existing upstream NumbersLesson with its own Benford-frequency preference, independent of Drill scope.
+- Drill: visible group, hand, layer, direction, and in-scope character controls; further controls remain in Lesson settings.
+
+Content selections persist in the standalone settings namespace. The original integrated mode picker still offers its four established modes. The prototype is English-only; it does not claim Keybr's full multilingual content catalog or account features.
+
+Upstream revision and adaptations are recorded in `src/features/practice/vendor/CONTENT-SOURCES.md`. Browser checks use isolated headless Chrome on the local preview; they do not open or control the hosted Keybard trainer.

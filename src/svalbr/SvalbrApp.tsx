@@ -3,7 +3,7 @@ import KeyboardIcon from "@/components/icons/Keyboard";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import Settings2Icon from "@/components/icons/Settings2Icon";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, BookOpen, ChevronRight, FileText, Loader2, Menu, Moon, Sprout, Sun, Target, PlugZap, Unplug, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Code, Hash, Library, ChevronRight, FileText, Loader2, Menu, Moon, Sprout, Sun, Target, PlugZap, Unplug, X, type LucideIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
 import ThemeSync from "@/components/ThemeSync";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -25,9 +25,12 @@ import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 
 const MODES: { id: LessonType; title: string; description: string; icon: LucideIcon }[] = [
     { id: "guided", title: "Guided", description: "Build your confidence, key by key", icon: Sprout },
-    { id: "drill", title: "Drill", description: "Give the tricky keys a little attention", icon: Target },
     { id: "words", title: "Words", description: "Find your rhythm with real words", icon: BookOpen },
+    { id: "books", title: "Books", description: "", icon: Library },
     { id: "custom", title: "Custom", description: "Practice something of your own", icon: FileText },
+    { id: "code", title: "Source code", description: "", icon: Code },
+    { id: "numbers", title: "Numbers", description: "", icon: Hash },
+    { id: "drill", title: "Drill", description: "Give the tricky keys a little attention", icon: Target },
 ];
 
 export default function SvalbrApp() {

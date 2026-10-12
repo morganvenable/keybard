@@ -22,7 +22,7 @@ export type ChartAxis = 'lessons' | 'days';
 /** The Keyboard heatmap's metric (§5.8), which the Fingers and Thumbs sections follow. */
 export type HeatMetricSetting = 'speed' | 'accuracy' | 'errors' | 'usage';
 
-export const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom'];
+export const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom', 'books', 'code', 'numbers'];
 
 /** Lesson types this build can run (all four since M3). */
 export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = LESSON_TYPES;
@@ -117,6 +117,13 @@ export interface PracticeSettings {
     customText: { content: string; lowercase: boolean; lettersOnly: boolean; randomize: boolean };
     drill: DrillSettings;
     words: WordsSettings;
+    book: string;
+    paragraph: number;
+    bookLowercase: boolean;
+    bookLettersOnly: boolean;
+    syntax: string;
+    codeFlags: string[];
+    numbersBenford: boolean;
     /** Layer underlines in Drill (§5.2: on in Drill, off elsewhere by default); `layerUnderlines` is every other type's. */
     drillLayerUnderlines: boolean;
     /** Active profile id (OWNER_Q6 'user' scope). */
@@ -153,6 +160,9 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     customText: { content: 'The quick brown fox jumps over the lazy dog.', lowercase: true, lettersOnly: true, randomize: false },
     drill: DEFAULT_DRILL,
     words: { size: 200, longOnly: false },
+    book: 'alice', paragraph: 0, bookLowercase: true, bookLettersOnly: true,
+    numbersBenford: true,
+    syntax: 'javascript_exp', codeFlags: ['capitals', 'numbers', 'strings', 'types'],
     drillLayerUnderlines: true,
     activeProfileId: null,
 };
@@ -175,7 +185,7 @@ export type StartPreset = keyof typeof START_PRESETS;
 /** Settings that shape the lesson text: changing one regenerates the lesson (§5.5 "When settings apply"). */
 export const LESSON_SHAPING: readonly (keyof PracticeSettings)[] = [
     'type', 'order', 'alphabetSize', 'recoverKeys', 'naturalWords', 'capitals', 'punctuators', 'length',
-    'repeatWords', 'targetSpeed', 'customText', 'stopOnError', 'forgiveErrors', 'spaceSkipsWords', 'drill', 'words',
+    'repeatWords', 'targetSpeed', 'customText', 'stopOnError', 'forgiveErrors', 'spaceSkipsWords', 'drill', 'words', 'book', 'paragraph', 'bookLowercase', 'bookLettersOnly', 'syntax', 'codeFlags', 'numbersBenford',
 ];
 
 /** Layer underlines for the current lesson type (§5.2: on in Drill, off in Guided, by default). */
@@ -244,6 +254,14 @@ export function practiceSettings(value: unknown): PracticeSettings {
     const words = data.words && typeof data.words === 'object' ? (data.words as Record<string, unknown>) : {};
     return {
         type: oneOf(data.type, LESSON_TYPES, d.type),
+        numbersBenford: bool(data.numbersBenford, true),
+        book: oneOf(data.book, ['alice', 'wild', 'jekyll'] as const, 'alice'),
+        paragraph: Math.floor(number(data.paragraph, 0, 10000, 0)),
+        bookLowercase: bool(data.bookLowercase, true),
+        bookLettersOnly: bool(data.bookLettersOnly, true),
+        syntax: typeof data.syntax === 'string' ? data.syntax : d.syntax,
+        codeFlags: Array.isArray(data.codeFlags) ? data.codeFlags.filter((x): x is string => typeof x === 'string' && ['capitals','comments','defs','numbers','strings','types'].includes(x)) : d.codeFlags,
+
         order: data.order === 'center-first' || data.order === 'frequency' ? data.order : d.order,
         targetSpeed: Math.round(number(data.targetSpeed, 75, 750, d.targetSpeed)),
         alphabetSize: number(data.alphabetSize, 0, 1, d.alphabetSize),
@@ -324,7 +342,7 @@ export function toKeybrSettings(s: PracticeSettings): Settings {
         .set(lessonProps.customText.randomize, s.customText.randomize)
         .set(lessonProps.wordList.wordListSize, s.words.size)
         .set(lessonProps.wordList.longWordsOnly, s.words.longOnly)
-        .set(lessonProps.numbers.benford, s.drill.benford)
+        .set(lessonProps.numbers.benford, s.type === "numbers" ? s.numbersBenford : s.drill.benford)
         .set(textInputProps.stopOnError, s.stopOnError)
         .set(textInputProps.forgiveErrors, s.forgiveErrors)
         .set(textInputProps.spaceSkipsWords, s.spaceSkipsWords);

@@ -48,7 +48,7 @@ export function TypeRow({ type, scope, onType, onScope, onEnter, status }: TypeR
                             size="md"
                             value={type}
                             onChange={onType}
-                            options={AVAILABLE_LESSON_TYPES.map((value) => ({ value, label: LESSON_TYPE_LABELS[value] }))}
+                            options={AVAILABLE_LESSON_TYPES.filter(value => !["books", "code", "numbers"].includes(value)).map((value) => ({ value, label: LESSON_TYPE_LABELS[value] }))}
                         />
                     </div>}
                     <button

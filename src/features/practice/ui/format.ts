@@ -7,7 +7,7 @@ import type { SpeedUnit } from "../state/settings";
 import type { LessonType } from "../types";
 
 /** Lesson type names, as the type control shows them (§5.2). */
-export const LESSON_TYPE_LABELS: Record<LessonType, string> = { guided: "Guided", drill: "Drill", words: "Words", custom: "Custom" };
+export const LESSON_TYPE_LABELS: Record<LessonType, string> = { guided: "Guided", drill: "Drill", words: "Words", custom: "Custom", books: "Books", code: "Source code", numbers: "Numbers" };
 
 /** A stored lesson type id as its name; an unknown id as it is. */
 export function lessonTypeLabel(type: string): string {

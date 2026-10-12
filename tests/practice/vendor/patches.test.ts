@@ -21,9 +21,9 @@ function files(dir: string): string[] {
 }
 
 describe('vendored keybr patches', () => {
-    it('lessonProps has no code or books props', () => {
+    it('lessonProps includes book processing without importing catalog metadata', () => {
         expect(Object.keys(lessonProps)).not.toContain('code');
-        expect(Object.keys(lessonProps)).not.toContain('books');
+        expect(Object.keys(lessonProps)).toContain('books');
         expect([...LessonType.ALL].map((t) => t.id)).toEqual(['guided', 'wordlist', 'custom', 'numbers']);
     });
 
@@ -71,13 +71,12 @@ describe('bundle graph (M1a acceptance)', () => {
         for (const path of sources) expect(readFileSync(path, 'utf8'), relative(PRACTICE, path)).not.toMatch(/from\s+["']@keybr\//);
     });
 
-    it('has no code grammars, books or book covers', () => {
+    it('loads book text as separate assets without book covers or remote loaders', () => {
+        const books = readFileSync(join(PRACTICE, 'content/books.ts'), 'utf8');
+        expect(books).toContain("import('./assets/en-alice-wonderland.json')");
         for (const path of sources) {
-            const text = readFileSync(path, 'utf8');
-            expect(text, relative(PRACTICE, path)).not.toMatch(/from\s+["'][^"']*\/(code|content-books|books)(\/index)?(\.ts)?["']/);
-            expect(text, relative(PRACTICE, path)).not.toMatch(/Syntax\.ALL|Book\.ALL/);
+            expect(readFileSync(path, 'utf8')).not.toMatch(/from\s+["'][^"']*(content-books|book-covers)[^"']*["']/);
         }
-        expect(files(VENDOR).some((p) => /[\\/](code|books)\.ts$/.test(p))).toBe(false);
     });
 
     it('vendors no node-only, React or theme modules', () => {

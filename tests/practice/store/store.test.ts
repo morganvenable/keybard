@@ -82,7 +82,7 @@ describe('result records (§8.3)', () => {
         expect(resultRecordFromJson({ ...good, l: 'en-us' })).toBeNull();
         expect(resultRecordFromJson({ ...good, h: { 'x|0:1:n': { h: 1, m: 0, t: 1 } } })).toBeNull();
         expect(resultRecordFromJson({ ...good, h: { '97|0:1:z': { h: 1, m: 0, t: 1 } } })).toBeNull();
-        expect(resultRecordFromJson({ ...good, x: { ...good.x, type: 'books' } })).toBeNull();
+        expect(resultRecordFromJson({ ...good, x: { ...good.x, type: 'unknown-mode' } })).toBeNull();
         expect(resultRecordFromJson(null)).toBeNull();
     });
 

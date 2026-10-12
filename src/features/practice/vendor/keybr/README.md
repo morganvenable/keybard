@@ -65,3 +65,10 @@ Changed files:
 - `textinput-events/inputhandler.ts`: keybr's `TimeToType` is replaced by an injectable timer whose default reports the raw interval since the previous input (Practice divides by physical presses, `../../input/timeToType.ts`, spec §6.5); Tab is no longer prevented, so it leaves the practice text (§5.11); `Focusable` from `@keybr/widget` is dropped; `process.env.NODE_ENV` → `import.meta.env.PROD`. `setInput(input, { focus: false })` attaches without taking focus, so opening Practice with the Lesson panel leaves focus in the panel (spec §4.1).
 
 Ported tests that changed for these patches (each says so in a comment): `binary/io.test.ts` (test-local `crc32`), `lang/tasks.test.ts` (Vitest fake timers), `phonetic-model/integration.test.ts` (English model from Practice's assets), `result/group.test.ts` (a custom German layout stands in for `Layout.DE_DE`), `textinput-events/inputhandler.test.ts` (raw interval, Tab not prevented), and the `lesson` tests that used `loadKeyboard(Layout.EN_US)`, which now use the default Svalboard keymap through Practice's adapter (`tests/practice/fixtures/keyboard.ts`). Tests of dropped modules (`code`, `emulation`, `TextEvents`, layout and geometry tables, keyboard settings, `crc32`, `secret`, binary result I/O) are not ported.
+
+## Svalbr content expansion
+
+BooksLesson, the code generator, English books, and custom examples were added from the same pinned upstream revision. See [content provenance](../CONTENT-SOURCES.md) for the revision and adaptations. The table above describes the original vendor import.
+
+- `code/generate.ts`: Vite development flag replaces the Node environment flag.
+- `lesson/books.ts`: metadata and content helpers are supplied locally, without cover assets.

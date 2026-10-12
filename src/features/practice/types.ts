@@ -54,7 +54,7 @@ export interface KeystrokeEvent {
     pos?: number;
 }
 
-export type LessonType = 'guided' | 'drill' | 'words' | 'custom';
+export type LessonType = 'guided' | 'drill' | 'words' | 'custom' | 'books' | 'code' | 'numbers';
 export type InputSource = 'usb' | 'host' | 'keymap';
 
 /** Per (character | path key) sample in a result (§8.3 `h`). */

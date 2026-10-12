@@ -1,5 +1,5 @@
-// Modified for Keybard: the `books` and `code` props are removed, so the engine
-// no longer imports @keybr/code (all code grammars) or the book covers (spec §9.2).
+// Modified for Keybard: code syntax and book metadata are supplied by host adapters;
+// book text-processing props do not import the book catalog or covers.
 import {
   booleanProp,
   itemProp,
@@ -37,6 +37,11 @@ export const lessonProps = {
     lowercase: booleanProp("lesson.customText.lowercase", true),
     randomize: booleanProp("lesson.customText.randomize", false),
   } as const,
+  books: {
+    paragraphIndex: numberProp("lesson.books.paragraphIndex", 0, { min: 0, max: 10000 }),
+    lowercase: booleanProp("lesson.books.lowercase", true),
+    lettersOnly: booleanProp("lesson.books.lettersOnly", true),
+  },
   numbers: {
     benford: booleanProp("lesson.numbers.benford", true),
   } as const,

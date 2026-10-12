@@ -84,3 +84,25 @@ it('keeps standalone navigation in Practice for empty and editor/overlay hashes'
         expect(screen.getByLabelText('Practice text')).toBeInTheDocument();
     }
 });
+
+it('changes real content through the visible chooser and preserves selections across modes', async () => {
+    await start();
+    const nav = within(screen.getByRole('navigation', { name: 'Training modes' }));
+    fireEvent.click(nav.getByRole('button', { name: 'Books', exact: true }));
+    await screen.findByLabelText('Book', { exact: true });
+    fireEvent.change(screen.getByLabelText('Book', { exact: true }), { target: { value: 'wild' } });
+    fireEvent.change(screen.getByLabelText('Paragraph', { exact: true }), { target: { value: '2' } });
+    await waitFor(() => expect(document.querySelector('[data-practice-text-card]')).toHaveTextContent('buck lived'));
+    fireEvent.click(nav.getByRole('button', { name: 'Source code', exact: true }));
+    fireEvent.change(await screen.findByLabelText('Language', { exact: true }), { target: { value: 'python' } });
+    expect(screen.getByLabelText('Language', { exact: true })).toHaveValue('python');
+    fireEvent.click(nav.getByRole('button', { name: 'Words', exact: true }));
+    fireEvent.change(await screen.findByLabelText('Vocabulary size'), { target: { value: '500' } });
+    await screen.findByText('Vocabulary: 500 words');
+    fireEvent.click(nav.getByRole('button', { name: 'Custom', exact: true }));
+    fireEvent.change(await screen.findByLabelText('Text example'), { target: { value: '0' } });
+    await waitFor(() => expect(document.querySelector('[data-practice-text-card]')).toHaveTextContent('jabberwocky'));
+    fireEvent.click(nav.getByRole('button', { name: 'Books', exact: true }));
+    expect(await screen.findByLabelText('Book', { exact: true })).toHaveValue('wild');
+    expect(screen.getByLabelText('Paragraph', { exact: true })).toHaveValue('2');
+}, 20000);

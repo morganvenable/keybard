@@ -1,3 +1,4 @@
+import { loadBooks, type BookTexts } from './books';
 // English content loader (spec §7.1, §7.5): replaces keybr's
 // phonetic-model-loader (webpack asset URLs, @keybr/request) and the word-list
 // loader. The model is a Vite `?url` asset fetched on first use; the word list is
@@ -17,6 +18,7 @@ import { censor, makePhoneticModel, type PhoneticModel } from '../vendor/keybr/p
 export interface PracticeContent {
     model: PhoneticModel;
     words: WordList;
+    books?: BookTexts;
 }
 
 /** Builds the English phonetic model from `model-en.data` bytes, with keybr's censoring. */
@@ -53,12 +55,12 @@ let cached: Promise<PracticeContent> | null = null;
 export function loadEnglishContent(): Promise<PracticeContent> {
     if (!cached) {
         cached = PARANOID_BUILD
-            ? Promise.resolve().then(() => {
+            ? Promise.resolve().then(async () => {
                 const content = inlinedContent();
                 if (!content) throw new Error('Practice: the Paranoid build has no inlined content');
-                return content;
+                return { ...content, books: await loadBooks() };
             })
-            : Promise.all([loadEnglishModel(), loadEnglishWords()]).then(([model, words]) => ({ model, words }));
+            : Promise.all([loadEnglishModel(), loadEnglishWords(), loadBooks()]).then(([model, words, books]) => ({ model, words, books }));
         cached.catch(() => { cached = null; });
     }
     return cached;

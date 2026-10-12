@@ -70,6 +70,13 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
                     <SliderRow title="Punctuation" display={pct(s.punctuators)} value={Math.round(s.punctuators * 100)} min={0} max={100} onChange={(v) => slide({ punctuators: v / 100 })} />
                 </div>
             </section>}
+            {type === "words" && <section aria-labelledby="lesson-word-options">
+                <GroupLabel id="lesson-word-options">Text options</GroupLabel>
+                <div className={group}>
+                    <SliderRow title="Capitals" display={pct(s.capitals)} value={Math.round(s.capitals * 100)} min={0} max={100} onChange={(v) => slide({ capitals: v / 100 })} />
+                    <SliderRow title="Punctuation" display={pct(s.punctuators)} value={Math.round(s.punctuators * 100)} min={0} max={100} onChange={(v) => slide({ punctuators: v / 100 })} />
+                </div>
+            </section>}
             <section aria-labelledby="lesson-targets" data-lesson-section="targets">
                 <GroupLabel id="lesson-targets">Targets</GroupLabel>
                 <div className={group}>
@@ -86,7 +93,8 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
                         <SegmentedControl label="Speed unit" value={s.speedUnit} onChange={(speedUnit) => set({ speedUnit })}
                             options={[{ value: "wpm", label: "WPM" }, { value: "cpm", label: "CPM" }]} />
                     </Row>
-                    <SliderRow title="Lesson length" display={pct(s.length)} value={Math.round(s.length * 100)} min={0} max={100} onChange={(v) => slide({ length: v / 100 })} />
+                    {(type === "guided" || type === "words") && <SliderRow title="Repeat words" display={String(s.repeatWords)} value={s.repeatWords} min={1} max={10} onChange={(repeatWords) => slide({ repeatWords })} />}
+                    {type !== "code" && type !== "numbers" && <SliderRow title="Lesson length" display={pct(s.length)} value={Math.round(s.length * 100)} min={0} max={100} onChange={(v) => slide({ length: v / 100 })} />}
                     <SliderRow title="Daily goal" display={s.dailyGoal ? `${s.dailyGoal} min` : "Off"} value={s.dailyGoal} min={0} max={120} step={5} onChange={(dailyGoal) => set({ dailyGoal })} />
                 </div>
             </section>

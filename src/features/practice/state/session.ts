@@ -1,3 +1,4 @@
+import { PracticeBooksLesson, PracticeCodeLesson, PracticeNumbersLesson } from '../lessons/content';
 // A Practice session (spec §5.3, §6, §8): one profile's history on one keymap,
 // with the current settings. It owns the keybr lesson and progress, generates
 // lesson text, and turns a finished LessonRun into a stored result.
@@ -116,6 +117,9 @@ export async function resolvePracticeKeymap(keymap: PracticeKeymap): Promise<{ r
 export function lessonFor(settings: PracticeSettings, keyboard: SvalKeyboard, content: PracticeContent): Lesson {
     const keybr = toKeybrSettings(settings);
     switch (effectiveLessonType(settings.type)) {
+        case 'books': return new PracticeBooksLesson(settings, keyboard, content);
+        case 'code': return new PracticeCodeLesson(settings, keyboard, content);
+        case 'numbers': return new PracticeNumbersLesson(keybr, keyboard, content.model);
         case 'drill':
             return new PracticeDrillLesson(keybr, keyboard, content.model, content.words, settings.drill);
         case 'words':
@@ -129,8 +133,9 @@ export function lessonFor(settings: PracticeSettings, keyboard: SvalKeyboard, co
 
 /** The result's text type (§8.3 `m`): Guided and Drill are generated, Drill · Numbers with Benford numbers, Words and Custom natural. */
 export function textTypeOf(lesson: Lesson): ResultRecord['m'] {
+    if (lesson instanceof PracticeNumbersLesson) return 'numbers';
     if (lesson instanceof PracticeDrillLesson) return lesson.textType;
-    if (lesson instanceof PracticeWordsLesson || lesson instanceof PracticeCustomLesson) return 'natural';
+    if (lesson instanceof PracticeBooksLesson || lesson instanceof PracticeWordsLesson || lesson instanceof PracticeCustomLesson) return 'natural';
     return 'generated';
 }
 
@@ -280,7 +285,7 @@ export class PracticeSession {
 
     /** Custom: no character of the text can be typed on this keymap. */
     get emptyCustom(): boolean {
-        return this.lesson instanceof PracticeCustomLesson && this.lesson.empty;
+        return (this.lesson instanceof PracticeCustomLesson || this.lesson instanceof PracticeBooksLesson) && this.lesson.empty;
     }
 
     /** No lesson can run: the wells of §5.3 show instead. */

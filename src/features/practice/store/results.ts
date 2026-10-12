@@ -239,7 +239,7 @@ export function isValidResult(record: ResultRecord): boolean {
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isCount = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
 const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
-const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom'];
+const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom', 'books', 'code', 'numbers'];
 const SOURCES: readonly InputSource[] = ['usb', 'host', 'keymap'];
 const TEXT_TYPES = ['generated', 'natural', 'numbers'] as const;
 

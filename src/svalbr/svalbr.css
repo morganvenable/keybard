@@ -64,3 +64,17 @@
 .svalbr-main [data-practice-type-row] > div { flex-direction: row; align-items: center; }
 .svalbr-main [data-practice-type-row] > div > div { height: 32px; }
 .svalbr-main [data-board-slot] { min-height: 0; }
+
+.svalbr-content { border: 1px solid var(--border); border-radius: 12px; background: var(--kb-surface); padding: 12px 16px; font-size: 13px; }
+.svalbr-content-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.svalbr-content label { display: flex; align-items: center; gap: 8px; }
+.svalbr-content select { max-width: 280px; min-width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--kb-surface); }
+.svalbr-content button { cursor: pointer; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.svalbr-content-more { margin-left: auto; }
+.svalbr-content summary { cursor: pointer; color: var(--muted-foreground); margin-top: 8px; }
+.svalbr-content-preview { max-height: 160px; overflow: auto; white-space: pre-wrap; line-height: 1.7; margin-top: 8px; }
+.svalbr-content-scope { margin-top: 8px; color: var(--muted-foreground); }
+.svalbr-content-directions { display: flex; gap: 4px; }
+.svalbr-content-directions [aria-pressed="true"] { background: var(--kb-active); color: var(--kb-active-fg); }
+.svalbr-nav-item { padding-top: 10px; padding-bottom: 10px; }
+@media (max-width: 760px) { .svalbr-content select { max-width: 220px; } }
