@@ -11,7 +11,7 @@ import { resetPracticePageSession } from '@/features/practice/state/controller';
 beforeEach(() => {
     localStorage.clear();
     resetPracticePageSession();
-    window.history.replaceState(null, '', '/');
+    window.history.replaceState(null, '', '/?demo');
     vi.stubGlobal('indexedDB', new IDBFactory());
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
     window.matchMedia = vi.fn().mockImplementation(query => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));

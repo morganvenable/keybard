@@ -75,11 +75,12 @@ function Trainer() {
     const chooseMode = (id: LessonType) => {
         c?.update({ type: id }); setPracticePage("lessons"); handleCloseDetails(); setNavOpen(false);
     };
+    const developmentPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
     const sourceControls = <>
         <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />Connect Svalboard</button>
-        <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => input.current?.click()}><LayoutImport className="size-4" />Import keymap</button>
-        <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void example()}>Try QWERTY example<ChevronRight size={16} /></button>
-        {!isWebHIDSupported && <p className="svalbr-help">USB connection needs Chrome or Edge. You can still use an imported keymap or the example.</p>}
+
+        {developmentPreview && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void example()}>Try QWERTY example<ChevronRight size={16} /></button>}
+        {!isWebHIDSupported && <p className="svalbr-help">Open svalbr in Chrome or Edge to connect your Svalboard.</p>}
         {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
     </>;
 
@@ -103,7 +104,7 @@ function Trainer() {
                         <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!keyboard} onClick={() => { setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
                     </nav>
                     <div className="svalbr-sidebar-bottom">
-                        <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : keyboard ? "Keymap loaded" : "Choose your keymap"}</strong><small>{loadedFrom ?? "Connect, import, or try an example"}</small></span><ChevronRight size={15} /></button>
+                        <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : keyboard ? "Keymap loaded" : "Connect your Svalboard"}</strong><small>{loadedFrom ?? "Connect via USB"}</small></span><ChevronRight size={15} /></button>
                         <div className="svalbr-sidebar-footer"><a href="https://svalboard.com" target="_blank" rel="noreferrer">A Svalboard tool</a><button type="button" className="svalbr-icon" aria-label={getSetting("theme") === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => updateSetting("theme", getSetting("theme") === "dark" ? "light" : "dark")}>{getSetting("theme") === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button></div>
                     </div>
                 </div>
@@ -132,9 +133,10 @@ function Trainer() {
             </Dialog.Content></Dialog.Portal>
         </Dialog.Root>
         <Dialog.Root open={sourceOpen} onOpenChange={setSourceOpen}><Dialog.Portal><Dialog.Overlay className="svalbr-dialog-overlay" /><Dialog.Content className="svalbr-source-dialog">
-            <div className="svalbr-dialog-heading"><Dialog.Title>Your keymap</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
-            <Dialog.Description className="svalbr-help">Practice the layout you use, or start with the Svalboard QWERTY example.</Dialog.Description>
+            <div className="svalbr-dialog-heading"><Dialog.Title>Your Svalboard</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
+            <Dialog.Description className="svalbr-help">Connect your board to practice with its current layout.</Dialog.Description>
             <div className="svalbr-source-actions">{sourceControls}</div>
+            {isConnected && <details className="svalbr-help"><summary>Keymap troubleshooting</summary><p>If the board?s keymap could not be read correctly, load a saved copy.</p><button type="button" className={PILL_QUIET} disabled={pending} onClick={() => input.current?.click()}><LayoutImport className="size-4" />Import keymap</button></details>}
             <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || connectionError} />
         </Dialog.Content></Dialog.Portal></Dialog.Root>
     </PracticePresentation.Provider>;
