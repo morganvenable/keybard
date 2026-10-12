@@ -63,6 +63,8 @@
 .svalbr-main [data-practice-type-row] > div { flex-direction: row; align-items: center; }
 .svalbr-main [data-practice-type-row] > div > div { height: 32px; }
 .svalbr-main [data-board-slot] { min-height: 0; }
+/* Leave breathing room below the typing card without widening every page gap. */
+.svalbr-main [data-practice-text-card] ~ [data-board-slot] { margin-top: 20px; }
 
 .svalbr-content { border: 1px solid var(--border); border-radius: 12px; background: var(--kb-surface); padding: 12px 16px; font-size: 13px; }
 .svalbr-content-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
