@@ -110,7 +110,8 @@ function Trainer() {
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
                     {keyboard ? <PracticeWorkspace /> : <section className="svalbr-welcome">
-                        <h1>Choose your keymap</h1>
+                        <Sprout className="svalbr-welcome-sprout" size={32} aria-hidden="true" />
+                        <h1>Typing practice for your Svalboard.</h1>
                         <div className="svalbr-source-actions">{sourceControls}</div>
                     </section>}
                 </main>
