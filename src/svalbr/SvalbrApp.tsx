@@ -1,3 +1,4 @@
+import FirmwareStatus from "./FirmwareStatus";
 import SvalboardLogo from "@/components/Logo";
 import KeyboardIcon from "@/components/icons/Keyboard";
 import { LayoutImport } from "@/components/icons/LayoutImport";
@@ -41,7 +42,7 @@ export default function SvalbrApp() {
 
 function Trainer() {
     const c = usePractice();
-    const { keyboard, loadedFrom, isConnected, connectionState, isChangingTarget, isImporting, connect, disconnect, loadFromFile, isWebHIDSupported, connectionError } = useKeyboard();
+    const { keyboard, loadedFrom, isConnected, connectionState, isChangingTarget, isImporting, connect, disconnect, loadFromFile, isWebHIDSupported, connectionError, connectionFirmware } = useKeyboard();
     const { practicePage, setPracticePage, activePanel, setActivePanel, handleCloseDetails } = usePanels();
     const { internationalLayout, setInternationalLayout } = useLayoutSettings();
     const { getSetting, updateSetting } = useSettings();
@@ -109,7 +110,7 @@ function Trainer() {
             </aside>
             <div className="svalbr-main">
 
-                {(error || connectionError) && <div role="alert" className="svalbr-error">{error || connectionError}<button className="svalbr-icon" aria-label="Choose another keymap" onClick={() => setSourceOpen(true)}><ChevronRight size={16} /></button></div>}
+                {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || connectionError} />}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
                     {keyboard ? <PracticeWorkspace /> : <section className="svalbr-welcome">
@@ -134,7 +135,7 @@ function Trainer() {
             <div className="svalbr-dialog-heading"><Dialog.Title>Your keymap</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
             <Dialog.Description className="svalbr-help">Practice the layout you use, or start with the Svalboard QWERTY example.</Dialog.Description>
             <div className="svalbr-source-actions">{sourceControls}</div>
-            {(error || connectionError) && <p role="alert" className="svalbr-error">{error || connectionError}</p>}
+            <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || connectionError} />
         </Dialog.Content></Dialog.Portal></Dialog.Root>
     </PracticePresentation.Provider>;
 }
