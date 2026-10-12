@@ -106,3 +106,19 @@ it('changes real content through the visible chooser and preserves selections ac
     expect(await screen.findByLabelText('Book', { exact: true })).toHaveValue('wild');
     expect(screen.getByLabelText('Paragraph', { exact: true })).toHaveValue('2');
 }, 20000);
+
+it('shows a readable fresh lesson, then pauses only after typing starts', async () => {
+    await start();
+    const nav = within(screen.getByRole('navigation', { name: 'Training modes' }));
+    act(() => { screen.getByLabelText('Practice text').blur(); });
+    fireEvent.click(nav.getByRole('button', { name: 'Words', exact: true }));
+    await screen.findByRole('button', { name: 'Start typing', exact: true });
+    expect(screen.queryByRole('button', { name: 'Resume', exact: true })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-practice-paused]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start typing', exact: true }));
+    const character = document.querySelector('[data-cursor]')!.textContent!;
+    fireEvent.input(screen.getByLabelText('Practice text'), { inputType: 'insertText', data: character });
+    await waitFor(() => expect(document.querySelector('[data-glyph="typed"]')).not.toBeNull());
+    act(() => { screen.getByLabelText('Practice text').blur(); });
+    await screen.findByRole('button', { name: 'Resume', exact: true });
+});

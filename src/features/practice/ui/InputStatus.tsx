@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../presentation";
 import { Popover } from "radix-ui";
 import { Unplug } from "lucide-react";
 
@@ -48,7 +49,8 @@ interface InputStatusProps {
 }
 
 export function InputStatus({ controller, onConnect }: InputStatusProps) {
-    const state = inputPillState(controller);
+    const { standalone } = usePracticePresentation();
+    const state = standalone && !controller.run?.started ? controller.inputMode : inputPillState(controller);
     const k = controller.keymap;
     const fingerprint = controller.session?.fingerprint;
     const rows: [string, string, string?][] = [

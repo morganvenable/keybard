@@ -125,13 +125,14 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const onFocusChange = useCallback((focused: boolean) => {
         controller?.setFocused(focused);
         if (!focused) return;
+        if (presentation.standalone && !controller?.run?.started) controller?.resume();
         if (layoutMode === "bottombar") {
             surface.current?.card?.scrollIntoView?.({ block: "nearest" });
         } else if (panelOpen && window.innerWidth < 1100) {
             // Side layout below 1100 px: the panel covers the page, so typing closes it (§4.1).
             handleCloseDetails();
         }
-    }, [controller, layoutMode, panelOpen, handleCloseDetails]);
+    }, [controller, layoutMode, panelOpen, handleCloseDetails, presentation.standalone]);
 
     const drillKey = useCallback((codePoint: number) => {
         controller?.drillKey(codePoint);
@@ -213,7 +214,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                 </div>
             )
         ) : (
-            <LiveBoard live={live} viewFor={viewFor} fit={fit} dimmed={!!run && controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
+            <LiveBoard live={live} viewFor={viewFor} fit={fit} dimmed={!!run && controller?.paused && (!presentation.standalone || run.started)} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
         )
     )}</div>;
 

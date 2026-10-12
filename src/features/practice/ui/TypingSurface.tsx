@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../presentation";
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { PILL_INK } from "@/components/shared/pills";
@@ -69,6 +70,9 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const innerRef = useRef<HTMLDivElement | null>(null);
+    const { standalone } = usePracticePresentation();
+    const ready = standalone && !run.started;
+    const showPaused = paused && !ready;
     const callbacks = useRef(props);
     callbacks.current = props;
     const [offset, setOffset] = useState(0);
@@ -188,7 +192,7 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
             <span id="practice-current-word" className="sr-only">{currentWord}</span>
             <div
                 aria-hidden="true"
-                className={cn("overflow-hidden font-medium tabular-nums transition-[filter,opacity]", compact ? "text-[22px] leading-[32px]" : "text-[28px] leading-[40px]", paused && "blur-[3px] opacity-60")}
+                className={cn("overflow-hidden font-medium tabular-nums transition-[filter,opacity]", compact ? "text-[22px] leading-[32px]" : "text-[28px] leading-[40px]", showPaused && "blur-[3px] opacity-60")}
                 style={{ height: lineHeight * 3 }}
             >
                 <div ref={innerRef} className="relative break-words" style={{ transform: offset ? `translateY(-${offset}px)` : undefined }}>
@@ -199,7 +203,8 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
                     ))}
                 </div>
             </div>
-            {paused && (
+            {ready && paused && <button type="button" className="absolute bottom-4 left-6 sm:left-10 text-sm text-muted-foreground cursor-pointer" onClick={() => { textareaRef.current?.focus({ preventScroll: true }); props.onResume(); }}>Start typing</button>}
+            {showPaused && (
                 <div data-practice-paused className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <span className="text-lg font-semibold text-kb-ink">Paused</span>
                     <button
