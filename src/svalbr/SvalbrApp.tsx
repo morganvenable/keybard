@@ -105,16 +105,13 @@ function Trainer() {
                 </div>
             </aside>
             <div className="svalbr-main">
-                <div className="svalbr-topbar"><span>{progress ? "A little practice adds up." : mode.description}</span><button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button></div>
+                {keyboard && <div className="svalbr-topbar"><button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button></div>}
                 {(error || connectionError) && <div role="alert" className="svalbr-error">{error || connectionError}<button className="svalbr-icon" aria-label="Choose another keymap" onClick={() => setSourceOpen(true)}><ChevronRight size={16} /></button></div>}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
                     {keyboard ? <PracticeWorkspace /> : <section className="svalbr-welcome">
-                        <span className="svalbr-welcome-mark"><SvalboardLogo className="size-9" role="img" aria-label="Svalboard" /></span>
-                        <p className="svalbr-eyebrow">One key at a time</p><h1>Make yourself at home<br />on your Svalboard.</h1>
-                        <p>Guided lessons, focused drills, and a little daily practice.<br className="svalbr-desktop" /> Start with the keymap you actually use.</p>
+                        <h1>Choose your keymap</h1>
                         <div className="svalbr-source-actions">{sourceControls}</div>
-                        <p className="svalbr-help">Your progress stays in this browser. No account needed.</p>
                     </section>}
                 </main>
             </div>
