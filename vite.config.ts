@@ -59,14 +59,21 @@ const devPort = getPortForBranch(gitBranch);
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), "VITE_");
     const paranoid = mode === "paranoid";
+    const standalone = mode === "svalbr";
     return {
     base: env.VITE_BASE_PATH || "/keybard-ng/",
     plugins: [
+        ...(standalone ? [{
+            name: "svalbr-entry",
+            transformIndexHtml: { order: "pre" as const, handler: (html: string) => html
+                .replace("/main.tsx", "/svalbr/main.tsx")
+                .replace("<title>KeyBard</title>", "<title>Svalbr - Svalboard typing practice</title><meta name=\"description\" content=\"Build speed and confidence on your Svalboard with guided lessons, focused drills, and personal progress.\" />") },
+        }] : []),
         react(),
         tailwindcss(),
         bundledLayersPlugin(paranoid, path.resolve(__dirname)),
         // The user manual at <base>/manual/. Paranoid is one offline file, so it has none.
-        manualPlugin(!paranoid, path.resolve(__dirname)),
+        manualPlugin(!paranoid && !standalone, path.resolve(__dirname)),
         ...(paranoid ? paranoidPlugins(path.resolve(__dirname)) : []),
         // Practice's bundle budgets (docs/practice/spec.md §9.8), checked by tests/build/bundle-size.test.ts.
         bundleStatsPlugin(mode, path.resolve(__dirname)),
@@ -90,7 +97,7 @@ export default defineConfig(({ mode }) => {
     envDir: path.resolve(__dirname),
     publicDir: paranoid ? false : "../public",
     build: {
-        outDir: paranoid ? "../dist-paranoid" : "../dist",
+        outDir: standalone ? "../dist-svalbr" : paranoid ? "../dist-paranoid" : "../dist",
         emptyOutDir: true,
     },
     resolve: {

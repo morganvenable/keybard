@@ -1,7 +1,7 @@
 import { memo, type MouseEvent, useMemo, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 
-import { Key } from "@/components/Key";
+import { ReadOnlyKey as Key } from "@/components/ReadOnlyKey";
 import { cn } from "@/lib/utils";
 import { IDLE_BOARD, type LiveBoardState, type LiveInput } from "../input/liveInput";
 import type { BoardKeyView, BoardView } from "./boardModel";

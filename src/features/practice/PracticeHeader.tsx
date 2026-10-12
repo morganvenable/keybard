@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "./presentation";
 import type { ReactNode } from "react";
 
 import { usePanels } from "@/contexts/PanelsContext";
@@ -15,10 +16,11 @@ const PAGES: { id: Exclude<PracticePage, "lab">; title: string }[] = [
 
 export function PracticeHeader({ right }: { right?: ReactNode }) {
     const { practicePage, setPracticePage } = usePanels();
+    const { standalone, title } = usePracticePresentation();
     return (
         <header className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-[22px] font-semibold leading-none text-kb-ink">Practice</h1>
-            <nav aria-label="Practice pages" className="flex items-center gap-1">
+            <h1 className="text-[22px] font-semibold leading-none text-kb-ink">{title}</h1>
+            {!standalone && <nav aria-label="Practice pages" className="flex items-center gap-1">
                 {PAGES.map((page) => {
                     const current = practicePage === page.id;
                     return (
@@ -38,7 +40,7 @@ export function PracticeHeader({ right }: { right?: ReactNode }) {
                         </button>
                     );
                 })}
-            </nav>
+            </nav>}
             {right && <div className="ml-auto flex items-center gap-2 min-w-0">{right}</div>}
         </header>
     );

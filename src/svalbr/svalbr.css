@@ -1,0 +1,61 @@
+.svalbr-root { min-height: 100dvh; background: var(--kb-gray); color: var(--kb-ink); }
+.svalbr-app { display: flex; width: 100%; min-height: 100dvh; }
+.svalbr-sidebar { width: 228px; flex-shrink: 0; position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 30px 16px 16px; border-right: 1px solid var(--border); background: var(--kb-surface); }
+.svalbr-brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 36px; text-decoration: none; color: inherit; }
+.svalbr-brand strong { font-size: 23px; letter-spacing: -.8px; font-weight: 650; }
+.svalbr-brand small { display: block; font-size: 10px; color: var(--muted-foreground); margin-top: 1px; }
+.svalbr-mark { display: grid; place-items: center; width: 38px; height: 38px; background: var(--kb-gray); border-radius: 11px; }
+.svalbr-nav-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.svalbr-eyebrow { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; font-weight: 600; color: var(--muted-foreground); margin: 0 12px 12px; }
+.svalbr-nav-item { width: 100%; display: flex; align-items: center; gap: 13px; border: none; border-radius: 9px; padding: 13px 14px; margin-bottom: 4px; font-size: 14px; text-align: left; color: var(--muted-foreground); cursor: pointer; transition: background .15s; }
+.svalbr-nav-item:hover { background: var(--kb-gray); color: var(--kb-ink); }
+.svalbr-nav-item.is-active { background: var(--kb-active); color: var(--kb-active-fg); font-weight: 600; }
+.svalbr-nav-item:disabled { opacity: .5; cursor: default; }
+.svalbr-nav-divider { height: 1px; background: var(--border); margin: 23px 10px; }
+.svalbr-sidebar-bottom { margin-top: auto; padding-top: 30px; }
+.svalbr-source { display: flex; gap: 9px; align-items: center; width: 100%; padding: 12px 8px; border-top: 1px solid var(--border); text-align: left; cursor: pointer; }
+.svalbr-source span { flex: 1; min-width: 0; }
+.svalbr-source strong { font-size: 11px; font-weight: 550; }
+.svalbr-source small { display: block; font-size: 10px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+.svalbr-sidebar-footer { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--muted-foreground); padding: 9px 8px 0; }
+.svalbr-sidebar-footer a:hover { text-decoration: underline; }
+.svalbr-icon { display: inline-flex; padding: 7px; align-items: center; justify-content: center; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
+.svalbr-icon:hover { background: var(--kb-gray); }
+.svalbr-main { flex: 1; min-width: 0; }
+.svalbr-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 76px; padding: 16px 32px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
+.svalbr-main main { min-height: calc(100dvh - 76px); }
+.svalbr-main [data-practice-page] { padding: 32px; min-height: calc(100dvh - 76px); gap: 24px; }
+.svalbr-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 76px); padding: 64px 24px; text-align: center; }
+.svalbr-welcome-mark { display: grid; place-items: center; height: 72px; width: 72px; border-radius: 22px; background: var(--kb-surface); border: 1px solid var(--border); margin-bottom: 28px; }
+.svalbr-welcome h1 { font-size: clamp(28px, 3.3vw, 44px); line-height: 1.15; letter-spacing: -1.5px; font-weight: 550; margin: 7px 0 20px; }
+.svalbr-welcome > p:not(.svalbr-eyebrow) { font-size: 14px; line-height: 1.8; color: var(--muted-foreground); }
+.svalbr-source-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 28px 0; }
+.svalbr-source-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.svalbr-help { font-size: 12px; line-height: 1.7; color: var(--muted-foreground); }
+.svalbr-error { margin: 16px 24px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--kb-surface); display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.svalbr-loading { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 16px; font-size: 13px; }
+.svalbr-dialog-overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .3); z-index: 39; }
+.svalbr-settings { position: fixed; z-index: 40; right: 0; top: 0; bottom: 0; width: min(450px, 100vw); background: var(--kb-surface); color: var(--kb-ink); box-shadow: -8px 0 40px rgb(0 0 0 / .12); display: flex; flex-direction: column; }
+.svalbr-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--border); font-size: 18px; font-weight: 550; }
+.svalbr-settings-scroll { overflow: auto; padding: 8px 12px 30px; flex: 1; }
+.svalbr-source-dialog { position: fixed; z-index: 40; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 0 20px 12px; border-radius: 20px; background: var(--kb-surface); color: var(--kb-ink); }
+.svalbr-source-dialog .svalbr-dialog-heading { padding: 20px 0; margin-bottom: 20px; }
+.svalbr-field { display: flex; flex-direction: column; gap: 12px; padding: 18px 12px; font-size: 14px; }
+.svalbr-field select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--kb-surface); }
+.svalbr-mobile-menu { display: none; }
+.svalbr-app button:focus-visible, .svalbr-app a:focus-visible { outline: 2px solid var(--kb-ink); outline-offset: 3px; }
+.svalbr-app button:disabled { opacity: .5; cursor: default; }
+@media (max-width: 760px) {
+    .svalbr-app { flex-direction: column; }
+    .svalbr-sidebar { position: relative; width: 100%; height: auto; padding: 16px 18px; border-right: none; border-bottom: 1px solid var(--border); }
+    .svalbr-brand { padding: 0; width: fit-content; }
+    .svalbr-mobile-menu { display: flex; position: absolute; right: 18px; top: 20px; }
+    .svalbr-nav-body { display: none; padding-top: 28px; }
+    .svalbr-nav-body.is-open { display: flex; }
+    .svalbr-topbar { padding: 12px 18px; min-height: 64px; }
+    .svalbr-topbar > span { max-width: 45%; font-size: 11px; }
+    .svalbr-main [data-practice-page] { padding: 24px 16px; gap: 18px; }
+    .svalbr-welcome { min-height: 70dvh; padding: 36px 18px; }
+    .svalbr-welcome .svalbr-source-actions { flex-direction: column; }
+    .svalbr-desktop { display: none; }
+}

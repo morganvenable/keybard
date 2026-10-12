@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../presentation";
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Notice } from "@/components/shared/Notice";
@@ -29,6 +30,7 @@ interface TypeRowProps {
 }
 
 export function TypeRow({ type, scope, onType, onScope, onEnter, status }: TypeRowProps) {
+    const { standalone } = usePracticePresentation();
     const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Enter") {
             event.preventDefault();
@@ -40,7 +42,7 @@ export function TypeRow({ type, scope, onType, onScope, onEnter, status }: TypeR
             <div className="flex flex-col @min-[900px]:flex-row @min-[900px]:items-center gap-x-4">
                 <div className="flex h-10 @min-[900px]:h-12 items-center gap-4 min-w-0">
                     {/* Only the type control sends Enter to the surface; Enter on the scope button opens the panel. */}
-                    <div className="contents" onKeyDown={onKeyDown}>
+                    {!standalone && <div className="contents" onKeyDown={onKeyDown}>
                         <SegmentedControl
                             label="Lesson type"
                             size="md"
@@ -48,7 +50,7 @@ export function TypeRow({ type, scope, onType, onScope, onEnter, status }: TypeR
                             onChange={onType}
                             options={AVAILABLE_LESSON_TYPES.map((value) => ({ value, label: LESSON_TYPE_LABELS[value] }))}
                         />
-                    </div>
+                    </div>}
                     <button
                         type="button"
                         onClick={onScope}

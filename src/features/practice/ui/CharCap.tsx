@@ -1,4 +1,4 @@
-import { Key } from "@/components/Key";
+import { ReadOnlyKey as Key } from "@/components/ReadOnlyKey";
 import { cn } from "@/lib/utils";
 import { charLabel } from "./format";
 

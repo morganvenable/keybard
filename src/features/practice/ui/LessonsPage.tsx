@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../presentation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
@@ -71,6 +72,7 @@ function useCharacterStats(controller: PracticeController | null) {
 
 export default function LessonsPage({ active = true }: { active?: boolean }) {
     const controller = usePractice();
+    const presentation = usePracticePresentation();
     const { keyboard, connect, loadFromFile } = useKeyboard();
     const { layoutMode } = useLayoutSettings();
     const { open: panelOpen, handleCloseDetails, setActivePanel, returnFocusOverride, setWorkspace } = usePanels();
@@ -238,7 +240,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
             <>
                 <Well title="No letters to practice on this keymap">
                     <button type="button" className={PILL_QUIET} onClick={() => void loadExample()}>QWERTY example</button>
-                    <button type="button" className={PILL_QUIET} onClick={() => { setWorkspace("editor"); setActivePanel("layouts"); }}>Layouts</button>
+                    <button type="button" className={PILL_QUIET} onClick={() => { if (presentation.chooseKeymap) presentation.chooseKeymap(); else { setWorkspace("editor"); setActivePanel("layouts"); } }}>{presentation.standalone ? "Choose keymap" : "Layouts"}</button>
                 </Well>
                 {boardBlock}
             </>

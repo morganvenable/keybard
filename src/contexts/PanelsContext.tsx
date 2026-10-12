@@ -55,13 +55,13 @@ const PanelsContext = createContext<PanelsContextType | undefined>(undefined);
 /** Every panel id opens the detail panel, Practice's and Overlay's included; Matrix Tester is an editor mode. */
 const opensPanel = (panel: string | null) => !!panel && panel !== "matrixtester";
 
-export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const PanelsProvider: React.FC<{ children: React.ReactNode; practiceOnly?: boolean }> = ({ children, practiceOnly = false }) => {
     // Deep links (§4.2), and the way Practice and Overlay survive a reconnect: a connect remounts
     // EditorLayout, and this initializer reopens the workspace, page and panel from the hash.
-    const [initialRoute] = useState<WorkspaceRoute>(() => parseWorkspaceHash(window.location.hash, window.location.search) ?? EDITOR_ROUTE);
+    const [initialRoute] = useState<WorkspaceRoute>(() => (practiceOnly ? { workspace: "practice", practicePage: parseWorkspaceHash(window.location.hash, window.location.search)?.practicePage ?? "lessons" } : parseWorkspaceHash(window.location.hash, window.location.search) ?? EDITOR_ROUTE));
     const [workspace, setWorkspaceState] = useState<Workspace>(initialRoute.workspace);
     const [practicePage, setPracticePage] = useState<PracticePage>(initialRoute.practicePage);
-    const [activePanel, setActivePanel] = useState<string | null>(initialRoute.workspace === "editor" ? null : initialRoute.workspace);
+    const [activePanel, setActivePanel] = useState<string | null>(practiceOnly || initialRoute.workspace === "editor" ? null : initialRoute.workspace);
     const returnFocusOverride = useRef<HTMLElement | null>(null);
     const [alternativeHeader, setAlternativeHeader] = useState<boolean>(false);
     const [panelToGoBack, setPanelToGoBack] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     }, [activePanel, detailsOpen, openDetails, closeDetails]);
 
-    const setWorkspace = useCallback((next: Workspace) => setWorkspaceState(next), []);
+    const setWorkspace = useCallback((next: Workspace) => setWorkspaceState(practiceOnly ? "practice" : next), [practiceOnly]);
 
     // Switching workspace or Practice page rewrites the hash without a history entry (§4.2).
     useEffect(() => {
@@ -99,16 +99,27 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         const onHashChange = () => {
             if (window.location.hash === "" || window.location.hash === "#") {
-                setWorkspaceState("editor");
+                setWorkspaceState(practiceOnly ? "practice" : "editor");
+                if (practiceOnly) {
+                    setPracticePage("lessons");
+                    syncWorkspaceHash({ workspace: "practice", practicePage: "lessons" });
+                }
                 // Only the workspace's own panel closes; Settings, About and editor panels stay.
                 setActivePanel(panel => (isPageWorkspace(panel) ? null : panel));
                 return;
             }
             const route = parseWorkspaceHash(window.location.hash, window.location.search);
-            if (!route || route.workspace === "editor") return;
+            if (!route || route.workspace === "editor" || (practiceOnly && route.workspace !== "practice")) {
+                if (practiceOnly) {
+                    setPracticePage("lessons");
+                    setActivePanel(null);
+                    syncWorkspaceHash({ workspace: "practice", practicePage: "lessons" });
+                }
+                return;
+            }
             setWorkspaceState(route.workspace);
             setPracticePage(route.practicePage);
-            setActivePanel(route.workspace);
+            setActivePanel(practiceOnly ? null : route.workspace);
             setPanelToGoBack(null);
             setAlternativeHeader(false);
             setItemToEdit(null);
@@ -117,7 +128,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
         window.addEventListener("hashchange", onHashChange);
         return () => window.removeEventListener("hashchange", onHashChange);
-    }, []);
+    }, [practiceOnly]);
 
     // The typing-surface override belongs to Practice; drop it whenever Practice isn't showing.
     useEffect(() => {

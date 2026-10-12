@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 
-import { Key } from "@/components/Key";
+import { ReadOnlyKey as Key } from "@/components/ReadOnlyKey";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { cn } from "@/lib/utils";
 import type { KeyboardInfo } from "@/types/keyboard.types";
