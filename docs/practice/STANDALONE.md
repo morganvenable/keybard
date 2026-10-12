@@ -1,4 +1,4 @@
-# Svalbr standalone preview
+# practice standalone
 
 Svalbr is a trainer-only entry point built from the existing Keybard Practice engine and UI. Its own sidebar offers Guided, Drill, Words, Custom, and Progress. The Keybard editor and Overlay entry point remain available through the existing build commands.
 
@@ -11,7 +11,7 @@ npm run dev:svalbr
 
 Open http://127.0.0.1:5188/. For this checkout, dependencies are already available through a local junction to the Practice checkout; a fresh checkout should use `npm ci`.
 
-Connect a Svalboard in Chrome/Edge, import a keymap, or choose the QWERTY example. Choose a starting goal and then use the sidebar to change modes. Lesson settings opens the trainer controls; Progress & data includes profiles, export, import, and reset. The keymap chooser lives at the bottom of the sidebar. The mobile navigation opens from the menu button.
+Connect a Svalboard in Chrome/Edge. Import is available under connection troubleshooting; the example is a development-only aid at /?demo. Choose a starting goal and then use the sidebar to change modes. Lesson settings opens the trainer controls; Progress & data includes profiles, export, import, and reset. The keymap chooser lives at the bottom of the sidebar. The mobile navigation opens from the menu button.
 
 ## Independent release artifact
 
@@ -20,7 +20,7 @@ npm run build:svalbr
 npm run preview:svalbr
 ```
 
-The standalone build writes `dist-svalbr/`, with its own HTML entry and title. It can be deployed independently to any static HTTPS host. It uses `/` as its default base path; set `VITE_BASE_PATH` for subdirectory hosting. Hosting has intentionally not been selected or configured yet.
+The standalone build writes `dist-svalbr/`, with its own HTML entry and title. It can be deployed independently to any static HTTPS host. It uses `/` as its default base path; set `VITE_BASE_PATH` for subdirectory hosting. The production domain is https://practice.svalboard.com. The independent Pages workflow lives in https://github.com/svalboard/practice and builds an explicitly selected commit from morganvenable/keybard. Dispatch deploy.yml there with the full source commit SHA as ref.
 
 `.env.svalbr` sets the `svalbr` storage namespace, separating settings and the Practice IndexedDB database from Keybard even when hosted on the same origin. No existing Keybard progress is modified or automatically migrated. To transfer progress, export from the integrated Practice UI and import in the standalone Progress & data panel. Browser storage remains origin-specific; export before moving to a new host.
 
@@ -49,3 +49,5 @@ The standalone sidebar follows Keybr's content types: Guided, Words, Books, Cust
 Content selections persist in the standalone settings namespace. The original integrated mode picker still offers its four established modes. The prototype is English-only; it does not claim Keybr's full multilingual content catalog or account features.
 
 Upstream revision and adaptations are recorded in `src/features/practice/vendor/CONTENT-SOURCES.md`. Browser checks use isolated headless Chrome on the local preview; they do not open or control the hosted Keybard trainer.
+
+The displayed product name is **practice**. Internal svalbr build commands and storage names are retained to preserve existing local progress.

@@ -21,14 +21,14 @@ export default function FirmwareStatus({ keyboard, isConnected, failure, error }
                 update = true;
                 break;
             case 'outdated-sval':
-                message = `Sval protocol ${failure.svilProto ?? '?'} is too old for svalbr. Update your board, then reconnect.`;
+                message = `Sval protocol ${failure.svilProto ?? '?'} is too old for practice. Update your board, then reconnect.`;
                 update = true;
                 break;
             case 'no-response':
                 message = 'The board did not respond. Close other keyboard apps or tabs, unplug and reconnect the board, then try again.';
                 break;
             case 'other-qmk':
-                message = 'svalbr needs a Svalboard running Svalboard QMK firmware.';
+                message = 'practice needs a Svalboard running Svalboard QMK firmware.';
                 break;
             default:
                 message = 'Could not identify the firmware. Reconnect your Svalboard and try again. If it still fails, check its firmware in Keybard.';
@@ -37,7 +37,7 @@ export default function FirmwareStatus({ keyboard, isConnected, failure, error }
         message = error;
     } else if (isConnected && keyboard) {
         if (keyboard.keycode_version && !isKnownKeycodeVersion(keyboard.keycode_version)) {
-            message = `This board uses keycode numbering ${keyboard.keycode_version}, which svalbr does not recognize. Key labels and hints may be incorrect. Update svalbr to support this firmware.`;
+            message = `This board uses keycode numbering ${keyboard.keycode_version}, which practice does not recognize. Key labels and hints may be incorrect. Update practice to support this firmware.`;
         } else if (((keyboard.feature_flags ?? 0) & 0x60) !== 0x60) {
             // GET_INFO: context layer (0x20) and default layer state (0x40).
             message = 'This firmware does not report all layer information. On-screen keys and hints may be incorrect when switching layers. Update your Svalboard firmware, then reconnect.';
@@ -45,5 +45,5 @@ export default function FirmwareStatus({ keyboard, isConnected, failure, error }
         }
     }
     if (!message) return null;
-    return <div role="alert" className="svalbr-error"><p>{message}{update && <> Get <FirmwareLink />.</>}</p></div>;
+    return <div role="alert" className="practice-error"><p>{message}{update && <> Get <FirmwareLink />.</>}</p></div>;
 }

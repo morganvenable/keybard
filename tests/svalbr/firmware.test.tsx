@@ -18,7 +18,7 @@ it.each([0, 0x20, 0x40])('warns when layer reporting is incomplete (%s)', flags 
 });
 it('asks for an app update for unknown keycodes, not a firmware update', () => {
     render(<FirmwareStatus keyboard={board(0x60, '99.0.0')} isConnected />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Update svalbr');
+    expect(screen.getByRole('alert')).toHaveTextContent('Update practice');
     expect(screen.queryByRole('link')).toBeNull();
 });
 it('explains old Vial firmware and preserving the layout', () => {

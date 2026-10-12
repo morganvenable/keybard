@@ -79,7 +79,7 @@ export function AboutRow() {
                     <a className={link} href={SVALBR_URL} target="_blank" rel="noreferrer">svalbr by River<ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /></a>
                     <p className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                         <span>Practice is licensed AGPL-3.0</span>
-                        <a className="underline underline-offset-4" href={KEYBARD_SOURCE_URL} target="_blank" rel="noreferrer">Source</a>
+                        <a className="underline underline-offset-4" href={import.meta.env.MODE === "svalbr" ? `https://github.com/morganvenable/keybard/tree/${__GIT_SHA__}` : KEYBARD_SOURCE_URL} target="_blank" rel="noreferrer">Source</a>
                     </p>
                 </Popover.Content>
             </Popover.Portal>

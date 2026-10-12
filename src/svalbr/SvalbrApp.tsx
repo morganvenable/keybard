@@ -54,7 +54,7 @@ function Trainer() {
     const type = effectiveLessonType(c?.settings.type ?? "guided");
     const mode = MODES.find(m => m.id === type)!;
     const progress = practicePage === "progress";
-    const title = progress ? "Your progress" : practicePage === "lab" ? "Input lab" : c?.session?.firstRun ? "Welcome to svalbr" : mode.title;
+    const title = progress ? "Your progress" : practicePage === "lab" ? "Input lab" : c?.session?.firstRun ? "Welcome to practice" : mode.title;
     const pending = busy || isChangingTarget || isImporting || connectionState === "connecting" || connectionState === "loading";
     const panelOpen = !!activePanel;
 
@@ -80,7 +80,7 @@ function Trainer() {
         <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />Connect Svalboard</button>
 
         {developmentPreview && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void example()}>Try QWERTY example<ChevronRight size={16} /></button>}
-        {!isWebHIDSupported && <p className="svalbr-help">Open svalbr in Chrome or Edge to connect your Svalboard.</p>}
+        {!isWebHIDSupported && <p className="svalbr-help">Open practice in Chrome or Edge to connect your Svalboard.</p>}
         {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
     </>;
 
@@ -90,10 +90,10 @@ function Trainer() {
             if (file) void task(() => loadFromFile(file));
         }} />
         <div className="svalbr-app">
-            <aside className="svalbr-sidebar" aria-label="svalbr navigation">
+            <aside className="svalbr-sidebar" aria-label="practice navigation">
                 <a className="svalbr-brand" href="#practice" onClick={() => { setPracticePage("lessons"); setNavOpen(false); }}>
                     <span className="svalbr-mark"><SvalboardLogo className="size-7" role="img" aria-label="Svalboard" /></span>
-                    <strong>svalbr</strong>
+                    <strong>practice</strong>
                 </a>
                 <button className="svalbr-mobile-menu svalbr-icon" aria-label={navOpen ? "Close navigation" : "Open navigation"} aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
                 <div className={cn("svalbr-nav-body", navOpen && "is-open")}>
