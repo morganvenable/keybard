@@ -3,7 +3,9 @@ import { PlugZap } from "lucide-react";
 import { listPermittedDevices } from "@/contexts/KeyboardContext";
 
 /** Boards already authorized for this origin, using Keybard's direct-connect flow. */
-export default function PreviouslyConnectedBoards({ enabled = true, disabled = false, refreshKey, onConnect }: {
+export default function PreviouslyConnectedBoards({ enabled = true, disabled = false, refreshKey, onConnect, excludeDevice, label = "or reconnect without the chooser" }: {
+    excludeDevice?: (device: HIDDevice) => boolean;
+    label?: string;
     enabled?: boolean;
     disabled?: boolean;
     refreshKey?: unknown;
@@ -29,10 +31,11 @@ export default function PreviouslyConnectedBoards({ enabled = true, disabled = f
             window.removeEventListener("focus", refresh);
         };
     }, [enabled, refreshKey]);
-    if (!enabled || devices.length === 0) return null;
+    const available = devices.filter(device => !excludeDevice?.(device));
+    if (!enabled || available.length === 0) return null;
     return <div className="flex flex-col gap-1 w-full max-w-sm mx-auto" data-testid="known-devices">
-        <span className="text-[11px] text-muted-foreground text-center">or reconnect without the chooser</span>
-        {devices.map((device, index) => <button
+        <span className="text-[11px] text-muted-foreground text-center">{label}</span>
+        {available.map((device, index) => <button
             type="button"
             key={`${device.vendorId}:${device.productId}:${index}`}
             onClick={() => onConnect(device)}

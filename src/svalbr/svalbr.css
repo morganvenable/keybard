@@ -107,3 +107,5 @@
     .svalbr-connection-bar { padding: 8px 16px; }
     .svalbr-main main, .svalbr-welcome, .svalbr-main [data-practice-page] { min-height: calc(100dvh - 119px); }
 }
+
+.svalbr-connected-board { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px; text-align: left; font-size: 14px; }

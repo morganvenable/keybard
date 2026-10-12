@@ -1,3 +1,4 @@
+import { usbInstance } from "@/services/usb.service";
 import PreviouslyConnectedBoards from "@/components/PreviouslyConnectedBoards";
 import FirmwareStatus from "./FirmwareStatus";
 import SvalboardLogo from "@/components/Logo";
@@ -78,12 +79,17 @@ function Trainer() {
         c?.update({ type: id }); setPracticePage("lessons"); handleCloseDetails(); setNavOpen(false);
     };
     const sourceControls = <>
-        <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />Connect Svalboard</button>
+        {isConnected && <div className="svalbr-connected-board">
+            <PlugZap size={20} aria-hidden="true" />
+            <div className="min-w-0 flex-1"><strong className="block break-words">{loadedFrom || keyboard?.name || "Svalboard"}</strong><span className="text-xs text-kb-primary">Connected</span></div>
+            <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect</button>
+        </div>}
 
-        <PreviouslyConnectedBoards enabled={isWebHIDSupported} disabled={pending} refreshKey={`${sourceOpen}:${isConnected}`} onConnect={device => void task(() => connectDevice(device))} />
+        <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />{isConnected ? "Connect another board" : "Connect Svalboard"}</button>
+
+        <PreviouslyConnectedBoards enabled={isWebHIDSupported} disabled={pending} refreshKey={`${sourceOpen}:${isConnected}`} excludeDevice={device => isConnected && usbInstance.hasDevice(device)} label={isConnected ? "Other available boards" : "or reconnect without the chooser"} onConnect={device => void task(() => connectDevice(device))} />
         {developmentPreview && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void example()}>Try QWERTY example<ChevronRight size={16} /></button>}
         {!isWebHIDSupported && <p className="svalbr-help">Open practice in Chrome or Edge to connect your Svalboard.</p>}
-        {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
     </>;
 
     return <PracticePresentation.Provider value={{ standalone: true, title, chooseKeymap: () => setSourceOpen(true), actions: canPractice ? <button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button> : null }}>
@@ -139,7 +145,7 @@ function Trainer() {
         </Dialog.Root>
         <Dialog.Root open={sourceOpen} onOpenChange={setSourceOpen}><Dialog.Portal><Dialog.Overlay className="svalbr-dialog-overlay" /><Dialog.Content className="svalbr-source-dialog">
             <div className="svalbr-dialog-heading"><Dialog.Title>Your Svalboard</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
-            <Dialog.Description className="svalbr-help">Connect your board to practice with its current layout.</Dialog.Description>
+            <Dialog.Description className="sr-only">View your connected board or choose another Svalboard.</Dialog.Description>
             <div className="svalbr-source-actions">{sourceControls}</div>
             <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !canPractice ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />
         </Dialog.Content></Dialog.Portal></Dialog.Root>

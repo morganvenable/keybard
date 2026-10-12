@@ -1,3 +1,4 @@
+import PreviouslyConnectedBoards from "../../src/components/PreviouslyConnectedBoards";
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ConnectKeyboard from '../../src/components/ConnectKeyboard';
@@ -66,6 +67,19 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         fireEvent.click(button);
         await waitFor(() => expect(keyboardContext.connectDevice).toHaveBeenCalledWith(scanlab));
         expect(keyboardContext.connect).not.toHaveBeenCalled();
+    });
+
+    it('excludes only the active device, retaining a second board with the same name', async () => {
+        const hid = navigator.hid as unknown as { getDevices: ReturnType<typeof vi.fn> };
+        const current = fakeDevice('Svalboard Right', 0x4049, [[0xff61, 0x62]]);
+        const other = fakeDevice('Svalboard Right', 0x4049, [[0xff61, 0x62]]);
+        hid.getDevices.mockResolvedValue([current, other]);
+        const connect = vi.fn();
+        render(<PreviouslyConnectedBoards excludeDevice={device => device === current} label="Other available boards" onConnect={connect} />);
+        const button = await screen.findByRole('button', { name: 'Svalboard Right' });
+        expect(screen.getAllByRole('button')).toHaveLength(1);
+        fireEvent.click(button);
+        expect(connect).toHaveBeenCalledWith(other);
     });
 
     it('refreshes remembered boards when returning to the window', async () => {
