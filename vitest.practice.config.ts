@@ -6,7 +6,9 @@ export default defineConfig({
   ...base,
   test: {
     ...base.test,
-    maxWorkers: 4,
+    // Instrumented full-provider UI tests need more time on small CI runners.
+    maxWorkers: process.env.CI ? 2 : 4,
+    testTimeout: 20000,
     include: ['tests/practice/**/*.test.{ts,tsx}', 'tests/svalbr/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
