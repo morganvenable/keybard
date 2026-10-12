@@ -33,6 +33,7 @@ async function start() {
     fireEvent.click(screen.getByRole('button', { name: 'Learn from the center keys' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start', exact: true }));
     await screen.findByLabelText('Practice text');
+    expect(screen.queryByText(/Board disconnected/)).toBeNull();
 }
 
 it('starts from the example, types, switches modes, opens settings and shows progress without editor providers', async () => {

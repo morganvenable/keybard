@@ -107,7 +107,7 @@ function Trainer() {
             </aside>
             <div className="svalbr-main">
 
-                {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !isConnected ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />}
+                {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !canPractice ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
                     {canPractice ? <PracticeWorkspace /> : <section className="svalbr-welcome">
@@ -132,7 +132,7 @@ function Trainer() {
             <div className="svalbr-dialog-heading"><Dialog.Title>Your Svalboard</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
             <Dialog.Description className="svalbr-help">Connect your board to practice with its current layout.</Dialog.Description>
             <div className="svalbr-source-actions">{sourceControls}</div>
-            <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !isConnected ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />
+            <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !canPractice ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />
         </Dialog.Content></Dialog.Portal></Dialog.Root>
     </PracticePresentation.Provider>;
 }
