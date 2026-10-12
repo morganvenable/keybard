@@ -93,7 +93,7 @@ function Trainer() {
             <aside className="svalbr-sidebar" aria-label="svalbr navigation">
                 <a className="svalbr-brand" href="#practice" onClick={() => { setPracticePage("lessons"); setNavOpen(false); }}>
                     <span className="svalbr-mark"><SvalboardLogo className="size-7" role="img" aria-label="Svalboard" /></span>
-                    <span><strong>svalbr</strong><small>Svalboard typing practice</small></span>
+                    <strong>svalbr</strong>
                 </a>
                 <button className="svalbr-mobile-menu svalbr-icon" aria-label={navOpen ? "Close navigation" : "Open navigation"} aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
                 <div className={cn("svalbr-nav-body", navOpen && "is-open")}>
