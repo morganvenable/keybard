@@ -12,19 +12,16 @@
 .svalbr-nav-item:disabled { opacity: .5; cursor: default; }
 .svalbr-nav-divider { height: 1px; background: var(--border); margin: 23px 10px; }
 .svalbr-sidebar-bottom { margin-top: auto; padding-top: 30px; }
-.svalbr-source { display: flex; gap: 9px; align-items: center; width: 100%; padding: 12px 8px; border-top: 1px solid var(--border); text-align: left; cursor: pointer; }
-.svalbr-source span { flex: 1; min-width: 0; }
-.svalbr-source strong { font-size: 11px; font-weight: 550; }
-.svalbr-source small { display: block; font-size: 10px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+.svalbr-connection-bar { display: flex; align-items: center; height: 48px; padding: 8px 28px; }
 .svalbr-sidebar-footer { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--muted-foreground); padding: 9px 8px 0; }
 .svalbr-sidebar-footer a:hover { text-decoration: underline; }
 .svalbr-icon { display: inline-flex; padding: 7px; align-items: center; justify-content: center; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
 .svalbr-icon:hover { background: var(--kb-gray); }
 .svalbr-main { flex: 1; min-width: 0; }
 .svalbr-topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 76px; padding: 16px 32px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
-.svalbr-main main { min-height: 100dvh; }
-.svalbr-main [data-practice-page] { padding: 20px 28px; min-height: 100dvh; gap: 10px; }
-.svalbr-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; width: 100%; padding: 32px; text-align: center; }
+.svalbr-main main { min-height: calc(100dvh - 48px); }
+.svalbr-main [data-practice-page] { padding: 20px 28px; min-height: calc(100dvh - 48px); gap: 10px; }
+.svalbr-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 48px); width: 100%; padding: 32px; text-align: center; }
 .svalbr-welcome-sprout { color: var(--kb-primary); margin-bottom: 16px; flex-shrink: 0; }
 .svalbr-welcome h1 { font-size: 24px; line-height: 1.3; letter-spacing: -.5px; font-weight: 550; margin: 0 0 20px; }
 .svalbr-welcome .svalbr-source-actions { justify-content: center; margin: 0; }
@@ -107,5 +104,6 @@
 /* On mobile the header is in normal flow; center within the remaining viewport. */
 @media (max-width: 760px) {
     .svalbr-brand { padding-bottom: 0; }
-    .svalbr-main main, .svalbr-welcome { min-height: calc(100dvh - 71px); }
+    .svalbr-connection-bar { padding: 8px 16px; }
+    .svalbr-main main, .svalbr-welcome, .svalbr-main [data-practice-page] { min-height: calc(100dvh - 119px); }
 }

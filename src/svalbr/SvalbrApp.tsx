@@ -1,14 +1,13 @@
 import PreviouslyConnectedBoards from "@/components/PreviouslyConnectedBoards";
 import FirmwareStatus from "./FirmwareStatus";
 import SvalboardLogo from "@/components/Logo";
-import KeyboardIcon from "@/components/icons/Keyboard";
 import Settings2Icon from "@/components/icons/Settings2Icon";
 import { useEffect, useState } from "react";
-import { BarChart3, BookOpen, Code, Hash, Library, ChevronRight, FileText, Loader2, Menu, Moon, Sprout, Sun, Target, PlugZap, Unplug, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Code, Hash, Library, ChevronDown, ChevronRight, FileText, Loader2, Menu, Moon, Sprout, Sun, Target, PlugZap, Unplug, X, type LucideIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
 import ThemeSync from "@/components/ThemeSync";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { PILL_BRAND, PILL_QUIET } from "@/components/shared/pills";
+import { PILL_BRAND, PILL_INK, PILL_QUIET } from "@/components/shared/pills";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
 import { KeyboardProvider, useKeyboard } from "@/contexts/KeyboardContext";
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -103,12 +102,19 @@ function Trainer() {
                         <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!canPractice} onClick={() => { c?.dismissStart(); setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
                     </nav>
                     <div className="svalbr-sidebar-bottom">
-                        <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : canPractice ? "Preview keymap" : "Connect your Svalboard"}</strong><small>{canPractice ? loadedFrom : "Connect via USB"}</small></span><ChevronRight size={15} /></button>
+
                         <div className="svalbr-sidebar-footer"><a href="https://svalboard.com" target="_blank" rel="noreferrer">A Svalboard tool</a><button type="button" className="svalbr-icon" aria-label={getSetting("theme") === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => updateSetting("theme", getSetting("theme") === "dark" ? "light" : "dark")}>{getSetting("theme") === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button></div>
                     </div>
                 </div>
             </aside>
             <div className="svalbr-main">
+                <div className="svalbr-connection-bar" aria-label="Board connection">
+                    <button type="button" className={cn(PILL_INK, "svalbr-source max-w-full")} disabled={pending} aria-label={isConnected ? `Svalboard connected: ${loadedFrom}. Change board` : canPractice ? "Preview keymap. Change board" : "Connect your Svalboard"} aria-haspopup="dialog" aria-expanded={sourceOpen} onClick={() => setSourceOpen(true)}>
+                        {isConnected ? <PlugZap /> : <Unplug />}
+                        <span className="truncate">{pending ? "Connecting?" : isConnected ? loadedFrom || "Svalboard connected" : canPractice ? "Preview keymap" : "Connect"}</span>
+                        <ChevronDown />
+                    </button>
+                </div>
 
                 {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !canPractice ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
