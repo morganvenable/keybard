@@ -24,7 +24,7 @@ import { speedToTime, timeToSpeed } from '../vendor/keybr/result/index.ts';
 import type { CharacterStats } from './progressView';
 
 export type HeatMetric = 'speed' | 'accuracy' | 'errors' | 'usage';
-export const HEAT_METRICS: readonly HeatMetric[] = ['speed', 'accuracy', 'errors', 'usage'];
+export const HEAT_METRICS: readonly HeatMetric[] = ['errors', 'speed', 'accuracy', 'usage'];
 
 /** A heat face (§5.0.2): far, mid, near or at target for Speed, Accuracy and Errors; the blue ramp for Usage. */
 export type HeatLevel = 'far' | 'mid' | 'near' | 'target' | 'use-1' | 'use-2' | 'use-3' | 'use-4' | 'none';

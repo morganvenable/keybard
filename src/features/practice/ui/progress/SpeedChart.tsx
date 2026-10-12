@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../../presentation";
 import { useRef, useState, type MouseEvent } from "react";
 
 import type { ChartPoint } from "../../state/progressView";
@@ -12,7 +13,6 @@ import { formatDate, formatDateTime, formatSpeed, lessonTypeLabel, speedValue } 
 // SVG draws at the measured width (at least 320 px) and scales down through its viewBox when its
 // container is narrower, so the right-end labels are never clipped.
 
-const HEIGHT = 240;
 const M = { left: 44, right: 132, top: 12, bottom: 28 };
 
 interface SpeedChartProps {
@@ -30,6 +30,8 @@ function niceMax(value: number): number {
 }
 
 export function SpeedChart({ points, unit, target, axis }: SpeedChartProps) {
+    const { standalone } = usePracticePresentation();
+    const HEIGHT = standalone ? 160 : 240;
     const box = useRef<HTMLDivElement | null>(null);
     const width = Math.max(320, useSettledWidth(box, 120) || 640);
     const [hover, setHover] = useState<number | null>(null);

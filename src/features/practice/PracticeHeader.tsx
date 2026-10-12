@@ -16,7 +16,7 @@ const PAGES: { id: Exclude<PracticePage, "lab">; title: string }[] = [
 
 export function PracticeHeader({ right }: { right?: ReactNode }) {
     const { practicePage, setPracticePage } = usePanels();
-    const { standalone, title } = usePracticePresentation();
+    const { standalone, title, actions } = usePracticePresentation();
     return (
         <header className="flex items-center gap-4 flex-wrap">
             <h1 className="text-[22px] font-semibold leading-none text-kb-ink">{title}</h1>
@@ -41,7 +41,7 @@ export function PracticeHeader({ right }: { right?: ReactNode }) {
                     );
                 })}
             </nav>}
-            {right && <div className="ml-auto flex items-center gap-2 min-w-0">{right}</div>}
+            {(right || actions) && <div className="ml-auto flex items-center gap-4 min-w-0">{right}{actions}</div>}
         </header>
     );
 }

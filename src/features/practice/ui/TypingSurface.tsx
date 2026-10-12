@@ -193,7 +193,7 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
             <div
                 aria-hidden="true"
                 className={cn("overflow-hidden font-medium tabular-nums transition-[filter,opacity]", compact ? "text-[22px] leading-[32px]" : "text-[28px] leading-[40px]", showPaused && "blur-[3px] opacity-60")}
-                style={{ height: lineHeight * 3 }}
+                style={{ height: lineHeight * (standalone ? 2 : 3) }}
             >
                 <div ref={innerRef} className="relative break-words" style={{ transform: offset ? `translateY(-${offset}px)` : undefined }}>
                     {words.map((word, i) => (

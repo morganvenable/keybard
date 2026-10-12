@@ -155,7 +155,7 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     announceNextKey: false,
     period: '30',
     chartAxis: 'lessons',
-    heatMetric: 'speed',
+    heatMetric: 'errors',
     exportKeystrokes: true,
     customText: { content: 'The quick brown fox jumps over the lazy dog.', lowercase: true, lettersOnly: true, randomize: false },
     drill: DEFAULT_DRILL,

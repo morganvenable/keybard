@@ -53,7 +53,7 @@ function Trainer() {
     const type = effectiveLessonType(c?.settings.type ?? "guided");
     const mode = MODES.find(m => m.id === type)!;
     const progress = practicePage === "progress";
-    const title = progress ? "Your progress" : practicePage === "lab" ? "Input lab" : c?.session?.firstRun ? "Welcome to Svalbr" : mode.title;
+    const title = progress ? "Your progress" : practicePage === "lab" ? "Input lab" : c?.session?.firstRun ? "Welcome to svalbr" : mode.title;
     const pending = busy || isChangingTarget || isImporting || connectionState === "connecting" || connectionState === "loading";
     const panelOpen = !!activePanel;
 
@@ -82,16 +82,16 @@ function Trainer() {
         {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
     </>;
 
-    return <PracticePresentation.Provider value={{ standalone: true, title, chooseKeymap: () => setSourceOpen(true) }}>
+    return <PracticePresentation.Provider value={{ standalone: true, title, chooseKeymap: () => setSourceOpen(true), actions: keyboard ? <button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button> : null }}>
         <input ref={input} type="file" accept=".svil,.vil,.kbi,.json" className="sr-only" aria-label="Import a keymap" onChange={e => {
             const file = e.target.files?.[0]; e.target.value = "";
             if (file) void task(() => loadFromFile(file));
         }} />
         <div className="svalbr-app">
-            <aside className="svalbr-sidebar" aria-label="Svalbr navigation">
+            <aside className="svalbr-sidebar" aria-label="svalbr navigation">
                 <a className="svalbr-brand" href="#practice" onClick={() => { setPracticePage("lessons"); setNavOpen(false); }}>
                     <span className="svalbr-mark"><SvalboardLogo className="size-7" role="img" aria-label="Svalboard" /></span>
-                    <span><strong>Svalbr</strong><small>Svalboard typing practice</small></span>
+                    <span><strong>svalbr</strong><small>Svalboard typing practice</small></span>
                 </a>
                 <button className="svalbr-mobile-menu svalbr-icon" aria-label={navOpen ? "Close navigation" : "Open navigation"} aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
                 <div className={cn("svalbr-nav-body", navOpen && "is-open")}>
@@ -108,7 +108,7 @@ function Trainer() {
                 </div>
             </aside>
             <div className="svalbr-main">
-                {keyboard && <div className="svalbr-topbar"><button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button></div>}
+
                 {(error || connectionError) && <div role="alert" className="svalbr-error">{error || connectionError}<button className="svalbr-icon" aria-label="Choose another keymap" onClick={() => setSourceOpen(true)}><ChevronRight size={16} /></button></div>}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>

@@ -23,8 +23,8 @@
 .svalbr-icon:hover { background: var(--kb-gray); }
 .svalbr-main { flex: 1; min-width: 0; }
 .svalbr-topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 76px; padding: 16px 32px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
-.svalbr-main main { min-height: calc(100dvh - 76px); }
-.svalbr-main [data-practice-page] { padding: 20px 32px; min-height: calc(100dvh - 76px); gap: 12px; }
+.svalbr-main main { min-height: 100dvh; }
+.svalbr-main [data-practice-page] { padding: 20px 28px; min-height: 100dvh; gap: 10px; }
 .svalbr-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; width: 100%; padding: 32px; text-align: center; }
 .svalbr-welcome-sprout { color: var(--kb-primary); margin-bottom: 16px; flex-shrink: 0; }
 .svalbr-welcome h1 { font-size: 24px; line-height: 1.3; letter-spacing: -.5px; font-weight: 550; margin: 0 0 20px; }
@@ -55,7 +55,7 @@
     .svalbr-topbar { padding: 12px 18px; min-height: 64px; }
     .svalbr-topbar > span { max-width: 45%; font-size: 11px; }
     .svalbr-main [data-practice-page] { padding: 24px 16px; gap: 18px; }
-    .svalbr-welcome { min-height: calc(100dvh - 76px); padding: 28px 18px; }
+    .svalbr-welcome { min-height: 100dvh; padding: 28px 18px; }
     .svalbr-welcome .svalbr-source-actions { flex-direction: column; }
     .svalbr-desktop { display: none; }
 }
@@ -78,3 +78,27 @@
 .svalbr-content-directions [aria-pressed="true"] { background: var(--kb-active); color: var(--kb-active-fg); }
 .svalbr-nav-item { padding-top: 10px; padding-bottom: 10px; }
 @media (max-width: 760px) { .svalbr-content select { max-width: 220px; } }
+
+/* Dense workspace: one header row, compact metrics, and space for the actual board. */
+.svalbr-main [data-stat] { gap: 3px; }
+.svalbr-main [data-stat] > span:last-child:empty { display: none; }
+.svalbr-main [data-stat] > span:nth-child(2) > span { font-size: 24px; }
+.svalbr-main [data-stat] svg { width: 28px; height: 28px; }
+.svalbr-main [data-practice-text-card] { padding: 16px 24px 36px; }
+.svalbr-main [data-practice-start] { padding: 18px; gap: 14px; }
+.svalbr-main [data-practice-start] [aria-label="Goal"] button { padding-top: 12px; padding-bottom: 12px; }
+.svalbr-main [data-progress-section] { gap: 6px; }
+.svalbr-main [data-progress-section="Summary"] > div:first-child { display: none; }
+.svalbr-main [data-progress-section="Speed"] > div:last-child { padding: 10px 16px; }
+.svalbr-main [data-progress-section="Keyboard"] > div:first-child { align-items: center; }
+.svalbr-main [data-progress-section="Keyboard"] > div:first-child > div:last-child { flex-wrap: wrap; }
+.svalbr-main [data-practice-metrics] { padding: 4px 0; }
+.svalbr-main [data-practice-type-row] > div > div { height: 24px; }
+.svalbr-content { padding: 8px 12px; }
+.svalbr-content input { accent-color: var(--kb-primary); }
+.svalbr-brand { padding-bottom: 24px; }
+.svalbr-nav-divider { margin-top: 14px; margin-bottom: 14px; }
+@media (max-width: 760px) {
+    .svalbr-main [data-practice-page] { padding: 16px; gap: 10px; }
+    .svalbr-main [data-practice-page] > header > div { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+}

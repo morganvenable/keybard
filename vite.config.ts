@@ -67,7 +67,7 @@ export default defineConfig(({ mode }) => {
             name: "svalbr-entry",
             transformIndexHtml: { order: "pre" as const, handler: (html: string) => html
                 .replace("/main.tsx", "/svalbr/main.tsx")
-                .replace("<title>KeyBard</title>", "<title>Svalbr - Svalboard typing practice</title><meta name=\"description\" content=\"Build speed and confidence on your Svalboard with guided lessons, focused drills, and personal progress.\" />") },
+                .replace("<title>KeyBard</title>", "<title>svalbr - Svalboard typing practice</title><meta name=\"description\" content=\"Build speed and confidence on your Svalboard with guided lessons, focused drills, and personal progress.\" />") },
         }] : []),
         react(),
         tailwindcss(),

@@ -1,3 +1,4 @@
+import { usePracticePresentation } from "../../presentation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Notice } from "@/components/shared/Notice";
@@ -66,6 +67,7 @@ function useEventStats(controller: PracticeController | null, records: readonly 
 
 export default function ProgressPage({ active = true }: { active?: boolean }) {
     const controller = usePractice();
+    const { standalone } = usePracticePresentation();
     const { setPracticePage } = usePanels();
     const session = controller?.session ?? null;
     const settings = controller?.settings;
@@ -109,7 +111,7 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
     }, [session, view, board]);
 
     const [chosenLayer, setChosenLayer] = useState<number | null>(null);
-    const metric = settings?.heatMetric ?? "speed";
+    const metric = settings?.heatMetric ?? "errors";
     const target = settings?.targetSpeed ?? 175;
 
     // The heatmap's keys on the chosen layer and the usage quartiles of what each section shows.
@@ -224,8 +226,8 @@ export default function ProgressPage({ active = true }: { active?: boolean }) {
                     )}
                 </div>
             </Section>
-            <Section title="Keyboard" suffix={inferred} scale={<HeatScale metric={metric} targetSpeed={target} unit={unit} quartiles={keyQuartiles} />}>
-                <HeatToolbar metric={metric} onMetric={(heatMetric) => controller.update({ heatMetric })} layers={layers} layer={layer} onLayer={setChosenLayer} board={board} />
+            <Section title="Keyboard" suffix={inferred} scale={<HeatScale metric={metric} targetSpeed={target} unit={unit} quartiles={keyQuartiles} />} tools={standalone ? <HeatToolbar metric={metric} onMetric={(heatMetric) => controller.update({ heatMetric })} layers={layers} layer={layer} onLayer={setChosenLayer} board={board} /> : undefined}>
+                {!standalone && <HeatToolbar metric={metric} onMetric={(heatMetric) => controller.update({ heatMetric })} layers={layers} layer={layer} onLayer={setChosenLayer} board={board} />}
                 <HeatmapBoard board={board} layoutId={session.keymap.layoutId} defaultLayer={defaultLayer} layer={layer} keys={heatKeys}
                     metric={metric} quartiles={keyQuartiles} physical={physical.totals} p5={p5} />
             </Section>
