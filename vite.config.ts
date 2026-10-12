@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
     const paranoid = mode === "paranoid";
     const standalone = mode === "svalbr";
     return {
-    base: env.VITE_BASE_PATH || "/keybard-ng/",
+    base: env.VITE_BASE_PATH || "/",
     plugins: [
         ...(standalone ? [{
             name: "svalbr-entry",

@@ -1,6 +1,6 @@
 # practice standalone
 
-Svalbr is a trainer-only entry point built from the existing Keybard Practice engine and UI. Its own sidebar offers Guided, Drill, Words, Custom, and Progress. The Keybard editor and Overlay entry point remain available through the existing build commands.
+practice is a trainer-only entry point built from the existing Keybard Practice engine and UI. Its own sidebar offers Guided, Words, Books, Custom, Source code, Numbers, Drill, and Progress. The Keybard editor and Overlay entry point remain available through the existing build commands.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ npm run dev:svalbr
 
 Open http://127.0.0.1:5188/. For this checkout, dependencies are already available through a local junction to the Practice checkout; a fresh checkout should use `npm ci`.
 
-Connect a Svalboard in Chrome/Edge. Import is available under connection troubleshooting; the example is a development-only aid at /?demo. Choose a starting goal and then use the sidebar to change modes. Lesson settings opens the trainer controls; Progress & data includes profiles, export, import, and reset. The keymap chooser lives at the bottom of the sidebar. The mobile navigation opens from the menu button.
+Connect a Svalboard in Chrome/Edge. The example is a development-only aid at /?demo. A disconnected board returns to the connection screen without clearing saved progress. Choose a starting goal and then use the sidebar to change modes. Lesson settings opens the trainer controls; Progress & data includes profiles, export, import, and reset. The keymap chooser lives at the bottom of the sidebar. The mobile navigation opens from the menu button.
 
 ## Independent release artifact
 
@@ -37,7 +37,7 @@ Real-board USB timing and browser visual checks from the Practice handoff remain
 
 ## Content-selection prototype
 
-The standalone sidebar follows Keybr's content types: Guided, Words, Books, Custom, Source code, and Numbers, with Drill retained for physical keymap practice. Guided starts immediately; other modes show their content controls above the lesson. Changes regenerate the lesson and leave it paused for review.
+The standalone sidebar follows Keybr's content types: Guided, Words, Books, Custom, Source code, and Numbers, with Drill retained for physical keymap practice. Guided starts immediately; other modes show their content controls above the lesson. Changes regenerate the lesson; typing starts it without a click.
 
 - Words: common-word vocabulary size, long-word filtering, and the actual vocabulary preview. Capitals, punctuation, and repetition are available in Lesson settings.
 - Books: Keybr's three English public-domain books, paragraph selection, passage preview, lowercase and letters-only controls. Uses the restored upstream BooksLesson with complete book text.
@@ -51,3 +51,9 @@ Content selections persist in the standalone settings namespace. The original in
 Upstream revision and adaptations are recorded in `src/features/practice/vendor/CONTENT-SOURCES.md`. Browser checks use isolated headless Chrome on the local preview; they do not open or control the hosted Keybard trainer.
 
 The displayed product name is **practice**. Internal svalbr build commands and storage names are retained to preserve existing local progress.
+
+## Repeatable review
+
+`npm test` runs the full repository regression suite. `npm run test:practice:coverage` measures the standalone shell and non-vendored practice code, with 95% line/statement and 85% branch/function gates. `npm run test:practice:browser` starts an isolated preview on port 5190 and uses headless Chromium to check onboarding, first-character capture, pause/resume, dialog isolation, completed lessons, progress persistence, default error heatmap, and all modes at three viewport sizes. Install its browser once with `npx playwright install chromium`.
+
+The `Review practice` GitHub Actions workflow runs these checks, the production build, and the runtime dependency audit. Coverage HTML and browser screenshots are uploaded as the `practice-review` artifact. Hardware timing, firmware flashing, and the native WebHID chooser still need a real board. The browser review uses a development-only example; it cannot establish hardware compatibility.

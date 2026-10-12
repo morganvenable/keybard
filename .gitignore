@@ -8,3 +8,6 @@ coverage/
 docs/dev-sessions/
 
 dist-svalbr
+
+# Generated standalone browser review artifacts
+artifacts/practice-review/

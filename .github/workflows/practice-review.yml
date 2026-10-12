@@ -1,0 +1,44 @@
+name: Review practice
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/svalbr-standalone]
+  pull_request:
+    paths:
+      - 'src/svalbr/**'
+      - 'src/features/practice/**'
+      - 'tests/svalbr/**'
+      - 'tests/practice/**'
+      - 'scripts/review-practice.cjs'
+      - 'vitest*.ts'
+      - 'package*.json'
+      - '.github/workflows/practice-review.yml'
+permissions:
+  contents: read
+concurrency:
+  group: practice-review-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:practice:coverage
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:practice:browser
+      - run: npm run build:svalbr
+      - name: Runtime dependency audit
+        run: npm audit --omit=dev
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: practice-review
+          path: |
+            coverage/practice/
+            artifacts/practice-review/

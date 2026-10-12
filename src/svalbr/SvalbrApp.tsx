@@ -1,9 +1,8 @@
 import FirmwareStatus from "./FirmwareStatus";
 import SvalboardLogo from "@/components/Logo";
 import KeyboardIcon from "@/components/icons/Keyboard";
-import { LayoutImport } from "@/components/icons/LayoutImport";
 import Settings2Icon from "@/components/icons/Settings2Icon";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart3, BookOpen, Code, Hash, Library, ChevronRight, FileText, Loader2, Menu, Moon, Sprout, Sun, Target, PlugZap, Unplug, X, type LucideIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
 import ThemeSync from "@/components/ThemeSync";
@@ -50,13 +49,15 @@ function Trainer() {
     const [sourceOpen, setSourceOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const input = useRef<HTMLInputElement>(null);
     const type = effectiveLessonType(c?.settings.type ?? "guided");
     const mode = MODES.find(m => m.id === type)!;
     const progress = practicePage === "progress";
     const title = progress ? "Your progress" : practicePage === "lab" ? "Input lab" : c?.session?.firstRun ? "Welcome to practice" : mode.title;
     const pending = busy || isChangingTarget || isImporting || connectionState === "connecting" || connectionState === "loading";
     const panelOpen = !!activePanel;
+    const developmentPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
+    const canPractice = !!keyboard && (isConnected || (developmentPreview && loadedFrom === "QWERTY example (demo)"));
+    useEffect(() => { if (!canPractice) c?.setFocused(false); }, [canPractice, c]);
 
     // Modal focus pauses typing, including while a user is changing their keymap.
     useEffect(() => { if (sourceOpen || panelOpen || navOpen) c?.setFocused(false); }, [sourceOpen, panelOpen, navOpen, c]);
@@ -75,7 +76,6 @@ function Trainer() {
     const chooseMode = (id: LessonType) => {
         c?.update({ type: id }); setPracticePage("lessons"); handleCloseDetails(); setNavOpen(false);
     };
-    const developmentPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
     const sourceControls = <>
         <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />Connect Svalboard</button>
 
@@ -84,11 +84,7 @@ function Trainer() {
         {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
     </>;
 
-    return <PracticePresentation.Provider value={{ standalone: true, title, chooseKeymap: () => setSourceOpen(true), actions: keyboard ? <button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button> : null }}>
-        <input ref={input} type="file" accept=".svil,.vil,.kbi,.json" className="sr-only" aria-label="Import a keymap" onChange={e => {
-            const file = e.target.files?.[0]; e.target.value = "";
-            if (file) void task(() => loadFromFile(file));
-        }} />
+    return <PracticePresentation.Provider value={{ standalone: true, title, chooseKeymap: () => setSourceOpen(true), actions: canPractice ? <button type="button" className={PILL_QUIET} disabled={!keyboard} onClick={() => setActivePanel("practice")}><Settings2Icon className="size-4" />{progress ? "Progress & data" : "Lesson settings"}</button> : null }}>
         <div className="svalbr-app">
             <aside className="svalbr-sidebar" aria-label="practice navigation">
                 <a className="svalbr-brand" href="#practice" onClick={() => { setPracticePage("lessons"); setNavOpen(false); }}>
@@ -99,22 +95,22 @@ function Trainer() {
                 <div className={cn("svalbr-nav-body", navOpen && "is-open")}>
                     <p className="svalbr-eyebrow">Practice</p>
                     <nav aria-label="Training modes">
-                        {MODES.map(({ id, title: label, icon: Icon }) => <button type="button" key={id} className={cn("svalbr-nav-item", !progress && type === id && "is-active")} aria-current={!progress && type === id ? "page" : undefined} disabled={!c || !keyboard || c.session?.firstRun} onClick={() => chooseMode(id)}><Icon size={19} strokeWidth={2} /><span>{label}</span></button>)}
+                        {MODES.map(({ id, title: label, icon: Icon }) => <button type="button" key={id} className={cn("svalbr-nav-item", !progress && type === id && "is-active")} aria-current={!progress && type === id ? "page" : undefined} disabled={!c || !canPractice || c.session?.firstRun} onClick={() => chooseMode(id)}><Icon size={19} strokeWidth={2} /><span>{label}</span></button>)}
                         <div className="svalbr-nav-divider" />
-                        <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!keyboard} onClick={() => { setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
+                        <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!canPractice} onClick={() => { setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
                     </nav>
                     <div className="svalbr-sidebar-bottom">
-                        <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : keyboard ? "Keymap loaded" : "Connect your Svalboard"}</strong><small>{loadedFrom ?? "Connect via USB"}</small></span><ChevronRight size={15} /></button>
+                        <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : canPractice ? "Preview keymap" : "Connect your Svalboard"}</strong><small>{canPractice ? loadedFrom : "Connect via USB"}</small></span><ChevronRight size={15} /></button>
                         <div className="svalbr-sidebar-footer"><a href="https://svalboard.com" target="_blank" rel="noreferrer">A Svalboard tool</a><button type="button" className="svalbr-icon" aria-label={getSetting("theme") === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => updateSetting("theme", getSetting("theme") === "dark" ? "light" : "dark")}>{getSetting("theme") === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button></div>
                     </div>
                 </div>
             </aside>
             <div className="svalbr-main">
 
-                {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || connectionError} />}
+                {!sourceOpen && <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !isConnected ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />}
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
-                    {keyboard ? <PracticeWorkspace /> : <section className="svalbr-welcome">
+                    {canPractice ? <PracticeWorkspace /> : <section className="svalbr-welcome">
                         <Sprout className="svalbr-welcome-sprout" size={32} aria-hidden="true" />
                         <h1>Typing practice for your Svalboard.</h1>
                         <div className="svalbr-source-actions">{sourceControls}</div>
@@ -136,8 +132,7 @@ function Trainer() {
             <div className="svalbr-dialog-heading"><Dialog.Title>Your Svalboard</Dialog.Title><Dialog.Close className="svalbr-icon" aria-label="Close keymap dialog"><X size={20} /></Dialog.Close></div>
             <Dialog.Description className="svalbr-help">Connect your board to practice with its current layout.</Dialog.Description>
             <div className="svalbr-source-actions">{sourceControls}</div>
-            {isConnected && <details className="svalbr-help"><summary>Keymap troubleshooting</summary><p>If the board?s keymap could not be read correctly, load a saved copy.</p><button type="button" className={PILL_QUIET} disabled={pending} onClick={() => input.current?.click()}><LayoutImport className="size-4" />Import keymap</button></details>}
-            <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || connectionError} />
+            <FirmwareStatus keyboard={keyboard} isConnected={isConnected} failure={connectionFirmware} error={error || (connectionState === "offline" && !isConnected ? "Board disconnected. Reconnect to continue; your saved progress is unchanged." : connectionError)} />
         </Dialog.Content></Dialog.Portal></Dialog.Root>
     </PracticePresentation.Provider>;
 }

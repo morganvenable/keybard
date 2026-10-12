@@ -110,9 +110,9 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
             if (event.key.length !== 1) return;
             if (textarea.closest('[inert]') || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return;
             const target = event.target instanceof HTMLElement ? event.target : null;
-            if (target !== textarea && target?.closest('input, textarea, select, [contenteditable="true"], [role="textbox"], [role="slider"], [role="combobox"]')) return;
+            if (target !== textarea && target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="combobox"]')) return;
             // Space still activates a keyboard-focused control.
-            if (event.key === ' ' && target?.closest('button, a, [role="button"], [role="radio"], [role="checkbox"]')) return;
+            if (event.key === ' ' && target?.closest('button, a, summary, [role="button"], [role="radio"], [role="checkbox"], [role="switch"]')) return;
             textarea.focus({ preventScroll: true });
             callbacks.current.onResume();
         };

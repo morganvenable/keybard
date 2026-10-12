@@ -23,7 +23,7 @@ export function ContentChooser({ controller: c, onMore }: { controller: Practice
     const syntax = syntaxFor(s.syntax);
     const scope = session.lessonKeys.findIncludedKeys().map(k => String.fromCodePoint(k.letter.codePoint)).join(' ');
     const codePreview = c.run ? flattenStyledText(c.run.textInput.text) : '';
-    const missing = s.type === 'code' ? untypeableChars(codePreview, session.resolution) : [];
+    const missing = (s.type === 'code' || s.type === 'numbers') ? untypeableChars(codePreview, session.resolution) : [];
     return <section className="svalbr-content" aria-label="Practice content">
         <div className="svalbr-content-controls">
             {s.type === 'words' && <>
@@ -58,7 +58,7 @@ export function ContentChooser({ controller: c, onMore }: { controller: Practice
         </div>
         {s.type === 'words' && <details><summary>Vocabulary: {words.length} words</summary><p className="svalbr-content-preview">{words.join(' / ')}</p></details>}
         {s.type === 'drill' && <p className="svalbr-content-scope">In scope: {scope || 'No matching characters'}</p>}
-        {s.type === 'books' && <details><summary>Passage preview</summary><p className="svalbr-content-preview">{paragraphs[s.paragraph]}</p></details>}
+        {s.type === 'books' && <details><summary>Passage preview</summary><p className="svalbr-content-preview">{paragraphs[Math.min(s.paragraph, Math.max(0, paragraphs.length - 1))]}</p></details>}
         {missing.length > 0 && <p className="svalbr-content-scope">Not on this keymap: {missing.map(cp => String.fromCodePoint(cp)).join(' ')}. Choose a keymap that includes these characters.</p>}
         {s.type === 'code' && <details><summary>Code preview</summary><pre className="svalbr-content-preview">{codePreview}</pre></details>}
         {s.type === 'custom' && <details><summary>Text preview: {s.customText.content.trim().split(/\s+/).filter(Boolean).length} words</summary><p className="svalbr-content-preview">{s.customText.content}</p></details>}

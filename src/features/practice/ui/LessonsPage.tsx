@@ -245,8 +245,8 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         body = (
             <>
                 <Well title="No letters to practice on this keymap">
-                    <button type="button" className={PILL_QUIET} onClick={() => void loadExample()}>QWERTY example</button>
-                    <button type="button" className={PILL_QUIET} onClick={() => { if (presentation.chooseKeymap) presentation.chooseKeymap(); else { setWorkspace("editor"); setActivePanel("layouts"); } }}>{presentation.standalone ? "Choose keymap" : "Layouts"}</button>
+                    {!presentation.standalone && <button type="button" className={PILL_QUIET} onClick={() => void loadExample()}>QWERTY example</button>}
+                    <button type="button" className={PILL_QUIET} onClick={() => { if (presentation.chooseKeymap) presentation.chooseKeymap(); else { setWorkspace("editor"); setActivePanel("layouts"); } }}>{presentation.standalone ? "Reconnect Svalboard" : "Layouts"}</button>
                 </Well>
                 {boardBlock}
             </>
@@ -303,7 +303,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                         </Well>
                     ) : (
                         <Well title="Nothing to type in this text">
-                            <button type="button" className={PILL_INK} onClick={() => setEditingText(true)}>Edit text</button>
+                            {type === 'books' ? <p>Choose another book or change its text options above.</p> : <button type="button" className={PILL_INK} onClick={() => setEditingText(true)}>Edit text</button>}
                         </Well>
                     )}
                     {boardBlock}

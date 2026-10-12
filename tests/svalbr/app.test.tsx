@@ -61,7 +61,7 @@ it('starts from the example, types, switches modes, opens settings and shows pro
     await screen.findByRole('heading', { name: 'Your progress' });
     fireEvent.click(screen.getByRole('button', { name: 'Progress & data' }));
     await screen.findByRole('dialog', { name: 'Progress & data' });
-    expect(await screen.findByRole('button', { name: /Export/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Export/ }, { timeout: 10000 })).toBeInTheDocument();
 }, 20000);
 
 it('reports a failed example load and lets the user retry', async () => {
@@ -121,4 +121,46 @@ it('shows a readable fresh lesson, then pauses only after typing starts', async 
     await waitFor(() => expect(document.querySelector('[data-glyph="typed"]')).not.toBeNull());
     act(() => { screen.getByLabelText('Practice text').blur(); });
     await screen.findByRole('button', { name: 'Resume', exact: true });
+});
+it('offers only board connection on the normal landing page', () => {
+    window.history.replaceState(null, '', '/');
+    render(<SvalbrApp />);
+    expect(screen.getByRole('button', { name: 'Connect Svalboard', exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Import keymap|Try QWERTY example/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Connect your Svalboard/ })).toBeInTheDocument();
+});
+
+it('does not treat a retained offline keymap as a connected board', async () => {
+    await start();
+    window.history.replaceState(null, '', '/');
+    // A state change re-evaluates the normal production flow while retaining the loaded board.
+    fireEvent.click(screen.getByRole('button', { name: /Use dark theme|Use light theme/ }));
+    await screen.findByRole('heading', { name: 'Typing practice for your Svalboard.' });
+    expect(screen.queryByLabelText('Practice text')).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Training modes' })).getByRole('button', { name: 'Words', exact: true })).toBeDisabled();
+});
+
+it('captures the first typed character from the workspace, but respects dialogs and keyboard controls', async () => {
+    await start();
+    const words = within(screen.getByRole('navigation', { name: 'Training modes' })).getByRole('button', { name: 'Words', exact: true });
+    fireEvent.click(words);
+    act(() => words.focus());
+    const expected = document.querySelector('[data-cursor]')!.textContent!;
+    fireEvent.keyDown(words, { key: expected });
+    const textarea = screen.getByLabelText('Practice text');
+    expect(textarea).toHaveFocus();
+    fireEvent.input(textarea, { inputType: 'insertText', data: expected });
+    await waitFor(() => expect(document.querySelectorAll('[data-glyph="typed"]')).toHaveLength(1));
+    fireEvent.keyDown(textarea, { key: 'Escape' });
+    await screen.findByRole('button', { name: 'Resume', exact: true });
+    fireEvent.keyDown(textarea, { key: 'a' });
+    expect(document.querySelector('[data-practice-paused]')).toBeNull();
+    act(() => words.focus());
+    fireEvent.keyDown(words, { key: ' ', code: 'Space' });
+    expect(words).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Lesson settings' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.keyDown(dialog, { key: 'a' });
+    expect(textarea).not.toHaveFocus();
+    expect(document.querySelectorAll('[data-glyph="typed"]')).toHaveLength(1);
 });

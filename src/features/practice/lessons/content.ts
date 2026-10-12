@@ -39,7 +39,7 @@ export class PracticeBooksLesson extends BooksLesson {
     constructor(practice: PracticeSettings, board: SvalKeyboard, content: PracticeContent) {
         const paragraphs = content.books?.[practice.book] ?? [];
         super(toKeybrSettings(practice)
-            .set(lessonProps.books.paragraphIndex, practice.paragraph)
+            .set(lessonProps.books.paragraphIndex, Math.min(practice.paragraph, Math.max(0, paragraphs.length - 1)))
             .set(lessonProps.books.lowercase, practice.bookLowercase)
             .set(lessonProps.books.lettersOnly, practice.bookLettersOnly), board, content.model,
             { book: BOOKS.find(b => b.id === practice.book) ?? BOOKS[0], content: [['', paragraphs]] });

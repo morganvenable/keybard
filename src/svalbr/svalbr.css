@@ -101,3 +101,9 @@
     .svalbr-main [data-practice-page] { padding: 16px; gap: 10px; }
     .svalbr-main [data-practice-page] > header > div { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 }
+
+/* On mobile the header is in normal flow; center within the remaining viewport. */
+@media (max-width: 760px) {
+    .svalbr-brand { padding-bottom: 0; }
+    .svalbr-main main, .svalbr-welcome { min-height: calc(100dvh - 71px); }
+}

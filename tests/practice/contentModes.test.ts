@@ -42,3 +42,9 @@ describe('Keybr content modes', () => {
         for (const setting of ['book', 'paragraph', 'syntax', 'codeFlags', 'bookLowercase', 'bookLettersOnly']) expect(LESSON_SHAPING).toContain(setting);
     });
 });
+
+it('clamps an out-of-range saved book paragraph to the same last passage shown by the chooser', async () => {
+    const books = await loadBooks();
+    const lesson = lessonFor({ ...DEFAULT_SETTINGS, type: 'books', paragraph: 10000 }, keyboard, { ...content, books }) as PracticeBooksLesson;
+    expect(lesson.paragraphIndex).toBe(books.alice.length - 1);
+});
