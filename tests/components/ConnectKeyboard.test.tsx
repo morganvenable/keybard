@@ -68,6 +68,20 @@ describe('ConnectKeyboard: reconnect to permitted keyboards', () => {
         expect(keyboardContext.connect).not.toHaveBeenCalled();
     });
 
+    it('refreshes remembered boards when returning to the window', async () => {
+        const hid = navigator.hid as unknown as { getDevices: ReturnType<typeof vi.fn> };
+        const board = fakeDevice('Svalboard Right', 0x4049, [[0xff61, 0x62]]);
+        hid.getDevices.mockResolvedValue([]);
+        render(<ConnectKeyboard />);
+        await waitFor(() => expect(hid.getDevices).toHaveBeenCalled());
+        hid.getDevices.mockResolvedValue([board]);
+        fireEvent(window, new Event('focus'));
+        expect(await screen.findByRole('button', { name: 'Svalboard Right' })).toBeInTheDocument();
+        hid.getDevices.mockResolvedValue([]);
+        fireEvent(window, new Event('focus'));
+        await waitFor(() => expect(screen.queryByRole('button', { name: 'Svalboard Right' })).not.toBeInTheDocument());
+    });
+
     it('shows nothing extra when no keyboard has been permitted', async () => {
         render(<ConnectKeyboard />);
         expect(screen.getByRole('button', { name: /Connect Keyboard/ })).toBeInTheDocument();

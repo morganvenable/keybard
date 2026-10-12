@@ -1,7 +1,8 @@
+import PreviouslyConnectedBoards from "./PreviouslyConnectedBoards";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, Copy, PlugZap, Unplug } from "lucide-react";
 
-import { useKeyboard, listPermittedDevices } from "@/contexts/KeyboardContext";
+import { useKeyboard } from "@/contexts/KeyboardContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import { UnsupportedFirmwareCard } from "@/components/FirmwareUpdate";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
@@ -9,7 +10,6 @@ import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
 const ConnectKeyboard = () => {
     const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError, connectionFix, connectionFirmware } = useKeyboard();
     const [fixCopied, setFixCopied] = useState(false);
-    const [knownDevices, setKnownDevices] = useState<HIDDevice[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -35,17 +35,6 @@ const ConnectKeyboard = () => {
             setLoading(false);
         }
     };
-
-    // Keyboards this origin already has permission for can be opened without the
-    // chooser. Refresh the list whenever we are disconnected.
-    useEffect(() => {
-        if (isConnected) return;
-        let cancelled = false;
-        listPermittedDevices()
-            .then((devices) => { if (!cancelled) setKnownDevices(devices); })
-            .catch(() => { if (!cancelled) setKnownDevices([]); });
-        return () => { cancelled = true; };
-    }, [isConnected]);
 
     const handleConnectDevice = async (device: HIDDevice) => {
         setLoading(true);
@@ -186,22 +175,7 @@ const ConnectKeyboard = () => {
                                     {loading ? "Disconnecting..." : "Disconnect"}
                                 </button>
                             )}
-                            {!isConnected && !loading && knownDevices.length > 0 && (
-                                <div className="flex flex-col gap-1" data-testid="known-devices">
-                                    <span className="text-[11px] text-muted-foreground text-center">or reconnect without the chooser</span>
-                                    {knownDevices.map((device, index) => (
-                                        <button
-                                            key={`${device.vendorId}:${device.productId}:${index}`}
-                                            onClick={() => handleConnectDevice(device)}
-                                            className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700 px-5 py-1.5 rounded-full w-full"
-                                            data-testid="known-device"
-                                        >
-                                            <PlugZap className="h-4 w-4" />
-                                            <span>{device.productName || `Keyboard ${device.productId.toString(16)}`}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <PreviouslyConnectedBoards enabled={!isConnected} disabled={loading || connectionState === "loading"} onConnect={handleConnectDevice} />
                             {!(loading && !isDisconnecting) && (
                                 <>
                                     <p className="text-sm font-bold text-center text-gray-700 dark:text-neutral-200 my-1">or</p>

@@ -1,3 +1,4 @@
+import PreviouslyConnectedBoards from "@/components/PreviouslyConnectedBoards";
 import FirmwareStatus from "./FirmwareStatus";
 import SvalboardLogo from "@/components/Logo";
 import KeyboardIcon from "@/components/icons/Keyboard";
@@ -41,7 +42,7 @@ export default function SvalbrApp() {
 
 function Trainer() {
     const c = usePractice();
-    const { keyboard, loadedFrom, isConnected, connectionState, isChangingTarget, isImporting, connect, disconnect, loadFromFile, isWebHIDSupported, connectionError, connectionFirmware } = useKeyboard();
+    const { keyboard, loadedFrom, isConnected, connectionState, isChangingTarget, isImporting, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionError, connectionFirmware } = useKeyboard();
     const { practicePage, setPracticePage, activePanel, setActivePanel, handleCloseDetails } = usePanels();
     const { internationalLayout, setInternationalLayout } = useLayoutSettings();
     const { getSetting, updateSetting } = useSettings();
@@ -80,6 +81,7 @@ function Trainer() {
     const sourceControls = <>
         <button type="button" className={PILL_BRAND} disabled={pending || !isWebHIDSupported} onClick={() => void task(connect)}><Unplug size={16} />Connect Svalboard</button>
 
+        <PreviouslyConnectedBoards enabled={isWebHIDSupported} disabled={pending} refreshKey={`${sourceOpen}:${isConnected}`} onConnect={device => void task(() => connectDevice(device))} />
         {developmentPreview && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void example()}>Try QWERTY example<ChevronRight size={16} /></button>}
         {!isWebHIDSupported && <p className="svalbr-help">Open practice in Chrome or Edge to connect your Svalboard.</p>}
         {isConnected && <button type="button" className={PILL_QUIET} disabled={pending} onClick={() => void task(disconnect)}>Disconnect board</button>}
