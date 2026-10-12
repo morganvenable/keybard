@@ -100,6 +100,26 @@ export const TypingSurface = forwardRef<TypingSurfaceHandle, TypingSurfaceProps>
         return () => handler.setInput(null);
     }, []);
 
+    // A standalone lesson accepts typing anywhere in its workspace. Focus before
+    // the browser inserts text so the first character still uses keybr's handler.
+    useEffect(() => {
+        if (!standalone) return;
+        const startTyping = (event: globalThis.KeyboardEvent) => {
+            const textarea = textareaRef.current;
+            if (!textarea || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+            if (event.key.length !== 1) return;
+            if (textarea.closest('[inert]') || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return;
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target !== textarea && target?.closest('input, textarea, select, [contenteditable="true"], [role="textbox"], [role="slider"], [role="combobox"]')) return;
+            // Space still activates a keyboard-focused control.
+            if (event.key === ' ' && target?.closest('button, a, [role="button"], [role="radio"], [role="checkbox"]')) return;
+            textarea.focus({ preventScroll: true });
+            callbacks.current.onResume();
+        };
+        document.addEventListener('keydown', startTyping, true);
+        return () => document.removeEventListener('keydown', startTyping, true);
+    }, [standalone]);
+
     const chars = run.textInput.chars;
     const words = useMemo(() => tokens(chars), [chars, version]);
     const typo = run.typoPending;
