@@ -17,7 +17,7 @@ import { characterStats, type CharacterStats, stripKeys } from "../state/progres
 import { effectiveLessonType, layerUnderlinesFor, type PracticeSettings, START_PRESETS, type StartPreset } from "../state/settings";
 import type { LessonType } from "../types";
 import { boardSize, boardView, displayedLayerFor } from "./boardModel";
-import { fitBoard, useSettledWidth } from "./boardFit";
+import { fitBoard, useBoardHeight, useSettledWidth } from "./boardFit";
 import { CustomTextDialog } from "./CustomTextDialog";
 import { layerColorHex, layerColorName, layerName, spokenPlace } from "./format";
 import { InputStatus } from "./InputStatus";
@@ -79,6 +79,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const surface = useRef<TypingSurfaceHandle | null>(null);
     const frame = useRef<HTMLDivElement | null>(null);
     const width = useSettledWidth(frame);
+    const availableHeight = useBoardHeight(frame, presentation.standalone);
     const [preset, setPreset] = useState<StartPreset | null>(null);
     const [targetWpm, setTargetWpm] = useState(25);
     const [boardSheet, setBoardSheet] = useState(false);
@@ -164,7 +165,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     // The latest keymap object: its paths match the session's (same fingerprint), its colors may be newer.
     const board = controller?.keymap?.board ?? session?.keymap.board ?? keyboard;
     const units = board ? boardSize(board).width : 25;
-    const fit = fitBoard(width, units);
+    const fit = fitBoard(width, units, { height: availableHeight, boardHeight: board ? boardSize(board).height : 7.5 });
     const defaultLayer = session?.keymap.defaultLayer ?? 0;
     const next = run?.expected ?? null;
     const noLesson = !session || session.noLesson || controller?.loadState === "content-error";
@@ -200,7 +201,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const narrow = width > 0 && width < 480;
     const boardHidden = !settings?.showBoard;
 
-    const boardBlock = board && !boardHidden && (
+    const boardBlock = board && !boardHidden && <div data-board-slot className="flex justify-center shrink-0">{(
         fit.hidden ? (
             boardSheet && (
                 <div className="fixed inset-x-2 bottom-2 z-40 overflow-x-auto rounded-2xl bg-kb-surface p-4 shadow-xl border border-gray-200 dark:border-neutral-700" data-practice-board-sheet>
@@ -210,7 +211,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
         ) : (
             <LiveBoard live={live} viewFor={viewFor} fit={fit} dimmed={!!run && controller?.paused} pulse={controller?.justUnlocked ?? null} onActivate={focusSurface} />
         )
-    );
+    )}</div>;
 
     let body: React.ReactNode;
     if (!controller || controller.loadState === "loading" || (!session && controller.loadState !== "content-error")) {

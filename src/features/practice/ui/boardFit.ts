@@ -1,3 +1,4 @@
+import { fittingKeyVariant } from "@/lib/keyboardSizing";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 // Board size rule (spec §5.1): the largest Key.tsx variant whose board fits the container less 32 px;
@@ -18,14 +19,15 @@ export interface BoardFit {
     hidden: boolean;
 }
 
-export function fitBoard(containerWidth: number, boardUnits: number, { allowScale = true }: { allowScale?: boolean } = {}): BoardFit {
+export function fitBoard(containerWidth: number, boardUnits: number, { allowScale = true, height = Infinity, boardHeight = 0 }: { allowScale?: boolean; height?: number; boardHeight?: number } = {}): BoardFit {
     // Not measured yet (first render, or no layout engine): the medium board.
     if (!(containerWidth > 0)) return { variant: "medium", unit: UNIT_PX.medium, scale: 1, hidden: false };
-    for (const variant of ["default", "medium", "small"] as const) {
-        if (boardUnits * UNIT_PX[variant] + GUTTER <= containerWidth) return { variant, unit: UNIT_PX[variant], scale: 1, hidden: false };
-    }
+    const widths = { default: boardUnits * 60 + GUTTER, medium: boardUnits * 45 + GUTTER, small: boardUnits * 30 + GUTTER };
+    const heights = { default: boardHeight * 60, medium: boardHeight * 45, small: boardHeight * 30 };
+    const variant = fittingKeyVariant(containerWidth, height, widths, heights);
+    if (widths[variant] <= containerWidth && heights[variant] <= height) return { variant, unit: UNIT_PX[variant], scale: 1, hidden: false };
     if (!allowScale) return { variant: "small", unit: UNIT_PX.small, scale: 1, hidden: false };
-    const scale = (containerWidth - GUTTER) / (boardUnits * UNIT_PX.small);
+    const scale = Math.min((containerWidth - GUTTER) / (boardUnits * UNIT_PX.small), boardHeight > 0 ? height / (boardHeight * UNIT_PX.small) : Infinity);
     if (scale >= MIN_BOARD_SCALE) return { variant: "small", unit: UNIT_PX.small, scale, hidden: false };
     return { variant: "small", unit: UNIT_PX.small, scale: MIN_BOARD_SCALE, hidden: true };
 }
@@ -60,4 +62,32 @@ export function useSettledWidth(ref: RefObject<HTMLElement | null>, settleMs = 3
         };
     }, [ref, settleMs]);
     return width;
+}
+
+/** Measure the board's remaining viewport space without making its own size part of the budget. */
+export function useBoardHeight(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+    const [height, setHeight] = useState(Infinity);
+    useEffect(() => {
+        const frame = ref.current;
+        if (!enabled || !frame) return;
+        const measure = () => {
+            const slot = frame.querySelector<HTMLElement>("[data-board-slot]");
+            if (!slot) return;
+            const style = getComputedStyle(frame);
+            const gap = parseFloat(style.rowGap) || 0;
+            let footer = parseFloat(style.paddingBottom) || 0;
+            for (let next = slot.nextElementSibling; next; next = next.nextElementSibling) {
+                if (getComputedStyle(next).position !== "absolute") footer += next.getBoundingClientRect().height + gap;
+            }
+            // Keep the minimum readable board on short/mobile screens; allow normal page scrolling.
+            setHeight(Math.max(150, window.innerHeight - (slot.getBoundingClientRect().top + window.scrollY) - footer));
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(frame);
+        Array.from(frame.children).forEach(child => observer.observe(child));
+        window.addEventListener("resize", measure);
+        return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
+    });
+    return enabled ? height : Infinity;
 }

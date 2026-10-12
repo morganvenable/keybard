@@ -20,3 +20,11 @@ describe('Board fit (§5.1)', () => {
         expect(fitBoard(1125 + 32, 25).variant).toBe('medium');
     });
 });
+
+it('fits a wide connected board into the remaining viewport height', () => {
+    expect(fitBoard(1600, 25, { height: 360, boardHeight: 7.5 }).variant).toBe('medium');
+    expect(fitBoard(1600, 25, { height: 250, boardHeight: 7.5 }).variant).toBe('small');
+    const fit = fitBoard(1600, 25, { height: 180, boardHeight: 7.5 });
+    expect(fit.unit * fit.scale * 7.5).toBe(180);
+    expect(fit.hidden).toBe(false);
+});

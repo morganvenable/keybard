@@ -1,3 +1,4 @@
+import { fittingKeyVariant } from "@/lib/keyboardSizing";
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from "react";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
@@ -104,17 +105,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             const widths = measured.keyboardWidths;
             const heights = measured.keyboardHeights;
 
-            // Check if size fits both width and height
-            const fitsAt = (size: KeyVariant) =>
-                containerWidth >= widths[size] && containerHeight >= heights[size];
-
-            let bestSize: KeyVariant = "small";
-            if (fitsAt("default")) {
-                bestSize = "default";
-            } else if (fitsAt("medium")) {
-                bestSize = "medium";
-            }
-            setKeyVariantState(bestSize);
+            setKeyVariantState(fittingKeyVariant(containerWidth, containerHeight, widths, heights));
         }
 
         // Auto placement follows the viewport, not whether opening a panel makes

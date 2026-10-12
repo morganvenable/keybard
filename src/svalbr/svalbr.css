@@ -24,7 +24,7 @@
 .svalbr-main { flex: 1; min-width: 0; }
 .svalbr-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 76px; padding: 16px 32px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
 .svalbr-main main { min-height: calc(100dvh - 76px); }
-.svalbr-main [data-practice-page] { padding: 32px; min-height: calc(100dvh - 76px); gap: 24px; }
+.svalbr-main [data-practice-page] { padding: 20px 32px; min-height: calc(100dvh - 76px); gap: 12px; }
 .svalbr-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 76px); padding: 64px 24px; text-align: center; }
 .svalbr-welcome-mark { display: grid; place-items: center; height: 72px; width: 72px; border-radius: 22px; background: var(--kb-surface); border: 1px solid var(--border); margin-bottom: 28px; }
 .svalbr-welcome h1 { font-size: clamp(28px, 3.3vw, 44px); line-height: 1.15; letter-spacing: -1.5px; font-weight: 550; margin: 7px 0 20px; }
@@ -59,3 +59,8 @@
     .svalbr-welcome .svalbr-source-actions { flex-direction: column; }
     .svalbr-desktop { display: none; }
 }
+
+/* The mode picker lives in the sidebar; keep scope and status on one compact row. */
+.svalbr-main [data-practice-type-row] > div { flex-direction: row; align-items: center; }
+.svalbr-main [data-practice-type-row] > div > div { height: 32px; }
+.svalbr-main [data-board-slot] { min-height: 0; }
