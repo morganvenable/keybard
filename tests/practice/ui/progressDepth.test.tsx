@@ -67,7 +67,7 @@ const LAYER_FACE = /\bbg-kb-(primary|green|blue|purple|orange|yellow|red|brown|m
 
 describe('Progress sections (§5.8)', () => {
     it('shows every section in order, with Inferred on the physical ones for Keymap-only data', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 2);
         render(<Providers><ProgressPage /></Providers>);
         const titles = [...document.querySelectorAll('[data-progress-section]')].map((s) => s.getAttribute('data-progress-section'));
@@ -81,7 +81,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('heatmap faces: no layer color, a check on keys at target, a footer value on every key with samples', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 3);
         render(<Providers><ProgressPage /></Providers>);
         const keys = heatKeys();
@@ -110,7 +110,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('heatmap values match the Characters table, character for character (fractional values too)', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         // Misses give fractional accuracies (41 of 42 is 97.6%): both views must round them the same way.
         await completeLessons(c, 2, { miss: true });
         render(<Providers><ProgressPage /></Providers>);
@@ -162,7 +162,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('Fingers: 5 direction rows with glyphs and a Finger row; a cell opens P5 with Drill this group', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 2);
         render(<Providers><ProgressPage /></Providers>);
         const grid = section('Fingers');
@@ -182,7 +182,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('a cell with fewer than 3 characters to drill offers no Drill this group', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 2);
         render(<Providers><ProgressPage /></Providers>);
         const cell = section('Fingers').querySelector('[data-heat-cell="L-pinky · C"]') as HTMLElement;
@@ -195,7 +195,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('Thumbs: what each key did, and Space with its value', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 1);
         render(<Providers><ProgressPage /></Providers>);
         const thumbs = section('Thumbs');
@@ -209,7 +209,7 @@ describe('Progress sections (§5.8)', () => {
     });
 
     it('Layers and History', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 2);
         render(<Providers><ProgressPage /></Providers>);
         const layers = section('Layers');
@@ -226,7 +226,7 @@ describe('Progress sections (§5.8)', () => {
 
 describe('P5 in full (§5.7)', () => {
     it('a heatmap key opens the character P5 with its sparkline, Pressed instead and Drill this key', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 3, { miss: true });
         render(<Providers><ProgressPage /></Providers>);
         const s = c.session!;
@@ -252,7 +252,7 @@ describe('P5 in full (§5.7)', () => {
 
 describe('Pressed instead after Import or Reset (M4 review R3)', () => {
     it('a Replace with as many lessons reloads the events: no confusions from deleted lessons', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         // File A: two clean lessons. Then two lessons with misses in the profile.
         await completeLessons(c, 2);
         const { text } = await c.exportData(true);
@@ -290,7 +290,7 @@ describe('Pressed instead after Import or Reset (M4 review R3)', () => {
 
 describe('Layers rows group every character on the layer (M4 review R4)', () => {
     it('chips and Drill this group take the layer’s characters, practiced or not', async () => {
-        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75 } });
+        const c = await startController({ store: new MemoryPracticeStore(), settings: { targetSpeed: 75, heatMetric: 'speed' } });
         await completeLessons(c, 1);
         render(<Providers><ProgressPage /></Providers>);
         const s = c.session!;

@@ -11,9 +11,9 @@ afterEach(() => resetHarness());
 
 describe('M4 settings', () => {
     it('validates the heatmap metric, Include keystrokes and a drill group name', () => {
-        expect(practiceSettings({}).heatMetric).toBe('speed');
+        expect(practiceSettings({}).heatMetric).toBe('errors');
         expect(practiceSettings({ heatMetric: 'usage' }).heatMetric).toBe('usage');
-        expect(practiceSettings({ heatMetric: 'heat' }).heatMetric).toBe('speed');
+        expect(practiceSettings({ heatMetric: 'heat' }).heatMetric).toBe('errors');
         expect(practiceSettings({}).exportKeystrokes).toBe(true);
         expect(practiceSettings({ exportKeystrokes: false }).exportKeystrokes).toBe(false);
         expect(practiceSettings({ drill: { keys: [97, 115, 100], name: 'L-pinky' } }).drill.name).toBe('L-pinky');
