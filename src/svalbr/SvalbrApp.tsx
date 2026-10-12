@@ -1,3 +1,4 @@
+import SvalboardLogo from "@/components/Logo";
 import KeyboardIcon from "@/components/icons/Keyboard";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import Settings2Icon from "@/components/icons/Settings2Icon";
@@ -86,7 +87,7 @@ function Trainer() {
         <div className="svalbr-app">
             <aside className="svalbr-sidebar" aria-label="Svalbr navigation">
                 <a className="svalbr-brand" href="#practice" onClick={() => { setPracticePage("lessons"); setNavOpen(false); }}>
-                    <span className="svalbr-mark"><KeyboardIcon className="w-6 h-4" /></span>
+                    <span className="svalbr-mark"><SvalboardLogo className="size-7" role="img" aria-label="Svalboard" /></span>
                     <span><strong>Svalbr</strong><small>Svalboard typing practice</small></span>
                 </a>
                 <button className="svalbr-mobile-menu svalbr-icon" aria-label={navOpen ? "Close navigation" : "Open navigation"} aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
@@ -99,7 +100,7 @@ function Trainer() {
                     </nav>
                     <div className="svalbr-sidebar-bottom">
                         <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : keyboard ? "Keymap loaded" : "Choose your keymap"}</strong><small>{loadedFrom ?? "Connect, import, or try an example"}</small></span><ChevronRight size={15} /></button>
-                        <div className="svalbr-sidebar-footer"><a href="https://keybard.svalboard.com" target="_blank" rel="noreferrer">Made with Keybard</a><button type="button" className="svalbr-icon" aria-label={getSetting("theme") === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => updateSetting("theme", getSetting("theme") === "dark" ? "light" : "dark")}>{getSetting("theme") === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button></div>
+                        <div className="svalbr-sidebar-footer"><a href="https://svalboard.com" target="_blank" rel="noreferrer">A Svalboard tool</a><button type="button" className="svalbr-icon" aria-label={getSetting("theme") === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => updateSetting("theme", getSetting("theme") === "dark" ? "light" : "dark")}>{getSetting("theme") === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button></div>
                     </div>
                 </div>
             </aside>
@@ -109,7 +110,7 @@ function Trainer() {
                 {pending && <div role="status" className="svalbr-loading"><Loader2 size={18} className="animate-spin" />Loading your keymap…</div>}
                 <main id="trainer-content" inert={pending}>
                     {keyboard ? <PracticeWorkspace /> : <section className="svalbr-welcome">
-                        <span className="svalbr-welcome-mark"><Sprout size={34} strokeWidth={2} /></span>
+                        <span className="svalbr-welcome-mark"><SvalboardLogo className="size-9" role="img" aria-label="Svalboard" /></span>
                         <p className="svalbr-eyebrow">One key at a time</p><h1>Make yourself at home<br />on your Svalboard.</h1>
                         <p>Guided lessons, focused drills, and a little daily practice.<br className="svalbr-desktop" /> Start with the keymap you actually use.</p>
                         <div className="svalbr-source-actions">{sourceControls}</div>
