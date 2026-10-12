@@ -1,4 +1,5 @@
-import { ArrowRightLeft, Sprout, Target, type LucideIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ArrowRightLeft, Sprout, Target, X, type LucideIcon } from "lucide-react";
 
 import { PILL_BRAND } from "@/components/shared/pills";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,11 +28,33 @@ interface StartViewProps {
     onTarget: (wpm: number) => void;
     sourceName: string;
     onStart: () => void;
+    onDismiss?: () => void;
 }
 
-export function StartView({ preset, onPreset, targetWpm, onTarget, sourceName, onStart }: StartViewProps) {
+export function StartView({ preset, onPreset, targetWpm, onTarget, sourceName, onStart, onDismiss }: StartViewProps) {
+    const card = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (!onDismiss) return;
+        const outside = (event: PointerEvent) => {
+            const target = event.target;
+            if (!(target instanceof Element) || card.current?.contains(target)) return;
+            // Select menus and settings are portaled outside the card.
+            if (target.closest('[role="dialog"], [role="listbox"], [data-radix-popper-content-wrapper]')) return;
+            onDismiss();
+        };
+        const escape = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && !event.defaultPrevented) onDismiss();
+        };
+        document.addEventListener("pointerdown", outside);
+        document.addEventListener("keydown", escape);
+        return () => {
+            document.removeEventListener("pointerdown", outside);
+            document.removeEventListener("keydown", escape);
+        };
+    }, [onDismiss]);
     return (
-        <section aria-labelledby="practice-start-title" className="w-full max-w-3xl mx-auto bg-kb-surface rounded-2xl shadow-lg border border-gray-200 dark:border-neutral-700 p-6 flex flex-col gap-6" data-practice-start>
+        <section ref={card} aria-labelledby="practice-start-title" className="relative w-full max-w-3xl mx-auto bg-kb-surface rounded-2xl shadow-lg border border-gray-200 dark:border-neutral-700 p-6 flex flex-col gap-6" data-practice-start>
+            {onDismiss && <button type="button" aria-label="Close start practicing" onClick={onDismiss} className="absolute right-4 top-4 rounded-md p-2 text-muted-foreground hover:bg-muted focus-visible:outline"><X size={18} aria-hidden="true" /></button>}
             <h2 id="practice-start-title" className="text-[22px] font-semibold leading-none text-kb-ink">Start practicing</h2>
             <div role="group" aria-label="Goal" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {START_TILES.map(({ preset: id, title, icon: Icon }) => (

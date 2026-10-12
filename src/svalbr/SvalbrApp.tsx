@@ -74,6 +74,7 @@ function Trainer() {
         return loadFromFile(new File([await response.blob()], "sval-default.svil", { type: "application/json" }), "demo");
     });
     const chooseMode = (id: LessonType) => {
+        c?.dismissStart();
         c?.update({ type: id }); setPracticePage("lessons"); handleCloseDetails(); setNavOpen(false);
     };
     const sourceControls = <>
@@ -95,9 +96,9 @@ function Trainer() {
                 <div className={cn("svalbr-nav-body", navOpen && "is-open")}>
                     <p className="svalbr-eyebrow">Practice</p>
                     <nav aria-label="Training modes">
-                        {MODES.map(({ id, title: label, icon: Icon }) => <button type="button" key={id} className={cn("svalbr-nav-item", !progress && type === id && "is-active")} aria-current={!progress && type === id ? "page" : undefined} disabled={!c || !canPractice || c.session?.firstRun} onClick={() => chooseMode(id)}><Icon size={19} strokeWidth={2} /><span>{label}</span></button>)}
+                        {MODES.map(({ id, title: label, icon: Icon }) => <button type="button" key={id} className={cn("svalbr-nav-item", !progress && type === id && "is-active")} aria-current={!progress && type === id ? "page" : undefined} disabled={!c || !canPractice} onClick={() => chooseMode(id)}><Icon size={19} strokeWidth={2} /><span>{label}</span></button>)}
                         <div className="svalbr-nav-divider" />
-                        <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!canPractice} onClick={() => { setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
+                        <button type="button" className={cn("svalbr-nav-item", progress && "is-active")} aria-current={progress ? "page" : undefined} disabled={!canPractice} onClick={() => { c?.dismissStart(); setPracticePage("progress"); handleCloseDetails(); setNavOpen(false); }}><BarChart3 size={19} strokeWidth={2} />Progress</button>
                     </nav>
                     <div className="svalbr-sidebar-bottom">
                         <button type="button" className="svalbr-source" onClick={() => { setSourceOpen(true); setNavOpen(false); }}>{isConnected ? <PlugZap size={18} /> : <KeyboardIcon className="w-5 h-4" />}<span><strong>{isConnected ? "Svalboard connected" : canPractice ? "Preview keymap" : "Connect your Svalboard"}</strong><small>{canPractice ? loadedFrom : "Connect via USB"}</small></span><ChevronRight size={15} /></button>

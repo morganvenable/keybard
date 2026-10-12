@@ -22,6 +22,31 @@ mkdirSync(output, { recursive: true });
    assert(ready, 'Preview server did not start');
   }
   browser = await chromium.launch({ headless: true, ...(process.env.PRACTICE_BROWSER_CHANNEL ? { channel: process.env.PRACTICE_BROWSER_CHANNEL } : {}) });
+  // Each exit starts with an untouched profile, not a previously completed welcome flow.
+  for (const exit of ['close', 'outside', 'escape', 'sidebar']) {
+   const first = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+   first.on('pageerror', e => errors.push(e.message));
+   await first.goto(base + '/?demo');
+   await first.getByRole('button', { name: 'Try QWERTY example' }).click();
+   await first.getByRole('heading', { name: 'Start practicing', exact: true }).waitFor();
+   await first.screenshot({ path: join(output, `first-open-${exit}.png`) });
+   const modes = first.getByRole('navigation', { name: 'Training modes' });
+   assert(await modes.getByRole('button', { name: 'Words', exact: true }).isEnabled());
+   if (exit === 'close') await first.getByRole('button', { name: 'Close start practicing' }).click();
+   if (exit === 'outside') await first.locator('[data-practice-page="lessons"]').click({ position: { x: 5, y: 5 } });
+   if (exit === 'escape') await first.keyboard.press('Escape');
+   if (exit === 'sidebar') await modes.getByRole('button', { name: 'Words', exact: true }).click();
+   await first.getByLabel('Practice text', { exact: true }).waitFor();
+   assert.equal(await first.locator('[data-practice-start]').count(), 0);
+   if (exit === 'sidebar') await first.getByRole('heading', { name: 'Words', exact: true }).waitFor();
+   await first.screenshot({ path: join(output, `first-open-${exit}-dismissed.png`) });
+   await first.reload();
+   await first.getByRole('button', { name: 'Try QWERTY example' }).click();
+   await first.getByLabel('Practice text', { exact: true }).waitFor();
+   assert.equal(await first.locator('[data-practice-start]').count(), 0);
+   await first.close();
+   findings.push(`Fresh onboarding: ${exit} dismisses setup and stays dismissed after reload`);
+  }
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(base);

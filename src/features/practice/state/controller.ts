@@ -603,6 +603,15 @@ export class PracticeController {
 
     // ---- Start (P2) and profiles
 
+    /** Leave optional onboarding without changing the user's lesson settings. */
+    dismissStart() {
+        const session = this.session;
+        if (!session?.firstRun) return;
+        // completeStart updates memory before persisting; navigation can proceed immediately.
+        void session.completeStart();
+        this.#newRun();
+    }
+
     /** Applies a Start preset with the chosen target and leaves first run (§5.4). */
     async startPractice(preset: StartPreset, targetSpeed: number) {
         const session = this.session;

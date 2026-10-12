@@ -260,6 +260,7 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
                     targetWpm={targetWpm}
                     onTarget={setTargetWpm}
                     sourceName={controller.sourceName}
+                    onDismiss={presentation.standalone ? () => controller.dismissStart() : undefined}
                     onStart={() => {
                         if (!preset) return;
                         void controller.startPractice(preset, targetWpm * 5).then(() => focusSurface());
