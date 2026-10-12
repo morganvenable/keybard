@@ -21,8 +21,8 @@ export function Well({ title, children, label }: { title: string; children?: Rea
 
 const TOOL = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 bg-kb-surface shadow-lg flex items-center justify-center text-kb-ink transition-colors border border-gray-200 dark:border-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
-const HINT_NEXT: Record<Hints, Hints> = { "next-cluster": "next", next: "off", off: "next-cluster" };
-const HINT_LABEL: Record<Hints, string> = { "next-cluster": "Hints: next key and cluster", next: "Hints: next key", off: "Hints: off" };
+const HINT_NEXT: Record<Hints, Hints> = { "next-cluster": "next", next: "cluster", cluster: "off", off: "next-cluster" };
+const HINT_LABEL: Record<Hints, string> = { "next-cluster": "Hints: next key and cluster", next: "Hints: next key", cluster: "Hints: cluster only", off: "Hints: off" };
 
 function Tool({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
     return (

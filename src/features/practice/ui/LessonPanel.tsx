@@ -21,6 +21,7 @@ import { TypeSection } from "./TypeSections";
 const HINTS: { value: Hints; label: string }[] = [
     { value: "next-cluster", label: "Next key + cluster" },
     { value: "next", label: "Next key" },
+    { value: "cluster", label: "Cluster only" },
     { value: "off", label: "Off" },
 ];
 

@@ -13,8 +13,8 @@ import { textInputProps } from '../vendor/keybr/textinput/index.ts';
 export const SETTINGS_KEY = 'keybard.practice.v1';
 
 export type UnlockOrder = 'center-first' | 'frequency';
-/** Board hints (§5.2): next key and its cluster, next key only, or none. */
-export type Hints = 'next-cluster' | 'next' | 'off';
+/** Board hints (§5.2): next key and its cluster, next key only, cluster only, or none. */
+export type Hints = 'next-cluster' | 'next' | 'cluster' | 'off';
 export type SpeedUnit = 'wpm' | 'cpm';
 /** Progress scope (§5.9): the last 7 or 30 days, or everything. */
 export type ProgressPeriod = '7' | '30' | 'all';
@@ -258,7 +258,7 @@ export function practiceSettings(value: unknown): PracticeSettings {
         forgiveErrors: bool(data.forgiveErrors, d.forgiveErrors),
         spaceSkipsWords: bool(data.spaceSkipsWords, d.spaceSkipsWords),
         readKeyPresses: bool(data.readKeyPresses, d.readKeyPresses),
-        hints: oneOf(data.hints, ['next-cluster', 'next', 'off'] as const, d.hints),
+        hints: oneOf(data.hints, ['next-cluster', 'next', 'cluster', 'off'] as const, d.hints),
         legends: bool(data.legends, d.legends),
         showBoard: bool(data.showBoard, d.showBoard),
         speedUnit: oneOf(data.speedUnit, ['wpm', 'cpm'] as const, d.speedUnit),

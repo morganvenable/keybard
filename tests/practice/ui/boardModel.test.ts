@@ -115,3 +115,14 @@ describe('Practice board: combos (M3)', () => {
         expect(v.keys.find((k) => k.index === 38)!.label).not.toBe('=');
     });
 });
+
+it('cluster-only hints show the cluster without target or prerequisite cues', () => {
+    for (const next of [cp('j'), cp('!')]) {
+        const v = view({ hints: 'cluster', next });
+        expect(v.cluster).not.toBeNull();
+        expect(v.keys.some(k => k.inCluster)).toBe(true);
+        expect(v.keys.some(k => k.ring || k.alternative || k.step != null)).toBe(false);
+        expect(v.keys.map(k => k.label)).toEqual(view({ hints: 'off', next }).keys.map(k => k.label));
+    }
+    expect(view({ hints: 'cluster', noLesson: true }).cluster).toBeNull();
+});

@@ -109,7 +109,7 @@ export function boardView(input: BoardInput): BoardView {
     const keymap = keyboard.keymap ?? [];
     const next = input.noLesson ? null : input.next;
     const primary: Path | null = next != null && resolution ? resolution.primary(next) : null;
-    const showNext = hints !== "off" && primary != null;
+    const showNext = (hints === "next-cluster" || hints === "next") && primary != null;
     const displayed = input.displayedLayer;
     const mask = input.displayedMask != null ? input.displayedMask >>> 0 : ((1 << defaultLayer) | (1 << displayed)) >>> 0;
 
@@ -168,7 +168,7 @@ export function boardView(input: BoardInput): BoardView {
     });
 
     let cluster: BoardView["cluster"] = null;
-    if (showNext && hints === "next-cluster") {
+    if (primary && (hints === "next-cluster" || hints === "cluster")) {
         const target = keys.find((k) => k.index === primary!.index);
         if (target) {
             const members = keys.filter((k) => k.row === target.row);

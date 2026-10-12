@@ -430,13 +430,16 @@ describe('Tool buttons (§5.2)', () => {
         expect(paused()).toBe(false);
     });
 
-    it('Hints cycles next key and cluster, next key, off, and keeps the lesson', async () => {
+    it('Hints cycles next key and cluster, next key, cluster only, off, and keeps the lesson', async () => {
         const c = await startController({ settings: { hints: 'next-cluster' } });
         renderPage();
         const run = c.run;
         fireEvent.click(screen.getByRole('button', { name: 'Hints: next key and cluster' }));
         expect(c.settings.hints).toBe('next');
         fireEvent.click(screen.getByRole('button', { name: 'Hints: next key' }));
+        expect(c.settings.hints).toBe('cluster');
+        expect(document.querySelector('[data-ring]')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Hints: cluster only' }));
         expect(c.settings.hints).toBe('off');
         expect(document.querySelector('[data-ring]')).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Hints: off' }));
