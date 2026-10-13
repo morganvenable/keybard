@@ -61,7 +61,7 @@ export function identifyFirmwareRelease(kb: Pick<KeyboardInfo, "svil_proto" | "f
 }
 
 /**
- * "rc0": vRC0, without context or default layer reporting (Trainer can't follow layers).
+ * "rc0": vRC0, without context or default layer reporting (the overlay can't follow layers).
  * "rc": vRC1 or vRC2 (the two look identical over HID).
  * "launch": vLaunch, before the storage fixes and default-layer setting of vLaunch2.
  */

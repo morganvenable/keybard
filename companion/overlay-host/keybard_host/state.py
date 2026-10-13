@@ -8,7 +8,19 @@ from pathlib import Path
 
 DEFAULTS = dict(layoutId='us', appearance=dict(fill='#14202b', fillAlpha=75, outline='#51606a', outlineAlpha=100,
     legend='#f0f5f7', legendAlpha=100, width=1, halo=False, changed='#8ce4d3', pressed='#ffd27a'),
-    effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=False, manualDefault=1)
+    effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=True, manualDefault=1,
+    capitalAlphas=False, adaptiveContrast=False)
+
+
+def _highlight_held_keys(config):
+    # Hosts before version 1 saved highlightPressed: false on every connect, so a saved false
+    # isn't a choice the user made: start everyone on the new default once.
+    config['highlightPressed'] = True
+
+
+# PREFERENCES_MIGRATIONS[n] upgrades a preferences config saved at version n to n + 1.
+PREFERENCES_MIGRATIONS = [_highlight_held_keys]
+PREFERENCES_VERSION = len(PREFERENCES_MIGRATIONS)
 
 
 def validate_config(value):
@@ -34,14 +46,21 @@ def validate_config(value):
         elif key == 'layoutId':
             if not isinstance(val, str) or not re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', val): raise ValueError('Invalid keyboard language')
             result[key] = val
-        elif key == 'highlightPressed':
-            if type(val) is not bool: raise ValueError('Invalid matrix preference')
+        elif key in ('highlightPressed', 'capitalAlphas', 'adaptiveContrast'):
+            if type(val) is not bool: raise ValueError('Invalid on/off preference')
             result[key] = val
         elif val not in dict(effect=('Off', 'Quick flash', 'Short fade'), hands=('Both', 'Left', 'Right'))[key]:
             raise ValueError('Invalid option')
         else:
             result[key] = val
     return result
+
+
+def remembered_board(value):
+    """The remembered board from preferences, or None unless it has a string serial and uid."""
+    if isinstance(value, dict) and isinstance(value.get('serial'), str) and isinstance(value.get('uid'), str):
+        return value
+    return None
 
 
 class HostState:
@@ -67,20 +86,25 @@ class HostState:
         self.practice_target = None
         self.practice_at = 0
         self.visible = True
-        # Only the handle moves the overlay unless the user turns on dragging by keys.
-        self.arrange = False
         self.session = secrets.token_hex(12)
         try:
             saved = json.loads(self.path.read_text())
-            self.config = validate_config(saved.get('config', {}))
-            self.remembered = saved.get('remembered')
-        except (OSError, ValueError, TypeError, KeyError):
-            pass
+        except (OSError, ValueError):
+            saved = {}
+        if not isinstance(saved, dict): saved = {}
+        try: self.config = validate_config(saved.get('config', {}))
+        except (ValueError, TypeError, KeyError): pass
+        self.remembered = remembered_board(saved.get('remembered'))
+        version = saved.get('version', 0)
+        if 'config' in saved and type(version) is int and 0 <= version < PREFERENCES_VERSION:
+            for migrate in PREFERENCES_MIGRATIONS[version:]: migrate(self.config)
+            try: self.save()
+            except OSError: pass  # migrated in memory; saved with the next change
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(dict(config=self.config, remembered=self.remembered)))
+        temporary.write_text(json.dumps(dict(version=PREFERENCES_VERSION, config=self.config, remembered=self.remembered)))
         temporary.replace(self.path)
 
     def configure(self, config, revision):
@@ -101,7 +125,7 @@ class HostState:
             return copy.deepcopy(dict(apiVersion=1, config=self.config, revision=self.revision,
                 layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device, active=self.active, default=self.default, valid=self.valid,
-                modifiers=self.modifiers, practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, arrange=self.arrange, session=self.session))
+                modifiers=self.modifiers, practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
 
 
 def serialize_profile(profile):
