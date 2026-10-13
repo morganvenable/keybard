@@ -1,0 +1,72 @@
+practice review ? 12 October 2026
+
+Scope
+Reviewed the standalone trainer shell and its shared practice engine: onboarding, connection and firmware notices, keyboard input, content selection, progress views, local persistence, responsive layouts, dependencies, and deployment. This was a code/test/browser review, not a physical firmware bench test.
+
+Deployment
+The app is live at https://practice.svalboard.com over enforced HTTPS. The independent deployment repository is https://github.com/svalboard/practice. Its manual workflow takes a full source commit SHA, builds only the standalone app, and publishes a release.json identifying the source. The deployed application fixes are in 3496d24f36e8628a44f51737189697ee9117ca1f. Subsequent commits adjust coverage-run timing and a development-preview-only notice. Keybard stable and next were not deployed.
+
+Findings and fixes
+1. Disconnected boards could continue using the retained editor keymap (medium). The shared context intentionally retains drafts after USB disconnect. The standalone shell had treated the presence of a keymap as sufficient to keep training. It now returns to Connect Svalboard, disables mode navigation, and stops lesson focus while retaining saved progress. Regression tests cover the retained-offline-keymap case. Actual cable removal still needs a real-board check.
+
+2. Import was a misleading connection fallback (medium). The shared import operation explicitly disconnects the device, so it could not provide the promised fallback for live practice. Removed it from the standalone connection dialog. Development example loading remains behind the development-only ?demo option. The no-letters recovery state also no longer offers an offline example in production.
+
+3. Saved book paragraph and generated lesson could disagree (medium). An out-of-range saved paragraph made the selector show the last passage while the book engine wrapped to the beginning. The engine and preview now clamp to the same last valid paragraph. Added a regression with a saved paragraph of 10000.
+
+4. Empty book content offered the custom-text editor (low). That editor cannot change the book. The recovery message now directs users to the book and text options already visible above the lesson.
+
+5. Numbers mode could silently ask for unavailable digits (medium). It uses the upstream full digit generator, but lacked the missing-character notice already present for source code. Added the warning and a test using a board without digit bindings. Generation remains faithful to upstream; the warning does not make missing keys typeable or prove a board's configuration is correct.
+
+6. Typing-to-resume could interfere with additional editable/control targets (low). Preserved native space activation for summary/switch controls and excluded editable content variants. Tests verify first-character capture, pause/resume, buttons, and dialog isolation; browser keyboard events verify the first character is not lost.
+
+7. Mobile landing page exceeded the viewport (low). The full-height hero was added below an in-flow header, and a later desktop branding rule restored unwanted mobile padding. Adjusted both. Live Chrome verification at 390 x 844 measured an 844-pixel page and a 71-pixel header.
+
+8. Stale development launch references (low). Removed the keybard-ng fallback base path and obsolete active development URLs. Explicit deployment base paths remain supported; archival repository references remain historical.
+
+9. Review infrastructure gaps. Existing coverage measured only four editor service files. Added a separate practice coverage configuration and a GitHub Actions review workflow. Added six new automated tests covering onboarding, retained offline keymaps, input capture, content controls, paragraph bounds, and missing digits. Corrected a lazy-panel test wait under coverage. Initial Linux coverage runs hit two 5-second UI test timeouts; coverage runs now use two CI workers and a 20-second test allowance without relaxing assertions or coverage gates.
+
+10. Final visual check caught a false 'Board disconnected' notice in the development-only example. Fixed it and added an assertion to the example-start helper. This was introduced by the review's disconnected-board handling and did not affect connected production use.
+
+Validation
+- Full repository suite: 1,907 tests across 234 files passed in GitHub Actions.
+- Clean dependency installation in a separate checkout, without replacing the shared local node_modules junction.
+- Standalone production build passed with Vite 7.3.7.
+- Integrated Keybard production build passed.
+- Offline Paranoid production build passed.
+- Headless Chrome checks: clean branding and one connect action, first-character capture from workspace focus, pause/resume, modal isolation, completing a lesson, saved history, Errors first/default, reload persistence, and all seven modes plus Progress at 1440, 1366, and 390-pixel widths. No horizontal overflow or uncaught page errors in those checks.
+- Live HTTPS page checked for title, connect action, mobile geometry, and release provenance.
+
+Coverage
+Measured scope: src/svalbr and non-vendored src/features/practice code; browser bootstrap and vendored Keybr source are excluded from instrumentation. This is not a percentage for the entire Keybard repository or for physical hardware behavior.
+Baseline -> final local clean-checkout measurements:
+  Lines/statements: 97.53% -> 97.66%
+  Branches:        87.70% -> 87.92%
+  Functions:       87.90% -> 90.03%
+The standalone shell reached 100% line coverage and 87.5% branch coverage. ContentChooser callback/function coverage increased from 33.33% to 100%. These figures indicate exercised code, not absence of bugs.
+Enforced practice gates: 95% lines/statements and 85% branches/functions. The workflow uploads HTML coverage and browser screenshots.
+
+Dependency audit
+Compatible lockfile updates reduced reported vulnerable packages from 20 to 7. Vite moved from 7.1.7 to 7.3.7; Vitest and its coverage provider moved from 3.2.4 to 3.2.7. npm audit --omit=dev reports zero known vulnerabilities.
+Seven development-tool findings remain: two critical, three high, two moderate, associated with the Vitest worker/mocker dependency chain and the single-file build plugin's glob dependencies. npm proposes a major Vitest upgrade and a breaking single-file-plugin downgrade. Those changes were not forced into this review. Zero runtime audit findings are not a guarantee of security.
+
+Remaining limitations and follow-up
+- A real-board acceptance pass should cover HID permission selection/cancellation, plugging/unplugging, old and current firmware, active/default layer changes, physical key attribution, and simultaneous use with other board tools. Automated firmware cases are simulated.
+- The review browser workflow uses the development-only example. It exercises actual DOM keyboard input and IndexedDB, but cannot certify USB timing.
+- The main standalone JavaScript chunk is about 791 kB before compression (239 kB gzip), and Vite still reports its large-chunk warning. Further splitting and loading book content only when needed remain performance work.
+- Some less-common diagnostics and progress-view branches remain uncovered: LayersHistory is about 37% branch-covered, KeyPopover about 60%, and the hidden input Lab about 67% line-covered. The standalone shell has 65% function coverage despite 100% line coverage, so the high line percentage should not be read as complete coverage of its connection callbacks. The report does not claim exhaustive state exploration or accessibility certification.
+- Localhost progress is origin-specific. It does not move automatically to practice.svalboard.com; use Progress & data export/import to transfer it.
+
+Repeatable commands
+  npm ci
+  npm test
+  npm run test:practice:coverage
+  npx playwright install chromium
+  npm run test:practice:browser
+  npm run build:svalbr
+  npm audit --omit=dev
+
+Workflow: .github/workflows/practice-review.yml
+Coverage HTML: coverage/practice/index.html
+Browser checks and screenshots: artifacts/practice-review/
+
+Final CI result: the full repository suite, practice coverage gate, Chromium browser review, standalone production build, and runtime dependency audit all passed. Coverage and browser artifacts were uploaded by https://github.com/morganvenable/keybard/actions/runs/38292661209.
