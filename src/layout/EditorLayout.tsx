@@ -1,14 +1,11 @@
 import { useLayerClipboardActions } from "@/hooks/useLayerClipboardActions";
 import { isEditorInput } from "@/utils/editor-input";
 import * as React from "react";
-import OverlayWorkspace from "@/features/trainer/OverlayWorkspace";
-import { OverlayProvider, useOverlayWorkspace } from "@/features/trainer/OverlayProvider";
-import { PracticeProvider, usePracticeWorkspace } from "@/features/practice/PracticeProvider";
-import PracticeWorkspace from "@/features/practice/PracticeWorkspace";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
 import { DragProvider, useDrag } from "@/contexts/DragContext";
+import { blankKeyOnDrop } from "./blank-key-drop";
 import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH, getDetailPanelHeight } from "./SecondarySidebar/SecondarySidebar";
 import { BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
@@ -28,6 +25,7 @@ import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
 import { PasteLayerDialog } from "@/components/PasteLayerDialog";
 import { DragReplaceLayerDialog } from "@/components/DragReplaceLayerDialog";
 import { StorageResetDialog } from "@/components/StorageResetDialog";
+import { TrackballMismatchDialog } from "@/components/TrackballMismatchDialog";
 import type { LayerEntry } from "@/types/layer-library";
 
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -58,19 +56,16 @@ import {
 } from "./layer-scene";
 
 const EditorLayout = () => {
+    const { assignKeycodeTo } = useKeyBinding();
+    const handleUnhandledDrop = React.useMemo(() => blankKeyOnDrop(assignKeycodeTo), [assignKeycodeTo]);
+
     return (
         <SidebarProvider defaultOpen={false}>
             <PanelsProvider>
                 <LayoutSettingsProvider>
                     <LayerProvider>
-                        <DragProvider>
-                            {/* Always mounted, same shape on every render, so nothing below remounts
-                                when a workspace is first opened (docs/practice/spec.md §4.1 Mounting). */}
-                            <OverlayProvider>
-                                <PracticeProvider>
-                                    <EditorLayoutInner />
-                                </PracticeProvider>
-                            </OverlayProvider>
+                        <DragProvider onUnhandledDrop={handleUnhandledDrop}>
+                            <EditorLayoutInner />
                             <DragOverlay />
                         </DragProvider>
                     </LayerProvider>
@@ -98,9 +93,6 @@ const EditorLayoutInner = () => {
         isThumb3DOffsetActive,
     } = useLayoutSettings();
     const { layerClipboard, openPasteDialog } = useLayoutLibrary();
-    const { isMobile, state, activePanel, itemToEdit, workspace } = usePanels();
-    // Editor-only effects (selection, layer paste) are gated on this; Practice and Overlay pages sit beside it.
-    const isEditor = workspace === "editor";
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
 
     const KC_TRNS = 1;
@@ -990,8 +982,6 @@ const EditorLayoutInner = () => {
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Layer paste belongs to the editor: in Practice or Overlay it would overwrite a hidden layer.
-            if (!isEditor) return;
             // Check for Ctrl+V (or Cmd+V on Mac)
             if (!e.defaultPrevented && !e.repeat && !isEditorInput(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 // Only handle if we have a layer in clipboard
@@ -1004,7 +994,7 @@ const EditorLayoutInner = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isEditor, layerClipboard, openPasteDialog]);
+    }, [layerClipboard, openPasteDialog]);
 
     const getLayerName = React.useCallback((layerIndex: number) => {
         if (!keyboard) return `Layer ${layerIndex}`;
@@ -1096,10 +1086,7 @@ const EditorLayoutInner = () => {
 
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    // Workspace pages mount on first visit and then stay mounted and hidden (§4.1 "Keep mounted").
-    const { activated: overlayVisited } = useOverlayWorkspace();
-    const { activated: practiceVisited } = usePracticeWorkspace();
-    React.useEffect(() => { if (!isEditor) clearSelection(); }, [isEditor, clearSelection]);
+    const { isMobile, state, activePanel, itemToEdit } = usePanels();
 
     // Editor overlay state for bottom bar mode
 
@@ -1136,7 +1123,6 @@ const EditorLayoutInner = () => {
 
     // In sidebar mode: show detail sidebar on right
     // In bottom bar mode: no detail sidebar, use bottom panel instead
-    // The detail panel serves every workspace, with the same push and dock rules (§4.1).
     const showDetailsSidebar = useSidebarLayout && !isMobile && state === "expanded";
     const showBottomPanel = useBottomLayout && state === "expanded";
 
@@ -1225,20 +1211,14 @@ const EditorLayoutInner = () => {
                 <button className="ml-3 underline" onClick={() => { setLayerPasteError(null); clearClipboardError(); }}>Dismiss</button>
             </div>}
             <AppSidebar />
-            {overlayVisited && <div hidden={workspace !== "overlay"} className="overlay-workspace relative flex-1 min-w-0 h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>
-                <OverlayWorkspace active={workspace === "overlay"} />
-            </div>}
-            {practiceVisited && <div hidden={workspace !== "practice"} className="practice-workspace relative flex-1 min-w-0 h-dvh max-h-dvh overflow-auto bg-kb-gray" style={contentStyle}>
-                <PracticeWorkspace active={workspace === "practice"} />
-            </div>}
-            {/* Keep the panel mounted when its placement or the workspace changes. */}
+            <div className="contents">
+            {/* Keep the panel mounted when its placement changes. */}
             <SecondarySidebar leftOffset={primaryOffset} height={dynamicBottomPanelHeight} bottom={useBottomLayout} />
-            <div className={isEditor ? "contents" : "hidden"}>
             <div
                 ref={contentContainerRef}
                 className={cn(
                     "relative flex-1 min-w-0 px-2 sm:px-4 h-dvh max-h-dvh flex flex-col max-w-full overflow-hidden bg-kb-gray border-none",
-                    isDraggingLayer && "ring-4 ring-inset ring-kb-select/50"
+                    isDraggingLayer && "ring-4 ring-inset ring-blue-400 ring-opacity-50"
                 )}
                 style={contentStyle}
                 onClick={() => clearSelection()}
@@ -1565,6 +1545,7 @@ const EditorLayoutInner = () => {
                 onCancel={handleDragReplaceCancel}
             />
             <StorageResetDialog />
+            <TrackballMismatchDialog />
             </div>
         </div >
     );

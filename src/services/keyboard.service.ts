@@ -2,11 +2,13 @@ import { LabelService } from "./label.service";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
 import { activeKeycodeVersion, applyKeycodeNumbering, UNREPORTED_KEYCODE_VERSION } from '@/constants/keycode-numbering';
-import { SVIL_TABLE_ALT_REPEAT_KEY, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
+import { SVIL_DEFINITION_HEADER_BYTES, SVIL_TABLE_ALT_REPEAT_KEY, VIA_BUFFER_HEADER_BYTES, SVIL_TABLE_LEADER, SvilUSB, checkSvilStatus, readSvilTable, svilHasMacroBuffer, svilIndexArgs, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
+import { payloadCapacity } from "./hid-report";
 
 import LZMA from "js-lzma";
 import { assertSupportedSvilProto } from "@/utils/unsupported-firmware";
+import { parsePointingHardware, SVIL_FLAG2_POINTING_HARDWARE } from "@/utils/pointing-hardware";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyboard.types";
 
 // Svil feature flags (from protocol info response)
@@ -197,6 +199,8 @@ export class KeyboardService {
             }
         }
 
+        await this.getPointingHardware(kbinfo);
+
         // Load fragment data (hardware detection and EEPROM selections)
         if (this.fragment.hasFragments(kbinfo)) {
             try {
@@ -268,9 +272,10 @@ export class KeyboardService {
             throw new Error(`Invalid payload size: ${payload_size}`);
         }
 
-        // Fetch definition in chunks using Svil protocol
-        // firmware definition chunk size = 22 (32 total - 6 wrapper - 4 response header)
-        const chunkSize = 22;
+        // Fetch definition in chunks using Svil protocol, as large as the report
+        // allows (22 bytes at 32, 54 at 64). The firmware may clamp a chunk below
+        // what was asked, so a short chunk is not the end of the definition.
+        const chunkSize = payloadCapacity(this.usb, SVIL_DEFINITION_HEADER_BYTES);
         const payload = new ArrayBuffer(payload_size);
         const pdv = new DataView(payload);
         let offset = 0;
@@ -285,13 +290,13 @@ export class KeyboardService {
 
             const data = resp as Uint8Array;
             // Response format after wrapper stripped: [cmd_echo][offset_lo][offset_hi][actual_size][data...]
-            const actualSize = data[3];
+            const actualSize = Math.min(data[3], requestSize);
             for (let i = 0; i < actualSize && offset < payload_size; i++) {
                 pdv.setInt8(offset, data[4 + i]);
                 offset++;
             }
 
-            if (actualSize < requestSize) break; // End of data
+            if (actualSize === 0) break; // End of data
         }
 
         // Decompress and parse JSON
@@ -519,6 +524,33 @@ export class KeyboardService {
         return { active: view.getUint32(1, true), default: hasDefault ? view.getUint32(5, true) : null };
     }
 
+    /**
+     * Each half's side and trackball sensor, so Keybard can warn about the wrong
+     * trackball firmware. Skipped on firmware that doesn't advertise it; a failed
+     * read just leaves it unset.
+     */
+    async getPointingHardware(kbinfo: KeyboardInfo): Promise<void> {
+        delete kbinfo.pointing_hardware;
+        if (((kbinfo.feature_flags2 ?? 0) & SVIL_FLAG2_POINTING_HARDWARE) === 0) return;
+        try {
+            const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_POINTING_HARDWARE, [], { uint8: true }) as Uint8Array;
+            const report = parsePointingHardware(reply, SvilUSB.CMD_SVIL_POINTING_HARDWARE);
+            if (report) kbinfo.pointing_hardware = report;
+        } catch (e) {
+            console.warn("Pointing hardware report not available:", e);
+        }
+    }
+
+    /**
+     * Hardware detection (0x18) read fresh, for the pointing slots: the board
+     * settles its pointing modules after connect. Leaves kbinfo untouched; an
+     * empty map on firmware without fragments or on a failed read.
+     */
+    async getFragmentHardware(kbinfo: KeyboardInfo): Promise<Map<number, number>> {
+        if (!this.fragment.hasFragments(kbinfo)) return new Map();
+        return (await this.fragment.readHardwareDetection()) ?? new Map();
+    }
+
     /** Whether the board can change its saved default layer (DEFAULT_LAYER_SET). */
     canSetDefaultLayer(kbinfo: KeyboardInfo): boolean {
         return ((kbinfo.feature_flags2 ?? 0) & SVIL_FLAG2_DEFAULT_LAYER_SET) !== 0;
@@ -579,6 +611,26 @@ export class KeyboardService {
     async updateKey(layer: number, row: number, col: number, keymask: number): Promise<void> {
         const BE16 = (num: number) => [(num >> 8) & 0xff, num & 0xff];
         await this.usb.send(SvilUSB.CMD_VIA_SET_KEYCODE, [layer, row, col, ...BE16(keymask)], {});
+    }
+
+    /** The most keycodes one dynamic keymap set-buffer message carries (11 at 32 bytes, 27 at 64). */
+    keymapBlockKeys(): number {
+        return Math.floor(payloadCapacity(this.usb, VIA_BUFFER_HEADER_BYTES) / 2);
+    }
+
+    /**
+     * Write keycodes to consecutive keymap positions in one message, starting at
+     * keymap index (layer * rows + row) * cols + col.
+     * Request: [0x13][offset:2 BE][size][keycode:2 BE ...]
+     */
+    async updateKeyBlock(index: number, keycodes: number[]): Promise<void> {
+        const BE16 = (num: number) => [(num >> 8) & 0xff, num & 0xff];
+        const offset = index * 2;
+        const size = keycodes.length * 2;
+        if (!keycodes.length || keycodes.length > this.keymapBlockKeys() || offset + size > 0x10000) {
+            throw new Error(`Keymap block of ${keycodes.length} keys at ${index} doesn't fit one message`);
+        }
+        await this.usb.send(SvilUSB.CMD_VIA_KEYMAP_SET_BUFFER, [...BE16(offset), size, ...keycodes.flatMap(BE16)], {});
     }
 
     async updateMacros(kbinfo: KeyboardInfo) {

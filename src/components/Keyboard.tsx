@@ -18,6 +18,8 @@ import {
     hoverBackgroundClasses,
     hoverBorderClasses,
     colorClasses,
+    isHexColor,
+    textClassForHex,
     layerColors,
     getColorByName
 } from "@/utils/colors";
@@ -26,8 +28,11 @@ import { svalService } from "@/services/sval.service";
 // import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
+import { usePreviewedLayerColors } from "@/hooks/useLayerColorPreview";
 import { useIsDark } from "@/lib/theme";
 import { dark3DLabelColor, needsDarkIndicatorOutline, screenedBackdropHex } from "./layer3DColors";
+import { PointingSlot } from "./pointing-viz/PointingSlot";
+import { usePointingSlots } from "@/hooks/usePointingSlots";
 
 const TEXT_CLASS_TO_HEX: Record<string, string> = {
     "text-white": "#ffffff",
@@ -51,6 +56,8 @@ interface KeyboardProps {
     isToggling3D?: boolean;
     showDropTargetHighlight?: boolean;
     isLayerDragActive?: boolean;
+    /** Draw each hand's pointing slot (live module animation). Only the primary layer view does, so stacked and 3D views don't each run their own animations. */
+    showPointingSlots?: boolean;
 }
 
 /**
@@ -70,6 +77,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     isToggling3D = false,
     showDropTargetHighlight = false,
     isLayerDragActive = false,
+    showPointingSlots = true,
 }) => {
     const {
         selectKeyboardKey,
@@ -79,7 +87,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     } = useKeyBinding();
 
     const { activePanel, itemToEdit } = usePanels();
+    const pointingSlots = usePointingSlots();
     const { hasPendingChangeForKey } = useChanges();
+    const layerColorNames = usePreviewedLayerColors(keyboard.cosmetic?.layer_colors);
 
     // Use dynamic keylayout from fragments if available, otherwise fallback to hardcoded layout
     const { keyboardLayout, useFragmentLayout } = useMemo(() => {
@@ -338,8 +348,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     }, [isTransmitting, selectedTarget, selectedLayer, clearSelection, selectKeyboardKey]);
 
     const layerColor = useMemo(() =>
-        keyboard.cosmetic?.layer_colors?.[selectedLayer] || "primary",
-        [keyboard.cosmetic, selectedLayer]
+        layerColorNames?.[selectedLayer] || "primary",
+        [layerColorNames, selectedLayer]
     );
 
     const layerKeymap = useMemo(() =>
@@ -476,14 +486,14 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         : !!layerActiveState?.[selectedLayer];
 
     const layerBackdropColor = useMemo(() => {
-        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const layerName = layerColorNames?.[selectedLayer] || "green";
         const color = getColorByName(layerName)?.hex || "#099e7c";
         const r = parseInt(color.slice(1, 3), 16);
         const g = parseInt(color.slice(3, 5), 16);
         const b = parseInt(color.slice(5, 7), 16);
         const appliedOpacity = isActiveLayerBackdrop ? 0.65 : backdropOpacity;
         return `rgba(${r}, ${g}, ${b}, ${appliedOpacity})`;
-    }, [keyboard.cosmetic, selectedLayer, backdropOpacity, isActiveLayerBackdrop]);
+    }, [layerColorNames, selectedLayer, backdropOpacity, isActiveLayerBackdrop]);
     const isBackdropDropTargetActive = is3DMode && isLayerDragActive;
 
     const layerDisplayName = useMemo(() => {
@@ -491,15 +501,16 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     }, [keyboard, selectedLayer]);
 
     const layerHeaderTextColor = useMemo(() => {
-        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const layerName = layerColorNames?.[selectedLayer] || "green";
         return getColorByName(layerName)?.hex || "#099e7c";
-    }, [keyboard.cosmetic, selectedLayer]);
+    }, [layerColorNames, selectedLayer]);
 
     const layerTextColorClass = useMemo(() => {
-        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const layerName = layerColorNames?.[selectedLayer] || "green";
+        if (isHexColor(layerName)) return textClassForHex(layerName);
         const classes = colorClasses[layerName] || colorClasses.primary;
         return classes.split(" ").find(c => c.startsWith("text-"));
-    }, [keyboard.cosmetic, selectedLayer]);
+    }, [layerColorNames, selectedLayer]);
     const keyTextColorHex = layerTextColorClass ? TEXT_CLASS_TO_HEX[layerTextColorClass] : undefined;
     const active3DIndicatorColor = isLayerActive ? (keyTextColorHex || layerHeaderTextColor) : layerHeaderTextColor;
     const useKeyTextColorFor3DLabel = isLayerActive
@@ -514,10 +525,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const isDark = useIsDark();
     const darkBackdropHex = useMemo(() => {
         if (!isDark) return undefined;
-        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const layerName = layerColorNames?.[selectedLayer] || "green";
         const layerHex = getColorByName(layerName)?.hex || "#099e7c";
         return screenedBackdropHex(layerHex, isActiveLayerBackdrop ? 0.65 : backdropOpacity);
-    }, [isDark, keyboard.cosmetic, selectedLayer, isActiveLayerBackdrop, backdropOpacity]);
+    }, [isDark, layerColorNames, selectedLayer, isActiveLayerBackdrop, backdropOpacity]);
     const dark3DLabelColorValue = useMemo(() => {
         if (!darkBackdropHex) return undefined;
         const base = useKeyTextColorFor3DLabel
@@ -585,7 +596,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 return {
                     keycode: code,
                     sourceLayer: l,
-                    sourceLayerColor: keyboard.cosmetic?.layer_colors?.[l] || "primary"
+                    sourceLayerColor: layerColorNames?.[l] || "primary"
                 };
             }
         }
@@ -598,7 +609,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         return {
             keycode: code,
             sourceLayer: baseLayer,
-            sourceLayerColor: keyboard.cosmetic?.layer_colors?.[baseLayer] || "primary"
+            sourceLayerColor: layerColorNames?.[baseLayer] || "primary"
         };
     };
 
@@ -737,6 +748,31 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                         }}
                     />
                 )}
+                {/* Pointing slots: under each hand's ring and middle clusters, beside the thumb. The
+                    finger clusters close in on the thumbs as they squeeze, so the slot moves with
+                    the fingers and gives up the squeeze on its thumb side to stay clear of it. */}
+                {showPointingSlots && !(!is3DMode && isThumb3DOffsetActive) && pointingSlots.map((slot) => {
+                    const squeeze = fingerClusterSqueeze > 0 ? Math.min(fingerClusterSqueeze, slot.w / 2) : 0;
+                    // Left: fingers stay put and the thumb moves left by the squeeze, so the slot keeps its
+                    // left edge. Right: fingers move left by twice the squeeze and the thumb by once, so
+                    // the slot keeps its right edge with the fingers.
+                    const xPos = slot.x - (slot.side === "left" ? 0 : squeeze) + layoutOffsets.offsetX;
+                    const yPos = getYPos(slot.y) + layoutOffsets.offsetY;
+                    const sized = squeeze > 0 ? { ...slot, w: slot.w - squeeze, h: slot.h - squeeze } : slot;
+                    return (
+                        <PointingSlot
+                            key={`pointing-${slot.side}`}
+                            slot={sized}
+                            unitPx={currentUnitSize}
+                            style={{
+                                left: xPos * currentUnitSize,
+                                top: yPos * currentUnitSize,
+                                transform: (is3DMode && isThumb3DOffsetActive) ? "translateY(900px)" : undefined,
+                                transition: is3DMode ? KEY_3D_MOTION_TRANSITION : undefined,
+                            }}
+                        />
+                    );
+                })}
                 {/* Keys */}
                 {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
                     const pos = Number(matrixPos);

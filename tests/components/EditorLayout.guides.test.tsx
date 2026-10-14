@@ -21,32 +21,16 @@ const mockPanels = vi.hoisted(() => ({
   isMobile: false,
   state: "collapsed",
   activePanel: null as string | null,
-  workspace: "editor" as "editor" | "practice" | "overlay",
-  practicePage: "lessons" as const,
-  setPracticePage: vi.fn(),
   itemToEdit: null,
   setItemToEdit: vi.fn(),
   handleCloseEditor: vi.fn(),
 }));
-
-// Mount counters for the always-mounted parts (docs/practice/spec.md §9.9: switching workspaces
-// never remounts the detail panel or the editor content).
-const mounts = vi.hoisted(() => ({ secondarySidebar: 0, layerSelector: 0 }));
 
 const mockLayer = vi.hoisted(() => ({
   selectedLayer: 0,
   setSelectedLayer: vi.fn(),
 }));
 
-// Overlay page stand-in that keeps a session counter. The real OverlayProvider stays, so its engine
-// runs the real Host client and the tests can see when Keybard first contacts Keybard Host.
-vi.mock("@/features/trainer/OverlayWorkspace", async () => {
-  const { useState } = await import("react");
-  return { default: ({ active }: { active: boolean }) => {
-    const [attempts, setAttempts] = useState(0);
-    return <button data-testid="trainer-session" data-active={active} onClick={() => setAttempts(n => n + 1)}>{attempts}</button>;
-  } };
-});
 
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -118,13 +102,11 @@ vi.mock("@/hooks/useChanges", () => ({
   }),
 }));
 
-const mockLayoutLibrary = vi.hoisted(() => ({
-  layerClipboard: null as unknown,
-  openPasteDialog: vi.fn(),
-}));
-
 vi.mock("@/contexts/LayoutLibraryContext", () => ({
-  useLayoutLibrary: () => mockLayoutLibrary,
+  useLayoutLibrary: () => ({
+    layerClipboard: null,
+    openPasteDialog: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/DragOverlay", () => ({
@@ -135,17 +117,11 @@ vi.mock("../../src/layout/Sidebar", () => ({
   default: () => null,
 }));
 
-vi.mock("../../src/layout/SecondarySidebar/SecondarySidebar", async () => {
-  const { useEffect } = await import("react");
-  return {
-    default: () => {
-      useEffect(() => { mounts.secondarySidebar++; }, []);
-      return null;
-    },
-    DETAIL_SIDEBAR_WIDTH: "360px",
-    getDetailPanelHeight: (_panel: unknown, height: number) => height,
-  };
-});
+vi.mock("../../src/layout/SecondarySidebar/SecondarySidebar", () => ({
+  default: () => null,
+  DETAIL_SIDEBAR_WIDTH: "360px",
+  getDetailPanelHeight: (_panel: unknown, height: number) => height,
+}));
 
 vi.mock("../../src/layout/BottomPanel", () => ({
   BottomPanel: () => null,
@@ -191,19 +167,13 @@ vi.mock("@/services/sval.service", () => ({
   },
 }));
 
-vi.mock("../../src/layout/LayerSelector", async () => {
-  const { useEffect } = await import("react");
-  return {
-    default: ({ onToggleMultiLayers }: { onToggleMultiLayers: () => void }) => {
-      useEffect(() => { mounts.layerSelector++; }, []);
-      return (
-        <button data-testid="toggle-multi" onClick={onToggleMultiLayers}>
-          toggle multi
-        </button>
-      );
-    },
-  };
-});
+vi.mock("../../src/layout/LayerSelector", () => ({
+  default: ({ onToggleMultiLayers }: { onToggleMultiLayers: () => void }) => (
+    <button data-testid="toggle-multi" onClick={onToggleMultiLayers}>
+      toggle multi
+    </button>
+  ),
+}));
 
 vi.mock("../../src/layout/KeyboardViewInstance", () => ({
   default: ({
@@ -232,10 +202,6 @@ describe("EditorLayout 3D guide sequencing", () => {
 
   beforeEach(() => {
     mockPanels.activePanel = null;
-    mockPanels.workspace = "editor";
-    mockPanels.state = "collapsed";
-    mounts.secondarySidebar = 0;
-    mounts.layerSelector = 0;
     vi.useFakeTimers();
     vi.stubGlobal("__GIT_BRANCH__", "test");
     vi.stubGlobal("ResizeObserver", class {
@@ -269,109 +235,6 @@ describe("EditorLayout 3D guide sequencing", () => {
       callbacks.forEach((cb) => cb(0));
     });
   };
-
-  it("retains the Overlay session when returning to the editor", () => {
-    mockPanels.workspace = "overlay";
-    mockPanels.activePanel = "overlay";
-    const { rerender } = render(<EditorLayout />);
-    fireEvent.click(screen.getByTestId("trainer-session"));
-    expect(screen.getByTestId("trainer-session")).toHaveTextContent("1");
-    mockPanels.workspace = "editor";
-    mockPanels.activePanel = "keyboard";
-    rerender(<EditorLayout />);
-    expect(screen.getByTestId("trainer-session")).not.toBeVisible();
-    expect(screen.getByTestId("trainer-session")).toHaveAttribute("data-active", "false");
-    mockPanels.workspace = "overlay";
-    mockPanels.activePanel = "overlay";
-    rerender(<EditorLayout />);
-    expect(screen.getByTestId("trainer-session")).toBeVisible();
-    expect(screen.getByTestId("trainer-session")).toHaveTextContent("1");
-  });
-
-  it("keeps the Overlay page showing while Settings is open over it", () => {
-    mockPanels.workspace = "overlay";
-    mockPanels.activePanel = "settings";
-    mockPanels.state = "expanded";
-    render(<EditorLayout />);
-    expect(screen.getByTestId("trainer-session")).toBeVisible();
-    expect(screen.getByTestId("trainer-session")).toHaveAttribute("data-active", "true");
-  });
-
-  it.each(["practice", "overlay"] as const)("Ctrl+V does not open the layer paste dialog in %s", (workspace) => {
-    mockLayoutLibrary.layerClipboard = { layer: { keymap: [] } };
-    mockLayoutLibrary.openPasteDialog.mockClear();
-    try {
-      mockPanels.workspace = workspace;
-      mockPanels.activePanel = workspace;
-      const { rerender } = render(<EditorLayout />);
-      fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
-      expect(mockLayoutLibrary.openPasteDialog).not.toHaveBeenCalled();
-      // The same keystroke in the editor still pastes, so the gate is the workspace.
-      mockPanels.workspace = "editor";
-      mockPanels.activePanel = null;
-      rerender(<EditorLayout />);
-      fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
-      expect(mockLayoutLibrary.openPasteDialog).toHaveBeenCalledTimes(1);
-    } finally {
-      mockLayoutLibrary.layerClipboard = null;
-    }
-  });
-
-  it("gives the Overlay page the editor's scroll box, with no trainer.css override", () => {
-    mockPanels.workspace = "overlay";
-    mockPanels.activePanel = "overlay";
-    render(<EditorLayout />);
-    const box = document.querySelector(".overlay-workspace") as HTMLElement;
-    expect(box.className).toContain("overflow-auto");
-    expect(box.className).not.toContain("trainer");
-  });
-
-  it("never remounts the detail panel or the editor content when switching workspaces", () => {
-    const { rerender } = render(<EditorLayout />);
-    expect(mounts).toEqual({ secondarySidebar: 1, layerSelector: 1 });
-    for (const workspace of ["overlay", "editor", "practice", "overlay", "editor"] as const) {
-      mockPanels.workspace = workspace;
-      mockPanels.activePanel = workspace === "editor" ? "keyboard" : workspace;
-      rerender(<EditorLayout />);
-    }
-    expect(mounts).toEqual({ secondarySidebar: 1, layerSelector: 1 });
-    expect(screen.getByTestId("trainer-session")).not.toBeVisible();
-    expect(screen.getByRole("heading", { name: "Practice", hidden: true })).not.toBeVisible();
-  });
-
-  it("mounts the Practice page on its first visit and keeps it mounted", () => {
-    const { rerender } = render(<EditorLayout />);
-    expect(screen.queryByRole("heading", { name: "Practice", hidden: true })).not.toBeInTheDocument();
-    mockPanels.workspace = "practice";
-    mockPanels.activePanel = "practice";
-    rerender(<EditorLayout />);
-    expect(screen.getByRole("heading", { name: "Practice" })).toBeVisible();
-    mockPanels.workspace = "editor";
-    mockPanels.activePanel = null;
-    rerender(<EditorLayout />);
-    expect(screen.getByRole("heading", { name: "Practice", hidden: true })).not.toBeVisible();
-  });
-
-  it("does not contact Keybard Host before Overlay is first opened", async () => {
-    // A Host-served page starts its Host client at once; it must still wait for the first visit (D15).
-    document.documentElement.dataset.keybardHost = "true";
-    try {
-      const hostCalls = () => vi.mocked(fetch).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/api/host/"));
-      const { rerender } = render(<EditorLayout />);
-      mockPanels.workspace = "practice";
-      mockPanels.activePanel = "practice";
-      rerender(<EditorLayout />);
-      await act(async () => { await Promise.resolve(); });
-      expect(hostCalls()).toEqual([]);
-      mockPanels.workspace = "overlay";
-      mockPanels.activePanel = "overlay";
-      rerender(<EditorLayout />);
-      await act(async () => { await Promise.resolve(); });
-      expect(hostCalls()).toContain("/api/host/bootstrap");
-    } finally {
-      delete document.documentElement.dataset.keybardHost;
-    }
-  });
 
   it("keeps guides hidden during legacy forward entry and only shows them once settled", async () => {
     const { queryByTestId } = render(<EditorLayout />);

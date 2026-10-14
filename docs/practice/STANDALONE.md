@@ -28,6 +28,8 @@ The standalone entry is `src/svalbr/main.tsx`, with its shell in `SvalbrApp.tsx`
 
 The branch is `feat/svalbr-standalone`, based on `feat/practice-trainer` at `9edd301`. The original Practice checkout is untouched. Shared engine fixes can continue to serve both apps; the standalone UI and deployment need not track Keybard releases.
 
+Keybard `main` at `b830a44` (vLaunch2.3) is merged in, so practice talks to the board through the same services as Keybard: 32-byte reports on vLaunch2 and earlier, 64-byte on vNext1. The Keybard editor and Overlay code on this branch are `main`'s; the integrated Practice workspace and its tests stay on `feat/practice-trainer`. Merge `main` again whenever the device layer changes there.
+
 ## Validation and remaining checks
 
 The standalone integration tests mount the real providers, keymap importer, key renderer, lesson engine, and IndexedDB. They exercise example loading, failed-load recovery, typing, mode changes, OS layout controls, progress/data, and routing without the editor. Existing Practice and key-renderer tests cover the shared implementation.

@@ -1,0 +1,44 @@
+.trainer-page{height:100dvh;background:var(--color-kb-gray,#f1f2f2);color:#333;display:flex;flex-direction:column;overflow:hidden;font-size:13px}.trainer-header{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid #ddd;background:white;flex-shrink:0}.trainer-main{padding:28px;overflow:auto;min-height:0}.trainer-note{font-size:12px;color:#78837b;line-height:1.65;margin:8px 0 18px}.trainer-page select{width:100%;min-width:0;padding:9px 10px;border:1px solid #d8dfda;border-radius:5px;background:white;font-size:12px;color:#4d6053;text-overflow:ellipsis}.trainer-page input[type=range]{width:100%;min-width:0;accent-color:#099e7c;height:4px}.trainer-page input[type=color]{width:29px;height:27px;padding:0;border:1px solid #d8dfda;border-radius:5px;overflow:hidden;flex-shrink:0;cursor:pointer}.trainer-page input[type=color]::-webkit-color-swatch-wrapper{padding:0}.trainer-page input[type=color]::-webkit-color-swatch{border:0}.trainer-page hr{border:0;border-top:1px solid #e1e6e2;margin:22px 0}.trainer-error{color:#b52a44;font-size:12px}.trainer-fade{animation:trainer-fade linear forwards}@keyframes trainer-fade{from{opacity:1}to{opacity:0}}
+@media(max-width:1050px){.trainer-main{padding:20px}}
+@media(max-width:760px){.trainer-header{padding:12px;gap:8px;flex-wrap:wrap}.trainer-main{padding:16px}}
+
+.trainer-native-surface{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:transparent}.trainer-native-surface svg{width:100%;height:100%;display:block}
+
+/* Live inside Keybard's existing navigation rail,with independent workspace scrolling. */
+.trainer-shell{display:flex;width:100%;min-width:0;height:100dvh;background:var(--color-kb-gray,#f1f2f2)}
+.trainer-shell-content{flex:1;min-width:0;position:relative;container-type:inline-size}
+.trainer-header{height:64px;padding:0 24px;background:transparent;border-bottom:1px solid #ddd;gap:10px}
+.trainer-header h1{font-size:16px;font-weight:600}
+
+.trainer-main{flex:1;padding:24px}
+.trainer-mobile-nav{position:absolute;top:16px;left:8px;z-index:10}
+@container(max-width:900px){.trainer-main{padding:16px}}
+@media(max-width:767px){.trainer-header{padding-left:48px}}
+
+.trainer-key-legend{ height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:600; line-height:1.05; overflow:hidden; }
+.trainer-key-heading{ display:flex; align-items:center; justify-content:center; gap:2px; font-size:7px; max-width:100%; flex-shrink:0; }
+.trainer-key-center{ display:flex; align-items:center; justify-content:center; gap:2px; min-height:0; flex:1; max-width:100%; white-space:pre-line; text-align:center; overflow-wrap:anywhere; }
+.trainer-key-legend svg{ width:12px; height:12px; margin:0; flex-shrink:0; }
+
+/* Short fade is an explicitly selected opacity effect,with no spatial motion.
+   Keep it under reduced-motion settings; disabling it turns it into a flash. */
+
+.trainer-install{ max-width:1700px; margin:0 auto 20px; padding:16px 20px; background:white; border:1px solid #d8dcda; }
+.trainer-install-heading{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.trainer-install h2{ font-size:15px; font-weight:600; margin:0 0 4px; }
+.trainer-install p{ font-size:12px; line-height:1.6; color:#526359; margin:4px 0; }
+.trainer-install-download{ display:inline-flex; align-items:center; gap:8px; background:#099e7c; color:white; padding:10px 14px; font-size:13px; font-weight:600; }
+.trainer-install-download:hover{ background:#087e60; }
+.trainer-install-links{ display:flex; gap:20px; flex-wrap:wrap; margin-top:12px; font-size:12px; }
+.trainer-install-links a{ display:inline-flex; align-items:center; gap:5px; color:#087e60; text-decoration:underline; text-underline-offset:3px; }
+
+.dark .trainer-header,.dark .trainer-page hr{border-color:#3a3d42}
+.dark .trainer-install{background:#1d1e21;border-color:#3a3d42}
+
+.dark .trainer-page select{background:#26282b;border-color:#75797f;color:#f1f2f2}
+.dark .trainer-page input[type=color]{border-color:#75797f}
+
+.dark .trainer-error{color:#f2788b}
+.dark .trainer-install-links a{color:#3cc29f}
+.trainer-note,.trainer-install p{color:#a3a3a3}
+

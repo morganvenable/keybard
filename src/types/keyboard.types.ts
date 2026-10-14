@@ -1,5 +1,6 @@
 // Type definitions for Svil keyboard configuration system
 // Keyboard configuration and Sval protocol data.
+import type { PointingHardwareReport } from "../utils/pointing-hardware";
 
 export interface KeyboardInfo {
     via_proto?: number;
@@ -32,6 +33,7 @@ export interface KeyboardInfo {
     feature_flags?: number;                  // NEW: Svil feature flags
     keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
     storage_reset?: boolean;                 // board reset its settings: its storage could not be read
+    pointing_hardware?: PointingHardwareReport; // connected boards: each half's side and trackball sensor (POINTING_HARDWARE)
     storage_write_failed?: boolean;          // board couldn't save a change since it started: changes will be lost on restart
     keycode_version_reported?: boolean;      // Connected boards: whether GET_INFO reported the numbering (vLaunch on)
     raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
@@ -290,7 +292,21 @@ export interface SvilAPI extends KeyboardAPI {
 export interface FragmentDefinition {
     id: number;                 // Numeric fragment ID (0-254), used in protocol
     description?: string;       // Human-readable name (e.g., "5-key finger cluster")
-    kle: unknown[];            // KLE layout data for visual rendering
+    kle: unknown[];            // KLE layout data for visual rendering ([] for a zero-key widget fragment)
+    widget?: FragmentWidget;    // Zero-key fragment drawn as a widget (pointing module slot)
+}
+
+/**
+ * A zero-key fragment drawn as a widget instead of keys. An instance whose every
+ * option is a widget fragment is a widget instance: it never adds keys to the
+ * layout, and only hardware detection (0x18) decides which option it shows.
+ */
+export interface FragmentWidget {
+    kind: "pointing";
+    module: "none" | "unknown" | "trackball" | "touchpad" | "trackpoint";
+    sensor?: "pmw3360" | "pmw3389" | "azoteq" | "trackpoint";
+    w: number;                  // Size in key units
+    h: number;
 }
 
 /**
@@ -324,6 +340,7 @@ export interface FragmentInstance {
     // Selectable instance (user can choose):
     fragment_options?: FragmentOption[];  // Available fragments for this position
     allow_override?: boolean;   // Whether user can override hardware detection (default: true)
+    hardware_detect?: boolean;  // Firmware reports this position via 0x18
 }
 
 /**
@@ -348,6 +365,10 @@ export interface FragmentState {
     // User selections in current session (from keymap file or UI)
     // Maps instance string ID -> fragment name
     userSelections: Map<string, string>;
+
+    // The board's selections (0x19) were read on this connection. A write sends
+    // every instance's selection, so without them it would reset the others.
+    selectionsRead?: boolean;
 }
 
 // ============================================================================

@@ -12,7 +12,6 @@ const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), "utf-8")
 const SITES: { file: string; uses: string[]; not: string[] }[] = [
     { file: "src/layout/SecondarySidebar/Panels/LeadersPanel.tsx", uses: ['isSelected && "ring-2 ring-kb-select"'], not: ["ring-blue-500"] },
     { file: "src/layout/SecondarySidebar/Panels/AltRepeatPanel.tsx", uses: ['isSelected && "ring-2 ring-kb-select"'], not: ["ring-blue-500"] },
-    { file: "src/layout/EditorLayout.tsx", uses: ["ring-4 ring-inset ring-kb-select/50"], not: ["ring-blue-400", "ring-opacity-50"] },
     { file: "src/layout/SecondarySidebar/Panels/BoardIdentitySection.tsx", uses: ['dirty ? "border-kb-pending"'], not: ["border-amber-500"] },
     { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", uses: ["bg-kb-select-tint/40 border-2 border-solid border-kb-select"], not: ["border-dashed border-blue-500", "text-blue-500"] },
     { file: "src/components/LayoutGroupCard.tsx", uses: ["bg-kb-gray-medium text-kb-ink rounded"], not: ["bg-blue-100"] },

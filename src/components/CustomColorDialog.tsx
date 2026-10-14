@@ -25,29 +25,27 @@ interface CustomColorDialogProps {
     initialDisplayHue?: number;
     initialDisplaySat?: number;
     initialDisplayVal?: number;
-    /**
-     * The display color as an exact hex. With it, the dialog hands back this hex unchanged until a
-     * slider moves, instead of a round trip through 8-bit HSV that shifts most colors by a step.
-     */
-    initialDisplayHex?: string;
-    // Callback with both colors; displayHex is the display color exactly as shown in the dialog
+    // Callback with both colors
     onApply: (
         displayHsv: { hue: number; sat: number; val: number },
-        ledHsv: { hue: number; sat: number; val: number },
-        displayHex: string
+        ledHsv: { hue: number; sat: number; val: number }
     ) => void;
+    // Shows an LED color on the board while it's being picked (not saved).
+    // Called at most every PREVIEW_INTERVAL_MS, and with the initial color
+    // again if the dialog closes without Apply.
+    onPreviewLed?: (ledHsv: Hsv) => void;
+    // Shows the key color on the layout while it's being picked; null ends the
+    // preview (on Apply, Cancel or close), leaving the saved color.
+    onPreviewDisplay?: (displayHsv: Hsv | null) => void;
     layerName?: string;
     onCloseAutoFocus?: (event: Event) => void;
-    /**
-     * Pick one display color only, with no LED target (the Overlay Color field's "More colors…",
-     * docs/practice/spec.md N-15). onApply still receives both; the LED values are the initial ones.
-     */
-    displayOnly?: boolean;
-    /** Dialog title; defaults to "Colors for {layerName}" or "Colors". */
-    title?: string;
 }
 
 type ColorTarget = 'display' | 'led';
+type Hsv = { hue: number; sat: number; val: number };
+
+/** Live LED previews go out at most this often (10 Hz). */
+export const PREVIEW_INTERVAL_MS = 100;
 
 /**
  * Dialog for selecting custom HSV colors for layer lights
@@ -64,18 +62,15 @@ const CustomColorDialog = ({
     initialDisplayHue = 85,
     initialDisplaySat = 255,
     initialDisplayVal = 200,
-    initialDisplayHex,
     onApply,
+    onPreviewLed,
+    onPreviewDisplay,
     layerName,
-    displayOnly = false,
-    title,
 }: CustomColorDialogProps) => {
     // Display color state
     const [displayHue, setDisplayHue] = useState(initialDisplayHue);
     const [displaySat, setDisplaySat] = useState(initialDisplaySat);
     const [displayVal, setDisplayVal] = useState(initialDisplayVal);
-    // The display color's exact hex while no slider has moved (initial or typed); null once one has.
-    const [displayExact, setDisplayExact] = useState<string | null>(initialDisplayHex ?? null);
 
     // LED color state
     const [ledHue, setLedHue] = useState(initialLedHue);
@@ -83,7 +78,7 @@ const CustomColorDialog = ({
     const [ledVal, setLedVal] = useState(initialLedVal);
 
     // Which color is being edited
-    const [activeTarget, setActiveTarget] = useState<ColorTarget>('display');
+    const [activeTarget, setActiveTarget] = useState<ColorTarget>('led');
 
     // Hex editing state
     const [isEditingHex, setIsEditingHex] = useState(false);
@@ -91,6 +86,41 @@ const CustomColorDialog = ({
     const hexInputRef = useRef<HTMLInputElement>(null);
     const hexButtonRef = useRef<HTMLButtonElement>(null);
     const cancelHex = useRef(false);
+    const hexStart = useRef<Hsv | null>(null);
+
+    // Live LED preview, throttled; `changed` means the board may differ from the initial color.
+    const preview = useRef<{ last: number; timer: ReturnType<typeof setTimeout> | null; pending: Hsv | null; changed: boolean }>(
+        { last: 0, timer: null, pending: null, changed: false });
+    const onPreviewRef = useRef(onPreviewLed);
+    onPreviewRef.current = onPreviewLed;
+    const onPreviewDisplayRef = useRef(onPreviewDisplay);
+    onPreviewDisplayRef.current = onPreviewDisplay;
+
+    const flushPreview = () => {
+        const p = preview.current;
+        p.timer = null;
+        if (!p.pending) return;
+        p.last = Date.now();
+        onPreviewRef.current?.(p.pending);
+        p.pending = null;
+    };
+    const previewLed = (hsv: Hsv) => {
+        const p = preview.current;
+        if (!onPreviewRef.current) return;
+        p.pending = hsv;
+        p.changed = true;
+        if (!p.timer) p.timer = setTimeout(flushPreview, Math.max(0, PREVIEW_INTERVAL_MS - (Date.now() - p.last)));
+    };
+    const stopPreview = () => {
+        const p = preview.current;
+        if (p.timer) clearTimeout(p.timer);
+        p.timer = null;
+        p.pending = null;
+    };
+    useEffect(() => () => {
+        stopPreview();
+        onPreviewDisplayRef.current?.(null);
+    }, []);
 
     // Reset to initial values when dialog opens
     useEffect(() => {
@@ -98,14 +128,14 @@ const CustomColorDialog = ({
             setDisplayHue(initialDisplayHue);
             setDisplaySat(initialDisplaySat);
             setDisplayVal(initialDisplayVal);
-            setDisplayExact(initialDisplayHex ? initialDisplayHex.toLowerCase() : null);
             setLedHue(initialLedHue);
             setLedSat(initialLedSat);
             setLedVal(initialLedVal);
-            setActiveTarget('display');
+            setActiveTarget('led');
             setIsEditingHex(false);
+            preview.current.changed = false;
         }
-    }, [open, initialDisplayHue, initialDisplaySat, initialDisplayVal, initialDisplayHex, initialLedHue, initialLedSat, initialLedVal]);
+    }, [open, initialDisplayHue, initialDisplaySat, initialDisplayVal, initialLedHue, initialLedSat, initialLedVal]);
 
     // Get active color values
     const getActiveHsv = () => {
@@ -115,31 +145,50 @@ const CustomColorDialog = ({
         return { hue: ledHue, sat: ledSat, val: ledVal };
     };
 
-    // Set active color values
-    const setActiveHue = (v: number) => {
-        if (activeTarget === 'display') { if (v !== displayHue) setDisplayExact(null); setDisplayHue(v); }
-        else setLedHue(v);
+    // Set active color values; LED changes are shown on the board as they happen
+    const setActiveHsv = (hsv: Hsv) => {
+        if (activeTarget === 'display') {
+            setDisplayHue(hsv.hue);
+            setDisplaySat(hsv.sat);
+            setDisplayVal(hsv.val);
+            onPreviewDisplay?.(hsv);
+            return;
+        }
+        setLedHue(hsv.hue);
+        setLedSat(hsv.sat);
+        setLedVal(hsv.val);
+        if (hsv.hue !== ledHue || hsv.sat !== ledSat || hsv.val !== ledVal) previewLed(hsv);
     };
-    const setActiveSat = (v: number) => {
-        if (activeTarget === 'display') { if (v !== displaySat) setDisplayExact(null); setDisplaySat(v); }
-        else setLedSat(v);
-    };
-    const setActiveVal = (v: number) => {
-        if (activeTarget === 'display') { if (v !== displayVal) setDisplayExact(null); setDisplayVal(v); }
-        else setLedVal(v);
-    };
+    const setActiveHue = (v: number) => setActiveHsv({ ...getActiveHsv(), hue: v });
+    const setActiveSat = (v: number) => setActiveHsv({ ...getActiveHsv(), sat: v });
+    const setActiveVal = (v: number) => setActiveHsv({ ...getActiveHsv(), val: v });
 
     const activeHsv = getActiveHsv();
-    const displayColor = displayExact ?? hsvToHex(displayHue, displaySat, displayVal);
+    const displayColor = hsvToHex(displayHue, displaySat, displayVal);
     const ledColor = hsvToHex(ledHue, ledSat, ledVal);
-    const activeColor = activeTarget === 'display' ? displayColor : ledColor;
+    const activeColor = hsvToHex(activeHsv.hue, activeHsv.sat, activeHsv.val);
+
+    const handleOpenChange = (next: boolean) => {
+        if (!next) {
+            stopPreview();
+            onPreviewDisplay?.(null);
+            // Closed without Apply: put the board's LEDs back.
+            if (preview.current.changed) {
+                preview.current.changed = false;
+                onPreviewRef.current?.({ hue: initialLedHue, sat: initialLedSat, val: initialLedVal });
+            }
+        }
+        onOpenChange(next);
+    };
 
     const handleApply = () => {
+        stopPreview();
+        preview.current.changed = false;
         onApply(
             { hue: displayHue, sat: displaySat, val: displayVal },
-            { hue: ledHue, sat: ledSat, val: ledVal },
-            displayColor
+            { hue: ledHue, sat: ledSat, val: ledVal }
         );
+        onPreviewDisplay?.(null);
         onOpenChange(false);
     };
 
@@ -147,28 +196,35 @@ const CustomColorDialog = ({
     const startEditingHex = () => {
         cancelHex.current = false;
         setHexInput(activeColor);
+        hexStart.current = activeHsv;
         setIsEditingHex(true);
         setTimeout(() => hexInputRef.current?.select(), 0);
+    };
+
+    const parseHex = (text: string): Hsv | null => {
+        let hex = text.trim();
+        if (!hex.startsWith('#')) hex = '#' + hex;
+        return /^#[0-9A-Fa-f]{6}$/.test(hex) ? hexToHsv(hex) : null;
+    };
+
+    // A complete hex code takes effect while typing; Escape restores the color from before editing.
+    const handleHexChange = (text: string) => {
+        setHexInput(text);
+        const hsv = parseHex(text);
+        if (hsv) setActiveHsv(hsv);
+    };
+
+    const cancelHexInput = () => {
+        cancelHex.current = true;
+        setIsEditingHex(false);
+        if (hexStart.current) setActiveHsv(hexStart.current);
     };
 
     const applyHexInput = () => {
         if (cancelHex.current) return;
         setIsEditingHex(false);
-        let hex = hexInput.trim();
-        if (!hex.startsWith('#')) hex = '#' + hex;
-        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-            const hsv = hexToHsv(hex);
-            if (activeTarget === 'display') {
-                setDisplayHue(hsv.hue);
-                setDisplaySat(hsv.sat);
-                setDisplayVal(hsv.val);
-                setDisplayExact(hex.toLowerCase());
-            } else {
-                setLedHue(hsv.hue);
-                setLedSat(hsv.sat);
-                setLedVal(hsv.val);
-            }
-        }
+        const hsv = parseHex(hexInput);
+        if (hsv) setActiveHsv(hsv);
     };
 
     const handleHexKeyDown = (e: React.KeyboardEvent) => {
@@ -176,7 +232,7 @@ const CustomColorDialog = ({
             e.preventDefault();
             e.stopPropagation();
             if (e.key === 'Enter') applyHexInput();
-            else { cancelHex.current = true; setIsEditingHex(false); }
+            else cancelHexInput();
             requestAnimationFrame(() => hexButtonRef.current?.focus());
         }
     };
@@ -193,55 +249,27 @@ const CustomColorDialog = ({
     )`;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[400px]" onCloseAutoFocus={onCloseAutoFocus}
                 onEscapeKeyDown={(event) => {
                     if (isEditingHex) {
                         event.preventDefault();
-                        cancelHex.current = true;
-                        setIsEditingHex(false);
+                        cancelHexInput();
                         requestAnimationFrame(() => hexButtonRef.current?.focus());
                     }
                 }}>
                 <DialogHeader>
                     <DialogTitle>
-                        {title ?? (layerName ? `Colors for ${layerName}` : "Colors")}
+                        {layerName ? `Colors for ${layerName}` : "Colors"}
                     </DialogTitle>
-                    <DialogDescription className="sr-only">{displayOnly ? "Adjust the color's hue, saturation, and brightness." : "Choose a key or LED color, then adjust its hue, saturation, and brightness."}</DialogDescription>
+                    <DialogDescription className="sr-only">Choose an LED or key color, then adjust its hue, saturation, and brightness.</DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
                     {/* Color Preview Section */}
                     <div className="flex items-center justify-start gap-8">
-                        {/* Display Color Key Shape */}
-                        <button
-                            type="button"
-                            aria-pressed={activeTarget === 'display'}
-                            className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                            onClick={() => setActiveTarget('display')}
-                        >
-                            <div
-                                className={cn(
-                                    "w-16 h-16 rounded-lg transition-all",
-                                    activeTarget === 'display' ? "" : "group-hover:scale-105"
-                                )}
-                                style={{
-                                    backgroundColor: displayColor,
-                                    boxShadow: activeTarget === 'display'
-                                        ? `0 0 0 4px var(--kb-ink), 0 0 20px ${displayColor}80`
-                                        : `0 0 0 4px transparent`
-                                }}
-                            />
-                            <span className={cn(
-                                "text-sm font-semibold transition-colors",
-                                activeTarget === 'display' ? "text-kb-ink" : "text-kb-ink/60 group-hover:text-kb-ink"
-                            )}>
-                                {displayOnly ? "Color" : "Key color"}
-                            </span>
-                        </button>
-
                         {/* LED Color Circle */}
-                        {!displayOnly && <button
+                        <button
                             type="button"
                             aria-pressed={activeTarget === 'led'}
                             className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
@@ -265,7 +293,34 @@ const CustomColorDialog = ({
                             )}>
                                 LED color
                             </span>
-                        </button>}
+                        </button>
+
+                        {/* Display Color Key Shape */}
+                        <button
+                            type="button"
+                            aria-pressed={activeTarget === 'display'}
+                            className="flex items-center gap-3 cursor-pointer group rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                            onClick={() => setActiveTarget('display')}
+                        >
+                            <div
+                                className={cn(
+                                    "w-16 h-16 rounded-lg transition-all",
+                                    activeTarget === 'display' ? "" : "group-hover:scale-105"
+                                )}
+                                style={{
+                                    backgroundColor: displayColor,
+                                    boxShadow: activeTarget === 'display'
+                                        ? `0 0 0 4px var(--kb-ink), 0 0 20px ${displayColor}80`
+                                        : `0 0 0 4px transparent`
+                                }}
+                            />
+                            <span className={cn(
+                                "text-sm font-semibold transition-colors",
+                                activeTarget === 'display' ? "text-kb-ink" : "text-kb-ink/60 group-hover:text-kb-ink"
+                            )}>
+                                Key color
+                            </span>
+                        </button>
                     </div>
 
                     {/* Hue Slider */}
@@ -345,6 +400,9 @@ const CustomColorDialog = ({
                                 className="absolute inset-0 [&_[data-slot=slider-track]]:bg-transparent [&_[data-slot=slider-range]]:bg-transparent"
                             />
                         </div>
+                        {activeTarget === 'led' && (
+                            <p className="text-xs text-muted-foreground">LED brightness applies to every layer, like the brightness keys.</p>
+                        )}
                     </div>
 
                     {/* Hex value display / input */}
@@ -356,7 +414,7 @@ const CustomColorDialog = ({
                                     ref={hexInputRef}
                                     aria-label="Hex color"
                                     value={hexInput}
-                                    onChange={(e) => setHexInput(e.target.value)}
+                                    onChange={(e) => handleHexChange(e.target.value)}
                                     onBlur={applyHexInput}
                                     onKeyDown={handleHexKeyDown}
                                     className="w-28 text-left text-sm font-mono"
@@ -381,7 +439,7 @@ const CustomColorDialog = ({
                 <DialogFooter className="gap-3 sm:gap-4">
                     <Button
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => handleOpenChange(false)}
                         className="rounded-full px-8 py-5 text-base border-slate-300 dark:border-neutral-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors"
                     >
                         Cancel

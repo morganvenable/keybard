@@ -6,7 +6,7 @@ A modern Vite-based keyboard configuration UI built with React and TypeScript.
 
 ## User manual
 
-The illustrated user manual, at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/), walks through connecting, editing, layers, behaviors, backups and Overlay. Its source is in [docs/manual](docs/manual/README.md), with a printable PDF; that README covers regenerating the screenshots and the review record. The production build copies it to `dist/manual/` (see `build/manual.ts`).
+The illustrated user manual, at [keybard.svalboard.com/manual/](https://keybard.svalboard.com/manual/), walks through connecting, editing, layers, behaviors, backups and the overlay. Its source is in [docs/manual](docs/manual/README.md), with a printable PDF; that README covers regenerating the screenshots and the review record. The production build copies it to `dist/manual/` (see `build/manual.ts`).
 
 ## Quick Start
 
@@ -116,9 +116,9 @@ function MyComponent() {
 ✅ Basic connection UI
 ✅ File loading (.svil and .vil configuration files)
 
-## Configuration and Overlay
+## Configuration and the overlay
 
-The editor includes keymaps, macros, combos, tap dances, overrides, leaders and pointing settings. Overlay configures the separate native Keybard Host overlay. See [the companion README](companion/overlay-host/README.md) for setup.
+The editor includes keymaps, macros, combos, tap dances, overrides, leaders and pointing settings. The Overlay item installs and connects the separate native Keybard Host overlay. See [the companion README](companion/overlay-host/README.md) for setup.
 
 ## Theming
 
@@ -139,21 +139,6 @@ Chrome colours come from tokens defined in `src/index.css` (`:root` for light, `
 | `bg-kb-active` / `text-kb-active-fg` | `#000` / `#fff` | `#e8e9ea` / `#111214` | Selected pill or chip |
 | `bg-kb-popover` | `#EEEEEE` | `#33363b` | Colour-picker popovers |
 
-**Color roles** (`docs/practice/spec.md` §5.0.1; class strings in `src/constants/color-roles.ts`). Each hue has one meaning on every screen:
-
-| Utility | Light | Dark | Use for |
-|---|---|---|---|
-| `ring-kb-select` (`border-`) | `#2b86bd` | `#5cb8ec` | Selected key ring, hover ring, drop target, selected row |
-| `bg-kb-select-tint` | `#dfeff9` | `#244154` | Selected key face (ink legend) |
-| `bg-kb-select-strip` | `#bfdff2` | `#295773` | Header and footer strips on a selected key |
-| `bg-kb-select-strong` | `#2b86bd` | `#2b86bd` | Matrix Tester held key |
-| `border-kb-pending` (`outline-`) | `#b45309` | `#fbbf24` | Unsent or unsaved change: always dashed, borders and outlines only |
-| `bg-kb-pressed` / `text-kb-pressed-fg` | `#000` / `#fff` | `#111214` / `#e8e9ea` | Practice: key held now |
-| `bg-kb-heat-far` / `-mid` / `-near`, `text-kb-heat-ink` | literals | same | Practice heatmap faces |
-| `bg-kb-use-1`…`-4`, `text-kb-use-N-fg` | blue ramp | blue ramp | Practice usage heatmap |
-
-Brand and layer colors (`kb-primary`, `kb-green`, `kb-blue`, ...) are unchanged.
-
 The shadcn variables (`--background`, `--foreground`, `--popover`, `--primary`, `--muted`, `--border`, `--input`, `--ring`, ...) are also redefined under `.dark`, so shadcn primitives in `src/components/ui` theme themselves.
 
 ### Rules
@@ -161,9 +146,8 @@ The shadcn variables (`--background`, `--foreground`, `--popover`, `--primary`, 
 1. **Chrome uses a token or a `dark:` partner.** Never write `bg-white`, `text-black`, `border-black`, `fill-black`, `ring-black`, `bg-[#hex]` or `fill="black"` for chrome; use the tokens above. For a `gray-*`/`slate-*` utility, put a `dark:` class for the same property and variants in the same string literal: `text-gray-500 dark:text-neutral-400`, `hover:bg-gray-100 dark:hover:bg-neutral-800`. Never change the light class itself.
 2. **Key data is never themed.** Layer colours (`src/utils/colors.ts`), key face colours and `headerClassName` key headers (e.g. `bg-kb-sidebar-dark`) look the same in both themes. Never put `kb-active` or other theme tokens in a `headerClassName`.
 3. **Printed output stays light.** `PrintableKeymap*` is not themed, and `index.css` forces a light page under `@media print`.
-4. **Red is reserved** for errors, destructive actions and wrong keys. A selected key, a hover, a drop target or a pending edit is never red: use the select role (`kb-select*`) or the pending role (`kb-pending`, dashed). Error text keeps `text-red-700 dark:text-red-400`. The one themed class on key strips is the selection strip (`bg-kb-select-strip`), because selection is chrome, not key data. `Key.tsx` adds it itself on selected and drop-target keys, after the strip's base `text-white`; to get the selected look, pass `selected` to `Key` rather than the strip in `headerClassName`, where `text-white` would win.
 
-`tests/theme/no-hardcoded-chrome-colors.test.ts` enforces rules 1, 2 and 4 as part of `npm test`. Rules 1 and 2 cover `src/**/*.tsx`; justified exceptions (dead code, developer tools, data lookups) go in `tests/theme/allowlist.ts` with a reason. Rule 4 (**red-reserved**) scans every `.ts` and `.tsx` file under `src/`, with no file exemptions: a `bg-`, `ring-`, `border-` or `outline-` red utility must be listed in `RED_ALLOWED` with its reason (`destructive`, `error`, `wrong-key` or `layer-data`) and the exact tokens the entry allows, so another red added to an allowed literal is still caught. `tests/theme/color-roles-contrast.test.ts` checks the role tokens' contrast in both themes.
+`tests/theme/no-hardcoded-chrome-colors.test.ts` enforces rules 1 and 2 on `src/**/*.tsx` as part of `npm test`. Justified exceptions (dead code, developer tools, data lookups) go in `tests/theme/allowlist.ts` with a reason.
 
 ## Testing
 
@@ -235,8 +219,8 @@ Tests run automatically on:
 
 See [VITE_SETUP.md](./VITE_SETUP.md) for detailed setup and development documentation.
 
-## Overlay (formerly Trainer) and native overlay preview
+## Overlay dialog and Keybard Host
 
-Overlay is available from the left navigation panel, or directly at `/#overlay` when serving with a root base path (`/#trainer` still works and opens Overlay). It has independent appearance controls, saved presets, a shared SVG keyboard renderer, offline/imported previews, and recall practice. Its imports do not replace the editor draft.
+The Overlay item in the left navigation panel opens a small dialog, as do `/#overlay` and `/#trainer` links. It offers the Keybard Host download and connects Keybard to a running Host, so the overlay refreshes after edits and uses Keybard's keyboard language. The overlay's settings live in Keybard Host's own menus.
 
-The [native Keybard Host](companion/overlay-host/README.md) serves this same web UI and runs its renderer as a transparent tray-managed desktop overlay. It has an isolated Windows runtime and read-only Svalboard device worker. Host mode supports live active/default layers, optional held-key feedback, remembered-board reconnect, and configuration from Keybard. Keybard keeps its standard WebHID connection flow; the native overlay uses a separate read-only client.
+The [native Keybard Host](companion/overlay-host/README.md) serves this same web UI and runs its renderer as a transparent tray-managed desktop overlay. It has an isolated Windows runtime and read-only Svalboard device worker. Host mode supports live active/default layers, optional held-key feedback, remembered-board reconnect, and settings in its overlay and tray menus. Keybard keeps its standard WebHID connection flow; the native overlay uses a separate read-only client.

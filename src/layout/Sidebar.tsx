@@ -1,9 +1,11 @@
-import { BookOpen, Gauge, HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, PictureInPicture2, Rocket, Settings } from "lucide-react";
+import { BookOpen, HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Rocket, Settings } from "lucide-react";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
 import AltRepeatArrowsIcon from "@/components/icons/AltRepeatArrowsIcon";
-import { useCallback, useMemo } from "react";
+import GraduationCapIcon from "@/components/icons/GraduationCapIcon";
+import { useCallback, useMemo, useState } from "react";
+import { OverlayDialog, overlayRequested } from "@/features/trainer/OverlayDialog";
 
 import ComboIcon from "@/components/ComboIcon";
 import { isExcludedMenu, getIconForMenu } from "@/constants/custom-ui-exclusions";
@@ -25,7 +27,6 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 import { PARANOID } from "@/lib/paranoid";
-import { isPageWorkspace, PRACTICE_NAV_VISIBLE } from "./workspaces";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
@@ -82,12 +83,9 @@ const featureSidebarItems: SidebarItem[] = [
     { title: "Overrides", url: "overrides", icon: OverridesIcon },
 ];
 
-// Practice and Overlay open their own workspace pages (docs/practice/spec.md §4.1). Overlay is the
-// former Trainer; #trainer links still open it.
 const layoutSidebarItems: SidebarItem[] = [
     { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
-    ...(PRACTICE_NAV_VISIBLE ? [{ title: "Practice", url: "practice", icon: Gauge }] : []),
-    { title: "Overlay", url: "overlay", icon: PictureInPicture2 },
+    { title: "Overlay", url: "trainer", icon: GraduationCapIcon },
 ];
 
 const footerItems: SidebarItem[] = [
@@ -98,9 +96,6 @@ const footerItems: SidebarItem[] = [
     { title: "About", url: "about", icon: HelpCircle },
     { title: "Settings", url: "settings", icon: Settings },
 ];
-
-// Footer items open their panel over whatever workspace is showing, without leaving it (§4.1).
-const isFooterItem = (url: string | null | undefined) => footerItems.some((item) => item.url === url);
 
 // --- Sub-components ---
 
@@ -166,6 +161,7 @@ const SidebarNavItem = ({
 // --- Main Component ---
 
 const AppSidebar = () => {
+    const [overlayOpen, setOverlayOpen] = useState(() => overlayRequested());
     const { state, toggleSidebar, setOpen: setNavigationOpen } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
     const {
@@ -179,50 +175,46 @@ const AppSidebar = () => {
         setAlternativeHeader,
         open,
         handleCloseDetails,
-        workspace,
-        setWorkspace,
+        setOpen,
     } = usePanels();
 
     const { keyboard } = useKeyboard();
 
-    // Click behavior: docs/practice/spec.md §4.1, "Nav click behavior".
+
+
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
             // Labels can be expanded to choose a destination; return the narrow
             // viewport to its icon rail so the chosen panel remains usable.
             if (window.innerWidth < 900) setNavigationOpen(false);
-
-            const showPanel = (url: string) => {
-                setActivePanel(url);
-                openDetails();
-                setPanelToGoBack(null);
-                setAlternativeHeader(false);
-                setItemToEdit(null);
-            };
-
-            if (isPageWorkspace(item.url)) {
-                const target = item.url;
-                if (workspace === target && activePanel === target && open) {
-                    // Second click closes the panel; the page stays.
-                    handleCloseDetails();
+            // The desktop overlay is a separate app: a small dialog, not a panel.
+            if (item.url === "trainer") { setOverlayOpen(true); return; }
+            if (item.url === "matrixtester") {
+                if (activePanel === item.url) {
+                    setActivePanel(null);
                     return;
                 }
-                setWorkspace(target);
-                showPanel(target);
+                setOpen(false);
+                setActivePanel(item.url);
+                setPanelToGoBack(null);
+                setItemToEdit(null);
                 return;
             }
-
-            // Editor items return to the editor workspace; footer items keep the current one.
-            if (!isFooterItem(item.url)) setWorkspace("editor");
 
             if (activePanel === item.url && open) {
                 handleCloseDetails();
             } else {
-                showPanel(item.url);
+                setActivePanel(item.url);
+                openDetails();
+                setPanelToGoBack(null);
+                setAlternativeHeader(false);
+                setItemToEdit(null);
             }
         },
-        [setNavigationOpen, activePanel, open, workspace, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setWorkspace]
+        [setNavigationOpen, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
+
+
 
     // Build dynamic menu items from keyboard definition
     const dynamicMenuItems: SidebarItem[] = useMemo(() => {
@@ -244,17 +236,10 @@ const AppSidebar = () => {
             });
     }, [keyboard?.menus]);
 
-    // The main-group indicator follows activePanel when it is a main-group item; otherwise it marks
-    // the workspace item, so Practice stays marked while its panel is closed or Settings is open over it.
-    const isMainGroupPanel = [...topSectionItems, ...dynamicMenuItems, ...middleSectionItems, ...featureSidebarItems, ...layoutSidebarItems]
-        .some((item) => item.url === activePanel);
-    const mainMarked = isMainGroupPanel ? activePanel : workspace;
-    const isMarked = (url: string) => mainMarked === url;
-
     const activeTopIndex = topSectionItems.findIndex((item) => item.url === activePanel);
     const activeMiddleIndex = middleSectionItems.findIndex((item) => item.url === activePanel);
     const activeFeatureIndex = featureSidebarItems.findIndex((item) => item.url === activePanel);
-    const activeLayoutIndex = layoutSidebarItems.findIndex((item) => item.url === mainMarked);
+    const activeLayoutIndex = layoutSidebarItems.findIndex((item) => item.url === activePanel);
     const activeDynamicIndex = dynamicMenuItems.findIndex((item) => item.url === activePanel);
     const activeFooterIndex = footerItems.findIndex((item) => item.url === activePanel);
 
@@ -298,6 +283,7 @@ const AppSidebar = () => {
 
     return (
         <>
+            <OverlayDialog open={overlayOpen} onOpenChange={setOverlayOpen} />
             {/* Hidden file input for import */}
 
 
@@ -396,7 +382,7 @@ const AppSidebar = () => {
                                 <SidebarNavItem
                                     key={item.url}
                                     item={item}
-                                    isActive={isMarked(item.url)}
+                                    isActive={activePanel === item.url}
                                     isPreviousPanel={panelToGoBack === item.url}
                                     alternativeHeader={alternativeHeader}
                                     isCollapsed={isCollapsed}

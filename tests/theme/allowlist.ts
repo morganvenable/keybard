@@ -118,7 +118,6 @@ export const RED_ALLOWED: RedAllowed[] = [
     { file: "src/layout/SecondarySidebar/Panels/LayoutsPanel.tsx", literal: "bg-red-50 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
     { file: "src/pages/ExploreLayoutsPage.tsx", literal: "bg-red-50 text-red-600 dark:bg-red-950/40", tokens: ["bg-red-50", "dark:bg-red-950/40"], reason: "error", note: "Layout load error box." },
     { file: "src/components/shared/Notice.tsx", literal: "border-red-200 dark:border-red-900", tokens: ["border-red-200", "dark:border-red-900"], reason: "error", note: "Error notice (Overlay: Host connection lost, can't reach Host, Host command failed)." },
-    { file: "src/features/trainer/HostInstall.tsx", literal: "bg-kb-red", tokens: ["bg-kb-red"], reason: "error", note: "Overlay status pill dot: Keybard Host connection lost." },
     { file: "src/features/practice/ui/TypingSurface.tsx", literal: "bg-kb-red/15 rounded-sm", tokens: ["bg-kb-red/15"], reason: "error", note: "Practice text: the current character after a miss (spec §5.2), tinted beside its wavy red underline." },
 
     // Wrong keys: the Practice board's wrong-key border and × badge (Live · USB).
