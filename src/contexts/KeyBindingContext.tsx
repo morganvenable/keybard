@@ -12,7 +12,7 @@ import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { useKeyboard } from "./KeyboardContext";
 
 interface BindingTarget {
-    type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders";
+    type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders" | "custom";
     layer?: number;
     row?: number;
     col?: number;
@@ -34,6 +34,9 @@ interface BindingTarget {
     leaderId?: number;
     leaderSlot?: "sequence" | "output";
     leaderSeqIndex?: number; // 0-4 for sequence keys
+    // "custom": a keycode slot owned by a panel, outside the keyboard state
+    // (for example the touch gesture outputs); the panel stores the keycode.
+    onAssign?: (keycode: number) => void;
 }
 
 
@@ -47,6 +50,7 @@ interface KeyBindingContextType {
     selectOverrideKey: (overrideId: number, slot: "trigger" | "replacement") => void;
     selectAltRepeatKey: (altRepeatId: number, slot: "keycode" | "alt_keycode") => void;
     selectLeaderKey: (leaderId: number, slot: "sequence" | "output", seqIndex?: number) => void;
+    selectCustomKey: (label: string, keycode: number, onAssign: (keycode: number) => void) => void;
     assignKeycode: (keycode: number | string) => void;
     assignKeycodeTo: (target: BindingTarget, keycode: number | string, options?: { skipAdvance?: boolean }) => void;
     swapKeys: (target1: BindingTarget, target2: BindingTarget) => void;
@@ -158,6 +162,11 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsBinding(true);
     }, []);
 
+    const selectCustomKey = useCallback((label: string, keycode: number, onAssign: (keycode: number) => void) => {
+        setSelectedTarget({ type: "custom", label, keycode, onAssign });
+        setIsBinding(true);
+    }, []);
+
     const clearSelection = useCallback(() => {
         setSelectedTarget(null);
         setIsBinding(false);
@@ -207,6 +216,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             // Convert keycode string to number using keyService
             const keycodeValue = typeof keycode === "string" ? keyService.parse(keycode) : keycode;
             console.log("assignKeycode to keyboard", target, keycode, "->", keycodeValue);
+
+            if (target.type === "custom") {
+                target.onAssign?.(keycodeValue);
+                clearSelection();
+                return;
+            }
 
             switch (target.type) {
                 case "keyboard": {
@@ -814,6 +829,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         selectOverrideKey,
         selectAltRepeatKey,
         selectLeaderKey,
+        selectCustomKey,
         assignKeycode,
         assignKeycodeTo,
         swapKeys,
