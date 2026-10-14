@@ -1,5 +1,7 @@
 import DynamicMenuPanel from "./DynamicMenuPanel";
 import MouseKeysSection from "./MouseKeysSection";
+import TouchGesturesSection from "./TouchGesturesSection";
+import { supportsTouchGestures } from "@/services/touch-gestures.service";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
@@ -33,6 +35,9 @@ const PointingPanel = ({ isPicker }: Props) => {
         (menu) => menu.label?.toLowerCase().includes('pointing')
     ) ?? -1;
 
+    // Experimental unified touchpad builds advertise Sval 0x2E; not a picker.
+    const showTouchGestures = isConnected && !isPicker && supportsTouchGestures(keyboard?.feature_flags2);
+
     // Not connected (skipped in picker mode — the keys don't need a live connection)
     if (!isConnected && !isPicker) {
         return (
@@ -58,6 +63,7 @@ const PointingPanel = ({ isPicker }: Props) => {
                 {pointingMenuIndex !== -1 && (
                     <DynamicMenuPanel menuIndex={pointingMenuIndex} horizontal embedded section="pointing" />
                 )}
+                {showTouchGestures && <TouchGesturesSection horizontal />}
             </div>
         );
     }
@@ -82,6 +88,7 @@ const PointingPanel = ({ isPicker }: Props) => {
                         This keyboard does not have additional pointing device settings
                     </p>
                 )}
+                {showTouchGestures && <TouchGesturesSection />}
             </div>
         </section>
     );
