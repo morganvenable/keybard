@@ -7,7 +7,7 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
 import { keyService } from "@/services/key.service";
 import {
-    OUTPUTS, TUNABLES, problems, supportsTouchGestures, touchGesturesService,
+    OUTPUTS, TUNABLES, gestureChoice, problems, supportsTouchGestures, touchGesturesService, withGestureChoice,
     type TouchGestureStatus, type TouchGestures,
 } from "@/services/touch-gestures.service";
 
@@ -92,7 +92,7 @@ function Choice<T extends string>({ label, value, options, onChange, disabled }:
     );
 }
 
-const WINDOWS_OR_FIRMWARE = [{ value: "windows", label: "Windows" }, { value: "firmware", label: "Firmware" }] as const;
+const GESTURE_OWNERS = [{ value: "off", label: "Off" }, { value: "firmware", label: "Firmware" }, { value: "windows", label: "Windows" }] as const;
 const WINDOWS_OR_CHIP = [{ value: "windows", label: "Windows" }, { value: "chip", label: "Chip" }] as const;
 const YES_NO = [{ value: "yes", label: "On" }, { value: "no", label: "Off" }] as const;
 
@@ -166,10 +166,10 @@ export default function TouchGesturesSection({ horizontal = false }: { horizonta
             <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Owners</h4>
             <Choice label="Two-finger scroll" value={config.scrollOwner} options={WINDOWS_OR_CHIP} disabled={busy}
                 onChange={v => apply({ ...config, scrollOwner: v })} />
-            <Choice label="Three-finger swipe" value={config.swipeOwner} options={WINDOWS_OR_FIRMWARE} disabled={busy}
-                onChange={v => apply({ ...config, swipeOwner: v })} />
-            <Choice label="Pinch zoom" value={config.pinchOwner} options={WINDOWS_OR_FIRMWARE} disabled={busy}
-                onChange={v => apply({ ...config, pinchOwner: v })} />
+            <Choice label="Three-finger swipe" value={gestureChoice(config, "swipe")} options={GESTURE_OWNERS} disabled={busy}
+                onChange={v => apply(withGestureChoice(config, "swipe", v))} />
+            <Choice label="Pinch zoom" value={gestureChoice(config, "pinch")} options={GESTURE_OWNERS} disabled={busy}
+                onChange={v => apply(withGestureChoice(config, "pinch", v))} />
             <Choice label="Firmware gestures across both pads" value={config.spanPads ? "yes" : "no"} options={YES_NO} disabled={busy}
                 onChange={v => apply({ ...config, spanPads: v === "yes" })} />
             <Choice label="Always merge the pads in Windows" value={config.hostAlwaysMerge ? "yes" : "no"} options={YES_NO} disabled={busy}

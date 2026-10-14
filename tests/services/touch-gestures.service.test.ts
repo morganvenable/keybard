@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     CMD_SVIL_TOUCH_GESTURES, DEFAULT_TOUCH_GESTURES, TouchGesturesService, decodeTouchGestures,
-    encodeTouchGestures, problems, supportsTouchGestures,
+    encodeTouchGestures, gestureChoice, problems, supportsTouchGestures, withGestureChoice,
 } from "../../src/services/touch-gestures.service";
 
 // The firmware's defaults, byte for byte (sval-qmk azoteq/touch_gestures.c tg_defaults).
@@ -19,6 +19,20 @@ describe("touch gestures payload v1", () => {
         expect(p[0]).toBe(0x01 | 0x04 | 0x10);
         expect(p[1]).toBe(0x24);
         expect(decodeTouchGestures(p)).toEqual(c);
+    });
+
+    it("maps Off to the firmware owning a gesture with no outputs", () => {
+        const off = withGestureChoice(DEFAULT_TOUCH_GESTURES, "swipe", "off");
+        expect(off.swipeOwner).toBe("firmware");
+        expect(off.keycodes.slice(0, 4)).toEqual([0, 0, 0, 0]);
+        expect(off.keycodes.slice(4)).toEqual(DEFAULT_TOUCH_GESTURES.keycodes.slice(4));
+        expect(gestureChoice(off, "swipe")).toBe("off");
+        expect(gestureChoice(off, "pinch")).toBe("windows");
+        const back = withGestureChoice(off, "swipe", "firmware");
+        expect(back.keycodes).toEqual(DEFAULT_TOUCH_GESTURES.keycodes);
+        expect(gestureChoice(back, "swipe")).toBe("firmware");
+        const custom = { ...DEFAULT_TOUCH_GESTURES, pinchOwner: "firmware" as const, keycodes: [1, 2, 3, 4, 5, 6] };
+        expect(withGestureChoice(custom, "pinch", "windows").keycodes).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
     it("flags values the board would refuse", () => {

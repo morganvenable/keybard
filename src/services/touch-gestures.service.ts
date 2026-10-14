@@ -70,6 +70,32 @@ export const DEFAULT_TOUCH_GESTURES: TouchGestures = {
     keycodes: [0x094f, 0x0950, 0x082b, 0x0807, 0x01d9, 0x01da],
 };
 
+/**
+ * "Off" isn't a wire state: it is the firmware owning the gesture with every one
+ * of its outputs set to nothing, so neither Windows nor the firmware acts on it.
+ */
+export type GestureChoice = "off" | GestureOwner;
+export const GESTURE_SLOTS = { swipe: [0, 1, 2, 3], pinch: [4, 5] } as const;
+type Gesture = keyof typeof GESTURE_SLOTS;
+
+export function gestureChoice(c: TouchGestures, g: Gesture): GestureChoice {
+    const owner = g === "swipe" ? c.swipeOwner : c.pinchOwner;
+    if (owner === "firmware" && GESTURE_SLOTS[g].every(i => c.keycodes[i] === 0)) return "off";
+    return owner;
+}
+
+/** Turning a gesture back on from "off" restores its default outputs. */
+export function withGestureChoice(c: TouchGestures, g: Gesture, choice: GestureChoice): TouchGestures {
+    const keycodes = [...c.keycodes];
+    const wasOff = gestureChoice(c, g) === "off";
+    for (const i of GESTURE_SLOTS[g]) {
+        if (choice === "off") keycodes[i] = 0;
+        else if (wasOff) keycodes[i] = DEFAULT_TOUCH_GESTURES.keycodes[i];
+    }
+    const owner: GestureOwner = choice === "windows" ? "windows" : "firmware";
+    return g === "swipe" ? { ...c, swipeOwner: owner, keycodes } : { ...c, pinchOwner: owner, keycodes };
+}
+
 export function supportsTouchGestures(featureFlags2: number | undefined): boolean {
     return ((featureFlags2 ?? 0) & SVIL_FLAG2_TOUCH_GESTURES) !== 0;
 }
