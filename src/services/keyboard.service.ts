@@ -1,3 +1,5 @@
+import { supportsPointControls } from "@/constants/point-controls";
+import { pointControlsService } from "./point-controls.service";
 import { LabelService } from "./label.service";
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
@@ -135,6 +137,13 @@ export class KeyboardService {
             console.warn(`Keybard has no keycode numbering for QMK keycodes ${kbinfo.keycode_version}; using ${activeKeycodeVersion()}. Keycodes QMK renumbered since then may be wrong.`);
         }
         keyService.generateAllKeycodes(kbinfo);
+        // Pointing tool settings (speeds, actions, rate limits). A failed read leaves
+        // them unset, so the rest of the board still loads.
+        delete kbinfo.pointing_controls;
+        if (supportsPointControls(kbinfo)) {
+            try { kbinfo.pointing_controls = await pointControlsService.load(); }
+            catch (e) { console.warn("Pointing tool settings not available:", e); }
+        }
 
         // Populate keylayout using KLE service if payload exists
         if (kbinfo.payload && kbinfo.payload.layouts && kbinfo.payload.layouts.keymap) {

@@ -3,6 +3,7 @@
 import type { PointingHardwareReport } from "../utils/pointing-hardware";
 
 export interface KeyboardInfo {
+    pointing_controls?: import("@/constants/point-controls").PointControls;
     via_proto?: number;
     svil_proto?: number;  // Svil protocol version
     vial_proto?: number;    // Present only on loaded .vil files

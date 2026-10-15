@@ -1,3 +1,4 @@
+import { hasPointControls, pointKey } from "@/constants/point-controls";
 // Key service - keycode parsing and stringifying
 import { CODEMAP, KEYMAP, KEYALIASES } from '../constants/keygen';
 // Numbers the tables above for the newest known QMK keycode version on import.
@@ -15,11 +16,13 @@ interface KeyParseDesc {
 
 export class KeyService {
   public localization: string = 'english_us';
+  private pointControls = false;
 
   /**
    * Update keymap with custom keycodes from keyboard
    */
   generateAllKeycodes(kbinfo: KeyboardInfo): void {
+    this.pointControls = hasPointControls(kbinfo);
     // Populate USER00...USER63 keys as needed (legacy Vial range: 0x7e00+)
     for (let i = 0; i < 64; i++) {
       const userkey = 'USER' + ('' + i).padStart(2, '0');
@@ -104,6 +107,7 @@ export class KeyService {
    * Convert a keynum to a string. e.g: 0x0004 -> 'KC_A', 0x0104 -> "LCTRL(KC_A)"
    */
   stringify(keynum: number): string {
+    if (this.pointControls && pointKey(keynum)) return pointKey(keynum)!.name;
     if (keynum === undefined || keynum === null) {
       return "0x0000";
     }
@@ -146,6 +150,7 @@ export class KeyService {
    * Convert keystring to keynum. e.g: "KC_A" -> 0x0004, "LCTRL(KC_A)" -> 0x0104
    */
   parse(keystr: KeyString): number {
+    if (pointKey(keystr)) return pointKey(keystr)!.code;
     if (!keystr || keystr === -1 || keystr === 0xff) {
       return 0xff;
     }
@@ -191,6 +196,8 @@ export class KeyService {
    * Return a key definition for a given keystr
    */
   define(keystr: KeyString | number): KeyMapEntry | undefined {
+    const point = pointKey(keystr);
+    if (point) return { code: point.code, qmkid: point.name, str: point.label, title: point.title };
     const orig = keystr;
 
     if (typeof keystr === 'string' && keystr.match(/^0x\w+$/)) {
