@@ -312,7 +312,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
     <div class="pb">
       <div class="grp" style="margin-top:4px">This keyboard <span class="tag"><i></i>Morgan's Svalboard</span></div>
       <div class="list">
-        <div class="li"><span class="ic"><svg><use href="#i-chip"/></svg></span><span class="t"><b>Firmware</b></span><span class="v">vNext1</span><span class="pill go">vNext2</span><svg class="chev"><use href="#i-right"/></svg></div>
+        <div class="li"><span class="ic"><svg><use href="#i-chip"/></svg></span><span class="t"><b>Firmware</b></span><span class="v">vNext2</span><span class="pill go">vNext3</span><svg class="chev"><use href="#i-right"/></svg></div>
         <div class="li"><span class="ic"><svg><use href="#i-board"/></svg></span><span class="t"><b>Board</b></span><span class="v">Morgan's Svalboard</span><svg class="chev"><use href="#i-right"/></svg></div>
         <div class="li"><span class="ic"><svg><use href="#i-history"/></svg></span><span class="t"><b>Backups</b></span><span class="v">14 snapshots</span><svg class="chev"><use href="#i-right"/></svg></div>
       </div>
@@ -361,13 +361,13 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
     <div class="crumb">This keyboard</div>
     <div class="pb">
       <div class="fw-hero">
-        <h5>vNext2 available <span class="pill line">Bleeding edge</span></h5>
-        <div class="meta">Released 2026-10-28 · fw 4</div>
+        <h5>vNext3 available <span class="pill line">Bleeding edge</span></h5>
+        <div class="meta">Released 2026-10-28 · fw 5</div>
         <div class="halves">
-          <div class="half"><span class="h">Left</span><span>vNext1 <span class="arrow">→</span> vNext2</span><span class="pill line">first</span></div>
-          <div class="half"><span class="h">Right</span><span>vNext1 <span class="arrow">→</span> vNext2</span><span class="pill line">USB</span></div>
+          <div class="half"><span class="h">Left</span><span>vNext2 <span class="arrow">→</span> vNext3</span><span class="pill line">first</span></div>
+          <div class="half"><span class="h">Right</span><span>vNext2 <span class="arrow">→</span> vNext3</span><span class="pill line">USB</span></div>
         </div>
-        <div class="acts"><span class="btn">Install vNext2</span><span class="btn o">Release notes <svg><use href="#i-ext"/></svg></span></div>
+        <div class="acts"><span class="btn">Install vNext3</span><span class="btn o">Release notes <svg><use href="#i-ext"/></svg></span></div>
       </div>
       <div class="grp">Before and after</div>
       <div class="fact"><span>Layout backup</span><span>Saved first</span></div>
@@ -386,7 +386,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
     <div class="pb">
       <div class="fw-hero">
         <h5>Approve on the keyboard</h5>
-        <div class="meta">Hold both keys on the right half for 1 second · 24 s left</div>
+        <div class="meta">Hold both keys on the right half for 1 second · approves both halves · 24 s left</div>
         <div class="chord">
           <span class="k">J</span><span class="k hit">M</span><span class="k hit">,</span><span class="k">.</span>
         </div>
@@ -397,10 +397,10 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
         <div class="acts"><span class="btn o">Cancel</span></div>
       </div>
       <div class="fact" style="margin-top:8px"><span>Backup</span><span>Saved · 14:02</span></div>
-      <div class="fact"><span>Code</span><span style="font-family:ui-monospace,Consolas,monospace">82eb bb1c</span></div>
+      <div class="fact"><span>Codes</span><span style="font-family:ui-monospace,Consolas,monospace">82eb bb1c · 7c02 e9b4</span></div>
     </div>
   </section>
-  <p class="note">Installing. The chord is shown on Keybard's own key map. Two rows, one per half, the half without USB first. "Code" is the 4 bytes of manifest hash the board also shows at ARM.</p>
+  <p class="note">The one approval. The chord is shown on Keybard's own key map, and one hold approves both halves (F-N3). After it, nothing more is asked. Two rows, one per half, the half without USB first. "Codes" are the first 4 bytes of each half's manifest hash, as ARM returns them.</p>
   </div>
 
   <div>
@@ -409,11 +409,11 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
     <div class="crumb">This keyboard</div>
     <div class="pb">
       <div class="fw-hero">
-        <h5>vNext1 needs a manual install</h5>
+        <h5>vNext3 needs a manual install</h5>
         <div class="meta">This board runs vLaunch2, which has no updater</div>
         <div class="halves">
-          <div class="half"><span class="h">Left</span><span>vLaunch2 <span class="arrow">→</span> vNext1</span><span class="pill line">.uf2</span></div>
-          <div class="half"><span class="h">Right</span><span>vLaunch2 <span class="arrow">→</span> vNext1</span><span class="pill line">.uf2</span></div>
+          <div class="half"><span class="h">Left</span><span>vLaunch2 <span class="arrow">→</span> vNext3</span><span class="pill line">.uf2</span></div>
+          <div class="half"><span class="h">Right</span><span>vLaunch2 <span class="arrow">→</span> vNext3</span><span class="pill line">.uf2</span></div>
         </div>
         <div class="acts"><span class="btn">Start manual install</span></div>
       </div>
@@ -429,9 +429,9 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
     <div class="ph"><span class="back"><svg><use href="#i-left"/></svg></span><h4>Firmware</h4><span class="x"><svg><use href="#i-x"/></svg></span></div>
     <div class="crumb">This keyboard</div>
     <div class="pb">
-      <div class="alert"><svg><use href="#i-alert"/></svg><div><b>Halves on different firmware</b><span style="font-size:12px;color:var(--muted-fg)">Left vNext1 · Right vNext2</span><div style="margin-top:10px"><span class="btn sm">Update left to vNext2</span></div></div></div>
+      <div class="alert"><svg><use href="#i-alert"/></svg><div><b>Halves on different firmware</b><span style="font-size:12px;color:var(--muted-fg)">Left vNext2 · Right vNext3</span><div style="margin-top:10px"><span class="btn sm">Update left to vNext3</span></div></div></div>
       <div class="grp">This keyboard</div>
-      <div class="fact"><span>Release</span><span>vNext2 · fw 4</span></div>
+      <div class="fact"><span>Release</span><span>vNext3 · fw 5</span></div>
       <div class="fact"><span>Sval protocol</span><span>3</span></div>
       <div class="fact"><span>QMK keycodes</span><span>0.0.9</span></div>
       <div class="fact"><span>Updater</span><span>Protocol 3</span></div>
@@ -508,7 +508,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
       <div class="row"><span class="lab">Export, import<small>The toolbar dialogs; Export includes Printed layers (PDF)</small></span><span class="ctl" style="gap:6px"><span class="btn o sm">Export</span><span class="btn o sm">Import</span></span></div>
       <div class="row"><span class="lab">Backup folder<small>Svalboard backups</small></span><span class="ctl" style="gap:6px"><span class="btn o sm">Change</span><span class="btn g sm">Stop</span></span></div>
       <div class="grp">Morgan's Svalboard <span class="tag"><i></i>Connected</span></div>
-      <div class="snap"><div><b>Before vNext2</b><small>Today 14:02 · 7 layers, 12 combos</small></div><div class="tools"><span class="btn sm">Restore</span><span class="ibtn" title="Download"><svg><use href="#i-dl"/></svg></span><span class="ibtn" title="Delete"><svg><use href="#i-trash"/></svg></span></div></div>
+      <div class="snap"><div><b>Before vNext3</b><small>Today 14:02 · 7 layers, 12 combos</small></div><div class="tools"><span class="btn sm">Restore</span><span class="ibtn" title="Download"><svg><use href="#i-dl"/></svg></span><span class="ibtn" title="Delete"><svg><use href="#i-trash"/></svg></span></div></div>
       <div class="snap"><div>Edited<small>Today 11:40 · 7 layers, 12 combos</small></div><div class="tools"><span class="btn o sm">Restore</span><span class="ibtn"><svg><use href="#i-dl"/></svg></span><span class="ibtn"><svg><use href="#i-trash"/></svg></span></div></div>
       <div class="snap"><div>Connected<small>Yesterday 09:12 · Unsent (2)</small></div><div class="tools"><span class="btn o sm">Restore</span><span class="ibtn"><svg><use href="#i-dl"/></svg></span><span class="ibtn"><svg><use href="#i-trash"/></svg></span></div></div>
       <div style="margin-top:8px;font-size:13px;color:var(--kb-primary);font-weight:600">Show all (14)</div>
@@ -555,7 +555,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
   <div>
   <div class="dlg">
     <h5>New firmware reset your settings</h5>
-    <div class="snap" style="border-top:0"><div><b>Before vNext2</b><small>Today 14:02 · 7 layers, 12 combos</small></div><span class="pill line">Backup</span></div>
+    <div class="snap" style="border-top:0"><div><b>Before vNext3</b><small>Today 14:02 · 7 layers, 12 combos</small></div><span class="pill line">Backup</span></div>
     <div class="foot"><span class="btn o">Start from defaults</span><span class="btn">Put my layout back</span></div>
   </div>
   <p class="note">Only when a reset is found with no update in flight (a .uf2 installed by hand). After a Keybard update there's no prompt: the choice was made on the sheet.</p>
@@ -571,7 +571,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
       <div class="pb">
         <div class="grp" style="margin-top:4px">This keyboard <span class="tag"><i></i>Morgan's Svalboard</span></div>
         <div class="list">
-          <div class="li"><span class="ic"><svg><use href="#i-chip"/></svg></span><span class="t"><b>Firmware</b></span><span class="v">vNext1</span><span class="pill go">vNext2</span><svg class="chev"><use href="#i-right"/></svg></div>
+          <div class="li"><span class="ic"><svg><use href="#i-chip"/></svg></span><span class="t"><b>Firmware</b></span><span class="v">vNext2</span><span class="pill go">vNext3</span><svg class="chev"><use href="#i-right"/></svg></div>
           <div class="li"><span class="ic"><svg><use href="#i-board"/></svg></span><span class="t"><b>Board</b></span><span class="v">Morgan's Svalboard</span><svg class="chev"><use href="#i-right"/></svg></div>
           <div class="li"><span class="ic"><svg><use href="#i-history"/></svg></span><span class="t"><b>Backups</b></span><span class="v">14 snapshots</span><svg class="chev"><use href="#i-right"/></svg></div>
         </div>
@@ -594,13 +594,13 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
       <div class="crumb">This keyboard</div>
       <div class="pb">
         <div class="fw-hero">
-          <h5>vNext2 available</h5>
+          <h5>vNext3 available</h5>
           <div class="meta">Released 2026-10-28 · fw 4</div>
           <div class="halves">
-            <div class="half"><span class="h">Left</span><span>vNext1 → vNext2</span><span class="pill line">first</span></div>
-            <div class="half"><span class="h">Right</span><span>vNext1 → vNext2</span><span class="pill line">USB</span></div>
+            <div class="half"><span class="h">Left</span><span>vNext2 → vNext3</span><span class="pill line">first</span></div>
+            <div class="half"><span class="h">Right</span><span>vNext2 → vNext3</span><span class="pill line">USB</span></div>
           </div>
-          <div class="acts"><span class="btn">Install vNext2</span><span class="btn o">Notes <svg><use href="#i-ext"/></svg></span></div>
+          <div class="acts"><span class="btn">Install vNext3</span><span class="btn o">Notes <svg><use href="#i-ext"/></svg></span></div>
         </div>
         <div class="grp">Before and after</div>
         <div class="fact"><span>Layout backup</span><span>Saved first</span></div>
@@ -638,7 +638,7 @@ table.moves th { background: var(--kb-gray-medium); font-weight: 600; border-top
   <tr><td>Pointing Devices, Combos, Leaders</td><td>Their panels</td><td>Their settings stay with them; no gears</td></tr>
   <tr><td>Layer color dot</td><td>Layer header</td><td>The only home for layer colors and brightness</td></tr>
   <tr><td>Unsupported-firmware card</td><td>Connect screen</td><td>Connect was refused, so Settings has no board; its button opens the manual install instead of listing steps</td></tr>
-  <tr><td>Wrong pointing-device firmware dialog</td><td>Modal on connect</td><td>Its action becomes "Open Firmware" (install from file / reinstall) instead of the manual steps</td></tr>
+  <tr><td>Wrong pointing-device firmware dialog</td><td>Modal on connect</td><td>Its action becomes "Open Firmware" (the install list, or Choose a file…) instead of the manual steps</td></tr>
 </table></div>
 </div>
 

@@ -12,22 +12,26 @@ Mockups: [flow/index.html](flow/index.html) (previews: [light](flow/preview-ligh
 ## 0. What changed in round 2
 
 The owner's review settled most of round 1's questions (tech doc section 7). The flow
-changed in five ways:
+changed in six ways:
 
 1. **One confirm, then hands off.** The user makes every choice on one sheet (B1),
    including what happens to their layout afterwards. After **Start update**, Keybard
-   asks nothing more. The only things left for the user are the physical approvals on
-   the keyboard. Round 1's restore prompt after the install (A1) is gone.
-2. **Every install is backup, install, put back.** An update, a reinstall of the same
+   asks nothing more. The only thing left for the user is one chord on the keyboard.
+   Round 1's restore prompt after the install (A1) is gone.
+2. **One chord approves both halves** (owner decision). A full update asks for the chord
+   exactly once, at the start, on the half with USB. After that it runs to the end with no
+   human step. This needs firmware addition F-N3 (tech doc 1.4), which the Keybard flow
+   requires.
+3. **Every install is backup, install, put back.** An update, a reinstall of the same
    release, a downgrade, a file the user picked, and a one-half update all take the same
    path. There is no "keeps settings" install in the flow, and no "reinstall keeps,
    downgrade resets" distinction.
-3. **One way to choose what to install.** The Firmware page lists the releases this
+4. **One way to choose what to install.** The Firmware page lists the releases this
    Keybard carries and a **Choose a file…** entry. Round 1's separate "Install from
    file", "Reinstall" and channel toggle are folded into that one list (Q2 + Q11).
-4. **Developer builds may skip the approval chord.** Release builds can't. Keybard
+5. **Developer builds may skip the approval chord.** Release builds can't. Keybard
    reads this from the board and leaves the approval steps out (Q10, tech doc 1.4).
-5. **The keyboard-light guidance is rebuilt from the firmware.** Section 5.3 shows,
+6. **The keyboard-light guidance is rebuilt from the firmware.** Section 5.3 shows,
    per half and per step, exactly what each half's light does (tech doc 1.10),
    including the rainbow and both meanings of magenta.
 
@@ -48,7 +52,7 @@ changed in five ways:
    Backups and as a downloaded file) and puts the layout back after, whatever was
    installed. The user picks "put it back" or "start from defaults" before starting.
 5. **Decide once, then let it run.** One sheet holds every decision. After Start, the
-   only interaction is holding the chord on the keyboard when the dialog says so.
+   only interaction is holding the chord once, at the start, when the dialog says so.
    Failures stop the flow and say what to do. They are the only screens with buttons.
 6. **Every stop names its outcome.** There are three: *Nothing was changed*, *Halves
    differ* (finish the update), *{half} needs a manual install*.
@@ -58,7 +62,7 @@ changed in five ways:
 Copy conventions: "the split cable"; "left half" and "right half" come from each half's
 INFO hand. The examples assume USB is on the **right** half. `{usb}` and `{other}` are the
 resolved half names. `{chord}` is the two chord keys' layer-0 legends (default `M` + `,`
-on the right, `V` + `C` on the left). Release names are tags (`vLaunch3`, `vNext2`).
+on the right, `V` + `C` on the left). Release names are tags (`vLaunch4`, `vNext2`).
 
 ---
 
@@ -66,8 +70,8 @@ on the right, `V` + `C` on the left). Release names are tags (`vLaunch3`, `vNext
 
 ```
 connect
-  |-- updater firmware (fw 3+) ----------- D1 dot -> D2 Firmware page
-  |-- vLaunch2 / Vial (no updater) ------- D1 dot -> D2b -> M (manual install)
+  |-- updater with one-chord approval ---- D1 dot -> D2 Firmware page
+  |-- vLaunch2 / Vial / vNext1 ----------- D1 dot -> D2b -> M (manual install)
   |-- halves differ / reset flag --------- banner (F9) / A4
 
 D2: pick a release (or Choose a file...) -> Update
@@ -77,13 +81,13 @@ B1  the sheet: checks, backup, warnings, "Afterwards: put my layout back / start
   |
   Start update  ----------------------------------------- hands off from here
   |
-U1  approve {other}   (chord on {usb}; skipped on a developer build)
+U1  approve both halves: one chord on {usb} (skipped on a developer build)
 U2  send -> copy over the split cable -> {other} installs and restarts
-U3  approve {usb}     (chord on {usb}; skipped on a developer build)
-U4  send -> {usb} installs -> restarts -> Keybard reconnects
+U3  send -> {usb} installs (already approved in U1: nothing to do)
+U4  {usb} restarts -> Keybard reconnects
 U5  put the layout back (or apply defaults), as chosen on B1
   |
-A1  result: Updated to vLaunch3 (or a failure screen, section 8)
+A1  result: Updated to vLaunch4 (or a failure screen, section 8)
 ```
 
 ---
@@ -107,27 +111,31 @@ toggle:
 - **next.keybard.svalboard.com** carries the newest vNext and the same vLaunch releases
   as production.
 
-Example: on keybard.svalboard.com the list reads `vLaunch3` (newest) and `vLaunch2`. On
-next.keybard.svalboard.com it reads `vNext2` (newest), `vLaunch3`, `vLaunch2`. To try
-vNext2, a user opens next.keybard. To go back, they pick `vLaunch3` from the same list.
+Example: on keybard.svalboard.com the list reads `vLaunch4` (newest) and `vLaunch3`. On
+next.keybard.svalboard.com it reads `vNext2` (newest), `vLaunch4`, `vLaunch3`. To try
+vNext2, a user opens next.keybard. To go back, they pick `vLaunch4` from the same list.
+
+Only releases whose firmware supports the one-chord update (F-N2, F-N3) are listed, since
+an install through Keybard ends on that firmware. vLaunch2, Vial and vNext1 never appear
+in the list. Going back to one of them is a manual install from its GitHub release.
 
 ### 3.3 The Firmware page (D2)
 
 | Element | Copy |
 |---|---|
 | Title | `Firmware` |
-| "This keyboard" | `Left half` `vLaunch2` · `Trackball` and `Right half` `vLaunch2` · `No pointing module`, with a `USB` tag on the USB half. The detected module is read-only status: it decides which file fits, and it's configured nowhere in Settings. |
-| "Install" list | Rows, one per carried release, newest first: `vLaunch3` `Newest` · `What's new` (a link to the GitHub release). Older rows: `vLaunch2` `Older`. The row matching the board reads `Installed`. Last row: `Choose a file…` |
+| "This keyboard" | `Left half` `vLaunch3` · `Trackball` and `Right half` `vLaunch3` · `No pointing module`, with a `USB` tag on the USB half. The detected module is read-only status: it decides which file fits, and it's configured nowhere in Settings. |
+| "Install" list | Rows, one per carried release, newest first: `vLaunch4` `Newest` · `What's new` (a link to the GitHub release). Older rows: `vLaunch3` `Older`. The row matching the board reads `Installed`. Last row: `Choose a file…` |
 | Highlights | Up to three one-line bullets for the selected release, from Keybard's pinned release data (U-Q3) |
-| Primary button | `Update to vLaunch3`. It follows the selected row: `Reinstall vLaunch3`, `Install vLaunch2`, `Install file`. All of them open the same sheet. |
+| Primary button | `Update to vLaunch4`. It follows the selected row: `Reinstall vLaunch4`, `Install vLaunch3`, `Install file`. All of them open the same sheet. |
 | Advanced (collapsed) | `Update one half…` (Q9) |
 
 Selecting a row only changes the button. Every choice goes through B1, so the user always
 sees the same checks, backup and "Afterwards" choice.
 
 **Choose a file…** accepts one or two `.svup` files (Paranoid: also the only way in, Q12).
-Keybard reads each file's manifest and assigns it by hand: two files cover both halves,
-and one file covers its half only. A file whose SHA-256 matches a carried file is treated
+Keybard reads each file's manifest and assigns it to the half whose hand the manifest
+names: two files cover both halves, and one file covers its half only. A file whose SHA-256 matches a carried file is treated
 as that release, with no warning. Any other file installs with the `Unknown firmware
 file` warning (B1).
 
@@ -135,10 +143,10 @@ file` warning (B1).
 
 | State | This keyboard | Install list | Button |
 |---|---|---|---|
-| D2a Up to date | both halves `vLaunch3` | `vLaunch3` `Installed` selected | `Reinstall vLaunch3` (enabled; same path as an update) |
-| D2b No updater (vLaunch2, Vial) | one row `vLaunch2` (these builds don't report per half) | `vLaunch3` `Newest` · `One manual install, then updates come from Keybard` | `Install vLaunch3` (opens M) |
+| D2a Up to date | both halves `vLaunch4` | `vLaunch4` `Installed` selected | `Reinstall vLaunch4` (enabled; same path as an update) |
+| D2b No usable updater (vLaunch2, Vial; also vNext1, whose updater predates the one-chord approval) | one row `vLaunch2` (these builds don't report per half; vNext1 does) | `vLaunch4` `Newest` · `One manual install, then updates come from Keybard` | `Install vLaunch4` (opens M) |
 | D2c Halves differ | the stale half in `kb-orange`, heading `Halves differ` | the release both should run, preselected | `Finish update` |
-| D2d Board newer than this Keybard | `vLaunch4` · `Newer than this Keybard` | list as usual (picking one is a downgrade) | `Reload` to look for a newer Keybard |
+| D2d Board newer than this Keybard | `vLaunch5` · `Newer than this Keybard` | list as usual (picking one is a downgrade) | `Reload` to look for a newer Keybard |
 | D2e No keyboard | `Connect a keyboard to see its firmware.` | the list, with `What's new` | `Connect` |
 
 ---
@@ -153,35 +161,36 @@ enabled once both are done.
 
 | Group | Content |
 |---|---|
-| Title | `Update to vLaunch3` (or `Reinstall vLaunch3`, `Install vLaunch2`, `Install custom firmware`) |
+| Title | `Update to vLaunch4` (or `Reinstall vLaunch4`, `Install vLaunch3`, `Install custom firmware`) |
 | Sub-line | `Left and right halves · About 2 minutes` |
 | Checks | `Both halves connected` ✓ · `Firmware files verified` ✓ · `Keybard Host paused` ✓ (only when Host is connected) · `Scan Lab closed` ✓ (only when it was open) |
-| Backup | `Layout saved` ✓ · `Kip-vLaunch2-2026-10-14.svil` · `Downloads` · link `Backups` |
-| Afterwards | Two choices, the first selected: **`Put my layout back`** · `Start from the vLaunch3 defaults` |
-| On the keyboard | The `{usb}` half drawn with the two chord keys lit. `Hold M + , when the light blinks blue (twice)`. `Keep USB and the split cable connected.` |
+| Backup | `Layout saved` ✓ · `Kip-vLaunch3-2026-10-14.svil` · `Downloads` · link `Backups` |
+| Afterwards | Two choices, the first selected: **`Put my layout back`** · `Start from the vLaunch4 defaults` |
+| On the keyboard | The `{usb}` half drawn with the two chord keys lit. `Hold M + , once, when the light blinks blue` · `One hold approves both halves`. `Keep USB and the split cable connected.` |
 | Footer | `Cancel` · **`Start update`** |
 
 Notes:
 
-- **Backup** (tech doc 4.2): a `Before vLaunch3` snapshot in Backups (and the backup folder,
+- **Backup** (tech doc 4.2): a `Before vLaunch4` snapshot in Backups (and the backup folder,
   if set), plus a downloaded file named `<board name>-<installed release>-<date>.svil`.
   Keybard parses it back before enabling Start. The download is the copy that survives a
   different site or cleared storage, which is why the sheet names it.
 - **Afterwards** is the only layout decision, and it's made here. **Put my layout back**
   writes the backup after the install, every time, whether or not the firmware reset the
   settings (tech doc 4.3). **Start from defaults** leaves the new firmware's defaults. On an
-  identical-build reinstall, where the firmware keeps settings (D39), Keybard sends a
-  settings reset so the result matches the choice. That reset is a firmware addition
-  (tech doc 4.3, F-N2).
+  identical-build reinstall, where the firmware would keep settings (D39), Keybard sends a
+  settings reset so the result matches the choice. That reset is firmware addition F-N2,
+  which the Keybard flow requires, so the choice is always honored (tech doc 4.3).
 - **The chord diagram** shows the keys by position (Index South + Middle South on `{usb}`),
-  labeled with their current layer-0 legends. On a one-half update the line reads `(once)`.
+  labeled with their current layer-0 legends. It's the same line on every update: one hold,
+  whether one half or both are installed.
 - **Developer build without the chord** (tech doc 1.4): the "On the keyboard" group reads
   `Nothing to press: this developer build installs without approval`, in `kb-orange`.
 - **Linux**: an extra check row, `Device access`, with `Copy command` when the udev rule
   isn't confirmed (K13). It's a warning.
 - **New USB product ID** (rare from vNext on, since every build uses 0x4044/0x4045; tech
   doc 2.6): the sheet adds `At the end, choose Svalboard in the browser's list once`. The
-  browser requires that click; Keybard can't skip it. It's the one possible prompt after
+  browser requires that click; Keybard can't skip it. It's the one possible click after
   Start, and the sheet says so up front.
 
 ### 4.2 Warnings on the same sheet
@@ -193,7 +202,7 @@ present, the button reads **Update anyway**. Nothing opens a second dialog.
 |---|---|---|
 | Image hand ≠ the half's hand (K5, D33) | `File is for the left hand` | `On the right half, the halves stop working together.` |
 | Pointing ID ≠ the half's module (D33; custom builds) | `No trackball driver in this file` | `Pointing stops on the right half.` |
-| Older than the board | `vLaunch2 is older than vLaunch3` | `Settings added since vLaunch2 won't come back.` |
+| Older than the board | `vLaunch3 is older than vLaunch4` | `Settings added since vLaunch3 won't come back.` |
 | File not carried by this Keybard (Q11) | `Unknown firmware file` | `Keybard can't check where it came from.` |
 | File's Sval protocol newer than this Keybard (K18) | `Keybard may not configure this firmware` | `You can still install it.` |
 | File is a no-chord developer build (tech doc 1.4) | `Developer build` | `Later installs on this keyboard won't ask for approval.` |
@@ -224,7 +233,7 @@ anything.
 | Stage | Label | Bar |
 |---|---|---|
 | waiting its turn | `Waiting` | empty |
-| approval | `Hold M + , on the right half` | 30 s countdown |
+| approval (U1 only, both rows at once) | `Approve` | 30 s countdown |
 | erase | `Preparing` | sectors erased / to erase |
 | send over USB | `Sending 42%` | staged / length |
 | verify | `Checking` | indeterminate |
@@ -232,28 +241,31 @@ anything.
 | install | `Installing` | time-based fill, `kb-magenta` |
 | restart | `Restarting` | indeterminate |
 | put the layout back | `Putting your layout back` (on the `{usb}` row) | items written / total |
-| done | `vLaunch3` ✓ | full |
+| done | `vLaunch4` ✓ | full |
 
-The dialog's title follows the step that matters: `Hold M + , on the right half` during an
+The dialog's title follows the step that matters: `Hold M + , on the right half` during the
 approval, `Installing · don't unplug` during an install, `Updating keyboard` otherwise.
 Footer lines, one at a time: during the copy, `Don't type on the left half` (the split link
 pauses, tech doc 2.5). Otherwise, `About 1 min left`.
 
-### 5.2 Approvals (U1, U3)
+### 5.2 The approval (U1), once for both halves
 
-When Keybard arms a half, the `{usb}` half's light blinks blue twice a second. That's the
-only time the user has to act. The title becomes `Hold M + , on the right half`, the
-diagram from B1 reappears with the keys lit, and the 30 s countdown runs. Both approvals
-happen on the `{usb}` half, including the one that approves `{other}`.
+Right after Start, Keybard arms the update and the `{usb}` half's light blinks blue twice a
+second. That's the only time the user has to act. The title becomes `Hold M + , on the right
+half`, the diagram from B1 reappears with the keys lit, and the 30 s countdown runs. One
+hold approves both halves' files (F-N3, tech doc 1.4). The `{usb}` half later installs its
+own file with no second approval, so blue never blinks again in that update (U3).
 
 - Both keys must be seen up once after the light starts blinking, and any bounce
   restarts the 1 s hold. The countdown line under the diagram reads `Let go, then hold
   both for 1 second` only if the keys were already down when the blinking began.
-- When the chord registers, the light flashes white twice (300 ms), then shows solid
-  blue for a moment while Keybard continues. The screen moves on by itself. The keys stay
-  hidden from typing until they're released.
-- On a developer build without the chord, these steps don't appear. The row goes
-  straight from `Waiting` to `Preparing`.
+- When the chord registers, the light flashes white twice (300 ms) and goes straight into
+  the rainbow: Keybard continues at once, and the flash plays out over the start of the
+  next step. Solid blue appears only if Keybard is slow to continue. The screen moves on by
+  itself. The keys stay hidden from typing until they're released.
+- On a developer build without the chord, this step doesn't appear. The rows go straight
+  from `Waiting` to `Preparing`.
+- A one-half update (Advanced, or `Finish update`) has the same single approval.
 
 ### 5.3 What the lights show
 
@@ -266,15 +278,14 @@ turned lighting off or the board was idle, and returns to the layer color afterw
 | Step | Right half (USB) | Left half | Shown to the user |
 |---|---|---|---|
 | Checks and backup (B1) | Layer color | Layer color | nothing |
-| U1 Approve left | **Blue, blinking** | Layer color | the approval title and diagram (5.2) |
-| Chord registered | White double flash, then solid blue for a moment | Layer color | nothing; the screen moves on |
+| U1 Approve, once for both halves | **Blue, blinking** | Layer color | the approval title and diagram (5.2) |
+| Chord registered | White double flash (0.3 s), then straight into the rainbow | Layer color | nothing; the screen moves on |
 | Sending the left half's firmware | **Rainbow**, one slow continuous cycle | Layer color | progress |
 | Copying over the split cable | Rainbow, continuing | **Rainbow** from the first copied piece | `Don't type on the left half` |
 | Left half installs | **Magenta, steady** (it waits for the left half) | **Magenta, steady** | title `Installing · don't unplug` |
-| Left half restarts | Magenta for up to about 15 s, then **red, blinking slowly** | Restarts into vLaunch3, then its normal color | on the right row while red is lit: `Red until this half updates` |
-| U3 Approve right | **Blue, blinking** | Normal color | the approval title and diagram |
-| Sending the right half's firmware | Rainbow | Normal color (not verified on hardware) | progress |
-| Right half installs | Magenta, steady | Normal color (not verified on hardware) | title `Installing · don't unplug` |
+| Left half restarts | Magenta for up to about 15 s, then **red, blinking slowly** for a few seconds, until Keybard starts the right half | Restarts into vLaunch4, then a layer color: probably its own default green, since its settings reset and it may not sync with the old right half (not verified on hardware) | on the right row while red is lit: `Red until this half updates` |
+| U3 Sending the right half's firmware | Red, then **rainbow**. No blue: U1 already approved this file (F-N3) | Layer color, as above (not verified on hardware) | progress |
+| Right half installs | Magenta, steady | Layer color, as above (not verified on hardware) | title `Installing · don't unplug` |
 | Restart and reconnect | Off for a moment, then the default layer color | Default layer color | `Restarting` |
 | Putting the layout back | Layer colors change back to the user's as they're written | same | `Putting your layout back` |
 | A1 Done | The user's layer color | same | result |
@@ -283,8 +294,8 @@ turned lighting off or the board was idle, and returns to the layer color afterw
 
 | Update | Right half (USB) | Left half |
 |---|---|---|
-| Right half only | Blue blink, white flash, rainbow, magenta, restart | Normal color throughout (not verified on hardware) |
-| Left half only | Blue blink, white flash, rainbow through sending and copying, magenta while the left installs, then a short red blink until the halves match | Rainbow while receiving the copy, magenta while installing, then restarts |
+| Right half only | Blue blink (the one approval), white flash, rainbow, magenta, restart | Normal color throughout (not verified on hardware) |
+| Left half only | Blue blink (the one approval), white flash, rainbow through sending and copying, magenta while the left installs, then a short red blink until the halves match | Rainbow while receiving the copy, magenta while installing, then restarts |
 
 After a left-half-only update that brings the halves together (the usual "Finish update"
 case), the red lasts about half a second. If the halves still differ, it stays red until
@@ -292,8 +303,8 @@ the right half is updated. The banner and D2c then say `Halves differ`.
 
 **Where explanation is needed, and why**
 
-- **Blue blinking** is the only "act now" signal. The dialog says what to do at that
-  moment, so the color needs no legend.
+- **Blue blinking** is the only "act now" signal, and it appears once per update, right
+  after Start. The dialog says what to do at that moment, so the color needs no legend.
 - **The rainbow** covers checking, preparing, sending and copying. It's one continuous
   cycle, so it looks like a single "busy" state. The progress bar already says "busy",
   so it gets no words.
@@ -303,7 +314,7 @@ the right half is updated. The banner and D2c then say `Halves differ`.
   is also the default color of layer 15 (auto mouse), so the light alone isn't proof of an
   install. Only the dialog is.
 - **Red, blinking slowly** between the two halves is expected: the halves differ until
-  the right half is updated. It's the one color that reads as failure when it isn't, so it
+  the right half is updated, which starts on its own a few seconds later. It's the one color that reads as failure when it isn't, so it
   keeps its line (U-Q4). Red is also the default color of layers 6 and 7. The slow blink is
   the difference, and the dialog is the authority.
 - **Default colors after the install.** Each new install starts from the firmware's
@@ -357,14 +368,14 @@ As chosen on B1, with no prompt:
 
 | Element | Copy |
 |---|---|
-| Title | `Updated to vLaunch3` (or `Reinstalled vLaunch3`, `Installed vLaunch2`) |
-| Rows | `Left half vLaunch3` ✓ · `Right half vLaunch3` ✓ |
+| Title | `Updated to vLaunch4` (or `Reinstalled vLaunch4`, `Installed vLaunch3`) |
+| Rows | `Left half vLaunch4` ✓ · `Right half vLaunch4` ✓ |
 | Layout | `Layout put back` ✓ · backup file name. Trimmed items in `kb-orange` with counts, e.g. `Combos: 6 of 8 (this firmware has 6)`. With defaults chosen: `Started from defaults` · backup file name |
-| Link | `What's new in vLaunch3` |
+| Link | `What's new in vLaunch4` |
 | Button | `Done` |
 
 Both versions come from INFO page 1 on each half. If they differ, A1 is replaced by F9. The
-`Before vLaunch3` snapshot stays in Backups until the user deletes it.
+`Before vLaunch4` snapshot stays in Backups until the user deletes it.
 
 ### 6.2 A4, settings reset outside an update
 
@@ -374,7 +385,7 @@ restore is asked afterwards. It replaces today's `StorageResetDialog` "OK only":
 
 | Title | `New firmware reset your settings` |
 |---|---|
-| Body | the newest backup for this board: `Kip · vLaunch2 · Today 10:42` |
+| Body | the newest backup for this board: `Kip · vLaunch3 · Today 10:42` |
 | Buttons | `Start from defaults` · `Other backups` · **`Put my layout back`** |
 
 Bit 0 (storage unreadable) keeps its own dialog, and gains the same button.
@@ -390,7 +401,7 @@ put back at the end.
 
 | Step | Title | Content | Done when |
 |---|---|---|---|
-| M1 | `Install vLaunch3 by hand` | sub-line `Once per keyboard. Later updates come from Keybard.` · the Afterwards choice | |
+| M1 | `Install vLaunch4 by hand` | sub-line `Once per keyboard. Later updates come from Keybard.` · the Afterwards choice | |
 | 1 | `Layout saved` | file name · `Downloads` | automatic |
 | 2 | `Download firmware` | `Left half .uf2` · `Right half .uf2` (Keybard's own copies, hash-checked) | both clicked |
 | 3 | `Install on the left half` | `Plug USB into the left half` · `Double-tap its reset button` · `Copy the left file onto the RPI-RP2 drive` | `Next` (the browser can't see the drive) |
@@ -410,14 +421,14 @@ Each row says what happened to the keyboard. Its button is the exact next step.
 
 | ID | Risk | When | Title | Body | Buttons |
 |---|---|---|---|---|---|
-| F1 | K19 | no updater (vLaunch2, Vial) | (D2b) | `One manual install, then updates come from Keybard` | `Install vLaunch3` → M |
+| F1 | K19 | no updater (vLaunch2, Vial) | (D2b) | `One manual install, then updates come from Keybard` | `Install vLaunch4` → M |
 | F2 | K2, K23 | carried file's hash mismatch | `Firmware file failed its check` | `Keybard won't install it. Reload Keybard and try again.` | `Reload` · `Close` |
 | F3 | K15 | OTHER_CLIENT / BUSY | `Another app is using the keyboard` | `Close other Keybard tabs and the overlay, then try again.` | `Try again` |
 | F4 | K21 | chord not made in 30 s | `Not approved in time` | `Nothing was changed.` | `Try again` · `Close` |
-| F5 | K7, K12 | unplug, cable, timeout, verify or CRC failure before any install | `Update stopped` | `Nothing was changed. Your keyboard still runs vLaunch2.` | `Try again` · `Close` |
+| F5 | K7, K12 | unplug, cable, timeout, verify or CRC failure before any install | `Update stopped` | `Nothing was changed. Your keyboard still runs vLaunch3.` | `Try again` · `Close` |
 | F6 | K10 | tab closed mid-update; on reopen | `Update didn't finish` | `Nothing was changed.`, or the F9 text | `Try again` / `Finish update` |
 | F7 | K11 | tab hidden or computer about to sleep | toast `Keep this tab open until the update finishes` | | none |
-| F9 | K6 | halves on different releases (a stop between halves, or seen on any connect, Q17) | `Halves differ` | `Left half vLaunch3 · Right half vLaunch2` | `Finish update` (or `Install by hand` without an updater) |
+| F9 | K6 | halves on different releases (a stop between halves, including U1's approval lapsing before the `{usb}` half starts, or seen on any connect, Q17) | `Halves differ` | `Left half vLaunch4 · Right half vLaunch3` | `Finish update` (or `Install by hand` without an updater) |
 | F10 | K8 | power lost while `{usb}` installs; it's now `RPI-RP2` | `Right half needs a manual install` | `Its light stays magenta and a drive named RPI-RP2 appeared.` | `Download right half .uf2` · then M 4-5 |
 | F11 | K9 | power lost or split cable pulled while `{other}` installs | `Left half needs a manual install` | `Plug USB into the left half. It shows up as the RPI-RP2 drive.` | `Download left half .uf2` · then M 3, 5 |
 | F12 | K13 | Linux refuses the device after restart | `Linux blocked the keyboard` | `Run this command, then reconnect.` | `Copy command` · `Reconnect` |
@@ -425,7 +436,7 @@ Each row says what happened to the keyboard. Its button is the exact next step.
 | F16 | K16 | putting the layout back failed or partly failed | `Layout not fully put back` | `Your backup is safe in Backups and Downloads.` | `Try again` · `Open Backups` · `Keep defaults` |
 | F17 | K20 | settings writes failing (bit 1; ARM is refused) | `Your keyboard can't save settings` | `Updates from Keybard are off until this is fixed.` | `Install by hand` · `Close` |
 | F18 | K20 | not a 16 MiB flash (UNAVAILABLE) | `This keyboard installs firmware by hand` | | `Install by hand` |
-| F19 | K18, K25 | running firmware's Sval protocol newer than this Keybard | `This Keybard can't configure vLaunch3` | `Reload Keybard to get a newer one.` | `Reload` |
+| F19 | K18, K25 | running firmware's Sval protocol newer than this Keybard | `This Keybard can't configure vLaunch4` | `Reload Keybard to get a newer one.` | `Reload` |
 | F21 | K24 | post-COMMIT probe "unconfirmed" | no UI; decide from INFO and presence after the restart | | |
 | F22 | K1, K3 | compromised release or origin | no UI; pinning and the chord | | |
 | F23 | K4 | another page asks for the chord | no UI; release notes say `Only approve updates you started` | | |
@@ -446,17 +457,20 @@ dialog (4.2, 5.4, 6.2), so they're not separate screens.
 - **Light swatches** in the progress rows: derived from flow state using the firmware
   table (tech doc 1.10), never read from the board.
 - **Backups**: a `Before <release>` kind, and "newest backup for this board" for A4.
-- **Firmware additions** (tech doc section 7): the developer no-chord build flag (F-N1) and a
-  host "reset settings" op for "start from defaults" on an identical build (F-N2).
+- **Firmware additions** (tech doc section 7): the developer no-chord build flag (F-N1); a
+  host "reset settings" op for "start from defaults" on an identical build (F-N2, required);
+  and one chord approving both halves (F-N3, required). Keybard offers its install flow
+  only to a board whose running firmware reports F-N2 and F-N3. Any other board, including
+  vNext1, takes the manual install (M) once.
 - **About** loses its firmware prose and the fake "1.0.0". The chip and `FirmwareUpdateNote`
   go. `UnsupportedFirmwareCard` points to M instead of GitHub.
 
 ## 10. Open questions for the owner (round 2)
 
 Only questions that are the owner's call. The full list, with Settings questions, is in
-[settings-structure.md](settings-structure.md) section 7.
+[settings-structure.md](settings-structure.md) section 7. Settled in round 2: one chord
+approves both halves (was N2; tech doc section 7).
 
 | # | Question | Recommendation |
 |---|---|---|
 | N1 (was Q4) | When Keybard is open, should it ask GitHub whether there's firmware newer than the files it carries, only to say "a newer firmware exists" (never to install it)? **Yes:** users hear about a release before their Keybard site carries it. Each check sends the user's IP address to GitHub, and the message points at a Keybard that may not exist yet. **No:** Keybard knows only what it carries, and new firmware appears when the site is redeployed. | No. Production and its firmware ship together under one launch tag, so the stable site never lags its own release. |
-| N2 | Approve both halves with one chord? Today the firmware asks for the chord once per half, so a both-halves update needs it twice, about a minute apart. The firmware could take one approval for the pair: ARM would carry both manifest hashes. That makes the update truly one action. | Yes, as a firmware change in a later release. Two chords until then. |

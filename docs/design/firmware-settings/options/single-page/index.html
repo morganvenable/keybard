@@ -290,7 +290,7 @@ mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color:
       <button data-t="light">Light</button><button data-t="system">System</button><button data-t="dark">Dark</button>
     </div>
   </header>
-  <div class="r2"><b>Round 2 · recommended.</b> The page holds only app preferences and board/firmware management. Hardware, Typing, Pointing and Overlay left Settings for the main editor (settings-structure.md section 2), along with the Pointing panel's link row and Settings search. Groups are now "This keyboard / This browser / Keybard". The Firmware row shows status and the install list. Update opens the one-confirm sheet, then the update runs hands off (update-flow.md). Section 3 still shows round 1's in-row flow, kept only for reference.</div>
+  <div class="r2"><b>Round 2 · recommended.</b> The page holds only app preferences and board/firmware management. Hardware, Typing, Pointing and Overlay left Settings for the main editor (settings-structure.md section 2), along with the Pointing panel's link row and Settings search. Groups are now "This keyboard / This browser / Keybard". The Firmware row shows status and the install list. Update opens the one-confirm sheet, then the update runs hands off (update-flow.md). The update screens themselves are drawn once, in flow/index.html.</div>
   <nav class="toc">
     <a href="#s1">1 · Getting there</a><a href="#s2">2 · The whole page</a><a href="#s3">3 · Firmware states</a><a href="#s5">4 · Phone width</a><a href="#s6">5 · What moved out</a>
   </nav>
@@ -481,184 +481,8 @@ mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color:
   </ol>
 
   <!-- ===================================================== 3 -->
-  <h2 id="s3">3 · Firmware states <small>the status row, collapsed and expanded</small></h2>
-  <p class="note"><b>Round 1, kept for reference.</b> Round 2 replaces this in-row flow with the sheet and the hands-off progress dialog in <a href="../../flow/index.html">flow/index.html</a>. The row is always the first thing on the page. It expands in place; the rest of the page stays below it, scrolled out of the way. The flow follows the technical report: the half without USB first, a backup before anything is sent, both approvals made on the half with USB, restore by default, <span class="mono">0x2A</span> only after the restore.</p>
-  <div class="grid">
-
-    <div class="state">
-      <div class="cap">a · Up to date</div>
-      <div class="fw">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch4 · both halves</span></div><span class="tag ok">Latest</span><span class="ib"><svg class="i"><use href="#i-chev-u"/></svg></span></div>
-        <div class="fw-body">
-          <div class="row"><span class="lbl">Release</span><span class="val">vLaunch4</span></div>
-          <div class="row"><span class="lbl">Build</span><span class="val mono">auto · 01305aba</span></div>
-          <div class="row"><span class="lbl">Sval protocol</span><span class="val">3</span></div>
-          <div class="row"><span class="lbl">QMK keycodes</span><span class="val">6</span></div>
-          <div class="row link"><span class="lbl">Reinstall vLaunch4</span><svg class="i"><use href="#i-chev-r"/></svg></div>
-          <div class="row link"><span class="lbl">Install from file</span><svg class="i"><use href="#i-chev-r"/></svg></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">b · Update available</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch3 · both halves</span></div><span class="tag new">vLaunch4</span><span class="btn">Update</span></div>
-      </div>
-      <div class="cap" style="margin-top:18px">b′ · On next.keybard</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vNext1 · both halves</span></div><span class="tag new">vNext2</span><span class="btn">Update</span></div>
-      </div>
-      <div class="cap" style="margin-top:18px">b″ · Newer than this Keybard knows</div>
-      <div class="fw">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch4 · vLaunch5 needs a newer Keybard</span></div><span class="btn o">Reload</span></div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">c · Ready (expanded by Update)</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>About 2 minutes</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
-        <div class="fw-body">
-          <div class="steps"><div class="done">Backup</div><div>Left half</div><div>Right half</div><div>Restore</div></div>
-          <div class="row"><span class="lbl">Left half<small>Split cable</small></span><span class="val">vLaunch3 → vLaunch4</span></div>
-          <div class="row"><span class="lbl">Right half<small>USB</small></span><span class="val">vLaunch3 → vLaunch4</span></div>
-          <div class="row"><span class="lbl">Layout backup</span><span class="val mono">svalboard-2026-10-13.svil</span><svg class="i ok-ico"><use href="#i-check"/></svg></div>
-          <div class="row"><span class="lbl">Keybard Host</span><span class="val">Paused</span><svg class="i ok-ico"><use href="#i-check"/></svg></div>
-          <div class="row disc"><span class="lbl val">Advanced</span><svg class="i"><use href="#i-chev-d"/></svg></div>
-          <div class="fw-actions"><span class="btn o">Cancel</span><span class="btn lg">Start update</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">d · Approve on the keyboard</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>Left half</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
-        <div class="fw-body">
-          <div class="steps"><div class="done">Backup</div><div class="now">Left half</div><div>Right half</div><div>Restore</div></div>
-          <div class="big">Hold M + , on the right half</div>
-          <div class="chord">
-            <svg viewBox="0 0 150 118" aria-label="Right half, index and middle South keys">
-              <g transform="translate(6 6)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="28" y="58">M</text></g>
-              <g transform="translate(80 0)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="30" y="58">,</text></g>
-              <text x="12" y="96">Index</text><text x="90" y="90">Middle</text>
-            </svg>
-            <div>
-              <div class="led"><i></i>Blinking blue</div>
-              <div style="margin-top:8px" class="val">Code <span class="mono" style="color:var(--kb-ink)">A3F1 09C2</span></div>
-              <div style="margin-top:8px" class="val">0:24</div>
-            </div>
-          </div>
-          <div class="fw-actions"><span class="btn o">Cancel</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">e · Installing</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Installing · don't type</b><span>Keep the keyboard plugged in</span></div></div>
-        <div class="fw-body">
-          <div class="steps"><div class="done">Backup</div><div class="now">Left half</div><div>Right half</div><div>Restore</div></div>
-          <div class="row"><span class="lbl">Left half<small>Sending over the split cable</small></span><span class="bar"><i style="width:62%"></i></span><span class="val mono">62%</span></div>
-          <div class="row"><span class="lbl">Right half</span><span class="val">Next</span></div>
-        </div>
-      </div>
-      <div class="cap" style="margin-top:18px">e′ · Second approval</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Hold M + , again</b><span>Right half · code 7C02 E9B4</span></div><span class="led"><i></i></span></div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">f · New USB ID after the restart</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Select your keyboard again</b><span>vLaunch4 · Svalboard right</span></div></div>
-        <div class="fw-body">
-          <div class="steps"><div class="done">Backup</div><div class="done">Left half</div><div class="now">Right half</div><div>Restore</div></div>
-          <div class="fw-actions"><span class="btn lg">Reconnect</span></div>
-        </div>
-      </div>
-      <div class="cap" style="margin-top:18px">f′ · Same USB ID</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Reconnecting…</b><span>Right half restarted</span></div></div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">g · Restore</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>vLaunch4 installed</b><span>Keyboard settings were reset</span></div></div>
-        <div class="fw-body">
-          <div class="steps"><div class="done">Backup</div><div class="done">Left half</div><div class="done">Right half</div><div class="now">Restore</div></div>
-          <div class="row"><span class="lbl">Layout backup<small>Today 14:02 · Before vLaunch4</small></span><span class="val mono">.svil</span></div>
-          <div class="fw-actions"><span class="btn g">Keep new defaults</span><span class="btn lg"><svg class="i"><use href="#i-restore"/></svg>Restore layout</span></div>
-        </div>
-      </div>
-      <div class="cap" style="margin-top:18px">g′ · Done</div>
-      <div class="fw">
-        <div class="fw-row"><div class="fw-ico" style="color:var(--kb-primary)"><svg class="i"><use href="#i-check"/></svg></div><div class="t"><b>Updated to vLaunch4</b><span>Layout restored</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">h · Halves on different firmware</div>
-      <div class="fw warn">
-        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Halves on different firmware</b><span>Left vLaunch3 · right vLaunch4</span></div><span class="btn">Update left</span></div>
-      </div>
-      <div class="cap" style="margin-top:18px">h′ · Left half not answering</div>
-      <div class="fw warn">
-        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Left half not answering</b><span>Right vLaunch4</span></div><span class="ib"><svg class="i"><use href="#i-chev-u"/></svg></span></div>
-        <div class="fw-body">
-          <div class="row link"><span class="lbl">Try again</span><svg class="i"><use href="#i-chev-r"/></svg></div>
-          <div class="row link"><span class="lbl">Install on the left half by USB</span><svg class="i"><use href="#i-chev-r"/></svg></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">i · First update off vLaunch2 (manual, once)</div>
-      <div class="fw avail">
-        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Install vLaunch3</b><span>vLaunch2 · manual install</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
-        <div class="fw-body">
-          <ol class="manual-steps">
-            <li class="done"><span>Layout backup</span><span class="val mono">.svil</span></li>
-            <li><span>Left half file</span><span class="btn o"><svg class="i"><use href="#i-down"/></svg>.uf2</span></li>
-            <li><span>Right half file</span><span class="btn o"><svg class="i"><use href="#i-down"/></svg>.uf2</span></li>
-            <li><span>Left half: double-tap reset, copy to RPI-RP2</span></li>
-            <li><span>Right half: same</span></li>
-            <li><span>Reconnect and restore</span><span class="btn">Reconnect</span></li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
-    <div class="state">
-      <div class="cap">j · Gentle warning (file from disk)</div>
-      <div class="fw warn">
-        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Built for a left half</b><span>my-build.svup → right half</span></div></div>
-        <div class="fw-body">
-          <div class="row"><span class="lbl">File</span><span class="val mono">my-build.svup</span></div>
-          <div class="row"><span class="lbl">Pointing</span><span class="val">Trackball (board: none)</span><svg class="i warn-ico"><use href="#i-warn"/></svg></div>
-          <div class="row"><span class="lbl">Hand</span><span class="val">Left (board: right)</span><svg class="i warn-ico"><use href="#i-warn"/></svg></div>
-          <div class="fw-actions"><span class="btn o">Cancel</span><span class="btn">Install anyway</span></div>
-        </div>
-      </div>
-      <div class="cap" style="margin-top:18px">j′ · Integrity failure (refused)</div>
-      <div class="fw" style="border-color:var(--kb-red);box-shadow:0 0 0 1px var(--kb-red)">
-        <div class="fw-row"><div class="fw-ico" style="color:var(--kb-red)"><svg class="i"><use href="#i-x"/></svg></div><div class="t"><b>File doesn't match vLaunch4</b><span>Nothing was sent</span></div><span class="btn o">Retry</span></div>
-      </div>
-    </div>
-
-  </div>
-  <ol class="notes">
-    <li><b>Backup is the first step, not a checkbox.</b> It writes a "Before vLaunch4" snapshot and downloads the <span class="mono">.svil</span>. If it fails, the row turns amber with <i>Update without backup</i> beside Cancel (warn and allow, Q8).</li>
-    <li><b>Advanced</b> holds <i>Right half only</i> (Q9) and the release picker on next.keybard (vNext and vLaunch, Q5). Reinstall and Install from file live in the collapsed row's details (Q6, Q11).</li>
-    <li><b>The chord diagram is drawn from the half with USB</b> and names the two keys by their current legends; the code is the first 4 bytes of the manifest hash shown at ARM.</li>
-    <li><b>The flow survives a reload.</b> If the tab is reopened mid-update, the row opens on the step it was on (state in <span class="mono">sessionStorage</span>).</li>
-    <li><b>Mixed halves (h) shows whenever presence reads "version differs"</b>, also outside an update (Q17), and replaces today's silent non-USB half.</li>
-  </ol>
+  <h2 id="s3">3 · Firmware states <small>drawn once, in the flow mockups</small></h2>
+  <p class="note">Round 1's in-row update flow is gone from this page. On the single page, the Firmware row shows status and the install list (section 2, third cut), and <b>Update</b> opens the one-confirm sheet as a dialog over the page. Every firmware screen, from the page states (D2, D2a–D2e) through the sheet (B1), the hands-off progress dialog with its single approval (U1–U5) and the result (A1), is drawn in <a href="../../flow/index.html">flow/index.html</a>, so it exists in one place for all three layouts.</p>
 
   <!-- ===================================================== 5 -->
   <h2 id="s5">4 · Phone width <small>390 px, Settings as a full-screen page</small></h2>
@@ -673,7 +497,7 @@ mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color:
         </div>
         <div class="sp-body">
           <div class="fw avail">
-            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch3</span></div><span class="tag new">vLaunch4</span><span class="btn">Update</span></div>
+            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch3 · both halves</span></div><span class="tag new">vLaunch4</span><span class="btn">Update</span></div>
           </div>
           <div class="grp">This keyboard</div>
           <div class="sh">Board</div>
@@ -697,9 +521,9 @@ mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color:
         </div>
         <div class="sp-body">
           <div class="fw avail">
-            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>Left half</span></div></div>
+            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>One approval for both halves</span></div></div>
             <div class="fw-body">
-              <div class="steps"><div class="done">Backup</div><div class="now">Left</div><div>Right</div><div>Put back</div></div>
+              <div class="steps"><div class="done">Backup</div><div class="now">Approve</div><div>Left</div><div>Right</div><div>Put back</div></div>
               <div class="big">Hold M + , on the right half</div>
               <div class="chord">
                 <svg viewBox="0 0 150 118" aria-hidden="true">
@@ -707,7 +531,7 @@ mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color:
                   <g transform="translate(80 0)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="30" y="58">,</text></g>
                   <text x="12" y="96">Index</text><text x="90" y="90">Middle</text>
                 </svg>
-                <div><div class="led"><i></i>Blinking blue</div><div style="margin-top:8px" class="val">Code <span class="mono" style="color:var(--kb-ink)">A3F1 09C2</span></div></div>
+                <div><div class="led"><i></i>Blinking blue</div><div style="margin-top:8px" class="val">Codes <span class="mono" style="color:var(--kb-ink)">A3F1 09C2 · 7C02 E9B4</span></div></div>
               </div>
               <div class="fw-actions"><span class="btn o">Cancel</span></div>
             </div>

@@ -2,8 +2,8 @@
 
 Status: design input, nothing built. Written 2026-10-13. **Revised 2026-10-14 (round 2)**
 after the owner's review. The decisions are in section 7, and the sections they changed
-say so (1.4, 1.10, 3.1, 3.4, 4.1-4.3, 6). Round 2 added the LED reference (1.10), read at
-firmware `42c3de6036`. Round 1 was written against:
+say so (1.4, 1.10, 2.3-2.5, 3.1, 3.4, 4.1-4.3, 5, 6). Round 2 added the LED reference (1.10),
+read at firmware `42c3de6036`, and the one-chord design (F-N3, 1.4). Round 1 was written against:
 
 - Firmware: `svalboard/qmk` branch `svalboard` at `01305aba07` (the same commit as the `vNext1` tag). Read with `git -C GitHub/svalboard-qmk show origin/svalboard:<path>`. Paths under `keyboards/svalboard/` are shortened to `kb/`.
 - Keybard: worktree `keybard-wt-firmware-design`, branch `design/firmware-settings`, at production vLaunch2.4 (`6ed296f`).
@@ -96,7 +96,18 @@ Why it exists:
 - **Binding to one image.** The chord approves one manifest hash (D5). The host shows 4 bytes of that hash at ARM.
 - **No host forgery.** `SVAL_UPDATER` can't be combined with `SVAL_KEYTEST`, because keytest injects key events and would let a host fake the chord (updater.md:78-79, plan R11).
 
-The chord is required on every updater build today (finding 2). A pair update needs it twice, both times on the half with USB (sval_update.py:775). N2 (section 7) asks whether one chord should approve both halves.
+The chord is required on every updater build today (finding 2). Today's firmware asks for it once per half, so a pair update made with `sval_update.py` needs it twice, both times on the half with USB (sval_update.py:775). **The owner decided that one chord approves both halves** (section 7). Keybard's flow depends on that change, F-N3, below.
+
+**One chord for both halves (firmware addition F-N3, required).** A full update asks for the chord exactly once, at the start, on the half with USB. After that, it runs to the end with no human step.
+
+1. **One approval covers two manifests.** Before ARM, Keybard sends the other half's manifest (as today) and the USB half's own manifest into a second manifest buffer. The USB half checks both against both halves' fields (the 2.1 pre-checks, done on the device too), so the user is never asked to approve a file either half would refuse. ARM for the other half then starts one chord window for the pair, and its reply carries 4 bytes of each manifest's SHA-512. Keybard shows both codes.
+2. **The USB half keeps the second approval in RAM.** After the chord, it stores the SHA-512 of its own manifest, bound to the session's client ID (it follows REBIND). The other half's update runs as today.
+3. **The USB half's own session uses it.** When Keybard sends MANIFEST and ARM for the USB half, a manifest whose SHA-512 equals the stored one counts as approved: BEGIN is accepted at once. The approval is used once and then cleared. It is also cleared by ABORT, by any error in either session, by a reset of the USB half, by a client other than the bound one, and after a window long enough for the other half's commit, hold and probes plus Keybard's checks (about 120 s after the relay ends; the exact value is the firmware's call).
+4. **LEDs.** A pre-approved ARM shows no blue and no white flash. The light goes from red (the halves differ) straight to the rainbow, so nothing on the keyboard looks like a second request (1.10).
+5. **INFO reports it** with a page-0 flag bit. Keybard's flow requires it. A board without it (vNext1, the only updater release so far) takes the manual install once (update-flow M).
+6. **A one-half update** (Advanced, or finishing a stopped update) uses today's single-manifest ARM: still one chord.
+
+Security: the chord still approves exact images, both bound by hash. While the second approval is held, a hostile client with the HID device open can't install anything else. It can only start the approved file early, stall it, or ABORT it, which it can already do to any session (1.3). The approval doesn't survive a reset, so it can't be used later.
 
 **Developer builds without the chord (round 2, Q10, firmware addition F-N1).** A developer build may skip the chord. A release build must never be able to. The firmware already has this pattern for test hooks, and the skip copies it at every gate:
 
@@ -207,8 +218,9 @@ Read at `svalboard/qmk` `origin/svalboard` `42c3de6036`. Paths are under `kb/`, 
 | Idle after updating the other half (`awaiting_match`) | USB | Red 1 Hz, even while presence reads NONE | Relay DONE (`update_split.c:844-846`; `docs/updater.md:484-487`) | First MATCH (`update_split.c:70`), usually one ping later. If the release changed the split table, red stays until USB is updated too |
 | MANIFEST_LOADING (1) | USB | Layer color, or red if mismatched (`updater.c:832-835`) | First MANIFEST piece | ARM |
 | CONFIRM_WAIT before the chord (2) | USB, also for an OTHER update (`docs/updater.md:435`) | Blue 2 Hz | ARM (`updater.c:416-418`) | The chord, or 30 s after ARM: NOT_CONFIRMED, red (`updater.c:874-876`; `config.h:96`) |
-| Chord recognized | USB | White double flash | `done_ms` (`update_gesture.c:64-66`; `updater.c:847-848`) | 300 ms later. The keys stay hidden from QMK until released (`update_gesture.c:72-80`) |
-| CONFIRM_WAIT after the chord | USB | Solid blue | End of the flash | BEGIN, normally at once. After 30 s with no request: TIMEOUT, red (`updater.c:864-873`; `config.h:97`) |
+| Chord recognized | USB | White double flash | `done_ms` (`update_gesture.c:64-66`; `updater.c:847-848`) | 300 ms later, even if BEGIN came first: `update_gesture_disarm()` leaves `done` set (`update_gesture.c:34-37`), and `led_mode()` checks the flash before the state (`updater.c:847-848`). The keys stay hidden from QMK until released (`update_gesture.c:72-80`) |
+| CONFIRM_WAIT after the chord | USB | Solid blue | End of the flash | BEGIN. Keybard sends BEGIN as soon as STATUS shows the chord, normally inside the flash, so solid blue usually never shows. After 30 s with no request: TIMEOUT, red (`updater.c:864-873`; `config.h:97`) |
+| USB half's own ARM, pre-approved by the pair chord (F-N3, proposed) | USB | Rainbow from ARM: no blue, no flash (1.4 step 4) | ARM with the stored hash | as states 3-7 |
 | VERIFYING_MANIFEST, ERASING, RECEIVING, VERIFYING_IMAGE, VERIFIED (3-7) | USB | Rainbow (`updater.c:853`), VERIFIED included | BEGIN | COMMIT (magenta) or an error |
 | Same, during a USB-half update | OTHER | Layer color, following USB's rgblight over split sync. Inferred from `update_led.c:9-10`; check on hardware | | |
 | RELAYING, RELAYED (10, 11) | USB | Rainbow (`updater.c:841-843`) | COMMIT accepted for the other half (`updater.c:509-511`) | SUBSIDE_COMMITTING or an error |
@@ -227,7 +239,7 @@ Read at `svalboard/qmk` `origin/svalboard` `42c3de6036`. Paths are under `kb/`, 
 - Red is the default color of layers 6 and 7 (`svalboard.c:155-156`). Only the blink tells updater red apart.
 - The docs' LED summary (`docs/updater.md:214-216`) leaves out VERIFIED, the relay and the mismatch states.
 
-**Not verified on hardware:** the OTHER half's light during a USB-half update, and the LED in BOOTSEL.
+**Not verified on hardware:** the OTHER half's light during a USB-half update (after a pair update it runs the new release and may not sync with the old USB half), and the LED in BOOTSEL. The F-N3 row is a design, not built.
 
 ---
 
@@ -238,7 +250,7 @@ Read at `svalboard/qmk` `origin/svalboard` `42c3de6036`. Paths are under `kb/`, 
 ### 2.1 Preconditions (before anything is sent)
 
 1. Connected over WebHID with 64-byte reports. `usb.reportLength` comes from the descriptor (`src/services/usb.service.ts:273-276`). INFO's report size must be 64 (sval_update.py:265-273).
-2. **INFO (hand 0xFF):** protocol must be 3. Check the 16 MiB flag, the "settings writes failing" flag, state IDLE, and no latched ERROR. If ERROR is latched (a tab that died mid-session), send ABORT first; anyone may ABORT a latched error.
+2. **INFO (hand 0xFF):** protocol must be 3, and the flag bits for F-N2 and F-N3 must be set (otherwise the manual path, update-flow M). Check the 16 MiB flag, the "settings writes failing" flag, state IDLE, and no latched ERROR. If ERROR is latched (a tab that died mid-session), send ABORT first; anyone may ABORT a latched error.
 3. **The other half:** STATUS presence must be MATCH or VERSION within 5 s (sval_update.py:609-630). Then INFO with the other hand: `0xFF` state means no answer, so offer USB-half-only or the manual path.
 4. **Refusal pre-check** against both halves' INFO: protocol, DIAGNOSTIC on a release build, epoch, storage floor, size (sval_update.py:284-300, 769-772). Check both images against both halves before sending anything, so the second half can't refuse after the first has committed.
 5. **Mismatch warnings** (D33), never refusals: an image hand ≠ the half's hand, or a pointing ID ≠ the half's (sval_update.py:309-323). For release auto images, pointing never mismatches on an auto build. It does on a board still running a per-module build such as vLaunch2's trackball images, but those boards can't reach the updater anyway (finding 1).
@@ -257,7 +269,8 @@ Read at `svalboard/qmk` `origin/svalboard` `42c3de6036`. Paths are under `kb/`, 
 ```
 INFO, presence, pre-checks, backup (section 4)
 -- the other half (if both halves are updated) --
-MANIFEST x3 (hand = other) -> ARM -> show "approve on the keyboard"
+MANIFEST x3 (hand = other) + the USB half's manifest (second buffer, F-N3)
+ARM (pair) -> show "approve on the keyboard", both codes   <- the only human step
 poll STATUS until chord_made (<= 35 s) -> BEGIN
 poll STATUS until RECEIVING (erase, ~1.6 s)
 CHUNK x2,520 (REBIND after each renewal) -> END
@@ -266,13 +279,13 @@ COMMIT #1 -> poll RELAY until RELAYED (~11 s; phases: erase, sending %, verify)
 COMMIT #2 -> poll STATUS until IDLE (4.5 s hold)
 INFO(other) until it answers (<= 10 s); presence will read VERSION (expected)
 -- the half with USB --
-MANIFEST x3 (hand = self) -> ARM -> chord -> BEGIN -> erase -> CHUNKs -> END
+MANIFEST x3 (hand = self) -> ARM (pre-approved, F-N3) -> BEGIN at once -> erase -> CHUNKs -> END
 VERIFIED, CRC check -> COMMIT -> the device disconnects within ~100 ms + 1-2 s
 -- after --
 wait for the device (2.1.4), reopen, bootstrap a client ID
 INFO page 1: version string = the tag; fw_version = the manifest's
 STATUS presence = MATCH within 10 s (sval_update.py:791-820)
-GET_INFO storage flags: the D39 notice -> restore offer (section 4)
+GET_INFO storage flags -> act on the Afterwards choice made before Start (section 4.3)
 ```
 
 Keybard computes the CRC with the same CRC-32/MPEG-2 over `[0x100, len)` that `make_update.crc32_mpeg2` uses. The SHA-512 of the manifest (Web Crypto `SHA-512`) gives the 4-byte hash to compare with ARM's (sval_update.py:497, 535-536).
@@ -282,26 +295,25 @@ Keybard computes the CRC with the same CRC-32/MPEG-2 over `[0x100, len)` that `m
 | Stage | Estimate |
 |---|---|
 | Pre-checks + backup read | 1-3 s (the board config is already in memory; export is local) |
-| Chord #1 (human) | 2-30 s |
+| The chord, once for both halves (human) | 2-30 s |
 | Other half: erase + USB transfer + verify | about 7-12 s (protocol 3 estimate) |
 | Relay | about 11.5 s (measured) |
 | Other half commit + hold + reanswer | about 5-10 s |
-| Chord #2 | 2-30 s |
 | USB half: erase + transfer + verify + commit | about 8-13 s |
 | Reboot, re-enumerate, reconnect | 3-10 s (Windows installs a new HID device instance on a new PID) |
 | Presence MATCH + restore | 5-20 s |
-| **Total** | **about 1-2.5 minutes** |
+| **Total** | **about 45 s to 2 minutes** |
 
 ### 2.5 Progress
 
-STATUS and RELAY carry enough data for a real progress bar. Suggested weighting by measured time: erase (sectors erased / to erase), transfer (staged / image_len), verify (indeterminate, under 1 s), relay (acked / image_len, and the other half's sectors during erase), commit and reboot (indeterminate, with a time-based fill). The chord waits are separate, explicit states with the keyboard LED shown: blue blink, then a white double flash, then solid blue (updater.md:214-216). Show both halves as two rows, since the user is approving one image at a time. During the relay's paused windows (erase, verify, commit) the other half doesn't type: tell the user up front not to type.
+STATUS and RELAY carry enough data for a real progress bar. Suggested weighting by measured time: erase (sectors erased / to erase), transfer (staged / image_len), verify (indeterminate, under 1 s), relay (acked / image_len, and the other half's sectors during erase), commit and reboot (indeterminate, with a time-based fill). The one chord wait is a separate, explicit state with the keyboard LED shown: blue blink, then a white double flash, then the rainbow (1.10). Show both halves as two rows: one chord approves both images, but they install one after the other. During the relay's paused windows (erase, verify, commit) the other half doesn't type: tell the user up front not to type.
 
 ### 2.6 Reconnecting after the reboot
 
 - **WebHID permission is per VID/PID/serial.** The USB serial is `sval:` plus the board's stored serial (`kb/config.h:132-136`, identity.c), the same on vLaunch2 and vNext, so it survives the update. The PID changes only when the build changes it. From vNext on, everything is left 0x4044 / right 0x4045. Coming from a per-module build (vLaunch2 trackball right is 0x4049) it changes, but that path is manual anyway.
 - **Same PID:** listen for `navigator.hid` `connect`. `getDevices()` returns the board again (`src/contexts/KeyboardContext.tsx:71-77`), and Keybard opens it with no chooser.
 - **New PID:** Keybard can predict it from hand → auto PID (a table in Keybard; the manifest doesn't carry it). It then needs one user click, because `requestDevice` needs a user gesture (`usb.service.ts:294-297`). Use a filter `{vendorId: 0x303a, productId: <new>}` so the chooser shows only the board.
-- **Keep the flow's state outside the connection.** `handleDisconnect` closes the connection (`usb.service.ts:280-286`). The update flow (images, backup, expected fw) must survive that and resume when the board comes back. Store it in `sessionStorage`, so a reload still finds the restore offer.
+- **Keep the flow's state outside the connection.** `handleDisconnect` closes the connection (`usb.service.ts:280-286`). The update flow (images, backup, expected fw) must survive that and resume when the board comes back. Store it in `sessionStorage` with the Afterwards choice, so a reload still finishes the restore without asking.
 - **Linux:** a new PID can fail `open()` with NotAllowedError if the user's udev rule names the old PID. Keybard's rule already globs 0x4044-0x404D (`src/utils/linux-hid-access.ts:16-19, 33-45`). Show it before the update on Linux, not only after a failure.
 - **Other half silent after the update:** presence NONE or VERSION for more than 10 s. Offer, in order: run the USB half's update again; then the manual copy for the other half (plug USB into it, copy its `.uf2`) (sval_update.py:716-718, plan:201).
 
@@ -317,7 +329,7 @@ STATUS and RELAY carry enough data for a real progress bar. Suggested weighting 
 | Raw HID report size | descriptor, INFO byte 24 | (image) | 64. Keybard ≥ vLaunch2.3 |
 | Sval (config) protocol | GET_INFO `svil_proto` | **not in the `.svup`** | The new firmware's Sval protocol must be one this Keybard speaks: `MIN_SVIL_PROTO` = 3 (`src/constants/firmware.ts:12`). A firmware with a newer protocol is reported as "newer than vLaunch2" (`firmware.ts:53`), but nothing stops Keybard installing a firmware it then can't configure. That's a configurator lockout, not a brick |
 | Version | INFO fw_version (u32), INFO page 1 tag | manifest bytes 20, 28 | "Newer" = a higher fw_version. Numbers rise through vNext too (D36): a stable vLaunch must exceed every vNext before it |
-| Channel | (none on the board) | GitHub `prerelease` flag; tag `vLaunch<N>` or `vNext<N>` (D38) | Round 2 (Q5, decided): there's no channel setting. Each site offers the releases its deploy carries. Production carries its vLaunch and the one before it, and next.keybard adds the newest vNext (update-flow 3.2) |
+| Channel | (none on the board) | GitHub `prerelease` flag; tag `vLaunch<N>` or `vNext<N>` (D38) | Round 2 (Q5, decided): there's no channel setting. Each site offers the releases its deploy carries. Production carries its vLaunch and the one before it, and next.keybard adds the newest vNext (update-flow 3.2). Only releases with F-N2 and F-N3 are carried, so vLaunch2, Vial and vNext1 are never offered |
 | Floors | INFO epoch and storage format | manifest bytes 12, 14 | The image must be at or above them, or the board refuses |
 | Release vs diagnostic | INFO flag bit2 | manifest flags | Release builds refuse DIAGNOSTIC; release CI never publishes DIAGNOSTIC |
 | Side | INFO hand (the build's, not the hardware's: plan R8) | manifest byte 7 | Pick each image by the hand each half reports (sval_update.py:747-751). A mismatch is a warning (D33) |
@@ -362,7 +374,7 @@ A hash mismatch is an integrity failure, so Keybard refuses the bytes. That's co
 
 ### 3.4 Pinning the build Keybard trusts
 
-- Production (keybard.svalboard.com): pins the vLaunch release promoted with the same launch tag, plus the vLaunch before it, so a user can go back one release. Never a vNext.
+- Production (keybard.svalboard.com): pins the vLaunch release promoted with the same launch tag, plus the vLaunch before it when that one has F-N2 and F-N3, so a user can go back one release. Never a vNext.
 - next.keybard: pins the newest vNext and production's vLaunch releases. A new vNext pin lands by PR (Q3, decided).
 - keybard-test: as next.
 
@@ -403,7 +415,7 @@ An update that fails before the copy keeps the old image, so the settings stay. 
 2. Save it two ways:
    - as a backup snapshot of a new kind, `pre-update`, in IndexedDB (`src/services/backup/store.ts:3`, `backup.service.ts:51`), mirrored to the user's backup folder if one is set;
    - as a downloaded file. IndexedDB is per origin, so a backup taken on next.keybard is invisible on keybard.svalboard.com, and clearing site data deletes it.
-3. Check the export before ARM by parsing it back with `FileService.loadFile`. If it fails, **warn and ask** ("update without a backup?"). Don't block (gentle).
+3. Check the export before ARM by parsing it back with `FileService.loadFile`. If it fails, warn on the same sheet and switch "Afterwards" to "Start from defaults" (Q8; update-flow 4.2). Don't block (gentle), and don't open a second dialog.
 4. Record which board it belongs to (kbid, serial) and the fw_version and tag it came from.
 
 ### 4.3 After the update: restore
@@ -412,7 +424,7 @@ The user chooses **before** anything is sent, on the one confirm sheet (round 2,
 
 1. On reconnect, read GET_INFO.
    - **Put my layout back:** write the backup, whether or not bit 2 is set. Without bit 2 (an identical build kept its settings), the write is redundant but harmless. It also covers whatever the other half reset locally (4.4).
-   - **Start from defaults:** with bit 2 set, write nothing. Without it (an identical build kept the old settings), Keybard needs a way to reset them. That's **firmware addition F-N2**: a Sval op that runs the D39 reset path (`kb/build_reset.c:67-77`), at once or on the next boot. Until F-N2 exists, this one case keeps the old settings, and A1 says `Settings kept`.
+   - **Start from defaults:** with bit 2 set, write nothing. Without it (an identical build kept the old settings), Keybard resets them with **firmware addition F-N2**: a Sval op that runs the D39 reset path (`kb/build_reset.c:67-77`) on both halves, at once or on the next boot. Today's Sval reset (`0x0C`, `sval.c:381-399`) isn't enough: it clears the Sval block, keymap and macros, but not the keyboard's own saved values (layer colors, pointing and scan settings, kept in the VIA custom config: `svalboard.c:108-110, 122-165`). F-N2 is required, like F-N3, so this case never keeps the old settings.
    - **Bit 2 set:** settings were reset. This is the usual case after a different build.
    - **Bit 1 set:** changes won't survive a restart (`StorageResetDialog.tsx:27`). Restoring now is pointless until that's fixed: say so.
    - **Bit 0** (storage unreadable) has its own dialog (`StorageResetDialog.tsx:28`). Make sure bit 2 doesn't fall into it.
@@ -462,6 +474,7 @@ Likelihood and impact are for the M4 design with the recommendations in section 
 | K24 | **The post-COMMIT probe reads "unconfirmed"** every time (plan:224) | H | L: false alarms if the UI trusts it | Decide by INFO and presence after the reboot, as `sval_update.py` does (sval_update.py:683-718) | — |
 | K25 | **Old Keybard after the update**: a cached tab, or a Keybard before vLaunch2.3 can't talk to 64-byte firmware | L | L | Production is vLaunch2.4; reload the tab after an update | Users on self-hosted old copies |
 | K26 | **Windows driver install delay** on a new PID | M | L: a few seconds of "not found" | Wait up to 30 s with a visible state | — |
+| K27 | **The held second approval** (F-N3): the USB half keeps an approval for its own file while the other half updates | L | L: a hostile HID client can start, stall or ABORT the approved file, never a different one | Bound by SHA-512 and client ID; used once; cleared by ABORT, any error, a reset, another client, or a time window (1.4) | A stall or ABORT leaves mixed halves (K6), fixed by `Finish update` with its own chord |
 
 ---
 
@@ -473,14 +486,14 @@ Likelihood and impact are for the M4 design with the recommendations in section 
    - Keep option E (file picker) for custom builds and Paranoid.
 2. **Trust: pin per Keybard build.** A `firmware-releases.ts` holds tag, fw_version, the sites that carry it, hand, PID, and SHA-256 per file. The deploy fails on a mismatch, and Keybard refuses bytes that don't match. Production pins its vLaunch and the one before it. next.keybard adds the newest vNext. User-chosen files take the same install path (3.4).
 3. **Firmware: add `release.json` to release CI**, so Keybard stops guessing PID, Sval protocol and minimum Keybard.
-4. **Flow:** port `sval_update.py`'s `pair`.
-   - Both halves by default; the other half first; both images checked against both halves first.
+4. **Flow:** port `sval_update.py`'s `pair`, with one chord for both halves (F-N3).
+   - Both halves by default; the other half first; both images checked against both halves first, then approved together.
    - REBIND after each renewal; no silent re-bootstrap.
    - Wake Lock, a Web Lock across tabs, Host asked to disconnect.
    - Measure WebHID round trips in the first M4 commit.
 5. **Settings:** the automatic `.svil` export as a `pre-update` snapshot plus a downloaded file, checked before ARM, with a warning if it fails. Every install backs up and acts on the choice made before flashing: put the layout back (the default) or start from defaults. Send `0x2A` last (4.3). Verify what isn't in the `.svil` (4.4) before shipping.
 6. **Show the split state:** read STATUS presence and INFO bit5. Show "halves on different firmware" with a one-click fix. This is useful even without an update in progress, and closes the "silent half" gap.
-7. **First migration (vLaunch2 or Vial to the first updater release):** guided manual flow. Export the layout, download both `.uf2` from Keybard's own copy, show BOOTSEL steps for each half, then restore. It's the last manual install.
+7. **First migration (vLaunch2, Vial or vNext1 to the first release with F-N2 and F-N3):** guided manual flow. Export the layout, download both `.uf2` from Keybard's own copy, show BOOTSEL steps for each half, then restore. It's the last manual install.
 8. **Add a developer-only chord skip (round 2, Q10; design in 1.4).** Three gates keep it out of release builds: `rules.mk`, the `#error` guard, and release CI's ELF and `.svup` lints. Keybard reads it from INFO.
 9. **Revisit signing** before Keybard ever offers firmware it didn't pin (a runtime "latest" lookup). Until then, pinning makes it unnecessary for the normal path.
 
@@ -488,8 +501,8 @@ Likelihood and impact are for the M4 design with the recommendations in section 
 
 ## 7. Decisions
 
-Round 1 asked Q1-Q17. The owner answered them on 2026-10-14. The "Decision" column records
-each answer, paraphrased. Round 2's open questions follow the table.
+Round 1 asked Q1-Q17. The owner answered them on 2026-10-14, and settled round 2's N2 the
+same day. The "Decision" column records each answer, paraphrased. Round 2's open questions follow the table.
 
 | # | Question | Decision |
 |---|---|---|
@@ -497,9 +510,9 @@ each answer, paraphrased. Round 2's open questions follow the table.
 | Q2 | Pinned releases only, or whatever GitHub calls latest? | **Pinned**, and Keybard also installs a firmware file the user chooses. Both go through one path, merged with Q11 (3.4; update-flow 3.3) |
 | Q3 | On next.keybard, is a new vNext pinned by PR or fetched at deploy time? | **By PR** |
 | Q4 | Does Keybard ever ask GitHub at runtime whether newer firmware exists? | **Open**, restated plainly as N1 below |
-| Q5 | Channels | **Decided by the design (round 2).** There's no channel setting. Each site offers the releases its deploy carries. Example: keybard.svalboard.com lists `vLaunch3` and `vLaunch2`; next.keybard.svalboard.com lists `vNext2`, `vLaunch3` and `vLaunch2` (3.1, 3.4; update-flow 3.2) |
+| Q5 | Channels | **Decided by the design (round 2).** There's no channel setting. Each site offers the releases its deploy carries. Example: keybard.svalboard.com lists `vLaunch4` and `vLaunch3`; next.keybard.svalboard.com lists `vNext2`, `vLaunch4` and `vLaunch3`. Releases without F-N2 and F-N3 (vLaunch2, vNext1) are never listed (3.1, 3.4; update-flow 3.2) |
 | Q6 | Reinstall keeps settings, downgrade resets them? | **Neither distinction.** Every install backs up first and puts the layout back after: update, reinstall and downgrade alike (4.1) |
-| Q7 | Restore by default, or ask first? | **Choose before flashing.** The sheet holds the restore choice, and then the update runs to the end with no prompts except the physical chords (4.3; update-flow 4-5) |
+| Q7 | Restore by default, or ask first? | **Choose before flashing.** The sheet holds the restore choice, and then the update runs to the end with no prompts except the one chord at the start (4.3; update-flow 4-5) |
 | Q8 | If the backup fails: warn and allow, or stop? | **Warn and allow** |
 | Q9 | Both halves always, or one half alone? | **Both by default; one half under Advanced** |
 | Q10 | A chord skip for dev builds? | **Yes for developer builds; never for release builds.** Three gates enforce it: `rules.mk`, an `#error` guard, and release CI. Design and risk in 1.4 (F-N1) |
@@ -510,18 +523,20 @@ each answer, paraphrased. Round 2's open questions follow the table.
 | Q15 | `release.json` in firmware release CI? | **Yes** |
 | Q16 | First migration: guided copy, plus a File System Access prototype? | **Guided copy; prototype separately** |
 | Q17 | Show "halves on different firmware" now? | **Yes** |
+| N2 | One chord for both halves? | **Yes, decided by the owner in round 2.** A full update asks for the chord exactly once, at the start, on the half with USB. ARM carries both manifest hashes (F-N3, required), and the update then runs to the end with no human step (1.4) |
 
 **Firmware additions these decisions need**
 
 | # | Addition | Why |
 |---|---|---|
 | F-N1 | `SVAL_UPDATE_NO_CHORD`: a developer-only build option with a build-info flag and an INFO flag bit, refused in release builds at three gates (1.4) | Q10 |
-| F-N2 | A Sval op that resets stored settings through the D39 path | "Start from defaults" on an identical-build reinstall, which today keeps settings (4.3) |
-| F-N3 | Optional: approve both halves with one chord (ARM carries both manifest hashes) | Only if N2 is answered yes |
+| F-N2 | **Required.** A Sval op that resets stored settings through the D39 path, on both halves | "Start from defaults" on an identical-build reinstall, which today keeps settings (4.3) |
+| F-N3 | **Required.** One chord approves both halves: ARM carries both manifest hashes, and the USB half's own install needs no second chord (1.4) | N2, decided |
+
+The Keybard flow needs F-N2 and F-N3 in the firmware the board runs, so they ship together in the first release Keybard installs, and boards reach it by one manual install. F-N1 is a developer-build option and isn't needed for releases.
 
 **Open questions for the owner (round 2)**
 
 | # | Question | Recommendation |
 |---|---|---|
 | N1 (was Q4) | While Keybard is open, should it ask GitHub whether there's firmware newer than the files it carries? The answer would only show a "newer firmware exists" note; Keybard would never install from it. **Yes:** users hear about a release before their Keybard site carries it. But every check sends the user's IP address to GitHub, and the note points at a Keybard that may not exist yet. **No:** Keybard knows only what it carries, and new firmware appears when the site redeploys. | **No.** Production and its firmware ship together under one launch tag, so the stable site never lags its own release |
-| N2 | Approve both halves with one chord? A both-halves update now asks for the chord twice, about a minute apart. With F-N3, one approval would cover the pair, and the update becomes truly one action. | **Yes**, as a firmware change in a later release. Two chords until then |

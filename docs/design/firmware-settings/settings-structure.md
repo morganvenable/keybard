@@ -41,7 +41,7 @@ These destinations are the same in all three options.
 | Dim RGB When Idle, scan period, idle and deep-idle timing, clocks, pointer rest (the definition's `developer` section) | Developer > Pointer tuning (SP, BT); promoted to "Scanning and power" (BS) | **Scan Lab**, as a "Tuning" section | It tunes exactly what Scan Lab measures. It's developer-only and must not get a customer home in the editor |
 | Live Updating / Manual Updates | toolbar, plus a Settings mirror (BT) | **Toolbar** only | It's a working mode of the editor, used while editing |
 | Overlay / Keybard Host | Settings section (SP), About shortcut (BT) | **Rail** only. Host status appears inside the firmware update sheet, which pauses Host | It's a feature, not a preference |
-| Key size, panel position | moved to Settings (SP, BS), mirrored in both places (BT) | **Settings > Appearance** only. The canvas corner control goes (N5) | App preferences, one home each |
+| Key size, panel position | moved to Settings (SP, BS), mirrored in both places (BT) | **One home**, either Settings > Appearance or the canvas corner, never both. Recommended: Appearance, with the corner control removed (N5, open) | App preferences, one home each |
 | Settings search with "Elsewhere" results | SP | **Removed** | With configuration gone, Settings has about 25 rows, so anchors find them. Search that reaches into the editor belongs to an app-wide search, if Keybard ever gets one |
 
 ## 3. What Settings keeps
@@ -137,8 +137,9 @@ and bottom-bar modes, per the repo rule.
 
 ## 7. Open questions for the owner (round 2)
 
-Firmware questions N1 and N2 are in [update-flow.md](update-flow.md) section 10 and
-[update-technical.md](update-technical.md) section 7.
+Firmware question N1 is in [update-flow.md](update-flow.md) section 10 and
+[update-technical.md](update-technical.md) section 7. N2 is settled: one chord approves
+both halves.
 
 | # | Question | Recommendation |
 |---|---|---|

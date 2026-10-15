@@ -300,7 +300,7 @@ a.lnk { color: var(--kb-primary); text-decoration: underline; text-underline-off
       <button type="button" data-t="dark" aria-pressed="false">Dark</button>
     </div>
   </div>
-  <div class="r2"><b>Round 2.</b> Board lost Typing behavior, Hardware and its "Elsewhere" links. They now live in the main editor (settings-structure.md section 2). Board and Firmware merged into <b>Keyboard</b>. The mirrors are gone: Live Updating stays in the toolbar only, and key size and panel position live only in Editor. About lost its Keybard Host shortcut. Firmware screens in sections 2-3 are round 1's: the round-2 flow chooses "Afterwards" up front and then runs hands off (update-flow.md).</div>
+  <div class="r2"><b>Round 2.</b> Board lost Typing behavior, Hardware and its "Elsewhere" links. They now live in the main editor (settings-structure.md section 2). Board and Firmware merged into <b>Keyboard</b>. The mirrors are gone: Live Updating stays in the toolbar only, and key size and panel position live only in Editor. About lost its Keybard Host shortcut. The update screens are drawn once, in flow/index.html: "Afterwards" is chosen up front, one approval covers both halves, and the update then runs hands off (update-flow.md).</div>
   <div class="tree" aria-label="Structure">
     <span><b>Settings</b></span>
     <span class="fw">Keyboard</span><span>Backups and files</span><span>Editor</span><span>About</span><span class="dim">Developer</span>
@@ -363,106 +363,10 @@ a.lnk { color: var(--kb-primary); text-decoration: underline; text-underline-off
     </div>
   </section>
 
-  <!-- 2. Firmware -->
+  <!-- 2-3. Firmware -->
   <section class="doc-sec">
-    <h2>2. Firmware: update available, the update, and the restore</h2>
-    <p class="cap">The button label states what happens: back up, then update. Two halves are shown as two cards because the user approves each one with the chord. Once both halves are back, a single dialog offers the restore, with Backups one click away.</p>
-    <div class="grid">
-      <div class="figure"><span class="label">Firmware, update available</span>
-        <div class="panel">
-          <span class="crumb"><svg class="icon sm"><use href="#i-back"/></svg>Settings</span>
-          <div class="p-head"><h3>Firmware</h3><span class="close"><svg class="icon"><use href="#i-x"/></svg></span></div>
-          <div class="halves">
-            <div class="half"><div class="h">Left</div><div class="v">vLaunch3</div></div>
-            <div class="half"><div class="h">Right <span class="usb">USB</span></div><div class="v">vLaunch3</div></div>
-          </div>
-          <div class="offer">
-            <div class="t"><b>vLaunch4</b><a class="lnk" href="#" onclick="return false">Release notes</a></div>
-            <div class="row"><span class="l">Settings after update</span><span class="r"><span class="val" style="font-weight:600">Restored from backup</span></span></div>
-            <span class="btn pri block"><svg class="icon sm"><use href="#i-dl"/></svg>Back up and update</span>
-          </div>
-          <div class="sec-h"><h4>More</h4></div>
-          <div class="row"><span class="l">Reinstall vLaunch3</span><span class="r"><span class="btn out">Reinstall</span></span></div>
-          <div class="row"><span class="l">Install from file</span><span class="r"><span class="btn out"><svg class="icon sm"><use href="#i-file"/></svg>Choose .svup</span></span></div>
-          <div class="row"><span class="l">Halves</span><span class="r"><span class="sel">Both<svg class="icon"><use href="#i-down"/></svg></span></span></div>
-          <div class="row"><span class="l">Channel<span class="s">next.keybard only</span></span><span class="r"><span class="sel">Stable<svg class="icon"><use href="#i-down"/></svg></span></span></div>
-        </div>
-      </div>
-
-      <div class="figure"><span class="label">Firmware, update running (left half writing)</span>
-        <div class="panel">
-          <span class="crumb"><svg class="icon sm"><use href="#i-back"/></svg>Settings</span>
-          <div class="p-head"><h3>Updating to vLaunch4</h3></div>
-          <div class="steps">
-            <div class="step done"><span class="n"><svg class="icon sm"><use href="#i-check"/></svg></span><div><div class="tt">Backup</div><div class="ss mono">morgans-sval-2026-10-13.svil</div></div><span class="ib"><svg class="icon sm"><use href="#i-dl"/></svg></span></div>
-            <div class="step now"><span class="n">2</span><div><div class="tt">Left half</div><div class="ss">Approved &middot; Writing 62% &middot; Keep the split cable in</div><div class="bar"><i style="width:62%"></i></div></div><span></span></div>
-            <div class="step wait"><span class="n">3</span><div><div class="tt">Right half</div></div><span></span></div>
-            <div class="step wait"><span class="n">4</span><div><div class="tt">Restore layout</div></div><span></span></div>
-          </div>
-          <div class="sec-h"><h4>Approve on the keyboard</h4><span class="badge plain">before each half</span></div>
-          <div class="chord">
-            <svg viewBox="0 0 150 92"><use href="#chord-r"/></svg>
-            <div class="ck">M + ,<small>Hold 1 s, right half</small></div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:12px"><span class="btn out">Cancel</span></div>
-        </div>
-      </div>
-
-      <div class="figure"><span class="label">After both halves reboot (replaces the reset branch of StorageResetDialog for updates)</span>
-        <div class="dialog" role="dialog" aria-label="Updated">
-          <h3>Updated to vLaunch4</h3>
-          <div class="meta">Left vLaunch4 &middot; Right vLaunch4 &middot; Settings reset by the new build</div>
-          <div class="row" style="margin-top:10px"><span class="l"><span style="font-weight:600">Backup from 10:42</span><span class="s mono">morgans-sval-2026-10-13.svil</span></span><span class="r"><a class="lnk" href="#" onclick="return false">Backups</a></span></div>
-          <div class="foot"><span class="btn out">Start from defaults</span><span class="btn pri">Restore my layout</span></div>
-        </div>
-        </div>
-      <div class="figure"><span class="label">New USB product ID after update (WebHID needs a click)</span>
-        <div class="dialog" role="dialog" aria-label="Reconnect">
-          <h3>Select your Svalboard again</h3>
-          <div class="meta">Updated &middot; Right half came back as a new USB device</div>
-          <div class="foot"><span class="btn pri"><svg class="icon sm"><use href="#i-plug"/></svg>Reconnect</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 3. Firmware states -->
-  <section class="doc-sec">
-    <h2>3. Firmware: the other states, same page</h2>
-    <p class="cap">Every firmware message today (chip, note, About, unsupported card, mismatch modal) collapses into the Firmware page plus the one pill. The editor pill only appears for the first two states below and for "update available".</p>
-    <div class="grid">
-      <div class="state"><div class="st"><b>Halves on different firmware</b><span class="badge red">Left silent</span></div>
-        <div class="halves" style="margin-top:4px"><div class="half"><div class="h">Left</div><div class="v">vLaunch3</div></div><div class="half"><div class="h">Right <span class="usb">USB</span></div><div class="v">vLaunch4</div></div></div>
-        <div class="foot"><span class="btn pri">Update left half to vLaunch4</span></div></div>
-
-      <div class="state"><div class="st"><b>One last manual install</b><span class="badge orange">vLaunch2</span></div>
-        <ul class="checklist">
-          <li><span class="bx ok"><svg class="icon sm"><use href="#i-check"/></svg></span>Back up layout</li>
-          <li><span class="bx"></span>Download left .uf2</li>
-          <li><span class="bx"></span>Left half in bootloader, copy file</li>
-          <li><span class="bx"></span>Download right .uf2</li>
-          <li><span class="bx"></span>Right half in bootloader, copy file</li>
-          <li><span class="bx"></span>Reconnect and restore</li>
-        </ul>
-        <div class="foot"><span class="btn pri">Start guided install</span></div></div>
-
-      <div class="state"><div class="st"><b>vLaunch4</b><span class="badge plain">Up to date</span></div>
-        <div class="halves" style="margin-top:4px"><div class="half"><div class="h">Left</div><div class="v">vLaunch4</div></div><div class="half"><div class="h">Right <span class="usb">USB</span></div><div class="v">vLaunch4</div></div></div>
-        <div class="foot"><span class="btn out">Reinstall</span><span class="btn out">Install from file</span></div></div>
-
-      <div class="state"><div class="st"><b>vLaunch5 needs a newer Keybard</b><span class="badge plain">Reload</span></div>
-        <div class="row" style="border:0"><span class="l">This Keybard installs up to</span><span class="r" style="font-weight:600">vLaunch4</span></div>
-        <div class="foot"><span class="btn out">Reload Keybard</span></div></div>
-
-      <div class="state"><div class="st"><b>Pointing module mismatch</b><span class="badge orange">Right</span></div>
-        <div class="row"><span class="l">Firmware expects</span><span class="r">Trackpad</span></div>
-        <div class="row"><span class="l">Detected</span><span class="r">Trackball PMW3389</span></div>
-        <div class="foot"><span class="btn pri">Install auto build</span><span class="btn ghost">Ignore</span></div></div>
-
-      <div class="state"><div class="st"><b>No keyboard connected</b><span class="badge plain">Offline</span></div>
-        <div class="row" style="border:0"><span class="l">Keybard installs</span><span class="r" style="font-weight:600">vLaunch4</span></div>
-        <div class="foot"><span class="btn pri"><svg class="icon sm"><use href="#i-plug"/></svg>Connect</span><span class="btn out">Download .uf2</span></div></div>
-    </div>
+    <h2>2-3. Firmware: the update and its states</h2>
+    <p class="cap">Round 1's update screens are gone from this option. The Keyboard page (section 4) shows what the board runs and the one install list. Its button opens the one-confirm sheet. Every firmware screen is drawn once, in <a class="lnk" href="../../flow/index.html">flow/index.html</a>, for all three layouts: the page states (D2, D2a-D2e), the sheet with the "Afterwards" choice (B1), the hands-off progress dialog with its single approval for both halves (U1-U5), and the result (A1).</p>
   </section>
 
   <!-- 4. Keyboard -->
@@ -600,19 +504,19 @@ a.lnk { color: var(--kb-primary); text-decoration: underline; text-underline-off
         <div class="topbar"><span style="display:flex;gap:8px;align-items:center"><svg class="icon"><use href="#i-menu"/></svg>keybard</span><span class="r"></span></div>
         <div class="panel">
           <span class="crumb"><svg class="icon sm"><use href="#i-back"/></svg>Settings</span>
-          <div class="p-head"><h3>Firmware</h3><span class="close"><svg class="icon"><use href="#i-x"/></svg></span></div>
+          <div class="p-head"><h3>Keyboard</h3><span class="close"><svg class="icon"><use href="#i-x"/></svg></span></div>
           <div class="halves">
             <div class="half"><div class="h">Left</div><div class="v">vLaunch3</div></div>
             <div class="half"><div class="h">Right <span class="usb">USB</span></div><div class="v">vLaunch3</div></div>
           </div>
           <div class="offer">
             <div class="t"><b>vLaunch4</b><a class="lnk" href="#" onclick="return false">Release notes</a></div>
-            <span class="btn pri block"><svg class="icon sm"><use href="#i-dl"/></svg>Back up and update</span>
+            <span class="btn pri block"><svg class="icon sm"><use href="#i-dl"/></svg>Update to vLaunch4</span>
           </div>
-          <div class="sec-h"><h4>More</h4></div>
-          <div class="row"><span class="l">Reinstall vLaunch3</span><span class="r"><span class="btn out">Reinstall</span></span></div>
-          <div class="row"><span class="l">Install from file</span><span class="r"><span class="btn out">Choose</span></span></div>
-          <div class="row"><span class="l">Halves</span><span class="r"><span class="sel" style="min-width:120px">Both<svg class="icon"><use href="#i-down"/></svg></span></span></div>
+          <div class="sec-h"><h4>Install</h4></div>
+          <div class="row"><span class="l">vLaunch3<span class="s">Installed</span></span><span class="r"></span></div>
+          <div class="row"><span class="l">Choose a file…<span class="s">One or two .svup files</span></span><span class="r"></span></div>
+          <div class="row"><span class="l">Update one half…<span class="s">Advanced</span></span><span class="r"></span></div>
         </div>
       </div>
     </div>
