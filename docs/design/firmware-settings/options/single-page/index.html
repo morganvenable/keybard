@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Single-Page Settings</title>
+<style>
+/* Keybard tokens, copied from src/index.css (vLaunch2.4) */
+:root {
+  --kb-gray: #f1f2f2;
+  --kb-gray-medium: #eaeae9;
+  --kb-gray-border: #a7a9ac;
+  --kb-surface: #ffffff;
+  --kb-ink: #000000;
+  --kb-active: #000000;
+  --kb-active-fg: #ffffff;
+  --kb-popover: #EEEEEE;
+  --muted-fg: oklch(0.554 0.046 257.417);
+  --hair: #e4e5e5;
+  --radius: 0.625rem;
+  /* fixed brand literals: never themed, never changed */
+  --kb-primary: #099e7c;
+  --kb-blue: #379cd7;
+  --kb-orange: #f89804;
+  --kb-yellow: #ffc222;
+  --kb-red: #d8304a;
+  --kb-grey: #85929b;
+  --kb-purple: #8672b5;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kb-gray: #141517; --kb-gray-medium: #26282b; --kb-gray-border: #75797f;
+    --kb-surface: #1d1e21; --kb-ink: #f1f2f2; --kb-active: #e8e9ea; --kb-active-fg: #111214;
+    --kb-popover: #33363b; --muted-fg: #a3a6ab; --hair: #2c2e32; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --kb-gray: #141517; --kb-gray-medium: #26282b; --kb-gray-border: #75797f;
+  --kb-surface: #1d1e21; --kb-ink: #f1f2f2; --kb-active: #e8e9ea; --kb-active-fg: #111214;
+  --kb-popover: #33363b; --muted-fg: #a3a6ab; --hair: #2c2e32; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--kb-gray); color: var(--kb-ink);
+  font: 14px/1.45 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- document chrome ---------- */
+.doc { max-width: 1320px; margin: 0 auto; padding: 32px 16px 80px; }
+.doc > header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 8px; }
+.doc h1 { font-size: 28px; margin: 0; letter-spacing: -0.01em; }
+.doc .sub { color: var(--muted-fg); margin: 4px 0 0; max-width: 760px; }
+.theme-pick { display: inline-flex; background: var(--kb-gray-medium); border-radius: 999px; padding: 3px; }
+.theme-pick button { border: 0; background: transparent; color: var(--kb-ink); font: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.theme-pick button[aria-pressed="true"] { background: var(--kb-active); color: var(--kb-active-fg); }
+.doc h2 { font-size: 20px; margin: 56px 0 6px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.doc h2 small { color: var(--muted-fg); font-weight: 500; font-size: 13px; margin-left: 8px; }
+.doc p.note { color: var(--muted-fg); margin: 0 0 18px; max-width: 860px; }
+.doc ol.notes { color: var(--muted-fg); margin: 8px 0 0; padding-left: 20px; max-width: 900px; }
+.doc ol.notes li { margin: 3px 0; }
+.doc ol.notes b { color: var(--kb-ink); font-weight: 600; }
+.cap { font-size: 12px; font-weight: 600; color: var(--muted-fg); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0; }
+.toc a { font-size: 12px; font-weight: 600; color: var(--kb-ink); text-decoration: none; background: var(--kb-surface); border: 1px solid var(--hair); border-radius: 999px; padding: 4px 10px; }
+.scroll-x { overflow-x: auto; padding-bottom: 6px; }
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); align-items: start; }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); }
+.fig { min-width: 0; }
+
+/* ---------- app frame ---------- */
+.app { width: 1240px; height: 812px; background: var(--kb-gray); border: 1px solid var(--hair); border-radius: 16px; display: flex; gap: 8px; padding: 8px; position: relative; overflow: hidden; }
+.rail { width: 196px; background: var(--kb-surface); border-radius: 14px; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; flex: none; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 22px; margin: 0 0 12px 6px; letter-spacing: -0.02em; }
+.logo i { width: 20px; height: 20px; border-radius: 5px; border: 3px solid var(--kb-ink); display: inline-block; }
+.nav { display: flex; align-items: center; gap: 12px; padding: 7px 8px; border-radius: 8px; color: var(--kb-ink); opacity: .62; font-size: 14.5px; position: relative; }
+.nav.on { opacity: 1; font-weight: 600; }
+.nav.on::before { content: ""; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--kb-active); }
+.nav .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-primary); margin-left: auto; }
+.rail hr { border: 0; border-top: 1px solid var(--hair); margin: 8px 8px; }
+.rail .spacer { flex: 1; }
+.canvas { flex: 1; position: relative; padding: 18px 22px; min-width: 0; }
+.toolbar { display: flex; align-items: center; gap: 16px; color: var(--kb-ink); }
+.pill-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--kb-active); color: var(--kb-active-fg); border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 13px; }
+.chip-fw { position: absolute; right: 20px; top: 70px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--kb-gray-border); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 12px; background: var(--kb-surface); }
+.chip-fw b { color: var(--kb-primary); }
+.chip-fw .x { opacity: .5; }
+.layers { display: flex; gap: 20px; margin-top: 18px; font-size: 14px; opacity: .8; }
+.layers b { background: var(--kb-active); color: var(--kb-active-fg); border-radius: 999px; padding: 0 10px; }
+.kbsvg { margin-top: 34px; width: 100%; height: auto; }
+.dim { position: absolute; inset: 0; background: var(--kb-gray); opacity: .0; }
+
+/* ---------- settings panel ---------- */
+.sp { background: var(--kb-surface); border-radius: 14px; border: 1px solid var(--hair); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.app .sp { width: 470px; flex: none; border: 0; }
+.sp-top { padding: 16px 18px 0; position: sticky; top: 0; background: var(--kb-surface); z-index: 1; }
+.sp-title { display: flex; align-items: center; justify-content: space-between; }
+.sp-title h3 { font-size: 21px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.search { display: flex; align-items: center; gap: 8px; background: var(--kb-gray); border-radius: 10px; padding: 8px 12px; margin-top: 12px; color: var(--muted-fg); font-size: 13.5px; }
+.search.typed { color: var(--kb-ink); box-shadow: inset 0 0 0 1.5px var(--kb-active); }
+.search .kbd { margin-left: auto; font-size: 11px; border: 1px solid var(--kb-gray-border); border-radius: 5px; padding: 0 5px; color: var(--muted-fg); }
+.anchors { display: flex; gap: 4px; overflow: hidden; padding: 10px 0 10px; border-bottom: 1px solid var(--hair); white-space: nowrap; mask-image: linear-gradient(90deg, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); }
+.anchors span { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; color: var(--muted-fg); }
+.anchors span.on { background: var(--kb-active); color: var(--kb-active-fg); }
+.sp-body { padding: 4px 18px 18px; }
+.cont { font-size: 11px; color: var(--muted-fg); text-align: center; padding: 6px 0 0; letter-spacing: .04em; }
+
+.grp { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-fg); margin: 22px 0 2px; }
+.grp::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+.grp svg.i { width: 13px; height: 13px; }
+.sh { font-size: 15px; font-weight: 650; margin: 16px 0 2px; display: flex; align-items: center; gap: 8px; }
+.sh .tail { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted-fg); }
+.subh { font-size: 12px; font-weight: 600; color: var(--muted-fg); margin: 12px 0 0; }
+
+.row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
+.row:last-child { border-bottom: 0; }
+.row .lbl { flex: 1; min-width: 0; }
+.row .lbl small { display: block; color: var(--muted-fg); font-size: 12px; }
+.row .val { color: var(--muted-fg); font-size: 13px; }
+.row.link { cursor: pointer; }
+.row.link svg.i, .row.disc svg.i { color: var(--muted-fg); }
+.row .cnt { font-size: 12px; color: var(--muted-fg); background: var(--kb-gray-medium); border-radius: 999px; padding: 0 7px; }
+.row.indent { padding-left: 14px; }
+.row.hit { background: color-mix(in srgb, var(--kb-primary) 9%, transparent); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 8px; }
+.unsent { width: 7px; height: 7px; border-radius: 50%; background: var(--kb-orange); display: inline-block; margin-left: 6px; vertical-align: middle; }
+
+/* one control set */
+.sw { width: 34px; height: 20px; border-radius: 999px; background: var(--kb-gray-border); position: relative; flex: none; opacity: .7; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--kb-surface); }
+.sw.on { background: var(--kb-blue); opacity: 1; }
+.sw.on::after { left: 16px; background: #ffffff; }
+.sel { width: 196px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 6px; border: 1px solid var(--kb-gray-border); border-radius: 8px; padding: 5px 10px; font-size: 13px; background: var(--kb-surface); white-space: nowrap; overflow: hidden; }
+.sel.sm { width: 120px; }
+.sel svg.i { width: 14px; height: 14px; color: var(--muted-fg); }
+.num { width: 96px; flex: none; display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; border: 1px solid var(--kb-gray-border); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.num em { font-style: normal; color: var(--muted-fg); font-size: 11px; }
+.txt { width: 196px; flex: none; border: 1px solid var(--kb-gray-border); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+.seg { display: inline-flex; flex: none; background: var(--kb-gray-medium); border-radius: 8px; padding: 2px; }
+.seg b { font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 6px; color: var(--muted-fg); }
+.seg b.on { background: var(--kb-active); color: var(--kb-active-fg); }
+.btn { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 5px 13px; background: var(--kb-active); color: var(--kb-active-fg); white-space: nowrap; }
+.btn.o { background: transparent; color: var(--kb-ink); box-shadow: inset 0 0 0 1px var(--kb-gray-border); }
+.btn.g { background: transparent; color: var(--kb-ink); padding: 5px 8px; }
+.btn.lg { padding: 8px 18px; font-size: 13.5px; }
+.ib { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); flex: none; }
+.tag { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.tag.ok { color: var(--kb-primary); box-shadow: inset 0 0 0 1px var(--kb-primary); }
+.tag.new { background: var(--kb-primary); color: #ffffff; }
+.tag.warn { color: var(--kb-ink); background: color-mix(in srgb, var(--kb-yellow) 45%, transparent); }
+.tag.mut { color: var(--muted-fg); background: var(--kb-gray-medium); }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+
+/* ---------- firmware card ---------- */
+.fw { border: 1px solid var(--kb-gray-border); border-radius: 12px; margin: 14px 0 4px; overflow: hidden; }
+.fw.avail { border-color: var(--kb-primary); box-shadow: 0 0 0 1px var(--kb-primary); }
+.fw.warn { border-color: var(--kb-yellow); box-shadow: 0 0 0 1px var(--kb-yellow); }
+.fw-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+.fw-ico { width: 34px; height: 34px; border-radius: 9px; background: var(--kb-gray-medium); display: flex; align-items: center; justify-content: center; flex: none; }
+.fw.avail .fw-ico { background: var(--kb-primary); color: #ffffff; }
+.fw-row .t { flex: 1; min-width: 0; }
+.fw-row .t b { display: block; font-size: 14px; }
+.fw-row .t span { color: var(--muted-fg); font-size: 12.5px; }
+.fw-body { border-top: 1px solid var(--hair); padding: 4px 14px 14px; }
+.fw-body .row { min-height: 38px; }
+.fw-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.fw-actions .grow { flex: 1; }
+.steps { display: flex; gap: 0; margin: 12px 0 4px; }
+.steps div { flex: 1; font-size: 11px; font-weight: 600; color: var(--muted-fg); text-align: center; position: relative; padding-top: 16px; }
+.steps div::before { content: ""; position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: var(--kb-gray-medium); box-shadow: inset 0 0 0 1.5px var(--kb-gray-border); z-index: 1; }
+.steps div::after { content: ""; position: absolute; top: 8px; left: -50%; right: 50%; height: 1.5px; background: var(--kb-gray-border); }
+.steps div:first-child::after { display: none; }
+.steps div.done { color: var(--kb-ink); }
+.steps div.done::before { background: var(--kb-primary); box-shadow: none; }
+.steps div.done::after, .steps div.now::after { background: var(--kb-primary); }
+.steps div.now { color: var(--kb-ink); }
+.steps div.now::before { background: var(--kb-surface); box-shadow: inset 0 0 0 3px var(--kb-primary); }
+.big { font-size: 16px; font-weight: 650; margin: 14px 0 2px; }
+.bar { height: 6px; border-radius: 999px; background: var(--kb-gray-medium); overflow: hidden; width: 140px; flex: none; }
+.bar i { display: block; height: 100%; background: var(--kb-primary); border-radius: 999px; }
+.chord { display: flex; gap: 16px; align-items: center; margin: 10px 0 2px; }
+.chord svg { width: 150px; height: 118px; flex: none; }
+.chord .k { fill: var(--kb-gray-medium); stroke: var(--kb-gray-border); stroke-width: 1; }
+.chord .k.hot { fill: var(--kb-primary); stroke: var(--kb-primary); }
+.chord text { font: 600 11px Inter, system-ui, sans-serif; fill: var(--kb-ink); }
+.chord .hot + text, .chord text.on { fill: #ffffff; }
+.led { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.led i { width: 10px; height: 10px; border-radius: 50%; background: var(--kb-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--kb-blue) 25%, transparent); }
+.manual-steps { counter-reset: s; margin: 6px 0 0; padding: 0; list-style: none; }
+.manual-steps li { counter-increment: s; display: flex; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px solid var(--hair); font-size: 13.5px; }
+.manual-steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; background: var(--kb-gray-medium); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
+.manual-steps li.done::before { content: "\2713"; background: var(--kb-primary); color: #ffffff; }
+.manual-steps li > span:first-child { flex: 1; }
+.ok-ico { color: var(--kb-primary); }
+.warn-ico { color: var(--kb-orange); }
+
+/* states grid card */
+.state { background: var(--kb-surface); border: 1px solid var(--hair); border-radius: 14px; padding: 4px 16px 16px; }
+.state .cap { margin: 12px 0 0; }
+
+/* search results */
+.res-h { font-size: 11px; font-weight: 700; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; margin: 16px 0 0; display: flex; gap: 6px; align-items: center; }
+.res-h svg.i { width: 12px; height: 12px; }
+mark { background: color-mix(in srgb, var(--kb-yellow) 55%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* phone */
+.phones { display: flex; gap: 28px; flex-wrap: wrap; }
+.phone { width: 390px; max-width: 100%; height: 800px; border-radius: 34px; border: 10px solid var(--kb-ink); background: var(--kb-surface); overflow: hidden; position: relative; flex: none; }
+.phone .status { height: 30px; display: flex; justify-content: space-between; align-items: center; padding: 0 22px; font-size: 12px; font-weight: 600; }
+.phone .sp { border: 0; border-radius: 0; }
+.phone .sp-top { padding: 4px 16px 0; }
+.phone .sp-body { padding: 4px 16px 16px; }
+.phone .sel { width: 150px; }
+.phone .row.stack { flex-wrap: wrap; }
+.phone .anchors { overflow: hidden; }
+.backbar { display: flex; align-items: center; gap: 8px; }
+
+/* moved-out frames */
+.mini { background: var(--kb-surface); border: 1px solid var(--hair); border-radius: 14px; padding: 14px 16px; }
+.mini h5 { margin: 0 0 6px; font-size: 15px; }
+.before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ba-label { font-size: 11px; font-weight: 700; color: var(--muted-fg); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.strike { text-decoration: line-through; color: var(--muted-fg); }
+.dialog { background: var(--kb-surface); border: 1px solid var(--hair); border-radius: 14px; padding: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.12); }
+.dialog h5 { margin: 0 0 4px; font-size: 16px; }
+.dialog .fw-actions { margin-top: 18px; }
+@media (max-width: 640px) {
+  .doc h1 { font-size: 23px; }
+  .before-after { grid-template-columns: 1fr; }
+  .phone { height: 720px; }
+}
+.r2 { border: 1px solid var(--kb-primary); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin: 0 0 16px; max-width: 980px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-kb" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-mouse" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M4 12h4l3-8 2 16 3-8h4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 19c1-3 3-5 5-6M14 4c4 0 6 2 6 6l-7 7-6-6 7-7z"/><circle cx="15" cy="9" r="1.5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-chev-u" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-cable" viewBox="0 0 24 24"><path d="M7 4v5a5 5 0 0 0 10 0V4"/><path d="M5 4h4M15 4h4M12 14v6"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 8v4l3 2"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><path d="M12 6h.01M12 12h.01M12 18h.01"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
+    <!-- simplified Svalboard cluster: N, W, C, E, S, 2S -->
+    <g id="cl">
+      <rect x="22" y="0" width="20" height="20" rx="3"/><rect x="0" y="22" width="20" height="20" rx="3"/>
+      <rect x="22" y="22" width="20" height="20" rx="3"/><rect x="44" y="22" width="20" height="20" rx="3"/>
+      <rect x="22" y="44" width="20" height="20" rx="3"/>
+    </g>
+    <g id="th"><rect x="0" y="0" width="34" height="22" rx="3"/><rect x="36" y="0" width="22" height="22" rx="3"/><rect x="60" y="0" width="34" height="22" rx="3"/><rect x="0" y="24" width="46" height="22" rx="3"/><rect x="48" y="24" width="22" height="22" rx="3"/><rect x="72" y="24" width="22" height="22" rx="3"/></g>
+  </defs>
+</svg>
+
+<div class="doc">
+  <header>
+    <div>
+      <div class="cap">Firmware and Settings redesign · option</div>
+      <h1>One Settings page</h1>
+      <p class="sub">A single scrollable page with anchored sections. Every row is label left, control right, from one control set. Firmware sits at the top as a status row that expands into the install list. Version names are illustrative (vLaunch3 installed, vLaunch4 available) except where the first move off vLaunch2 is shown.</p>
+    </div>
+    <div class="theme-pick" role="group" aria-label="Theme">
+      <button data-t="light">Light</button><button data-t="system">System</button><button data-t="dark">Dark</button>
+    </div>
+  </header>
+  <div class="r2"><b>Round 2 · recommended.</b> The page holds only app preferences and board/firmware management. Hardware, Typing, Pointing and Overlay left Settings for the main editor (settings-structure.md section 2), along with the Pointing panel's link row and Settings search. Groups are now "This keyboard / This browser / Keybard". The Firmware row shows status and the install list. Update opens the one-confirm sheet, then the update runs hands off (update-flow.md). Section 3 still shows round 1's in-row flow, kept only for reference.</div>
+  <nav class="toc">
+    <a href="#s1">1 · Getting there</a><a href="#s2">2 · The whole page</a><a href="#s3">3 · Firmware states</a><a href="#s5">4 · Phone width</a><a href="#s6">5 · What moved out</a>
+  </nav>
+
+  <!-- ===================================================== 1 -->
+  <h2 id="s1">1 · Getting there <small>sidebar → Settings, with an update available</small></h2>
+  <p class="note">The rail keeps one Settings item; About folds into the page. A green dot on Settings replaces today's 6-second chip and the dismissible note (round 2 drops round 1's canvas chip). The rail gains the two editor homes for what left Settings: Typing behavior and Clusters.</p>
+  <div class="scroll-x">
+    <div class="app">
+      <aside class="rail">
+        <div class="logo"><i></i>keybard</div>
+        <div class="nav"><svg class="i"><use href="#i-kb"/></svg>Standard Keys</div>
+        <div class="nav"><svg class="i"><use href="#i-mouse"/></svg>Pointing Devices</div>
+        <hr>
+        <div class="nav"><svg class="i"><use href="#i-grid"/></svg>Special Keys</div>
+        <div class="nav"><svg class="i"><use href="#i-layers"/></svg>Layer Keys</div>
+        <div class="nav"><svg class="i"><use href="#i-mouse"/></svg>Mouse Keys</div>
+        <div class="nav"><svg class="i"><use href="#i-star"/></svg>Tap Dance Keys</div>
+        <div class="nav"><svg class="i"><use href="#i-list"/></svg>Macro Keys</div>
+        <hr>
+        <div class="nav"><svg class="i"><use href="#i-restore"/></svg>Alt-Repeat</div>
+        <div class="nav"><svg class="i"><use href="#i-list"/></svg>Leaders</div>
+        <div class="nav"><svg class="i"><use href="#i-grid"/></svg>Combos</div>
+        <div class="nav"><svg class="i"><use href="#i-bolt"/></svg>Overrides</div>
+        <div class="nav"><svg class="i"><use href="#i-list"/></svg>Typing behavior</div>
+        <hr>
+        <div class="nav"><svg class="i"><use href="#i-layers"/></svg>Layouts</div>
+        <div class="nav"><svg class="i"><use href="#i-grid"/></svg>Clusters</div>
+        <div class="nav"><svg class="i"><use href="#i-monitor"/></svg>Overlay</div>
+        <div class="spacer"></div>
+        <div class="nav"><svg class="i"><use href="#i-rocket"/></svg>Quick Start</div>
+        <div class="nav"><svg class="i"><use href="#i-book"/></svg>Manual</div>
+        <div class="nav on"><svg class="i"><use href="#i-gear"/></svg>Settings<span class="dot" title="Update available"></span></div>
+      </aside>
+
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><h3>Settings</h3><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="anchors"><span class="on">Firmware</span><span>Board</span><span>Backups</span><span>Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="fw avail">
+            <div class="fw-row">
+              <div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div>
+              <div class="t"><b>Firmware</b><span>vLaunch3 · both halves</span></div>
+              <span class="tag new">vLaunch4</span>
+              <span class="btn">Update</span>
+            </div>
+          </div>
+          <div class="grp">This keyboard</div>
+          <div class="sh" id="board">Board</div>
+          <div class="row"><span class="lbl">Name</span><span class="txt">Morgan's Svalboard</span><span class="btn o">Save</span></div>
+          <div class="row"><span class="lbl">Serial</span><span class="val mono">SV2-3F09-A1C4</span><span class="ib"><svg class="i"><use href="#i-copy"/></svg></span></div>
+          <div class="row"><span class="lbl">Restart keyboard</span><span class="btn o">Restart</span></div>
+          <div class="sh">Backups and files</div>
+          <div class="row"><span class="lbl">Back up now</span><span class="btn o">Back up</span></div>
+          <div class="row"><span class="lbl">Backup folder</span><span class="val"><svg class="i" style="vertical-align:-3px"><use href="#i-folder"/></svg> Keybard backups</span><span class="ib"><svg class="i"><use href="#i-dots"/></svg></span></div>
+          <div class="row link"><span class="lbl">Export layout<small>.svil · .vil · Printed layers (PDF)</small></span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Import layout</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+        </div>
+      </section>
+
+      <main class="canvas">
+        <div class="toolbar">
+          <span class="pill-btn"><svg class="i"><use href="#i-bolt"/></svg>Live Updating</span>
+          <svg class="i"><use href="#i-down"/></svg><svg class="i"><use href="#i-up"/></svg><svg class="i"><use href="#i-print"/></svg>
+        </div>
+        <div class="layers"><b>0</b><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
+                <svg class="kbsvg" viewBox="0 0 560 300" fill="var(--kb-primary)">
+          <use href="#cl" x="10" y="40"/><use href="#cl" x="80" y="10"/><use href="#cl" x="150" y="0"/><use href="#cl" x="220" y="20"/>
+          <use href="#cl" x="286" y="20"/><use href="#cl" x="356" y="0"/><use href="#cl" x="426" y="10"/><use href="#cl" x="496" y="40"/>
+          <use href="#th" x="160" y="150"/><use href="#th" x="300" y="150"/>
+        </svg>
+        <div style="position:absolute;right:22px;bottom:18px;font-size:11px;color:var(--muted-fg)">Key size and panel position: Settings › Appearance</div>
+      </main>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>About leaves the rail.</b> Firmware facts go to the Firmware row's details; the Keybard version and links go to the About section at the bottom of the page.</li>
+    <li><b>No search box.</b> About 25 rows; the anchor chips scroll the page and track the section in view.</li>
+    <li><b>The key-size and panel-position controls leave the canvas corner</b> and become rows in Appearance.</li>
+  </ol>
+
+  <!-- ===================================================== 2 -->
+  <h2 id="s2">2 · The whole page <small>one short scroll, shown in three cuts</small></h2>
+  <p class="note">Three groups, named for what each acts on. Nothing on the page configures the layout or the devices: those live in the main editor, and the page doesn't link to them.</p>
+  <div class="grid wide">
+    <div class="fig">
+      <div class="cap">Top of page</div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><h3>Settings</h3><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="anchors"><span class="on">Firmware</span><span>Board</span><span>Backups</span><span>Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="fw">
+            <div class="fw-row">
+              <div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div>
+              <div class="t"><b>Firmware</b><span>vLaunch4 · both halves</span></div>
+              <span class="tag ok">Latest</span>
+              <span class="ib"><svg class="i"><use href="#i-chev-d"/></svg></span>
+            </div>
+          </div>
+          <div class="grp"><svg class="i"><use href="#i-kb"/></svg>This keyboard</div>
+          <div class="sh" id="board">Board</div>
+          <div class="row"><span class="lbl">Name</span><span class="txt">Morgan's Svalboard</span><span class="btn o">Save</span></div>
+          <div class="row"><span class="lbl">Serial</span><span class="val mono">SV2-3F09-A1C4</span><span class="ib"><svg class="i"><use href="#i-copy"/></svg></span></div>
+          <div class="row"><span class="lbl">Restart keyboard</span><span class="btn o">Restart</span></div>
+          <div class="sh">Backups and files</div>
+          <div class="row"><span class="lbl">Back up now</span><span class="btn o">Back up</span></div>
+          <div class="row"><span class="lbl">Backup folder</span><span class="val"><svg class="i" style="vertical-align:-3px"><use href="#i-folder"/></svg> Keybard backups</span><span class="ib"><svg class="i"><use href="#i-dots"/></svg></span></div>
+          <div class="row link"><span class="lbl">Export layout<small>.svil · .vil · Printed layers (PDF)</small></span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Import layout</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="subh">Morgan's Svalboard · Connected</div>
+          <div class="row"><span class="lbl">Today 14:02<small>Before vLaunch4 · kept</small></span><span class="btn o">Restore</span><span class="ib"><svg class="i"><use href="#i-down"/></svg></span><span class="ib"><svg class="i"><use href="#i-trash"/></svg></span></div>
+          <div class="row"><span class="lbl">Today 11:40<small>Edited · <span style="color:var(--kb-orange)">Unsent 2</span></small></span><span class="btn o">Restore</span><span class="ib"><svg class="i"><use href="#i-down"/></svg></span><span class="ib"><svg class="i"><use href="#i-trash"/></svg></span></div>
+          <div class="row link"><span class="lbl val">Show all (12)</span><svg class="i"><use href="#i-chev-d"/></svg></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="fig">
+      <div class="cap">Scrolled to the end</div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><h3>Settings</h3><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="anchors"><span>Firmware</span><span>Board</span><span>Backups</span><span class="on">Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="grp"><svg class="i"><use href="#i-monitor"/></svg>This browser</div>
+          <div class="sh">Appearance</div>
+          <div class="row"><span class="lbl">Theme</span><span class="seg"><b class="on">System</b><b>Light</b><b>Dark</b></span></div>
+          <div class="row"><span class="lbl">Key size</span><span class="seg"><b class="on">Auto</b><b>Normal</b><b>Medium</b><b>Small</b></span></div>
+          <div class="row"><span class="lbl">Panels</span><span class="seg"><b class="on">Auto</b><b>Sidebar</b><b>Bottom bar</b></span></div>
+          <div class="sh">Editing</div>
+          <div class="row"><span class="lbl">Typing Binds a Key</span><span class="sw on"></span></div>
+          <div class="row"><span class="lbl">Advance after assigning</span><span class="sel">None<svg class="i"><use href="#i-chev-d"/></svg></span></div>
+          <div class="row"><span class="lbl">Key legends</span><span class="sel">English (US)<svg class="i"><use href="#i-chev-d"/></svg></span></div>
+          <div class="grp"><svg class="i"><use href="#i-info"/></svg>Keybard</div>
+          <div class="sh">About</div>
+          <div class="row"><span class="lbl">Keybard</span><span class="val">vLaunch2.4</span></div>
+          <div class="row link"><span class="lbl">Manual</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Release notes</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Bleeding edge<small>next.keybard.svalboard.com</small></span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row disc"><span class="lbl"><b>Developer</b></span><span class="cnt">2</span><svg class="i"><use href="#i-chev-d"/></svg></div>
+          <div class="row indent link"><span class="lbl">Scan Lab</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row indent link"><span class="lbl">Key Proof Sheet</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="fig">
+      <div class="cap">Firmware row expanded</div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><h3>Settings</h3><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="anchors"><span class="on">Firmware</span><span>Board</span><span>Backups</span><span>Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="fw avail">
+            <div class="fw-row">
+              <div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div>
+              <div class="t"><b>Firmware</b><span>vLaunch3 · both halves</span></div>
+              <span class="tag new">vLaunch4</span>
+              <span class="ib"><svg class="i"><use href="#i-chev-u"/></svg></span>
+            </div>
+          </div>
+          <div class="row"><span class="lbl">Left half<small>Trackball · detected</small></span><span class="val">vLaunch3</span></div>
+          <div class="row"><span class="lbl">Right half · USB<small>No pointing module</small></span><span class="val">vLaunch3</span></div>
+          <div class="subh">Install</div>
+          <div class="row"><span class="lbl"><b>vLaunch4</b><small>Newest · What's new ↗</small></span><span class="tag new">●</span></div>
+          <div class="row"><span class="lbl">vLaunch3<small>Installed</small></span><span class="tag mut">○</span></div>
+          <div class="row"><span class="lbl">Choose a file…<small>One or two .svup files</small></span><span class="tag mut">○</span></div>
+          <div class="row"><span class="lbl"></span><span class="btn">Update to vLaunch4</span></div>
+          <div class="row disc"><span class="lbl">Advanced<small>Update one half</small></span><svg class="i"><use href="#i-chev-d"/></svg></div>
+          <div class="grp"><svg class="i"><use href="#i-kb"/></svg>This keyboard</div>
+          <div class="sh">Board</div>
+          <div class="cont">continues ↓</div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Left Settings in round 2:</b> Typing (now the Typing behavior rail item), Mouse key speeds (Mouse Keys panel), Pointing (Pointing Devices only, no link row), Hardware (the Clusters rail item), Overlay (rail), Developer's pointer tuning (Scan Lab › Tuning), search.</li>
+    <li><b>The detected pointing module</b> is read-only status in the Firmware row, because it decides which file fits.</li>
+    <li><b>Grafts:</b> Back up now and pinned "Before" snapshots (from by-task), Print as an Export format and the group titles (from by-scope).</li>
+    <li><b>Update opens the sheet</b> (update-flow.md B1), where the user picks what happens to the layout. Then the update runs hands off.</li>
+  </ol>
+
+  <!-- ===================================================== 3 -->
+  <h2 id="s3">3 · Firmware states <small>the status row, collapsed and expanded</small></h2>
+  <p class="note"><b>Round 1, kept for reference.</b> Round 2 replaces this in-row flow with the sheet and the hands-off progress dialog in <a href="../../flow/index.html">flow/index.html</a>. The row is always the first thing on the page. It expands in place; the rest of the page stays below it, scrolled out of the way. The flow follows the technical report: the half without USB first, a backup before anything is sent, both approvals made on the half with USB, restore by default, <span class="mono">0x2A</span> only after the restore.</p>
+  <div class="grid">
+
+    <div class="state">
+      <div class="cap">a · Up to date</div>
+      <div class="fw">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch4 · both halves</span></div><span class="tag ok">Latest</span><span class="ib"><svg class="i"><use href="#i-chev-u"/></svg></span></div>
+        <div class="fw-body">
+          <div class="row"><span class="lbl">Release</span><span class="val">vLaunch4</span></div>
+          <div class="row"><span class="lbl">Build</span><span class="val mono">auto · 01305aba</span></div>
+          <div class="row"><span class="lbl">Sval protocol</span><span class="val">3</span></div>
+          <div class="row"><span class="lbl">QMK keycodes</span><span class="val">6</span></div>
+          <div class="row link"><span class="lbl">Reinstall vLaunch4</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Install from file</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">b · Update available</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch3 · both halves</span></div><span class="tag new">vLaunch4</span><span class="btn">Update</span></div>
+      </div>
+      <div class="cap" style="margin-top:18px">b′ · On next.keybard</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vNext1 · both halves</span></div><span class="tag new">vNext2</span><span class="btn">Update</span></div>
+      </div>
+      <div class="cap" style="margin-top:18px">b″ · Newer than this Keybard knows</div>
+      <div class="fw">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch4 · vLaunch5 needs a newer Keybard</span></div><span class="btn o">Reload</span></div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">c · Ready (expanded by Update)</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>About 2 minutes</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+        <div class="fw-body">
+          <div class="steps"><div class="done">Backup</div><div>Left half</div><div>Right half</div><div>Restore</div></div>
+          <div class="row"><span class="lbl">Left half<small>Split cable</small></span><span class="val">vLaunch3 → vLaunch4</span></div>
+          <div class="row"><span class="lbl">Right half<small>USB</small></span><span class="val">vLaunch3 → vLaunch4</span></div>
+          <div class="row"><span class="lbl">Layout backup</span><span class="val mono">svalboard-2026-10-13.svil</span><svg class="i ok-ico"><use href="#i-check"/></svg></div>
+          <div class="row"><span class="lbl">Keybard Host</span><span class="val">Paused</span><svg class="i ok-ico"><use href="#i-check"/></svg></div>
+          <div class="row disc"><span class="lbl val">Advanced</span><svg class="i"><use href="#i-chev-d"/></svg></div>
+          <div class="fw-actions"><span class="btn o">Cancel</span><span class="btn lg">Start update</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">d · Approve on the keyboard</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>Left half</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+        <div class="fw-body">
+          <div class="steps"><div class="done">Backup</div><div class="now">Left half</div><div>Right half</div><div>Restore</div></div>
+          <div class="big">Hold M + , on the right half</div>
+          <div class="chord">
+            <svg viewBox="0 0 150 118" aria-label="Right half, index and middle South keys">
+              <g transform="translate(6 6)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="28" y="58">M</text></g>
+              <g transform="translate(80 0)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="30" y="58">,</text></g>
+              <text x="12" y="96">Index</text><text x="90" y="90">Middle</text>
+            </svg>
+            <div>
+              <div class="led"><i></i>Blinking blue</div>
+              <div style="margin-top:8px" class="val">Code <span class="mono" style="color:var(--kb-ink)">A3F1 09C2</span></div>
+              <div style="margin-top:8px" class="val">0:24</div>
+            </div>
+          </div>
+          <div class="fw-actions"><span class="btn o">Cancel</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">e · Installing</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Installing · don't type</b><span>Keep the keyboard plugged in</span></div></div>
+        <div class="fw-body">
+          <div class="steps"><div class="done">Backup</div><div class="now">Left half</div><div>Right half</div><div>Restore</div></div>
+          <div class="row"><span class="lbl">Left half<small>Sending over the split cable</small></span><span class="bar"><i style="width:62%"></i></span><span class="val mono">62%</span></div>
+          <div class="row"><span class="lbl">Right half</span><span class="val">Next</span></div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top:18px">e′ · Second approval</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Hold M + , again</b><span>Right half · code 7C02 E9B4</span></div><span class="led"><i></i></span></div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">f · New USB ID after the restart</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Select your keyboard again</b><span>vLaunch4 · Svalboard right</span></div></div>
+        <div class="fw-body">
+          <div class="steps"><div class="done">Backup</div><div class="done">Left half</div><div class="now">Right half</div><div>Restore</div></div>
+          <div class="fw-actions"><span class="btn lg">Reconnect</span></div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top:18px">f′ · Same USB ID</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Reconnecting…</b><span>Right half restarted</span></div></div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">g · Restore</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>vLaunch4 installed</b><span>Keyboard settings were reset</span></div></div>
+        <div class="fw-body">
+          <div class="steps"><div class="done">Backup</div><div class="done">Left half</div><div class="done">Right half</div><div class="now">Restore</div></div>
+          <div class="row"><span class="lbl">Layout backup<small>Today 14:02 · Before vLaunch4</small></span><span class="val mono">.svil</span></div>
+          <div class="fw-actions"><span class="btn g">Keep new defaults</span><span class="btn lg"><svg class="i"><use href="#i-restore"/></svg>Restore layout</span></div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top:18px">g′ · Done</div>
+      <div class="fw">
+        <div class="fw-row"><div class="fw-ico" style="color:var(--kb-primary)"><svg class="i"><use href="#i-check"/></svg></div><div class="t"><b>Updated to vLaunch4</b><span>Layout restored</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">h · Halves on different firmware</div>
+      <div class="fw warn">
+        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Halves on different firmware</b><span>Left vLaunch3 · right vLaunch4</span></div><span class="btn">Update left</span></div>
+      </div>
+      <div class="cap" style="margin-top:18px">h′ · Left half not answering</div>
+      <div class="fw warn">
+        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Left half not answering</b><span>Right vLaunch4</span></div><span class="ib"><svg class="i"><use href="#i-chev-u"/></svg></span></div>
+        <div class="fw-body">
+          <div class="row link"><span class="lbl">Try again</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Install on the left half by USB</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">i · First update off vLaunch2 (manual, once)</div>
+      <div class="fw avail">
+        <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Install vLaunch3</b><span>vLaunch2 · manual install</span></div><span class="ib"><svg class="i"><use href="#i-x"/></svg></span></div>
+        <div class="fw-body">
+          <ol class="manual-steps">
+            <li class="done"><span>Layout backup</span><span class="val mono">.svil</span></li>
+            <li><span>Left half file</span><span class="btn o"><svg class="i"><use href="#i-down"/></svg>.uf2</span></li>
+            <li><span>Right half file</span><span class="btn o"><svg class="i"><use href="#i-down"/></svg>.uf2</span></li>
+            <li><span>Left half: double-tap reset, copy to RPI-RP2</span></li>
+            <li><span>Right half: same</span></li>
+            <li><span>Reconnect and restore</span><span class="btn">Reconnect</span></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="state">
+      <div class="cap">j · Gentle warning (file from disk)</div>
+      <div class="fw warn">
+        <div class="fw-row"><div class="fw-ico warn-ico"><svg class="i"><use href="#i-warn"/></svg></div><div class="t"><b>Built for a left half</b><span>my-build.svup → right half</span></div></div>
+        <div class="fw-body">
+          <div class="row"><span class="lbl">File</span><span class="val mono">my-build.svup</span></div>
+          <div class="row"><span class="lbl">Pointing</span><span class="val">Trackball (board: none)</span><svg class="i warn-ico"><use href="#i-warn"/></svg></div>
+          <div class="row"><span class="lbl">Hand</span><span class="val">Left (board: right)</span><svg class="i warn-ico"><use href="#i-warn"/></svg></div>
+          <div class="fw-actions"><span class="btn o">Cancel</span><span class="btn">Install anyway</span></div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top:18px">j′ · Integrity failure (refused)</div>
+      <div class="fw" style="border-color:var(--kb-red);box-shadow:0 0 0 1px var(--kb-red)">
+        <div class="fw-row"><div class="fw-ico" style="color:var(--kb-red)"><svg class="i"><use href="#i-x"/></svg></div><div class="t"><b>File doesn't match vLaunch4</b><span>Nothing was sent</span></div><span class="btn o">Retry</span></div>
+      </div>
+    </div>
+
+  </div>
+  <ol class="notes">
+    <li><b>Backup is the first step, not a checkbox.</b> It writes a "Before vLaunch4" snapshot and downloads the <span class="mono">.svil</span>. If it fails, the row turns amber with <i>Update without backup</i> beside Cancel (warn and allow, Q8).</li>
+    <li><b>Advanced</b> holds <i>Right half only</i> (Q9) and the release picker on next.keybard (vNext and vLaunch, Q5). Reinstall and Install from file live in the collapsed row's details (Q6, Q11).</li>
+    <li><b>The chord diagram is drawn from the half with USB</b> and names the two keys by their current legends; the code is the first 4 bytes of the manifest hash shown at ARM.</li>
+    <li><b>The flow survives a reload.</b> If the tab is reopened mid-update, the row opens on the step it was on (state in <span class="mono">sessionStorage</span>).</li>
+    <li><b>Mixed halves (h) shows whenever presence reads "version differs"</b>, also outside an update (Q17), and replaces today's silent non-USB half.</li>
+  </ol>
+
+  <!-- ===================================================== 5 -->
+  <h2 id="s5">4 · Phone width <small>390 px, Settings as a full-screen page</small></h2>
+  <p class="note">At phone width the page fills the screen with a back arrow; the anchor chips scroll sideways; rows keep label left and control right, and the select narrows. The firmware row keeps its place at the top.</p>
+  <div class="phones">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><span class="backbar"><svg class="i"><use href="#i-chev-l"/></svg><h3>Settings</h3></span></div>
+          <div class="anchors"><span class="on">Firmware</span><span>Board</span><span>Backups</span><span>Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="fw avail">
+            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Firmware</b><span>vLaunch3</span></div><span class="tag new">vLaunch4</span><span class="btn">Update</span></div>
+          </div>
+          <div class="grp">This keyboard</div>
+          <div class="sh">Board</div>
+          <div class="row"><span class="lbl">Name</span><span class="txt" style="width:150px">Morgan's Svalboard</span></div>
+          <div class="row"><span class="lbl">Serial</span><span class="val mono">SV2-3F09-A1C4</span></div>
+          <div class="row"><span class="lbl">Restart keyboard</span><span class="btn o">Restart</span></div>
+          <div class="sh">Backups and files</div>
+          <div class="row"><span class="lbl">Back up now</span><span class="btn o">Back up</span></div>
+          <div class="row link"><span class="lbl">Export layout</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+          <div class="row link"><span class="lbl">Import layout</span><svg class="i"><use href="#i-chev-r"/></svg></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><span class="backbar"><svg class="i"><use href="#i-chev-l"/></svg><h3>Settings</h3></span></div>
+          <div class="anchors"><span class="on">Firmware</span><span>Board</span><span>Backups</span><span>Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="fw avail">
+            <div class="fw-row"><div class="fw-ico"><svg class="i"><use href="#i-chip"/></svg></div><div class="t"><b>Update to vLaunch4</b><span>Left half</span></div></div>
+            <div class="fw-body">
+              <div class="steps"><div class="done">Backup</div><div class="now">Left</div><div>Right</div><div>Put back</div></div>
+              <div class="big">Hold M + , on the right half</div>
+              <div class="chord">
+                <svg viewBox="0 0 150 118" aria-hidden="true">
+                  <g transform="translate(6 6)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="28" y="58">M</text></g>
+                  <g transform="translate(80 0)"><rect class="k" x="22" y="0" width="20" height="20" rx="3"/><rect class="k" x="0" y="22" width="20" height="20" rx="3"/><rect class="k" x="22" y="22" width="20" height="20" rx="3"/><rect class="k" x="44" y="22" width="20" height="20" rx="3"/><rect class="k hot" x="22" y="44" width="20" height="20" rx="3"/><text class="on" x="30" y="58">,</text></g>
+                  <text x="12" y="96">Index</text><text x="90" y="90">Middle</text>
+                </svg>
+                <div><div class="led"><i></i>Blinking blue</div><div style="margin-top:8px" class="val">Code <span class="mono" style="color:var(--kb-ink)">A3F1 09C2</span></div></div>
+              </div>
+              <div class="fw-actions"><span class="btn o">Cancel</span></div>
+            </div>
+          </div>
+          <div class="grp">This keyboard</div>
+          <div class="sh">Board</div>
+          <div class="row"><span class="lbl">Name</span><span class="txt" style="width:150px">Morgan's Svalboard</span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <section class="sp">
+        <div class="sp-top">
+          <div class="sp-title"><span class="backbar"><svg class="i"><use href="#i-chev-l"/></svg><h3>Settings</h3></span></div>
+          <div class="anchors"><span>Firmware</span><span>Board</span><span>Backups</span><span class="on">Appearance</span><span>Editing</span><span>About</span></div>
+        </div>
+        <div class="sp-body">
+          <div class="grp"><svg class="i"><use href="#i-monitor"/></svg>This browser</div>
+          <div class="sh">Appearance</div>
+          <div class="row"><span class="lbl">Theme</span><span class="seg"><b class="on">System</b><b>Light</b><b>Dark</b></span></div>
+          <div class="row"><span class="lbl">Key size</span><span class="seg"><b class="on">Auto</b><b>Normal</b><b>Medium</b><b>Small</b></span></div>
+          <div class="row"><span class="lbl">Panels</span><span class="seg"><b class="on">Auto</b><b>Sidebar</b><b>Bottom bar</b></span></div>
+          <div class="sh">Editing</div>
+          <div class="row"><span class="lbl">Typing Binds a Key</span><span class="sw on"></span></div>
+          <div class="row"><span class="lbl">Advance after assigning</span><span class="sel">None<svg class="i"><use href="#i-chev-d"/></svg></span></div>
+          <div class="row"><span class="lbl">Key legends</span><span class="sel">English (US)<svg class="i"><use href="#i-chev-d"/></svg></span></div>
+          <div class="grp">Keybard</div>
+          <div class="sh">About</div>
+          <div class="row"><span class="lbl">Keybard</span><span class="val">vLaunch2.4</span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===================================================== 6 -->
+  <h2 id="s6">5 · What moved out, and where the old firmware messages point now</h2>
+  <p class="note">Everything that leaves Settings or leaves its old place, shown at its new home. The full table is in mapping.md.</p>
+  <div class="grid">
+    <div class="mini">
+      <h5>Pointing Devices panel</h5>
+      <div class="before-after">
+        <div><div class="ba-label">Today</div><div class="val">Mouse keys · Left/Right DPI · Scroll · Auto Mouse · Scroll settings</div></div>
+        <div><div class="ba-label">This option</div>
+          <div class="val">Unchanged: mouse keys, DPI, scroll, Auto Mouse, scroll settings. Settings doesn't link here.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mini">
+      <h5>Navigation rail footer</h5>
+      <div class="before-after">
+        <div><div class="ba-label">Today</div><div class="val">Quick Start · Manual · About · Settings</div></div>
+        <div><div class="ba-label">This option</div><div class="val">Quick Start · Manual · Settings <span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--kb-primary)"></span></div><div class="val" style="margin-top:4px"><span class="strike">About</span> → Settings › About and Firmware</div></div>
+      </div>
+    </div>
+    <div class="mini">
+      <h5>Canvas</h5>
+      <div class="before-after">
+        <div><div class="ba-label">Today</div><div class="val">6-second firmware chip · dismissible update note over the layer tabs · key size and panel controls bottom right</div></div>
+        <div><div class="ba-label">This option</div><div class="val">No firmware chip: the dot on Settings is the signal. Corner controls → Settings › Appearance.</div></div>
+      </div>
+    </div>
+    <div class="mini">
+      <h5>Toolbar</h5>
+      <div class="before-after">
+        <div><div class="ba-label">Today</div><div class="val">Live/Manual · Import · Export · (others)</div></div>
+        <div><div class="ba-label">This option</div><div class="val">Unchanged. Import and Export open the same dialogs as the Backups rows; the dead Settings export dialog is deleted.</div></div>
+      </div>
+    </div>
+    <div class="dialog">
+      <h5>New firmware reset your settings</h5>
+      <div class="val">Today 14:02 · Before vLaunch4</div>
+      <div class="fw-actions"><span class="btn g">Start from defaults</span><span class="btn">Put my layout back</span></div>
+      <div class="cap" style="margin:14px 0 0;text-transform:none;letter-spacing:0">Only for a reset found outside a Keybard update (update-flow.md A4)</div>
+    </div>
+    <div class="dialog">
+      <h5>Wrong pointing-device firmware</h5>
+      <div class="val">Right half · trackball · build has none</div>
+      <div class="fw-actions"><span class="btn g">Not now</span><span class="btn">Open Firmware</span></div>
+      <div class="cap" style="margin:14px 0 0;text-transform:none;letter-spacing:0">TrackballMismatchDialog: no file names or steps</div>
+    </div>
+    <div class="dialog">
+      <h5>Update your Svalboard's firmware</h5>
+      <div class="val">Vial · protocol 2</div>
+      <div class="fw-actions"><span class="btn">Install vLaunch3</span></div>
+      <div class="cap" style="margin:14px 0 0;text-transform:none;letter-spacing:0">UnsupportedFirmwareCard: opens the manual flow (state i) on the connect screen</div>
+    </div>
+    <div class="mini">
+      <h5>New editor homes (round 2)</h5>
+      <div class="val">Typing behavior (rail) · Clusters (rail) · Mouse Keys › Movement · Scan Lab › Tuning. Combos, Leaders and Pointing Devices keep their own settings.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btns = document.querySelectorAll('.theme-pick button');
+  function apply(t) {
+    if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t); else root.removeAttribute('data-theme');
+    btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.t === t)); });
+    try { localStorage.setItem('sp-theme', t); } catch (e) {}
+  }
+  var q = new URLSearchParams(location.search).get('theme');
+  var saved = null; try { saved = localStorage.getItem('sp-theme'); } catch (e) {}
+  apply(q || saved || 'system');
+  btns.forEach(function (b) { b.addEventListener('click', function () { apply(b.dataset.t); }); });
+})();
+</script>
+</body>
+</html>

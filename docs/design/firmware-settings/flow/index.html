@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firmware Update Flow</title>
+<style>
+/* Tokens copied from Keybard src/index.css (vLaunch2.4). Brand colors are fixed. */
+:root {
+  --kb-gray: #f1f2f2;
+  --kb-gray-medium: #eaeae9;
+  --kb-gray-border: #a7a9ac;
+  --kb-surface: #ffffff;
+  --kb-ink: #000000;
+  --kb-active: #000000;
+  --kb-active-fg: #ffffff;
+  --kb-popover: #EEEEEE;
+  --muted-fg: oklch(0.554 0.046 257.417);
+  --border: oklch(0.929 0.013 255.508);
+  --kb-primary: #099e7c;
+  --kb-blue: #379cd7;
+  --kb-orange: #f89804;
+  --kb-red: #d8304a;
+  --kb-magenta: #b5508a;
+  --kb-grey: #85929b;
+  --scrim: rgba(0,0,0,.04);
+  --key-off: #eaeae9;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kb-gray: #141517; --kb-gray-medium: #26282b; --kb-gray-border: #75797f;
+    --kb-surface: #1d1e21; --kb-ink: #f1f2f2; --kb-active: #e8e9ea; --kb-active-fg: #111214;
+    --kb-popover: #33363b; --muted-fg: #a3a6ab; --border: rgba(255,255,255,.12);
+    --scrim: rgba(255,255,255,.03); --key-off: #2c2e33; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --kb-gray: #141517; --kb-gray-medium: #26282b; --kb-gray-border: #75797f;
+  --kb-surface: #1d1e21; --kb-ink: #f1f2f2; --kb-active: #e8e9ea; --kb-active-fg: #111214;
+  --kb-popover: #33363b; --muted-fg: #a3a6ab; --border: rgba(255,255,255,.12);
+  --scrim: rgba(255,255,255,.03); --key-off: #2c2e33; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--kb-gray); color: var(--kb-ink);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px; line-height: 1.4;
+}
+.page { max-width: 1480px; margin: 0 auto; padding: 28px 24px 64px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.top h1 { font-size: 26px; margin: 0; letter-spacing: -.01em; }
+.top .sub { color: var(--muted-fg); font-size: 13px; }
+.theme { display: inline-flex; border: 1px solid var(--kb-gray-border); border-radius: 999px; overflow: hidden; }
+.theme button { border: 0; background: transparent; color: var(--kb-ink); font: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer; }
+.theme button[aria-pressed="true"] { background: var(--kb-active); color: var(--kb-active-fg); }
+
+h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-fg); margin: 40px 0 14px; font-weight: 700; display: flex; gap: 10px; align-items: center; }
+h2.sec::after { content: ""; flex: 1; height: 1px; background: var(--kb-gray-border); opacity: .5; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 22px 22px; align-items: start; }
+.cell { min-width: 0; }
+.tag-id { font-size: 11px; font-weight: 700; color: var(--muted-fg); margin: 0 0 6px 2px; display: flex; gap: 8px; }
+.tag-id b { color: var(--kb-ink); }
+
+/* Keybard dialog / panel */
+.dlg { background: var(--kb-surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06); position: relative; }
+.panel { background: var(--kb-surface); border-radius: 16px; padding: 18px 20px 20px; border: 1px solid var(--border); }
+.dlg h3, .panel h3 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.panel h3 { font-size: 22px; font-weight: 600; }
+.x { position: absolute; top: 18px; right: 18px; width: 14px; height: 14px; color: var(--kb-ink); opacity: .7; }
+.subl { color: var(--muted-fg); font-size: 13px; margin-top: 3px; }
+.body { font-size: 14px; margin-top: 10px; }
+.grp { margin-top: 16px; }
+.grp > .gl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-fg); margin-bottom: 6px; }
+.row { display: flex; align-items: center; gap: 10px; padding: 7px 0; min-height: 34px; }
+.row + .row { border-top: 1px solid var(--border); }
+.row .lbl { flex: 1; min-width: 0; }
+.row .lbl small { display: block; color: var(--muted-fg); font-size: 12px; }
+.row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.row.warn .lbl > span:first-child { color: var(--kb-ink); }
+.row.warn { background: color-mix(in srgb, var(--kb-orange) 9%, transparent); border-radius: 8px; padding-left: 8px; padding-right: 8px; border-top-color: transparent; }
+.row.err { background: color-mix(in srgb, var(--kb-red) 9%, transparent); border-radius: 8px; padding-left: 8px; padding-right: 8px; }
+.row.warn + .row, .row + .row.warn, .row.err + .row, .row + .row.err { border-top-color: transparent; }
+.row.warn + .row.warn { margin-top: 4px; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+.ic { width: 18px; height: 18px; flex: none; }
+.ok { color: var(--kb-primary); } .wn { color: var(--kb-orange); } .er { color: var(--kb-red); } .bl { color: var(--kb-blue); } .mu { color: var(--kb-grey); }
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--kb-gray-border); color: var(--kb-ink); white-space: nowrap; }
+.pill.green { border-color: var(--kb-primary); color: var(--kb-primary); }
+.pill.orange { border-color: var(--kb-orange); color: var(--kb-orange); }
+.link { color: var(--kb-primary); text-decoration: underline; text-underline-offset: 2px; font-weight: 500; white-space: nowrap; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+.foot .note { margin-right: auto; font-size: 12px; color: var(--muted-fg); display: flex; gap: 6px; align-items: center; }
+.btn { font: inherit; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 7px 16px; border: 1px solid transparent; background: var(--kb-active); color: var(--kb-active-fg); white-space: nowrap; }
+.btn.o { background: transparent; color: var(--kb-ink); border-color: var(--kb-gray-border); }
+.btn.g { background: transparent; color: var(--kb-ink); }
+.btn.wide { width: 100%; padding: 9px; }
+.btn.sm { font-size: 12px; padding: 4px 11px; }
+.bullets { margin: 6px 0 0; padding-left: 18px; }
+.bullets li { margin: 2px 0; }
+
+/* progress */
+.bar { height: 6px; border-radius: 999px; background: var(--kb-gray-medium); overflow: hidden; margin-top: 6px; }
+.bar > i { display: block; height: 100%; background: var(--kb-primary); border-radius: 999px; }
+.bar.mag > i { background: var(--kb-magenta); }
+.bar.ind > i { width: 35%; margin-left: 30%; background: var(--kb-blue); }
+.half { padding: 10px 0; }
+.half + .half { border-top: 1px solid var(--border); }
+.half .hd { display: flex; align-items: center; gap: 8px; }
+.half .hd .nm { font-weight: 600; flex: 1; }
+.half .st { font-size: 13px; font-variant-numeric: tabular-nums; }
+.half .ex { font-size: 12px; color: var(--muted-fg); margin-top: 4px; }
+
+/* segmented, tabs, nav bits */
+.seg { display: inline-flex; background: var(--kb-gray-medium); border-radius: 999px; padding: 3px; }
+.seg span { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; color: var(--muted-fg); }
+.seg span.on { background: var(--kb-active); color: var(--kb-active-fg); }
+.tabs { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+.tabs > span { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 999px; background: var(--kb-gray-medium); color: var(--kb-ink); position: relative; }
+.tabs > span.on { background: var(--kb-active); color: var(--kb-active-fg); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-primary); display: inline-block; box-shadow: 0 0 0 2px var(--kb-surface); }
+.tabs .dot { position: absolute; top: -2px; right: -2px; }
+
+.optrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.opt { background: var(--kb-surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 150px; display: flex; flex-direction: column; gap: 10px; }
+.opt .oh { font-size: 12px; font-weight: 700; }
+.opt .oh em { font-style: normal; color: var(--kb-primary); margin-left: 6px; }
+.nav { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--kb-ink); }
+.nav div { display: flex; align-items: center; gap: 10px; opacity: .55; }
+.nav div.hi { opacity: 1; }
+.nav .ni { position: relative; width: 18px; height: 18px; }
+.nav .ni .dot { position: absolute; top: -3px; right: -4px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--kb-gray-border); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+.toast { background: var(--kb-surface); border: 1px solid var(--kb-gray-border); border-radius: 10px; padding: 9px 12px; display: flex; gap: 10px; align-items: center; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+.toast b { flex: 1; font-weight: 600; }
+.fake { background: var(--kb-gray); border-radius: 8px; padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.fake .keys { display: flex; gap: 4px; flex-wrap: wrap; }
+.fake .keys i { width: 18px; height: 18px; border-radius: 4px; background: var(--kb-primary); opacity: .85; }
+
+.banner { display: flex; align-items: center; gap: 10px; background: var(--kb-surface); border: 1px solid var(--kb-orange); border-radius: 10px; padding: 9px 12px; font-size: 13px; }
+.banner b { font-weight: 700; }
+.banner .sp { flex: 1; color: var(--muted-fg); }
+
+/* chord diagram */
+.chord { display: flex; justify-content: center; padding: 14px 0 6px; }
+.chord svg { width: 100%; max-width: 330px; height: auto; }
+.chord.mini svg { max-width: 260px; }
+.k { fill: var(--key-off); stroke: var(--kb-gray-border); stroke-width: 1; }
+.k.hot { fill: var(--kb-primary); stroke: var(--kb-ink); stroke-width: 2; }
+.kt { fill: #fff; font: 700 12px Inter, system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.kn { fill: var(--muted-fg); font: 600 10px Inter, system-ui, sans-serif; text-anchor: middle; }
+.leds { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--muted-fg); margin-top: 4px; flex-wrap: wrap; }
+.leds span { display: inline-flex; align-items: center; gap: 6px; }
+.led { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+kbd { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 .35em; border-radius: 6px; background: var(--kb-primary); color: #fff; font: inherit; font-weight: 700; font-size: .9em; vertical-align: .05em; }
+.timer { font-size: 28px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; margin-top: 6px; }
+
+/* steps */
+.steps { list-style: none; margin: 14px 0 0; padding: 0; }
+.steps > li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 0; }
+.steps > li + li { border-top: 1px solid var(--border); }
+.num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--kb-gray-border); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.num.done { background: var(--kb-primary); border-color: var(--kb-primary); color: #fff; }
+.num.cur { background: var(--kb-active); border-color: var(--kb-active); color: var(--kb-active-fg); }
+.steps .t { font-weight: 600; }
+.steps .d { font-size: 13px; color: var(--muted-fg); margin-top: 2px; }
+.steps .d ol { margin: 4px 0 0; padding-left: 18px; color: var(--kb-ink); }
+.steps .acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.steps li.dim { opacity: .5; }
+
+.cmd { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; background: var(--kb-gray); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 10px; overflow-wrap: anywhere; }
+.scrim { background: var(--scrim); border-radius: 14px; padding: 14px; }
+
+/* round 2 */
+.r2 { background: var(--kb-surface); border: 1px solid var(--kb-primary); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 18px; max-width: 980px; }
+.radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--kb-gray-border); flex: none; display: inline-grid; place-items: center; }
+.radio.on { border-color: var(--kb-active); }
+.radio.on::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--kb-active); }
+.row.dis { opacity: .5; }
+.lt { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex: none; vertical-align: -1px; margin-right: 6px; box-shadow: 0 0 0 1px var(--kb-gray-border); }
+.lt.layer { background: #2fa34a; opacity: .8; }
+.lt.green { background: #22c55e; }
+.lt.blue { background: #2563eb; animation: blink2 .5s steps(1) infinite; }
+.lt.red { background: #dc2626; animation: blink1 1s steps(1) infinite; }
+.lt.mag { background: #c026d3; }
+.lt.white { background: #ffffff; animation: dflash 1.6s steps(1) infinite; }
+.lt.rain { background: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); animation: hue 2.05s linear infinite; }
+@keyframes blink2 { 50% { background: transparent; } }
+@keyframes blink1 { 50% { background: transparent; } }
+@keyframes dflash { 0% { background: #fff; } 5% { background: transparent; } 10% { background: #fff; } 15% { background: transparent; } 20%, 100% { background: #2563eb; } }
+@keyframes hue { 0% { background: hsl(0 100% 50%); } 16% { background: hsl(60 100% 50%); } 33% { background: hsl(120 100% 45%); } 50% { background: hsl(180 100% 45%); } 66% { background: hsl(240 100% 60%); } 83% { background: hsl(300 100% 50%); } 100% { background: hsl(360 100% 50%); } }
+@media (prefers-reduced-motion: reduce) { .lt { animation: none !important; } }
+.lights { overflow-x: auto; }
+.lights table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 640px; }
+.lights th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); padding: 6px 8px; border-bottom: 1px solid var(--kb-gray-border); }
+.lights td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+@media (max-width: 520px) {
+  .page { padding: 20px 16px 48px; }
+  .grid { grid-template-columns: 1fr; }
+  .optrow { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M6 10.5l2.6 2.6L14 7.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 20 20"><path d="M10 2l9 16H1z" fill="currentColor"/><path d="M10 8v4.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="15.2" r="1.1" fill="#fff"/></symbol>
+    <symbol id="i-err" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M7 7l6 6M13 7l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-wait" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M10 2a8 8 0 0 1 8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-idle" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2" opacity=".5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 12 12"><path d="M5 2H2v8h8V7M7 2h3v3M10 2L5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-file" viewBox="0 0 20 20"><path d="M5 2h7l4 4v12H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 2v4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 20 20"><path d="M10 3v10M6 9l4 4 4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+
+    <!-- Right half finger clusters: index (inner) to pinky. S keys of index and middle highlighted. -->
+    <symbol id="half-right" viewBox="0 0 340 150">
+      <g>
+        <!-- index cluster cx=50 cy=62 -->
+        <rect class="k" x="38" y="22" width="24" height="24" rx="5"/><rect class="k" x="12" y="50" width="24" height="24" rx="5"/><rect class="k" x="38" y="50" width="24" height="24" rx="5"/><rect class="k" x="64" y="50" width="24" height="24" rx="5"/>
+        <rect class="k hot" x="38" y="78" width="24" height="24" rx="5"/><text class="kt" x="50" y="90">M</text>
+        <!-- middle cx=130 cy=48 -->
+        <rect class="k" x="118" y="8" width="24" height="24" rx="5"/><rect class="k" x="92" y="36" width="24" height="24" rx="5"/><rect class="k" x="118" y="36" width="24" height="24" rx="5"/><rect class="k" x="144" y="36" width="24" height="24" rx="5"/>
+        <rect class="k hot" x="118" y="64" width="24" height="24" rx="5"/><text class="kt" x="130" y="76">,</text>
+        <!-- ring cx=210 cy=52 -->
+        <rect class="k" x="198" y="12" width="24" height="24" rx="5"/><rect class="k" x="172" y="40" width="24" height="24" rx="5"/><rect class="k" x="198" y="40" width="24" height="24" rx="5"/><rect class="k" x="224" y="40" width="24" height="24" rx="5"/><rect class="k" x="198" y="68" width="24" height="24" rx="5"/>
+        <!-- pinky cx=290 cy=70 -->
+        <rect class="k" x="278" y="30" width="24" height="24" rx="5"/><rect class="k" x="252" y="58" width="24" height="24" rx="5"/><rect class="k" x="278" y="58" width="24" height="24" rx="5"/><rect class="k" x="304" y="58" width="24" height="24" rx="5"/><rect class="k" x="278" y="86" width="24" height="24" rx="5"/>
+        <text class="kn" x="50" y="122">Index</text><text class="kn" x="130" y="108">Middle</text><text class="kn" x="210" y="112">Ring</text><text class="kn" x="290" y="130">Pinky</text>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <div class="top">
+    <div>
+      <h1>Firmware update flow</h1>
+      <div class="sub">Round 2 · Keybard installs firmware · every screen and its copy · IDs match update-flow.md · examples assume USB on the right half</div>
+    </div>
+    <div class="theme" role="group" aria-label="Theme">
+      <button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button>
+    </div>
+  </div>
+
+  <div class="r2">
+    <b>Round 2.</b> One sheet holds every choice, including what happens to the layout. After <b>Start update</b> Keybard asks nothing more, except the chord on the keyboard. Every install is backup, install, put back. One list covers releases and a chosen file. The light guidance follows the firmware exactly (update-technical.md 1.10). Round 1's channel toggle (D3), restore prompt (A1) and backup-failed dialog (F15) are gone.
+  </div>
+
+  <!-- ============ DISCOVER ============ -->
+  <h2 class="sec">1 · Discover and choose</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>D1</b> The signal: a dot (decided)</div>
+      <div class="opt" style="min-height:0">
+        <div class="nav">
+          <div><svg class="ni" viewBox="0 0 24 24"><use href="#i-info"/></svg>Manual</div>
+          <div class="hi"><span class="ni"><svg width="18" height="18"><use href="#i-gear"/></svg><span class="dot"></span></span>Settings</div>
+        </div>
+        <div class="row" style="border:0"><span class="lbl"><b>Firmware</b> <span class="dot" style="margin-left:4px"></span><small>vLaunch2 · both halves</small></span><span class="mu">›</span></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>D2</b> Settings › Firmware · keybard.svalboard.com</div>
+      <div class="panel">
+        <h3>Firmware</h3>
+        <div class="grp"><div class="gl">This keyboard</div>
+          <div class="row"><span class="lbl">Left half<small>Trackball</small></span><span class="val">vLaunch2</span></div>
+          <div class="row"><span class="lbl">Right half <span class="pill" style="margin-left:6px">USB</span><small>No pointing module</small></span><span class="val">vLaunch2</span></div>
+        </div>
+        <div class="grp"><div class="gl">Install</div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><span class="val">vLaunch3</span> <span class="pill green" style="margin-left:6px">Newest</span></span><a class="link">What's new <svg width="10" height="10"><use href="#i-ext"/></svg></a></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl"><span class="val">vLaunch2</span> <span class="pill" style="margin-left:6px">Installed</span></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl">Choose a file…<small>One or two .svup files</small></span></div>
+          <ul class="bullets">
+            <li>Install updates from Keybard</li>
+            <li>Faster saves</li>
+            <li>Default layer from Keybard</li>
+          </ul>
+          <button class="btn wide" style="margin-top:10px">Update to vLaunch3</button>
+        </div>
+        <div class="grp"><div class="gl">Advanced ›</div></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>D2</b> The same list on next.keybard.svalboard.com</div>
+      <div class="panel">
+        <div class="grp" style="margin-top:0"><div class="gl">Install</div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><span class="val">vNext2</span> <span class="pill green" style="margin-left:6px">Newest</span></span><a class="link">What's new <svg width="10" height="10"><use href="#i-ext"/></svg></a></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl"><span class="val">vLaunch3</span> <span class="pill" style="margin-left:6px">Installed</span></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl"><span class="val">vLaunch2</span> <span class="pill" style="margin-left:6px">Older</span></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl">Choose a file…</span></div>
+          <button class="btn wide" style="margin-top:10px">Update to vNext2</button>
+        </div>
+        <div class="body" style="color:var(--muted-fg);font-size:12px">No channel toggle: each site lists the releases its deploy carries. Picking the installed row makes the button <b>Reinstall vLaunch3</b>, and picking an older one makes it <b>Install vLaunch2</b>. Every pick opens the same sheet.</div>
+      </div>
+
+      <div class="tag-id" style="margin-top:22px"><b>D2c</b> Halves differ</div>
+      <div class="panel">
+        <h3>Firmware</h3>
+        <div class="grp"><div class="gl">This keyboard</div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Halves differ</span></span></div>
+          <div class="row"><span class="lbl">Left half</span><span class="val">vLaunch3</span></div>
+          <div class="row"><span class="lbl">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="val wn">vLaunch2</span></div>
+          <button class="btn wide" style="margin-top:8px">Finish update</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>D2a</b> Up to date</div>
+      <div class="panel">
+        <h3>Firmware</h3>
+        <div class="grp"><div class="gl">This keyboard</div>
+          <div class="row"><span class="lbl">Left half</span><span class="val">vLaunch3</span></div>
+          <div class="row"><span class="lbl">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="val">vLaunch3</span></div>
+        </div>
+        <div class="grp"><div class="gl">Install</div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><span class="val">vLaunch3</span> <span class="pill green" style="margin-left:6px">Installed</span></span><svg class="ic ok"><use href="#i-ok"/></svg></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl"><span class="val">vLaunch2</span> <span class="pill" style="margin-left:6px">Older</span></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl">Choose a file…</span></div>
+          <button class="btn o wide" style="margin-top:10px">Reinstall vLaunch3</button>
+        </div>
+      </div>
+
+      <div class="tag-id" style="margin-top:22px"><b>D2b</b> No updater on the board (vLaunch2, Vial)</div>
+      <div class="panel">
+        <h3>Firmware</h3>
+        <div class="grp"><div class="gl">This keyboard</div>
+          <div class="row"><span class="lbl">Firmware</span><span class="val">vLaunch2</span></div>
+        </div>
+        <div class="grp"><div class="gl">Install</div>
+          <div class="row"><span class="lbl"><span class="val">vLaunch3</span> <span class="pill green" style="margin-left:6px">Newest</span><small>One manual install, then updates come from Keybard</small></span><a class="link">What's new <svg width="10" height="10"><use href="#i-ext"/></svg></a></div>
+          <button class="btn wide" style="margin-top:8px">Install vLaunch3</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BEFORE ============ -->
+  <h2 class="sec">2 · Before: the one confirm</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>B1</b> Every choice, once</div>
+      <div class="dlg">
+        <svg class="x"><use href="#i-x"/></svg>
+        <h3>Update to vLaunch3</h3>
+        <div class="subl">Left and right halves · About 2 minutes</div>
+        <div class="grp"><div class="gl">Checks</div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Both halves connected</span></div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Firmware files verified</span></div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Keybard Host paused</span></div>
+        </div>
+        <div class="grp"><div class="gl">Backup</div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Layout saved<small class="mono">Kip-vLaunch2-2026-10-14.svil · Downloads</small></span><a class="link">Backups</a></div>
+        </div>
+        <div class="grp"><div class="gl">Afterwards</div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><b>Put my layout back</b></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl">Start from the vLaunch3 defaults</span></div>
+        </div>
+        <div class="grp"><div class="gl">On the keyboard</div>
+          <div class="chord mini"><svg viewBox="0 0 340 150"><use href="#half-right"/></svg></div>
+          <div class="row"><span class="lbl"><b>Hold <kbd>M</kbd> + <kbd>,</kbd> when the light blinks blue (twice)</b></span><i class="lt blue"></i></div>
+          <div class="row"><span class="lbl">Keep USB and the split cable connected.</span></div>
+        </div>
+        <div class="foot"><button class="btn o">Cancel</button><button class="btn">Start update</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>B1</b> A chosen file, with warnings</div>
+      <div class="dlg">
+        <svg class="x"><use href="#i-x"/></svg>
+        <h3>Install custom firmware</h3>
+        <div class="subl">my-build.svup · right half only · About 1 minute</div>
+        <div class="grp"><div class="gl">Checks</div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Unknown firmware file</span><small>Keybard can't check where it came from.</small></span></div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>No trackball driver in this file</span><small>Pointing stops on the right half.</small></span></div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Developer build</span><small>Later installs on this keyboard won't ask for approval.</small></span></div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Keyboard ready</span></div>
+        </div>
+        <div class="grp"><div class="gl">Backup</div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Layout saved<small class="mono">Kip-vLaunch3-2026-10-14.svil · Downloads</small></span><a class="link">Backups</a></div>
+        </div>
+        <div class="grp"><div class="gl">Afterwards</div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><b>Put my layout back</b></span></div>
+          <div class="row pick"><span class="radio"></span><span class="lbl">Start from this file's defaults</span></div>
+        </div>
+        <div class="foot"><button class="btn o">Cancel</button><button class="btn">Update anyway</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>B1</b> Backup failed: same sheet, no second dialog</div>
+      <div class="dlg">
+        <div class="grp" style="margin-top:0"><div class="gl">Backup</div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Layout not saved</span><small>The keyboard starts from defaults after the update.</small></span><a class="link">Save layout manually</a></div>
+        </div>
+        <div class="grp"><div class="gl">Afterwards</div>
+          <div class="row pick dis"><span class="radio"></span><span class="lbl">Put my layout back<small>No backup</small></span></div>
+          <div class="row pick on"><span class="radio on"></span><span class="lbl"><b>Start from the vLaunch3 defaults</b></span></div>
+        </div>
+        <div class="foot"><button class="btn o">Cancel</button><button class="btn">Update anyway</button></div>
+      </div>
+
+      <div class="tag-id" style="margin-top:22px"><b>B1</b> Other warning rows</div>
+      <div class="dlg">
+        <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>vLaunch2 is older than vLaunch3</span><small>Settings added since vLaunch2 won't come back.</small></span></div>
+        <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>File is for the left hand</span><small>On the right half, the halves stop working together.</small></span></div>
+        <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Left half not answering</span><small>Check the split cable.</small></span><button class="btn sm o">Try again</button></div>
+        <div class="foot"><button class="btn o">Cancel</button><button class="btn">Update right half only</button></div>
+      </div>
+
+      <div class="tag-id" style="margin-top:22px"><b>F2</b> The only refusal: integrity</div>
+      <div class="dlg">
+        <div class="row err"><svg class="ic er"><use href="#i-err"/></svg><span class="lbl"><span>Firmware file failed its check</span><small>Keybard won't install it. Reload Keybard and try again.</small></span></div>
+        <div class="foot"><button class="btn o">Close</button><button class="btn">Reload</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DURING ============ -->
+  <h2 class="sec">3 · During: hands off</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>U1</b> Approve the left half (on the right half)</div>
+      <div class="dlg">
+        <h3>Hold <kbd>M</kbd> + <kbd>,</kbd> on the right half</h3>
+        <div class="chord mini"><svg viewBox="0 0 340 150"><use href="#half-right"/></svg></div>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt layer"></i><span class="nm">Left half</span><span class="st">Approve</span></div><div class="bar"><i style="width:0"></i></div></div>
+          <div class="half"><div class="hd"><i class="lt blue"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st mu">Waiting</span></div><div class="bar"><i style="width:0"></i></div></div>
+        </div>
+        <div class="timer" style="font-size:22px">25 s</div>
+        <div class="foot"><span class="note">Nothing to click. The screen moves on by itself.</span><button class="btn o">Cancel</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>U2</b> Sending, then copying over the split cable</div>
+      <div class="dlg">
+        <h3>Updating keyboard</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt rain"></i><span class="nm">Left half</span><span class="st">Copying to left half 63%</span></div><div class="bar"><i style="width:63%"></i></div></div>
+          <div class="half"><div class="hd"><i class="lt rain"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st mu">Waiting</span></div><div class="bar"><i style="width:0"></i></div></div>
+        </div>
+        <div class="foot"><span class="note"><svg class="ic wn" style="width:15px;height:15px"><use href="#i-warn"/></svg>Don't type on the left half</span><button class="btn o">Cancel</button></div>
+      </div>
+
+      <div class="tag-id" style="margin-top:22px"><b>U2</b> The left half installs: both halves magenta</div>
+      <div class="dlg">
+        <h3>Installing · don't unplug</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt mag"></i><span class="nm">Left half</span><span class="st">Installing</span></div><div class="bar mag"><i style="width:60%"></i></div></div>
+          <div class="half"><div class="hd"><i class="lt mag"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st mu">Waiting</span></div><div class="bar"><i style="width:0"></i></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>U2→U3</b> Between the halves: red is expected</div>
+      <div class="dlg">
+        <h3>Updating keyboard</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt layer"></i><svg class="ic ok"><use href="#i-ok"/></svg><span class="nm">Left half</span><span class="st">vLaunch3</span></div></div>
+          <div class="half"><div class="hd"><i class="lt red"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st mu">Next</span></div><div class="ex">Red until this half updates</div></div>
+        </div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>U3</b> Approve the right half</div>
+      <div class="dlg">
+        <h3>Hold <kbd>M</kbd> + <kbd>,</kbd> on the right half</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt layer"></i><svg class="ic ok"><use href="#i-ok"/></svg><span class="nm">Left half</span><span class="st">vLaunch3</span></div></div>
+          <div class="half"><div class="hd"><i class="lt blue"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st">Approve</span></div><div class="bar"><i style="width:0"></i></div></div>
+        </div>
+        <div class="timer" style="font-size:22px">28 s</div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>U4–U5</b> Install, restart, put the layout back</div>
+      <div class="dlg">
+        <h3>Installing · don't unplug</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt layer"></i><svg class="ic ok"><use href="#i-ok"/></svg><span class="nm">Left half</span><span class="st">vLaunch3</span></div></div>
+          <div class="half"><div class="hd"><i class="lt mag"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st">Installing</span></div><div class="bar mag"><i style="width:70%"></i></div></div>
+        </div>
+      </div>
+      <div class="dlg" style="margin-top:14px">
+        <h3>Updating keyboard</h3>
+        <div class="grp">
+          <div class="half"><div class="hd"><i class="lt green"></i><svg class="ic ok"><use href="#i-ok"/></svg><span class="nm">Left half</span><span class="st">vLaunch3</span></div></div>
+          <div class="half"><div class="hd"><i class="lt green"></i><span class="nm">Right half <span class="pill" style="margin-left:6px">USB</span></span><span class="st">Putting your layout back</span></div><div class="bar"><i style="width:45%"></i></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell" style="margin-top:22px">
+    <div class="tag-id"><b>5.3</b> What the lights show · both halves, USB on the right · animated as on the keyboard</div>
+    <div class="panel lights">
+      <table>
+        <thead><tr><th>Step</th><th>Right half (USB)</th><th>Left half</th><th>Shown to the user</th></tr></thead>
+        <tbody>
+          <tr><td>Checks and backup</td><td><i class="lt layer"></i>Layer color</td><td><i class="lt layer"></i>Layer color</td><td class="mu">nothing</td></tr>
+          <tr><td>Approve left</td><td><i class="lt blue"></i><b>Blue, blinking</b></td><td><i class="lt layer"></i>Layer color</td><td>the approval title and diagram</td></tr>
+          <tr><td>Chord registered</td><td><i class="lt white"></i>White double flash, then solid blue for a moment</td><td><i class="lt layer"></i>Layer color</td><td class="mu">nothing; it moves on</td></tr>
+          <tr><td>Sending the left half's firmware</td><td><i class="lt rain"></i><b>Rainbow</b>, one continuous cycle</td><td><i class="lt layer"></i>Layer color</td><td>progress</td></tr>
+          <tr><td>Copying over the split cable</td><td><i class="lt rain"></i>Rainbow</td><td><i class="lt rain"></i><b>Rainbow</b></td><td><i>Don't type on the left half</i></td></tr>
+          <tr><td>Left half installs</td><td><i class="lt mag"></i><b>Magenta</b> (waiting for the left)</td><td><i class="lt mag"></i><b>Magenta</b></td><td><i>Installing · don't unplug</i></td></tr>
+          <tr><td>Left half restarts</td><td><i class="lt mag"></i>Magenta up to ~15 s, then <i class="lt red"></i><b>red, slow blink</b></td><td><i class="lt green"></i>Restarts on vLaunch3</td><td><i>Red until this half updates</i></td></tr>
+          <tr><td>Approve right</td><td><i class="lt blue"></i><b>Blue, blinking</b></td><td><i class="lt layer"></i>Normal</td><td>the approval title and diagram</td></tr>
+          <tr><td>Sending the right half's firmware</td><td><i class="lt rain"></i>Rainbow</td><td><i class="lt layer"></i>Normal (not verified on hardware)</td><td>progress</td></tr>
+          <tr><td>Right half installs</td><td><i class="lt mag"></i>Magenta</td><td><i class="lt layer"></i>Normal (not verified on hardware)</td><td><i>Installing · don't unplug</i></td></tr>
+          <tr><td>Restart, reconnect</td><td><i class="lt green"></i>Default layer color (green)</td><td><i class="lt green"></i>Default</td><td>Restarting</td></tr>
+          <tr><td>Putting the layout back</td><td><i class="lt layer"></i>The user's colors return</td><td><i class="lt layer"></i>same</td><td>Putting your layout back</td></tr>
+        </tbody>
+      </table>
+      <div class="body" style="color:var(--muted-fg);font-size:12px">Updater colors show at about 38% brightness, even with lighting off or the board idle. Words appear only for magenta (both halves, "don't unplug") and the expected red between halves. Magenta is also layer 15's default color, and red is layers 6 and 7's, so the dialog is the authority, not the light.</div>
+    </div>
+  </div>
+
+  <!-- ============ AFTER ============ -->
+  <h2 class="sec">4 · After</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>A1</b> The result (no restore prompt: chosen on B1)</div>
+      <div class="dlg">
+        <h3>Updated to vLaunch3</h3>
+        <div class="grp">
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Left half</span><span class="val">vLaunch3</span></div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Right half</span><span class="val">vLaunch3</span></div>
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Layout put back<small class="mono">Kip-vLaunch2-2026-10-14.svil</small></span></div>
+          <div class="row warn"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl"><span>Combos</span><small>This firmware has 6</small></span><span class="val">6 of 8</span></div>
+        </div>
+        <div class="foot"><a class="link" style="margin-right:auto">What's new in vLaunch3 <svg width="10" height="10"><use href="#i-ext"/></svg></a><button class="btn">Done</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>A4</b> Settings reset outside an update (the one after-the-fact ask)</div>
+      <div class="dlg">
+        <h3>New firmware reset your settings</h3>
+        <div class="grp">
+          <div class="row"><svg class="ic mu"><use href="#i-file"/></svg><span class="lbl"><b>Kip</b> · vLaunch2 · Today 10:42</span></div>
+        </div>
+        <div class="foot"><button class="btn g">Start from defaults</button><button class="btn o">Other backups</button><button class="btn">Put my layout back</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>U4</b> New product ID only (warned on B1)</div>
+      <div class="dlg">
+        <h3>Choose Svalboard in the browser's list</h3>
+        <div class="body">The browser needs this one click.</div>
+        <div class="foot"><button class="btn">Choose keyboard</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F7</b> Tab hidden mid-update</div>
+      <div class="toast"><svg class="ic wn"><use href="#i-warn"/></svg><b>Keep this tab open until the update finishes</b></div>
+    </div>
+  </div>
+
+  <!-- ============ MANUAL ============ -->
+  <h2 class="sec">5 · Manual install (first move off vLaunch2, and recovery)</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>M1</b> Install by hand · step 3 of 5</div>
+      <div class="dlg">
+        <svg class="x"><use href="#i-x"/></svg>
+        <h3>Install vLaunch3 by hand</h3>
+        <div class="subl">Once per keyboard. Later updates come from Keybard.</div>
+        <div class="row" style="margin-top:6px"><span class="lbl">Afterwards<small>Chosen before step 1</small></span><span class="val">Put my layout back</span></div>
+        <ol class="steps">
+          <li><span class="num done">✓</span><div><div class="t">Layout saved</div><div class="d mono">Kip-vLaunch2-2026-10-13.svil · Downloads</div></div></li>
+          <li><span class="num done">✓</span><div><div class="t">Download firmware</div><div class="acts"><button class="btn sm o"><svg width="12" height="12" style="vertical-align:-2px"><use href="#i-dl"/></svg> Left half .uf2</button><button class="btn sm o"><svg width="12" height="12" style="vertical-align:-2px"><use href="#i-dl"/></svg> Right half .uf2</button></div></div></li>
+          <li><span class="num cur">3</span><div><div class="t">Install on the left half</div><div class="d"><ol><li>Plug USB into the left half</li><li>Double-tap its reset button</li><li>Copy the left file onto the <span class="mono">RPI-RP2</span> drive</li></ol></div><div class="acts"><button class="btn sm">Next</button></div></div></li>
+          <li class="dim"><span class="num">4</span><div><div class="t">Install on the right half</div></div></li>
+          <li class="dim"><span class="num">5</span><div><div class="t">Connect your keyboard</div></div></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>M1</b> Step 5 · then U5 and A1</div>
+      <div class="dlg">
+        <svg class="x"><use href="#i-x"/></svg>
+        <h3>Install vLaunch3 by hand</h3>
+        <ol class="steps">
+          <li><span class="num done">✓</span><div><div class="t">Layout saved</div></div></li>
+          <li><span class="num done">✓</span><div><div class="t">Download firmware</div></div></li>
+          <li><span class="num done">✓</span><div><div class="t">Install on the left half</div></div></li>
+          <li><span class="num done">✓</span><div><div class="t">Install on the right half</div></div></li>
+          <li><span class="num cur">5</span><div><div class="t">Connect your keyboard</div><div class="d">Plug USB back into the right half</div><div class="acts"><button class="btn sm">Connect</button></div></div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FAILURES ============ -->
+  <h2 class="sec">6 · When something stops</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="tag-id"><b>F5</b> Stopped before any install (unplug, timeout, check failed)</div>
+      <div class="dlg">
+        <h3>Update stopped</h3>
+        <div class="body">Nothing was changed. Your keyboard still runs vLaunch2.</div>
+        <div class="foot"><button class="btn o">Close</button><button class="btn">Try again</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F4</b> Chord not made</div>
+      <div class="dlg">
+        <h3>Not approved in time</h3>
+        <div class="body">Nothing was changed.</div>
+        <div class="foot"><button class="btn o">Cancel</button><button class="btn">Try again</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F3</b> Another client holds the board</div>
+      <div class="dlg">
+        <h3>Another app is using the keyboard</h3>
+        <div class="body">Close other Keybard tabs and the overlay, then try again.</div>
+        <div class="foot"><button class="btn">Try again</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>F9</b> Halves differ · editor banner (any connect)</div>
+      <div class="banner"><svg class="ic wn"><use href="#i-warn"/></svg><b>Halves differ</b><span class="sp">Left vLaunch3 · Right vLaunch2</span><button class="btn sm">Finish update</button></div>
+      <div class="tag-id" style="margin-top:22px"><b>F6</b> Tab closed mid-update, reopened</div>
+      <div class="dlg">
+        <h3>Update didn't finish</h3>
+        <div class="grp">
+          <div class="row"><svg class="ic ok"><use href="#i-ok"/></svg><span class="lbl">Left half</span><span class="val">vLaunch3</span></div>
+          <div class="row"><svg class="ic wn"><use href="#i-warn"/></svg><span class="lbl">Right half</span><span class="val wn">vLaunch2</span></div>
+        </div>
+        <div class="foot"><button class="btn">Finish update</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F14</b> No device after 30 s</div>
+      <div class="dlg">
+        <h3>Keyboard didn't come back</h3>
+        <div class="body">If a drive named <span class="mono">RPI-RP2</span> appeared, the right half needs a manual install.</div>
+        <div class="foot"><button class="btn o">Keep waiting</button><button class="btn">Install by hand</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>F10</b> USB half lost power while installing</div>
+      <div class="dlg">
+        <h3>Right half needs a manual install</h3>
+        <div class="body">Its light stays magenta and a drive named <span class="mono">RPI-RP2</span> appeared.</div>
+        <div class="foot"><button class="btn o"><svg width="12" height="12" style="vertical-align:-2px"><use href="#i-dl"/></svg> Right half .uf2</button><button class="btn">Next</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F11</b> Other half lost power (split cable pulled)</div>
+      <div class="dlg">
+        <h3>Left half needs a manual install</h3>
+        <div class="body">Plug USB into the left half. It shows up as the <span class="mono">RPI-RP2</span> drive.</div>
+        <div class="foot"><button class="btn o"><svg width="12" height="12" style="vertical-align:-2px"><use href="#i-dl"/></svg> Left half .uf2</button><button class="btn">Next</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F12</b> Linux blocks the new device</div>
+      <div class="dlg">
+        <h3>Linux blocked the keyboard</h3>
+        <div class="body">Run this command, then reconnect.</div>
+        <div class="cmd">sudo tee /etc/udev/rules.d/60-svalboard.rules &gt; /dev/null &lt;&lt;'EOF'<br>KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="404[4-9a-d]", MODE="0660", TAG+="uaccess"<br>EOF<br>sudo udevadm control --reload<br>sudo udevadm trigger --subsystem-match=hidraw</div>
+        <div class="foot"><button class="btn o">Copy command</button><button class="btn">Reconnect</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>F16</b> Putting the layout back failed</div>
+      <div class="dlg">
+        <h3>Layout not fully put back</h3>
+        <div class="body">Your backup is safe in Backups and Downloads.</div>
+        <div class="foot"><button class="btn g">Keep defaults</button><button class="btn o">Open Backups</button><button class="btn">Try again</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F17</b> Settings writes failing</div>
+      <div class="dlg">
+        <h3>Your keyboard can't save settings</h3>
+        <div class="body">Updates from Keybard are off until this is fixed.</div>
+        <div class="foot"><button class="btn o">Close</button><button class="btn">Install by hand</button></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="tag-id"><b>F18</b> Flash chip without updater support</div>
+      <div class="dlg">
+        <h3>This keyboard installs firmware by hand</h3>
+        <div class="foot"><button class="btn">Install by hand</button></div>
+      </div>
+      <div class="tag-id" style="margin-top:22px"><b>F19</b> Firmware newer than this Keybard can configure</div>
+      <div class="dlg">
+        <h3>This Keybard can't configure vLaunch3</h3>
+        <div class="body">Reload Keybard to get a newer one.</div>
+        <div class="foot"><button class="btn">Reload</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var params = new URLSearchParams(location.search);
+  var forced = params.get("theme");
+  function current() {
+    var t = root.getAttribute("data-theme");
+    if (t) return t;
+    return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function set(t) {
+    root.setAttribute("data-theme", t);
+    document.querySelectorAll(".theme button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.t === t)); });
+  }
+  if (forced === "light" || forced === "dark") set(forced); else set(current());
+  document.querySelectorAll(".theme button").forEach(function (b) { b.addEventListener("click", function () { set(b.dataset.t); }); });
+})();
+</script>
+</body>
+</html>
