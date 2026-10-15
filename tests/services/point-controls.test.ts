@@ -60,7 +60,26 @@ describe('pointing controls system contract', () => {
         const imported=fileService.svilToKBINFO(exported);
         expect(imported.keymap?.[0].slice(0,2)).toEqual(kb.keymap![0]);
         expect(imported.pointing_controls).toEqual(kb.pointing_controls);
-        expect(prepareImport(imported,{...kb,feature_flags2:0,pointing_controls:undefined}).errors.join(' ')).toContain('matching firmware');
+        // A board without pointing tools still takes the rest of the layout; the tool settings are skipped.
+        const plain=prepareImport(imported,{...kb,feature_flags2:0,pointing_controls:undefined});
+        expect(plain.errors).toEqual([]);
+        expect(plain.warnings.join(' ')).toContain('has no pointing tools');
+        expect(plain.warnings.join(' ')).toContain('2 pointing tool keys');
+        expect(plain.keyboard.pointing_controls).toBeUndefined();
+    });
+    it('drops a damaged pointing tools block instead of the whole layout', () => {
+        const exported=JSON.parse(fileService.kbinfoToSvil(keyboard()));
+        exported.pointing_controls.profiles[0].distance=5;
+        const imported=fileService.svilToKBINFO(exported);
+        expect(imported.pointing_controls).toBeUndefined();
+        expect(imported.keymap?.[0].slice(0,2)).toEqual([0x7e08,0x7e10]);
+    });
+    it('never queues a pointing write when the board has no pointing tools', async () => {
+        const kb={...keyboard(),feature_flags2:0,pointing_controls:undefined};
+        const plan=prepareImport(keyboard(),kb);
+        const enqueue=vi.fn().mockResolvedValue(undefined);
+        await new ImportService().syncWithKeyboard(plan.keyboard,kb,enqueue,{});
+        expect(enqueue.mock.calls.some(call=>call[2]?.writeKey==='pointing-controls')).toBe(false);
     });
     it('queues imported tuning through the normal import batch', async () => {
         const kb=keyboard(), next=keyboard();next.pointing_controls!.profiles[0].distance=100;

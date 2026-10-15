@@ -23,13 +23,16 @@ describe('point speed storage and transport',()=>{
     });
 });
 
-it('exports independent axes and rejects importing them onto an old board before writes',()=>{
+it('exports independent axes and skips them on an old board and keeps the rest of the import',()=>{
     const value=config();value.defaults={horizontal:10,vertical:50,linked:false};
     const kb={rows:1,cols:2,layers:1,keymap:[[0x7e08,0x7e10]],feature_flags2:POINT_CONTROL_FLAG,pointing_controls:value,svil_proto:3,kbid:'01',custom_keycodes:[],macros:[],combos:[],tapdances:[],key_overrides:[],alt_repeat_keys:[],leaders:[]} as KeyboardInfo;
     const imported=fileService.svilToKBINFO(JSON.parse(fileService.kbinfoToSvil(kb)));
     expect(imported.pointing_controls).toEqual(value);
     const old={...kb,pointing_controls:{version:1 as const,profiles:structuredClone(POINT_DEFAULTS)}};
-    expect(prepareImport(imported,old).errors.join(' ')).toContain('Update the keyboard firmware');
+    const plan=prepareImport(imported,old);
+    expect(plan.errors).toEqual([]);
+    expect(plan.warnings.join(' ')).toContain('update its firmware');
+    expect(plan.keyboard.pointing_controls).toEqual(old.pointing_controls);
     expect(prepareImport(old,kb).keyboard.pointing_controls?.version).toBe(3);
 });
 

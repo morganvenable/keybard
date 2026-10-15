@@ -27,11 +27,16 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
     if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
     const next = structuredClone(current);
+    // Pointing tool settings are optional: when the board can't take them, the rest of the
+    // layout still imports and the tool settings are left as they are on the board.
     if (file.pointing_controls) {
-        try { validatePointControls(file.pointing_controls); } catch (e) { errors.push((e as Error).message); }
-        if (!supportsPointControls(current)) errors.push('This layout uses pointing controls. Install the matching firmware before importing it.');
-        else if (file.pointing_controls.version > (current.pointing_controls?.version ?? 1)) errors.push('Update the keyboard firmware before importing these pointing settings.');
-        else { next.pointing_controls = (current.pointing_controls?.version??1)>=3 ? upgradePointControls(file.pointing_controls,current.pointing_controls!.version as 3|4|5) : structuredClone(file.pointing_controls); summary.push('Pointing control settings'); }
+        let valid = true;
+        try { validatePointControls(file.pointing_controls); } catch { valid = false; }
+        const keys = (file.keymap ?? []).flat(2).filter(code => typeof code === 'number' && code >= 0x7e00 && code <= 0x7e13).length;
+        if (!valid) warnings.push('The pointing tool settings in this file are damaged, so they are skipped. The rest of the layout imports normally.');
+        else if (!supportsPointControls(current)) warnings.push(`This keyboard's firmware has no pointing tools, so the file's pointing tool settings are skipped.${keys ? ` Its ${keys} pointing tool key${keys === 1 ? '' : 's'} will do nothing until you install firmware with pointing tools.` : ''}`);
+        else if (!current.pointing_controls || file.pointing_controls.version > current.pointing_controls.version) warnings.push('The keyboard did not report pointing tool settings this file can update, so they are skipped. Reconnect the keyboard, or update its firmware, and import again to bring them over.');
+        else { next.pointing_controls = current.pointing_controls.version >= 3 ? upgradePointControls(file.pointing_controls, current.pointing_controls.version as 3|4|5) : structuredClone(file.pointing_controls); summary.push('Pointing tool settings'); }
     }
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
     if ((file.layers ?? 0) > (current.layers ?? 0)) errors.push(`The file has ${file.layers} layers; this keyboard supports ${current.layers}.`);

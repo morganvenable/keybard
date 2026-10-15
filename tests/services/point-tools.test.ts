@@ -41,13 +41,15 @@ describe('configurable pointing tools',()=>{
         const service=new PointControlsService(usb as any);expect(await service.load()).toEqual(c);await service.save(c);
         expect(usb.sendSvil).toHaveBeenLastCalledWith(SvilUSB.CMD_SVIL_POINT_TOOLS_SET,[4,9,0,...bytes],{uint8:true});expect(usb.sendSvil.mock.calls[1][1]).toHaveLength(22);
     });
-    it('preserves bindings and custom tools in files and refuses a downgrade before writes',()=>{
+    it('preserves bindings and custom tools in files and skips them on older firmware',()=>{
         const kb=keyboard();kb.pointing_controls!.profiles[0].action=4;kb.pointing_controls!.profiles[0].invertVertical=true;
         expect(getKeyContents(kb,'SV_POINT_R_VOLUME_HOLD').title).toBe('Hold Tool 1 · Zoom · Right pointer');
         const imported=fileService.svilToKBINFO(JSON.parse(fileService.kbinfoToSvil(kb)));
         expect(imported.pointing_controls).toEqual(kb.pointing_controls);expect(imported.keymap).toEqual(kb.keymap);
         const old={...kb,pointing_controls:upgradePointControls({version:1,profiles:structuredClone(POINT_DEFAULTS)},3)};
-        expect(prepareImport(imported,old).errors.join(' ')).toContain('Update');
+        const plan=prepareImport(imported,old);
+        expect(plan.errors).toEqual([]);
+        expect(plan.keyboard.pointing_controls).toEqual(old.pointing_controls);
         expect(prepareImport(old,kb).keyboard.pointing_controls?.version).toBe(4);
     });
 });
