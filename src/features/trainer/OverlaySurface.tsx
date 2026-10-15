@@ -2,7 +2,7 @@ import type { KeyContent } from '@/types/keyboard.types';
 import { getHeaderIcons, getCenterContent, getTypeIcon } from '@/utils/key-icons';
 import type { Appearance, Preferences } from './core';
 import { haloColor } from './core';
-export interface SurfaceKey { id: number; x: number; y: number; w: number; h: number; label: string; code: number; layer: number; hand: string; legend?: { keycode: string; keyContents?: KeyContent; displayLabel: string; topLabel: string; bottomStr: string } }
+export interface SurfaceKey { id: number; x: number; y: number; w: number; h: number; label: string; code: number; layer: number; hand: string; legend?: { keycode: string; keyContents?: KeyContent; displayLabel: string; topLabel: string; bottomStr: string; editorLabel?: string } }
 interface Props { keys: SurfaceKey[]; appearance: Appearance; changed: Set<number>; held: Set<number>; effect: Preferences['effect']; duration: number; hidden: Set<number>; target?: number; onSelect?: (id: number) => void; capitals?: boolean; keyAppearance?: Map<number, Appearance> }
 /** A legend that is one letter or digit: drawn larger, and in capitals when asked. */
 const SINGLE_ALNUM = /^[\p{L}\p{N}]$/u;

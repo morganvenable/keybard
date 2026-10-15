@@ -150,8 +150,14 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                     return self.reply({'revision': revision})
                 if self.path != '/api/host/command': return self.reply({'error': 'Unknown API'}, 404)
                 op = value.get('op')
-                if op not in ('show', 'place', 'connect', 'disconnect', 'reload', 'refresh', 'scan', 'practice'):
+                if op not in ('show', 'place', 'connect', 'disconnect', 'reload', 'refresh', 'scan', 'practice', 'layerColors'):
                     raise ValueError('Unknown command')
+                if op == 'layerColors':
+                    # Keybard's layer colors for a board, for the colored overlay. Stored, never sent to the board.
+                    if set(value) - {'op', 'uid', 'colors'}: raise ValueError('Unknown layer color fields')
+                    state.set_layer_colors(value.get('uid'), value.get('colors'))
+                    dispatch({'op': 'layerColors'})
+                    return self.reply({'accepted': True}, 202)
                 if op == 'show' and type(value.get('value')) is not bool: raise ValueError('Expected boolean')
                 if op == 'practice':
                     hidden = value.get('hidden'); target = value.get('target')

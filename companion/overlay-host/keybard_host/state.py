@@ -19,9 +19,36 @@ PRESETS = {
 # Layer-change highlight choices; each sets the effect and its duration together.
 EFFECTS = {'Off': dict(effect='Off'), 'Flash': dict(effect='Quick flash', duration=150), 'Fade': dict(effect='Short fade', duration=400)}
 
+# The colored style draws the layout the way Keybard's editor does, keys filled with layer colors
+# (Keybard's src/features/trainer/ColoredSurface.tsx). The looks are offered for review.
+STYLES = ('see-through', 'colored')
+COLOR_BY = ('source', 'active')
+COLORED_LOOKS = {'Flat keys': 'flat', 'Board panel': 'panel', 'Raised keys': 'raised', 'Tilted': 'tilted'}
+
 DEFAULTS = dict(layoutId='us', appearance=dict(PRESETS['Outline only']),
     effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=True, manualDefault=1,
-    capitalAlphas=False, adaptiveContrast=False)
+    capitalAlphas=False, adaptiveContrast=False,
+    style='see-through', colorBy='source', coloredOpacity=100, coloredLook='flat')
+
+# Layer colors Keybard sends for a board: its preset names (src/utils/colors.ts) or custom hex colors.
+LAYER_COLOR_NAMES = frozenset({'primary', 'black', 'sidebar', 'red', 'green', 'blue', 'yellow', 'orange', 'purple',
+    'grey', 'light-grey', 'brown', 'magenta', 'white'})
+REMEMBERED_COLOR_BOARDS = 16
+
+
+def validate_layer_colors(value):
+    """A board's layer colors as Keybard sends them: {"layer": name or #rrggbb}, layers 0-31."""
+    if not isinstance(value, dict) or len(value) > 32: raise ValueError('Invalid layer colors')
+    result = {}
+    for layer, color in value.items():
+        if not isinstance(layer, str) or not re.fullmatch(r'[0-9]{1,2}', layer) or int(layer) > 31: raise ValueError('Invalid layer')
+        if not isinstance(color, str) or not (color in LAYER_COLOR_NAMES or re.fullmatch(r'#[0-9a-fA-F]{6}', color)): raise ValueError('Invalid layer color')
+        result[str(int(layer))] = color
+    return result
+
+
+def valid_uid(value):
+    return isinstance(value, str) and re.fullmatch(r'[0-9]{1,20}', value) is not None and int(value) < 2**64
 
 
 def _highlight_held_keys(config):
@@ -51,8 +78,8 @@ def validate_config(value):
                 elif type(color) not in (float, int) or not 0 <= color <= (4 if name == 'width' else 100):
                     raise ValueError('Invalid opacity/width')
                 result['appearance'][name] = color
-        elif key in ('duration', 'scale', 'manualDefault'):
-            lo, hi = dict(duration=(50, 750), scale=(50, 150), manualDefault=(0, 0xffffffff))[key]
+        elif key in ('duration', 'scale', 'manualDefault', 'coloredOpacity'):
+            lo, hi = dict(duration=(50, 750), scale=(50, 150), manualDefault=(0, 0xffffffff), coloredOpacity=(0, 100))[key]
             if type(val) is not int or not lo <= val <= hi: raise ValueError('Invalid numeric preference')
             result[key] = val
         elif key == 'layoutId':
@@ -61,7 +88,8 @@ def validate_config(value):
         elif key in ('highlightPressed', 'capitalAlphas', 'adaptiveContrast'):
             if type(val) is not bool: raise ValueError('Invalid on/off preference')
             result[key] = val
-        elif val not in dict(effect=('Off', 'Quick flash', 'Short fade'), hands=('Both', 'Left', 'Right'))[key]:
+        elif val not in dict(effect=('Off', 'Quick flash', 'Short fade'), hands=('Both', 'Left', 'Right'),
+                             style=STYLES, colorBy=COLOR_BY, coloredLook=tuple(COLORED_LOOKS.values()))[key]:
             raise ValueError('Invalid option')
         else:
             result[key] = val
@@ -82,6 +110,7 @@ class HostState:
         self.token = secrets.token_urlsafe(32)
         self.config = copy.deepcopy(DEFAULTS)
         self.remembered = None
+        self.layer_colors = {}  # board uid -> layer colors Keybard sent
         self.revision = 0
         self.layout_revision = 0
         self.board = None
@@ -107,6 +136,12 @@ class HostState:
         try: self.config = validate_config(saved.get('config', {}))
         except (ValueError, TypeError, KeyError): pass
         self.remembered = remembered_board(saved.get('remembered'))
+        colors = saved.get('layerColors')
+        if isinstance(colors, dict):
+            for uid, value in list(colors.items())[-REMEMBERED_COLOR_BOARDS:]:
+                try:
+                    if valid_uid(uid): self.layer_colors[uid] = validate_layer_colors(value)
+                except ValueError: pass
         version = saved.get('version', 0)
         if 'config' in saved and type(version) is int and 0 <= version < PREFERENCES_VERSION:
             for migrate in PREFERENCES_MIGRATIONS[version:]: migrate(self.config)
@@ -116,7 +151,7 @@ class HostState:
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(dict(version=PREFERENCES_VERSION, config=self.config, remembered=self.remembered)))
+        temporary.write_text(json.dumps(dict(version=PREFERENCES_VERSION, config=self.config, remembered=self.remembered, layerColors=self.layer_colors)))
         temporary.replace(self.path)
 
     def configure(self, config, revision):
@@ -131,6 +166,29 @@ class HostState:
                 raise
             self.revision += 1
             return self.revision
+
+    def with_layer_colors(self, board):
+        """The board with the layer colors Keybard last sent for it, if any."""
+        with self.lock:
+            colors = self.layer_colors.get(board.get('uid'))
+            if colors is not None: board['cosmetic'] = dict(board.get('cosmetic', {}), layer_colors=dict(colors))
+            return board
+
+    def set_layer_colors(self, uid, colors):
+        """Keybard sent a board's layer colors: keep them for that board, and show them if it's this one."""
+        if not valid_uid(uid): raise ValueError('Invalid board UID')
+        colors = validate_layer_colors(colors)
+        with self.lock:
+            if self.layer_colors.get(uid) == colors: return False
+            self.layer_colors.pop(uid, None)
+            self.layer_colors[uid] = colors
+            while len(self.layer_colors) > REMEMBERED_COLOR_BOARDS: self.layer_colors.pop(next(iter(self.layer_colors)))
+            try: self.save()
+            except OSError: pass  # kept in memory; saved with the next change
+            if self.board is not None and self.board.get('uid') == uid:
+                self.with_layer_colors(self.board)
+                self.layout_revision += 1
+            return True
 
     def snapshot(self, known_layout=None):
         with self.lock:

@@ -3,6 +3,7 @@
 @media(max-width:760px){.trainer-header{padding:12px;gap:8px;flex-wrap:wrap}.trainer-main{padding:16px}}
 
 .trainer-native-surface{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:transparent}.trainer-native-surface svg{width:100%;height:100%;display:block}
+.trainer-colored-surface{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:transparent;pointer-events:none}
 
 /* Live inside Keybard's existing navigation rail,with independent workspace scrolling. */
 .trainer-shell{display:flex;width:100%;min-width:0;height:100dvh;background:var(--color-kb-gray,#f1f2f2)}

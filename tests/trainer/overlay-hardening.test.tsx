@@ -111,4 +111,14 @@ describe('the overlay applying adaptive contrast', () => {
         rerender(<HostOverlay />);
         expect(plate(container).getAttribute('fill')).toBe('#f5f7f8');
     });
+
+    it('draws the colored style instead, which never adapts to the background', () => {
+        const config = (hostState.current as { config: object }).config;
+        hostState.current = { ...(hostState.current as object), board: { ...board, cosmetic: { layer: {}, layer_colors: { '0': 'purple' } } }, config: { ...config, style: 'colored' } };
+        const { container } = render(<HostOverlay />);
+        expect(container.querySelector('.trainer-native-surface')).toBeNull();
+        expect(container.querySelector('.trainer-colored-surface [data-key-id="0"]')?.getAttribute('data-layer-color')).toBe('purple');
+        send(grid(Math.round(innerWidth / 4), Math.round(innerHeight / 4), 240));
+        expect(container.querySelector('.trainer-colored-surface .bg-kb-purple')).not.toBeNull();
+    });
 });

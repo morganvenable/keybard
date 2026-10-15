@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardInfo } from '@/types/keyboard.types';
-import type { Preferences } from './core';
+import type { ColoredPreferences, Preferences } from './core';
 import { appStorage } from '@/utils/app-storage';
 import { PARANOID } from '@/lib/paranoid';
 
@@ -12,7 +12,8 @@ export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string |
 const REMOTE_KEY = 'keybard-host-remote';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
 function rememberedRemote() { try { return appStorage.getItem(REMOTE_KEY) === '1'; } catch { return false; } }
-export interface HostConfig extends Preferences { highlightPressed: boolean; manualDefault: number; capitalAlphas?: boolean; adaptiveContrast?: boolean }
+/** Hosts before the colored overlay send none of its fields: read them with coloredPreferences(). */
+export interface HostConfig extends Preferences, Partial<ColoredPreferences> { highlightPressed: boolean; manualDefault: number; capitalAlphas?: boolean; adaptiveContrast?: boolean }
 export interface HostSnapshot {
     modifiers?: { shift: boolean; capsLock: boolean } | null;
     apiVersion: number; config: HostConfig; revision: number; layoutRevision: number;
@@ -168,9 +169,57 @@ async function sendHostRefresh(base: string, retried = false): Promise<void> {
     } catch { /* Host not running: nothing to update. */ }
 }
 
+let colorsTimer: ReturnType<typeof setTimeout> | undefined;
+let sentColors = '';
+
+/** The board UID as the Host writes it: the 64-bit value in decimal. Keybard's kbid is the same value in hex. */
+export function hostBoardUid(kbid: string | undefined): string | null {
+    if (!kbid || !/^[\da-f]{1,16}$/i.test(kbid)) return null;
+    return BigInt(`0x${kbid}`).toString();
+}
+
+/**
+ * Tell Keybard Host the connected board's layer colors, for its colored overlay. The Host can't
+ * read them from the board yet, so it keeps what Keybard sends, per board. Sent when a board
+ * connects and whenever a color changes, only where the Host is already in use (as for refresh).
+ * Older Hosts don't know the command and ignore it.
+ */
+export function notifyHostLayerColors(kbid: string | undefined, layerColors: Record<string, string> | undefined): void {
+    const uid = hostBoardUid(kbid);
+    if (!uid || !layerColors) return;
+    const local = servedByHost() || (typeof window !== 'undefined' && !!window.__keybardNativeState);
+    if (!local && (PARANOID || !rememberedRemote())) return;
+    const colors = Object.fromEntries(Object.entries(layerColors).filter(([layer, color]) => /^([12]?\d|3[01])$/.test(layer) && typeof color === 'string' && color.length <= 16));
+    const signature = JSON.stringify([uid, colors]);
+    if (signature === sentColors) return;
+    clearTimeout(colorsTimer);
+    colorsTimer = setTimeout(() => { void sendHostLayerColors(local ? '' : HOST_ORIGIN, uid, colors, signature); }, HOST_REFRESH_DELAY_MS);
+}
+
+async function sendHostLayerColors(base: string, uid: string, colors: Record<string, string>, signature: string, retried = false): Promise<void> {
+    try {
+        if (!refreshToken) {
+            const r = await fetch(`${base}/api/host/bootstrap`, { cache: 'no-store', signal: AbortSignal.timeout(1500) });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (data.apiVersion !== 1) return;
+            refreshToken = data.token;
+        }
+        const r = await fetch(`${base}/api/host/command`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Keybard-Token': refreshToken },
+            body: JSON.stringify({ op: 'layerColors', uid, colors }), signal: AbortSignal.timeout(1500),
+        });
+        if (r.status === 403 && !retried) { refreshToken = ''; return sendHostLayerColors(base, uid, colors, signature, true); }
+        // Sent, or a Host too old to know the command: either way, don't send the same colors again.
+        if (r.ok || r.status === 400) sentColors = signature;
+    } catch { /* Host not running: send again with the next change. */ }
+}
+
 /** Test hook: forget the cached token and host version. */
 export function resetHostRefreshForTests(): void {
     clearTimeout(refreshTimer);
+    clearTimeout(colorsTimer);
     refreshToken = '';
     refreshOp = 'refresh';
+    sentColors = '';
 }

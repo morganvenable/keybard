@@ -25,7 +25,11 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineScript
 from .device.protocol import candidates, hid_backend
 from .device.worker import DeviceWorker
-from .state import DEFAULTS, EFFECTS, PRESETS, HostState, serialize_profile
+from .state import COLORED_LOOKS, DEFAULTS, EFFECTS, PRESETS, HostState, serialize_profile
+
+# The Style menu's entry for the colored overlay, and its key-color choices.
+KEYBARD_COLORS = 'Keybard colors'
+COLOR_BY_CHOICES = {'Source layer': 'source', 'Active layer': 'active'}
 from .colors import ColorsPanel
 from .modifiers import ModifierReader
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server
@@ -427,8 +431,13 @@ class Host(QObject):
                 actions[name] = action
             return menu, actions
         # A style sets the colors; the outline shadow (halo) is its own toggle and survives a style change.
-        self.style_menu, self.style_actions = choices('Style', PRESETS,
-            lambda n: self.set_config(appearance=dict(PRESETS[n], halo=self.state.config['appearance']['halo'])))
+        # Keybard colors draws the layout the way Keybard's editor does; a see-through preset switches back.
+        self.style_menu, self.style_actions = choices('Style', (*PRESETS, KEYBARD_COLORS), self.choose_style)
+        self.style_menu.insertSeparator(self.style_actions[KEYBARD_COLORS])
+        self.look_menu, self.look_actions = choices('Keybard colors look', COLORED_LOOKS,
+            lambda n: self.set_config(style='colored', coloredLook=COLORED_LOOKS[n]))
+        self.color_by_menu, self.color_by_actions = choices('Key colors', COLOR_BY_CHOICES,
+            lambda n: self.set_config(style='colored', colorBy=COLOR_BY_CHOICES[n]))
         self.halo_action = QAction('Outline shadow', self, checkable=True)
         self.halo_action.setToolTip('A contrasting shadow around legends and key outlines, readable on any background')
         self.halo_action.triggered.connect(lambda value: self.set_config(appearance=dict(self.state.config['appearance'], halo=value)))
@@ -440,10 +449,14 @@ class Host(QObject):
         self.held_action = QAction('Highlight held keys', self, checkable=True)
         self.held_action.triggered.connect(lambda value: self.set_config(highlightPressed=value))
 
+    def choose_style(self, name):
+        if name == KEYBARD_COLORS: return self.set_config(style='colored')
+        self.set_config(style='see-through', appearance=dict(PRESETS[name], halo=self.state.config['appearance']['halo']))
+
     def add_settings(self, menu):
         menu.addMenu(self.board_menu)
         menu.addSeparator()
-        for item in (self.style_menu, self.halo_action, self.colors_action, self.highlight_menu, self.held_action, self.hands_menu):
+        for item in (self.style_menu, self.look_menu, self.color_by_menu, self.halo_action, self.colors_action, self.highlight_menu, self.held_action, self.hands_menu):
             menu.addAction(item) if isinstance(item, QAction) else menu.addMenu(item)
 
     def open_colors(self):
@@ -490,7 +503,11 @@ class Host(QObject):
         self.controls.adaptive.setChecked(self.state.config['adaptiveContrast'])
         config = self.state.config
         colors = {k: v for k, v in config['appearance'].items() if k != 'halo'}
-        for name, action in self.style_actions.items(): action.setChecked(colors == {k: v for k, v in PRESETS[name].items() if k != 'halo'})
+        colored = config['style'] == 'colored'
+        for name, action in self.style_actions.items():
+            action.setChecked(colored if name == KEYBARD_COLORS else not colored and colors == {k: v for k, v in PRESETS[name].items() if k != 'halo'})
+        for name, action in self.look_actions.items(): action.setChecked(config['coloredLook'] == COLORED_LOOKS[name])
+        for name, action in self.color_by_actions.items(): action.setChecked(config['colorBy'] == COLOR_BY_CHOICES[name])
         self.halo_action.setChecked(config['appearance']['halo'])
         if getattr(self, 'colors_panel', None) is not None and self.colors_panel.isVisible(): self.colors_panel.refresh()
         for name, action in self.highlight_actions.items(): action.setChecked(config['effect'] == EFFECTS[name]['effect'])
@@ -576,7 +593,7 @@ class Host(QObject):
     def profile(self, profile):
         if self.sender() is not self.worker: return
         with self.state.lock:
-            self.state.board = serialize_profile(profile); self.state.layout_revision += 1
+            self.state.board = self.state.with_layer_colors(serialize_profile(profile)); self.state.layout_revision += 1
             self.state.board['name'] = self.selected.get('product_string') or profile.name
             serial = self.selected.get('serial_number')
             if serial:

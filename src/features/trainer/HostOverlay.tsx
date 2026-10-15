@@ -2,11 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import { useHost } from './host';
 import { surfaceKeys } from './useSurfaceKeys';
-import type { Appearance } from './core';
+import { coloredPreferences, COLORED_LOOKS, type Appearance, type ColoredLook } from './core';
+import { ColoredSurface } from './ColoredSurface';
 import { adaptKeys, keyPad, type Backdrop } from './adaptiveContrast';
 import './trainer.css';
+/** For reviewing the colored looks without the Host's menu: ?hostOverlay=1&coloredLook=raised. */
+function lookFromUrl(): ColoredLook | undefined {
+    const look = new URLSearchParams(window.location.search).get('coloredLook');
+    return COLORED_LOOKS.includes(look as ColoredLook) ? look as ColoredLook : undefined;
+}
 export default function HostOverlay() {
     const { state } = useHost();
+    const colored = coloredPreferences(state?.config);
+    const isColored = colored.style === 'colored';
     const [changed, setChanged] = useState<Set<number>>(new Set());
     const previous = useRef<SurfaceKey[]>([]);
     const keys = useMemo(() => {
@@ -19,7 +27,8 @@ export default function HostOverlay() {
         document.body.style.margin = '0'; document.body.style.overflow = 'hidden';
     }, []);
     // Adaptive contrast: the Host sends what's under the overlay; restyle each key for the background around it.
-    const adaptive = state?.config.adaptiveContrast === true;
+    // The colored style draws its own key colors, so it never adapts to the background.
+    const adaptive = state?.config.adaptiveContrast === true && !isColored;
     const appearance = state?.config.appearance;
     const [keyAppearance, setKeyAppearance] = useState<Map<number, Appearance>>();
     const darkLegend = useRef(new Map<number, boolean>());
@@ -62,6 +71,11 @@ export default function HostOverlay() {
         return () => clearTimeout(timer);
     }, [bindingSignature, state?.config.duration]);
     if (!state?.valid || !keys.length || !state.visible) return null;
+    if (isColored) return <ColoredSurface keys={keys} layerColors={state.board?.cosmetic?.layer_colors} colorBy={colored.colorBy}
+        look={lookFromUrl() ?? colored.coloredLook} opacity={colored.coloredOpacity} active={state.active}
+        defaults={state.default ?? state.config.manualDefault} held={new Set(state.pressed)} changed={changed}
+        effect={state.config.effect} duration={state.config.duration} changedColor={state.config.appearance.changed}
+        hidden={new Set(state.practiceHidden)} layoutId={state.config.layoutId} />;
     return <div className="trainer-native-surface"><OverlaySurface keys={keys} appearance={state.config.appearance}
         effect={state.config.effect} duration={state.config.duration} changed={changed}
         held={new Set(state.pressed)} hidden={new Set(state.practiceHidden)} target={state.practiceTarget ?? undefined}

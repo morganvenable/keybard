@@ -1,6 +1,7 @@
 import { LAYOUTS } from '@/components/Keyboards/layouts';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 import { SVALBOARD_LAYOUT } from '@/constants/svalboard-layout';
+import { colorClasses, isHexColor } from '@/utils/colors';
 
 export interface Appearance {
     fill: string; fillAlpha: number; outline: string; outlineAlpha: number;
@@ -67,4 +68,42 @@ export function geometry(board: KeyboardInfo) {
 export function haloColor(color: string) {
     const channels = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
     return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722 > 127 ? '#000000' : '#ffffff';
+}
+
+/**
+ * The colored overlay: the layout drawn the way the editor draws it, keys filled with layer colors.
+ * `style` picks it over the see-through presets; `colorBy` says which layer's color a key takes;
+ * `coloredLook` is one of the looks offered for review (see COLORED_LOOKS).
+ */
+export const COLORED_LOOKS = ['flat', 'panel', 'raised', 'tilted'] as const;
+export type ColoredLook = typeof COLORED_LOOKS[number];
+export interface ColoredPreferences {
+    style: 'see-through' | 'colored';
+    colorBy: 'source' | 'active';
+    coloredOpacity: number;
+    coloredLook: ColoredLook;
+}
+export const COLORED_DEFAULTS: ColoredPreferences = { style: 'see-through', colorBy: 'source', coloredOpacity: 100, coloredLook: 'flat' };
+/** The colored-overlay fields of a Host config, checked, with defaults for anything missing or invalid (older Hosts send none). */
+export function coloredPreferences(value: unknown): ColoredPreferences {
+    const result = { ...COLORED_DEFAULTS };
+    if (!value || typeof value !== 'object') return result;
+    const data = value as Record<string, unknown>;
+    if (data.style === 'see-through' || data.style === 'colored') result.style = data.style;
+    if (data.colorBy === 'source' || data.colorBy === 'active') result.colorBy = data.colorBy;
+    if (typeof data.coloredOpacity === 'number' && Number.isFinite(data.coloredOpacity)) result.coloredOpacity = Math.max(0, Math.min(100, data.coloredOpacity));
+    if (COLORED_LOOKS.includes(data.coloredLook as ColoredLook)) result.coloredLook = data.coloredLook as ColoredLook;
+    return result;
+}
+/** The highest layer that is on: the editor's "selected layer" for the Active layer coloring. */
+export function topLayer(active: number, defaults: number): number {
+    const mask = (active | defaults) >>> 0;
+    for (let layer = 31; layer >= 0; layer--) if ((mask >>> layer) & 1) return layer;
+    return 0;
+}
+/** The fill a key takes in the colored overlay: a preset layer color name or a "#rrggbb" color. */
+export function keyLayerColor(layerColors: Record<string, string> | undefined, colorBy: ColoredPreferences['colorBy'], sourceLayer: number, active: number, defaults: number): string {
+    const layer = colorBy === 'active' ? topLayer(active, defaults) : sourceLayer;
+    const color = layerColors?.[String(layer)];
+    return isHexColor(color) || (typeof color === 'string' && Object.prototype.hasOwnProperty.call(colorClasses, color)) ? color : 'primary';
 }

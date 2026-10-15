@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
@@ -18,7 +18,7 @@ import { LayoutLibraryProvider } from "./contexts/LayoutLibraryContext";
 import { LayoutSettingsProvider } from "./contexts/LayoutSettingsContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { KeyboardProvider, useKeyboard } from "./contexts/KeyboardContext";
-import { notifyHostLayoutChanged } from "./features/trainer/host";
+import { notifyHostLayerColors, notifyHostLayoutChanged } from "./features/trainer/host";
 
 // Simple page navigation context
 type Page = "main" | "explore" | "proof-sheet";
@@ -44,6 +44,17 @@ const ChangesProviderWithKeyboard = ({ children }: { children: ReactNode }) => {
     const { markAsSaved, getKeyboardSnapshot, isConnected, connectionSessionId, registerTargetChangeGuard, getKeyBlockWriter } = useKeyboard();
     // Once a batch of writes has reached the board, Keybard Host's overlay re-reads it.
     return <ChangesProvider captureSave={() => { const snapshot = getKeyboardSnapshot(); return () => { if (snapshot) markAsSaved(snapshot); notifyHostLayoutChanged(); }; }} canWrite={isConnected} sessionKey={connectionSessionId} registerTargetChangeGuard={registerTargetChangeGuard} keyBlockWriter={getKeyBlockWriter}>{children}</ChangesProvider>;
+};
+
+/** Keybard Host's colored overlay takes the connected board's layer colors from Keybard. */
+const HostLayerColorsSync = () => {
+    const { keyboard, isConnected } = useKeyboard();
+    const colors = keyboard?.cosmetic?.layer_colors;
+    const signature = JSON.stringify(colors ?? null);
+    useEffect(() => {
+        if (isConnected) notifyHostLayerColors(keyboard?.kbid, colors);
+    }, [isConnected, keyboard?.kbid, signature]);
+    return null;
 };
 
 const NavigationProvider = ({ children }: { children: ReactNode }) => {
@@ -109,6 +120,7 @@ function App() {
     return (
         <KeyboardProvider>
             <LoadingOverlay />
+            <HostLayerColorsSync />
             <DeployBadge />
             <ChannelBanner />
             <SettingsProvider>

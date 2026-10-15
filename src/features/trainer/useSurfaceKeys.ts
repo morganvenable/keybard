@@ -39,7 +39,7 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
         const deviceLabel = board.trainerLabels?.[String(binding.code)];
         const needsDeviceLabel = (keycode.startsWith('TD(') && !board.tapdances?.length) ||
             ((binding.code >= 0x7e00 && binding.code <= 0x7fff) && !board.custom_keycodes?.length);
-        return { ...k, ...binding, legend: { keycode, keyContents, ...text, displayLabel: needsDeviceLabel && deviceLabel && keyContents?.type !== 'tapdance' ? deviceLabel : letter }, label: needsDeviceLabel && deviceLabel ? deviceLabel :
+        return { ...k, ...binding, legend: { keycode, keyContents, ...text, editorLabel: needsDeviceLabel && deviceLabel ? deviceLabel : label, displayLabel: needsDeviceLabel && deviceLabel && keyContents?.type !== 'tapdance' ? deviceLabel : letter }, label: needsDeviceLabel && deviceLabel ? deviceLabel :
             [text.topLabel, letter, text.bottomStr].filter(Boolean).join('\n') };
     });
 }
