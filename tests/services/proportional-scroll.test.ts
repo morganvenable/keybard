@@ -19,11 +19,11 @@ describe('proportional scrolling configuration',()=>{
         const service=new PointControlsService(usb as any);expect(await service.load()).toEqual(c);await service.save(c);
         expect(usb.sendSvil).toHaveBeenLastCalledWith(SvilUSB.CMD_SVIL_POINT_TOOLS_SET,[5,9,0,...bytes],{uint8:true});
     });
-    it('round trips files and refuses importing proportional behavior onto v4 firmware',()=>{
+    it('round trips files and skips proportional behavior on v4 firmware',()=>{
         const kb={rows:1,cols:1,layers:1,keymap:[[0x7e00]],feature_flags2:POINT_CONTROL_FLAG,pointing_controls:make(),svil_proto:3,kbid:'01',custom_keycodes:[],macros:[],combos:[],tapdances:[],key_overrides:[],alt_repeat_keys:[],leaders:[]} as KeyboardInfo;
         const imported=fileService.svilToKBINFO(JSON.parse(fileService.kbinfoToSvil(kb)));expect(imported.pointing_controls).toEqual(kb.pointing_controls);
         const old={...kb,pointing_controls:upgradePointControls({version:1,profiles:structuredClone(POINT_DEFAULTS)},4)};
-        expect(prepareImport(imported,old).errors.join(' ')).toContain('Update');
+        const skipped=prepareImport(imported,old);expect(skipped.errors).toEqual([]);expect(skipped.keyboard.pointing_controls).toEqual(old.pointing_controls);
         const upgraded=prepareImport(old,kb);expect(upgraded.errors).toEqual([]);expect(upgraded.keyboard.pointing_controls?.version).toBe(5);
     });
 });

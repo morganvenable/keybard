@@ -631,9 +631,14 @@ export class FileService {
     svilToKBINFO(svil: any): KeyboardInfo {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
+        // Optional: a damaged pointing tools block is dropped, never the whole layout.
         if (svil.pointing_controls !== undefined) {
-            validatePointControls(svil.pointing_controls);
-            kbinfo.pointing_controls = structuredClone(svil.pointing_controls);
+            try {
+                validatePointControls(svil.pointing_controls);
+                kbinfo.pointing_controls = structuredClone(svil.pointing_controls);
+            } catch (e) {
+                console.warn("Skipping damaged pointing tool settings:", e);
+            }
         }
         // Store protocol versions
         kbinfo.svil_proto = svil.sval_protocol || svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
