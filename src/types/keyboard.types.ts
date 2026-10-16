@@ -39,6 +39,7 @@ export interface KeyboardInfo {
     storage_write_failed?: boolean;          // board couldn't save a change since it started: changes will be lost on restart
     keycode_version_reported?: boolean;      // Connected boards: whether GET_INFO reported the numbering (vLaunch on)
     raw_keycode_count?: number;              // Loaded files: keycodes stored as numbers rather than names
+    retired_point_key_count?: number;        // Loaded files: Finer / Coarser keys, loaded as KC_NO
     vial_import?: {                          // Loaded .vil files
         svalboard: boolean;                  // written by Svalboard's Vial firmware
         unassigned_custom_keycodes: number;  // USERnn positions Vial left unassigned (now KC_NO)

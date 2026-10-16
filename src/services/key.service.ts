@@ -1,4 +1,4 @@
-import { hasPointControls, pointKey } from "@/constants/point-controls";
+import { hasPointControls, pointKey, RETIRED_POINT_NAMES } from "@/constants/point-controls";
 // Key service - keycode parsing and stringifying
 import { CODEMAP, KEYMAP, KEYALIASES } from '../constants/keygen';
 // Numbers the tables above for the newest known QMK keycode version on import.
@@ -164,6 +164,7 @@ export class KeyService {
    */
   parse(keystr: KeyString): number {
     if (pointKey(keystr)) return pointKey(keystr)!.code;
+    if (typeof keystr === 'string' && RETIRED_POINT_NAMES.has(keystr)) return 0; // KC_NO
     if (!keystr || keystr === -1 || keystr === 0xff) {
       return 0xff;
     }

@@ -1,7 +1,9 @@
 import { SvilUSB, usbInstance } from './usb.service';
 import { type PointControls, validatePointControls, encodePointControls, decodePointControls } from '@/constants/point-controls';
 
-export interface PointStatus { left: number; right: number; axes: number; locked: boolean; session: boolean; multiplier: number; recognized: number; admitted: number; dropped: number }
+// STATUS format 1. Every pointer follows one set of tool keys, so left and right report the same slot.
+// Byte 6 (the old Finer / Coarser shift) is retired and not read.
+export interface PointStatus { left: number; right: number; axes: number; locked: boolean; session: boolean; recognized: number; admitted: number; dropped: number }
 export class PointControlsService {
     private generation: number | null = null;
     private version = 1;
@@ -45,7 +47,7 @@ export class PointControlsService {
         const r = await this.usb.sendSvil(SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS, [], {uint8: true});
         if (r.length < 20 || r[0] !== SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS || r[1] !== 1) throw new Error('Pointing status is unavailable.');
         const u32 = (n: number) => (r[n] | r[n+1]<<8 | r[n+2]<<16 | r[n+3]<<24) >>> 0;
-        return { left:r[2], right:r[3], axes:r[4], locked:!!r[5], session:!!r[6], multiplier:2 ** r[7] / 2, recognized:u32(8), admitted:u32(12), dropped:u32(16) };
+        return { left:r[2], right:r[3], axes:r[4], locked:!!r[5], session:!!r[6], recognized:u32(8), admitted:u32(12), dropped:u32(16) };
     }
 }
 export const pointControlsService = new PointControlsService(usbInstance);

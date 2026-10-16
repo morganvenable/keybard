@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useId } from 'react';
 import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
-import { POINT_PRESETS, POINT_ACTIONS, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls, pointSideName } from '@/constants/point-controls';
+import { POINT_PRESETS, POINT_ACTIONS, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls } from '@/constants/point-controls';
 import { pointControlsService, type PointStatus } from '@/services/point-controls.service';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
@@ -85,7 +85,7 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
     return <section className={`flex flex-col gap-3 rounded-lg border border-kb-gray-medium p-3 ${compact ? 'w-80' : ''}`} aria-label="Pointing tools tuning">
         <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold">Tool speeds</h3>
-            {isConnected && <Button variant="secondary" size="sm" disabled={stopping} onClick={stop}>Stop all tools</Button>}
+            {isConnected && <Button variant="secondary" size="sm" disabled={stopping} onClick={stop}>Stop tools</Button>}
         </div>
         {needsUpdate && <div role="status" className="rounded border border-kb-gray-medium p-2 text-sm">
             Update the firmware on both halves for these pointing tools, then reconnect. Existing bindings and tuning are kept.
@@ -137,13 +137,12 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         </details>}
         <div className="flex flex-wrap items-center gap-2"><Button variant="secondary" size="sm" disabled={needsUpdate} onClick={resetAll}><RotateCcw size={14}/>Revert all tools to defaults</Button><span className="text-xs text-muted-foreground">{overrideCount ? `${overrideCount} tools differ` : 'All tools match defaults'}</span></div>
         <Button disabled={!dirty || isSaving || needsUpdate} onClick={save}>{isConnected ? isInstant ? 'Save tuning to keyboard' : 'Queue tuning for Apply' : 'Keep tuning in layout'}</Button>
-        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Changes save together on the USB-connected half and in layout exports. Stop active tools before saving.</p>
+        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Both pointers share these tools and speeds. Changes save together on the USB-connected half and in layout exports. Stop active tools before saving.</p>
 
         {status && <div className="text-xs text-muted-foreground" role="status">
-            <p>{pointSideName(0,keyboard)}: {status.left?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.left-1):'Normal'} · {pointSideName(1,keyboard)}: {status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.right-1):'Normal'}</p>
+            <p>Active tool: {status.left||status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),(status.left||status.right)-1):'None'}</p>
             <p>{status.locked ? `Axis lock: ${status.axes === 2 ? 'vertical' : 'horizontal'}` : 'Free scrolling'}{status.session ? ' · Task switcher open' : ''}</p>
             <p>{status.recognized} steps recognized · {status.admitted} actions admitted · {status.dropped} coalesced/dropped</p>
-            {status.multiplier !== 1 && <p>Temporary key adjustment: {status.multiplier}× distance. Saving tuning resets it.</p>}
         </div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </section>;
