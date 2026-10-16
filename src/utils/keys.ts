@@ -197,7 +197,7 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any): any {
 
     const keyid = keyService.parse(keystr);
     const point = hasPointControls(KBINFO) ? pointKey(keyid) : undefined;
-    if (point) {const display=configuredPointKey(point,KBINFO.pointing_controls);return { type:'user', str:display.label, title:display.title, top:display.title };}
+    if (point) {const display=configuredPointKey(point,KBINFO.pointing_controls,KBINFO);return { type:'user', str:display.label, title:display.title, top:display.title };}
 
     if (keyid === 0) {
         const def = keyService.define("KC_NO");

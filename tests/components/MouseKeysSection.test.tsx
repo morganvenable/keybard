@@ -118,9 +118,14 @@ describe('Pointing control key integration', () => {
         render(<MouseKeysSection compact={compact} />);
         const keys = screen.getAllByTestId('key');
         for (const key of keys) expect(key.dataset.size).toBe(compact ? 'h-[30px] w-[30px]' : 'h-[60px] w-[60px]');
-        fireEvent.click(keys.find(key => key.dataset.keycode === 'SV_POINT_R_VOLUME_HOLD')!);
-        expect(preview.assign).toHaveBeenCalledWith('SV_POINT_R_VOLUME_HOLD');
+        fireEvent.click(keys.find(key => key.dataset.keycode === 'SV_POINT_R_TOOL1_HOLD')!);
+        expect(preview.assign).toHaveBeenCalledWith('SV_POINT_R_TOOL1_HOLD');
         fireEvent.click(screen.getByText('Left pointer'));
-        expect(screen.getAllByTestId('key').some(key => key.dataset.keycode === 'SV_POINT_L_TASKS_TOGGLE')).toBe(true);
+        expect(screen.getAllByTestId('key').some(key => key.dataset.keycode === 'SV_POINT_L_TOOL4_TOGGLE')).toBe(true);
+        const codes = screen.getAllByTestId('key').map(key => key.dataset.keycode);
+        expect(screen.getByText('Pointing tools')).toBeTruthy();
+        expect(codes).toEqual(expect.arrayContaining(['SV_POINT_STOP_ALL', 'SV_POINT_FINER', 'SV_POINT_COARSER']));
+        expect(codes).not.toContain('SV_POINT_TRACE');
+        expect(codes.filter(code => code?.startsWith('SV_POINT_RESERVED'))).toEqual([]);
     });
 });

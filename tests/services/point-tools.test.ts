@@ -15,15 +15,15 @@ describe('configurable pointing tools',()=>{
         const next=upgradePointControls(old,4);expect(next.version).toBe(4);
         expect(next.profiles.map(p=>p.action)).toEqual([0,1,2,3]);
         next.profiles.forEach((p,i)=>expect(p).toMatchObject({...old.profiles[i],invertHorizontal:false,invertVertical:false}));
-        expect(configuredPointKey(POINT_KEYS[8],next).title).toBe('Hold Tool 1 · Volume · Right pointer');
-        expect(configuredPointKey(POINT_KEYS[8],next).label).toBe('Vol1\nHold');
-        expect(configuredPointKey(POINT_KEYS[9],next).label).toBe('Vol1\nTG');
+        expect(configuredPointKey(POINT_KEYS[8],next).title).toBe('Right pointer: Volume (hold)');
+        expect(configuredPointKey(POINT_KEYS[8],next).label).toBe('R Vol\nHold');
+        expect(configuredPointKey(POINT_KEYS[9],next).label).toBe('R Vol\nTG');
     });
     it('round trips every preset and inversion pair in all four slots',()=>{
         for(let slot=0;slot<4;slot++)for(let action=0;action<7;action++)for(let flags=0;flags<4;flags++){
             const c=config();Object.assign(c.profiles[slot],{action,invertHorizontal:!!(flags&1),invertVertical:!!(flags&2)});
             const bytes=encodePointControls(c);expect(bytes).toHaveLength(19);
-            expect(configuredPointKey(POINT_KEYS[slot*2],c).label.split('\n')[0].length).toBeLessThanOrEqual(4);
+            expect(configuredPointKey(POINT_KEYS[slot*2],c).label.split('\n')[0].length).toBeLessThanOrEqual(5);
             expect(decodePointControls(bytes,4)).toEqual(c);
         }
         expect(encodePointControls(config()).slice(16)).toEqual([32,136,1]);
@@ -43,7 +43,7 @@ describe('configurable pointing tools',()=>{
     });
     it('preserves bindings and custom tools in files and skips them on older firmware',()=>{
         const kb=keyboard();kb.pointing_controls!.profiles[0].action=4;kb.pointing_controls!.profiles[0].invertVertical=true;
-        expect(getKeyContents(kb,'SV_POINT_R_VOLUME_HOLD').title).toBe('Hold Tool 1 · Zoom · Right pointer');
+        expect(getKeyContents(kb,'SV_POINT_R_VOLUME_HOLD').title).toBe('Right pointer: Zoom (hold)');
         const imported=fileService.svilToKBINFO(JSON.parse(fileService.kbinfoToSvil(kb)));
         expect(imported.pointing_controls).toEqual(kb.pointing_controls);expect(imported.keymap).toEqual(kb.keymap);
         const old={...kb,pointing_controls:upgradePointControls({version:1,profiles:structuredClone(POINT_DEFAULTS)},3)};
