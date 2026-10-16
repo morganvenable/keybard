@@ -7,10 +7,18 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-/** Shared by the pointing sidebar and bottom bar; never emits motion on selection. */
+/** How long a run of edits (a slider drag, typing a number) settles before it is written. */
+export const POINT_WRITE_DELAY_MS = 300;
+
+/**
+ * Shared by the pointing sidebar and bottom bar; never emits motion on selection.
+ * Edits follow the same save model as every other setting: each settled edit goes
+ * into the keyboard state and the change queue, which writes it at once with Live
+ * Updating on and waits for Apply with it off.
+ */
 export default function PointControlSettings({ compact }: { compact?: boolean }) {
     const { keyboard, setKeyboard, isConnected, connectionSessionId } = useKeyboard();
-    const { queue, isInstant, isSaving } = useChanges();
+    const { queue } = useChanges();
     const [index, setIndex] = useState(-1);
     const [draft, setDraft] = useState<PointControls | null>(null);
     const [status, setStatus] = useState<PointStatus | null>(null);
@@ -19,10 +27,28 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
     const deadZoneId = useId();
     const session = useRef(connectionSessionId);
     session.current = connectionSessionId;
+    const draftRef = useRef<PointControls | null>(null);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const writeRef = useRef<() => void>(() => {});
+    writeRef.current = () => {
+        timer.current = null;
+        const value = draftRef.current && structuredClone(draftRef.current);
+        if (!value || !keyboard?.pointing_controls) return;
+        if (JSON.stringify(value) === JSON.stringify(upgradePointControls(keyboard.pointing_controls))) { setError(''); return; }
+        try { validatePointControls(value); } catch (e) { setError((e as Error).message); return; }
+        setError('');
+        setKeyboard(current => current ? {...current, pointing_controls: value} : current);
+        if (isConnected) void queue('Pointing tools settings', () => pointControlsService.save(value), {type:'setting', writeKey:'pointing-controls'});
+    };
     useEffect(() => {
-        setDraft(keyboard?.pointing_controls ? upgradePointControls(keyboard.pointing_controls) : null);
+        if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+        const next = keyboard?.pointing_controls ? upgradePointControls(keyboard.pointing_controls) : null;
+        draftRef.current = next;
+        setDraft(next);
         setError('');
     }, [keyboard?.pointing_controls, connectionSessionId]);
+    // Leaving the panel mid-edit still records the edit.
+    useEffect(() => () => { if (timer.current) { clearTimeout(timer.current); writeRef.current(); } }, []);
     useEffect(() => {
         setStatus(null);
         setStopping(false);
@@ -38,13 +64,6 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         return () => { cancelled = true; clearTimeout(timer); };
     }, [isConnected, connectionSessionId, keyboard?.feature_flags2]);
     if (!draft || !keyboard?.pointing_controls) return null;
-    const save = async () => {
-        const value = structuredClone(draft);
-        try { validatePointControls(value); } catch (e) { setError((e as Error).message); return; }
-        setError('');
-        setKeyboard(current => current ? {...current, pointing_controls: value} : current);
-        await queue('Pointing tools settings', () => pointControlsService.save(value), {type:'setting', writeKey:'pointing-controls'});
-    };
     const stop = async () => {
         const targetSession = session.current;
         setStopping(true); setError('');
@@ -53,11 +72,15 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         finally { if (session.current === targetSession) setStopping(false); }
     };
     const needsUpdate = isConnected && keyboard.pointing_controls.version !== 5;
-    const dirty = JSON.stringify(draft) !== JSON.stringify(upgradePointControls(keyboard.pointing_controls));
     const toolName = (i:number) => pointSlotName(draft,i);
     const current = index < 0 ? draft.defaults! : effectiveSpeed(draft,index);
     const inherited = index >= 0 && (draft.universal || draft.profiles[index].useDefaults);
-    const change = (edit: (next:PointControls)=>void) => {const next=structuredClone(draft);edit(next);setDraft(next);};
+    const change = (edit: (next:PointControls)=>void) => {
+        const next=structuredClone(draftRef.current ?? draft);edit(next);
+        draftRef.current=next;setDraft(next);
+        if(timer.current)clearTimeout(timer.current);
+        timer.current=setTimeout(()=>writeRef.current(),POINT_WRITE_DELAY_MS);
+    };
     const setSpeed = (axis:'horizontal'|'vertical', value:number) => change(next=>{
         const speed=index<0?next.defaults!:next.profiles[index].speed!;
         speed[axis]=value;if(speed.linked)speed[axis==='horizontal'?'vertical':'horizontal']=value;
@@ -102,7 +125,7 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
                     {POINT_ACTIONS.map((action,i)=><option key={i} value={i}>{action.name}</option>)}
                 </select>
             </label>
-            <p className="text-xs text-muted-foreground">Bindings stay with this tool slot. Changing its action keeps its speeds and rate; keys update their labels when you save.</p>
+            <p className="text-xs text-muted-foreground">Bindings stay with this tool slot. Changing its action keeps its speeds and rate; keys update their labels to match.</p>
             <div className="flex flex-wrap gap-3 text-sm">
                 <label><input type="checkbox" disabled={needsUpdate} checked={draft.profiles[index].invertHorizontal} onChange={e=>change(next=>{next.profiles[index].invertHorizontal=e.target.checked;})}/> Reverse horizontal direction</label>
                 <label><input type="checkbox" disabled={needsUpdate} checked={draft.profiles[index].invertVertical} onChange={e=>change(next=>{next.profiles[index].invertVertical=e.target.checked;})}/> Reverse vertical direction</label>
@@ -136,8 +159,7 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
             <label className="text-sm">Reversal tolerance<Input type="number" min={1} max={64} disabled={needsUpdate} value={draft.profiles[index].reversal} onChange={e=>change(next=>{next.profiles[index].reversal=Number(e.target.value);})}/></label>
         </details>}
         <div className="flex flex-wrap items-center gap-2"><Button variant="secondary" size="sm" disabled={needsUpdate} onClick={resetAll}><RotateCcw size={14}/>Revert all tools to defaults</Button><span className="text-xs text-muted-foreground">{overrideCount ? `${overrideCount} tools differ` : 'All tools match defaults'}</span></div>
-        <Button disabled={!dirty || isSaving || needsUpdate} onClick={save}>{isConnected ? isInstant ? 'Save tuning to keyboard' : 'Queue tuning for Apply' : 'Keep tuning in layout'}</Button>
-        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Both pointers share these tools and speeds. Changes save together on the USB-connected half and in layout exports. Stop active tools before saving.</p>
+        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Both pointers share these tools and speeds. Changes save like every other setting, on the USB-connected half and in layout exports. Stop active tools before changing them.</p>
 
         {status && <div className="text-xs text-muted-foreground" role="status">
             <p>Active tool: {status.left||status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),(status.left||status.right)-1):'None'}</p>

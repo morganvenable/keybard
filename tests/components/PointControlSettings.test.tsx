@@ -8,7 +8,7 @@ vi.mock('@/contexts/KeyboardContext',()=>({useKeyboard:()=>state}));
 vi.mock('@/contexts/ChangesContext',()=>({useChanges:()=>({queue:state.queue,isInstant:false,isSaving:false})}));
 vi.mock('@/services/point-controls.service',()=>({pointControlsService:{save:state.save,stop:state.stop,status:state.status}}));
 beforeEach(()=>{
-    vi.clearAllMocks();state.isConnected=true;
+    vi.clearAllMocks();seen=0;state.isConnected=true;
     const config=upgradePointControls({version:1,profiles:structuredClone(POINT_DEFAULTS)});
     config.universal=true;config.profiles.forEach(p=>{p.useDefaults=true;p.interval=0;});
     state.keyboard={feature_flags2:POINT_CONTROL_FLAG,pointing_controls:config};
@@ -18,7 +18,9 @@ beforeEach(()=>{
 afterEach(cleanup);
 const slide=(label:string,value:number)=>fireEvent.change(screen.getByLabelText(label),{target:{value:String(value)}});
 const check=(label:string)=>fireEvent.click(screen.getByLabelText(label));
-async function save(){fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));await waitFor(()=>expect(state.queue).toHaveBeenCalled());return state.setKeyboard.mock.calls.at(-1)![0](state.keyboard).pointing_controls;}
+// Edits settle on their own (no save button): wait for the next queued write.
+let seen=0;
+async function save(){await waitFor(()=>expect(state.queue.mock.calls.length).toBeGreaterThan(seen));seen=state.queue.mock.calls.length;return state.setKeyboard.mock.calls.at(-1)![0](state.keyboard).pointing_controls;}
 describe('shared pointing speeds',()=>{
     it.each([false,true])('links axes and queues the complete configuration, compact=%s',async compact=>{
         render(<PointControlSettings compact={compact}/>);slide('Vertical speed',45);
@@ -52,7 +54,7 @@ describe('shared pointing speeds',()=>{
         expect(screen.queryByText(/Left|Right|Temporary key adjustment/)).toBeNull();
     });
     it('rejects invalid advanced limits and stops controls immediately',async()=>{
-        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop tools'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
+        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop tools'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
     });
 });
 
@@ -87,4 +89,47 @@ it.each([false,true])('exposes proportional dead zone, independent speeds and wh
     check('Limit Tool 1 · Proportional scroll speed');
     slide('Tool 1 · Proportional scroll maximum wheel steps / second (per axis)',25);
     const value=await save();expect(value.profiles[0]).toMatchObject({action:7,reversal:1,interval:40,speed:{horizontal:45,vertical:36,linked:false}});
+});
+
+describe('save model: the same as every other setting',()=>{
+    it('has no separate save button',()=>{
+        render(<PointControlSettings/>);
+        expect(screen.queryByRole('button',{name:/Save tuning|Queue tuning|Keep tuning/})).toBeNull();
+    });
+    it('turns a slider drag into one queued write once it settles',async()=>{
+        render(<PointControlSettings/>);
+        for(const v of [37,40,44,48])slide('Horizontal speed',v);
+        expect(state.queue).not.toHaveBeenCalled();
+        const value=await save();expect(value.defaults).toEqual({horizontal:48,vertical:48,linked:true});
+        expect(state.queue).toHaveBeenCalledOnce();
+        expect(state.queue.mock.calls[0][0]).toBe('Pointing tools settings');
+        expect(state.queue.mock.calls[0][2]).toEqual({type:'setting',writeKey:'pointing-controls'});
+    });
+    it.each([
+        ['tool action',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 2 · Arrows'}));slide('Tool 2 action',4);},(v:any)=>expect(v.profiles[1].action).toBe(4)],
+        ['rate limit',()=>check('Limit Tool 3 · Tabs action rate'),(v:any)=>expect(v.profiles[2].interval).toBe(80)],
+        ['reverse direction',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));check('Reverse horizontal direction');},(v:any)=>expect(v.profiles[0].invertHorizontal).toBe(true)],
+        ['dead zone',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Tool 1 action',7);slide('Center dead zone',12);},(v:any)=>expect(v.profiles[0]).toMatchObject({action:7,reversal:13})],
+    ])('queues a %s change with no extra step',async(_,act,verify)=>{
+        render(<PointControlSettings/>);act();
+        const value=await save();verify(value);
+        await state.queue.mock.calls.at(-1)![1]();expect(state.save).toHaveBeenCalledWith(value);
+    });
+    it('keeps an edit when the panel closes before it settles',()=>{
+        const {unmount}=render(<PointControlSettings/>);slide('Horizontal speed',50);
+        unmount();
+        expect(state.queue).toHaveBeenCalledOnce();
+        expect(state.setKeyboard.mock.calls.at(-1)![0](state.keyboard).pointing_controls.defaults.horizontal).toBe(50);
+    });
+    it('keeps tuning in the layout without queueing a board write while disconnected',async()=>{
+        state.isConnected=false;render(<PointControlSettings/>);slide('Horizontal speed',50);
+        await waitFor(()=>expect(state.setKeyboard).toHaveBeenCalled());
+        expect(state.setKeyboard.mock.calls.at(-1)![0](state.keyboard).pointing_controls.defaults.horizontal).toBe(50);
+        expect(state.queue).not.toHaveBeenCalled();
+    });
+    it('writes nothing when an edit is undone before it settles',async()=>{
+        render(<PointControlSettings/>);slide('Horizontal speed',50);slide('Horizontal speed',36);
+        await new Promise(r=>setTimeout(r,450));
+        expect(state.queue).not.toHaveBeenCalled();expect(state.setKeyboard).not.toHaveBeenCalled();
+    });
 });
