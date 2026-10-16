@@ -63,8 +63,8 @@ export const POINT_KEYS: PointKey[] = [
     { code: 0x7e10, name: 'SV_POINT_STOP_ALL', label: 'Stop\nall', title: 'Stop all pointing tools and cancel task switching', side: -1 },
     // Diagnostic: the code stays reserved, Keybard doesn't offer it.
     { code: 0x7e11, name: 'SV_POINT_TRACE', label: 'Point\ntrace', title: 'Print pointing tool counters to the console', side: -1, hidden: true },
-    { code: 0x7e12, name: 'SV_POINT_FINER', label: 'Point\nfiner', title: 'Halve the travel per step until the next save', side: -1 },
-    { code: 0x7e13, name: 'SV_POINT_COARSER', label: 'Point\ncoarser', title: 'Double the travel per step until the next save', side: -1 },
+    { code: 0x7e12, name: 'SV_POINT_FINER', label: 'Step\n½', title: 'Finer: halve the travel per step until the next save', side: -1 },
+    { code: 0x7e13, name: 'SV_POINT_COARSER', label: 'Step\n×2', title: 'Coarser: double the travel per step until the next save', side: -1 },
     // Reserved for later pointing tools keys; the board swallows them.
     ...Array.from({length: POINT_BLOCK_LAST - 0x7e13}, (_, i) => {
         const code = 0x7e14 + i;
