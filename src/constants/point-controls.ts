@@ -13,7 +13,7 @@ export const POINT_ACTIONS = [
     {name:'Volume', short:'Vol', description:'Vertical: up increases volume, down decreases it. Standard consumer HID. Waits while a keyboard modifier is held.'},
     {name:'Arrows', short:'Arr', description:'Both axes: left/right/up/down arrow keys. Held Shift and Ctrl carry through: Shift selects, Ctrl jumps by word.'},
     {name:'Tabs', short:'Tab', description:'Horizontal: left sends Ctrl+Shift+Tab; right sends Ctrl+Tab. On macOS, Command+Shift+[ / Command+Shift+].'},
-    {name:'Tasks', short:'Tsk', description:'Horizontal: Alt+Shift+Tab / Alt+Tab. Release or Enter accepts; Escape cancels. On macOS, Command+Tab.'},
+    {name:'Tasks', short:'Tsk', description:'Horizontal: Alt+Shift+Tab / Alt+Tab. Release or Enter accepts; Escape cancels. On macOS, Command+Shift+Tab / Command+Tab.'},
     {name:'Zoom', short:'Zm', description:'Vertical: up sends Ctrl+= (zoom in); down sends Ctrl+- (zoom out). On macOS, Command+= / Command+-. Browser/app zoom, US keyboard layout.'},
     {name:'Undo / Redo', short:'Un', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Shift+Z (redo). On macOS, Command+Z / Command+Shift+Z. Choose the Ctrl+Y preset if your app needs it.'},
     {name:'Undo / Redo (Ctrl+Y)', short:'UnY', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Y (redo). On macOS, Command+Z / Command+Y. Windows app preset.'},
