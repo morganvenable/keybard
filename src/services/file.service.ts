@@ -1,3 +1,4 @@
+import { validatePointControls, hasPointControls, pointKey, RETIRED_POINT_NAMES } from "@/constants/point-controls";
 import type { CustomValueEntry, KeyboardInfo } from "../types/keyboard.types";
 import { ComboOptions } from "../types/keyboard.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
@@ -41,6 +42,18 @@ function countRawKeycodes(js: any): number {
         else if (value && typeof value === "object") Object.values(value).forEach(visit);
     };
     for (const layer of js.layout ?? []) for (const row of layer) for (const key of row) if (typeof key === "number" && key > 0) count++;
+    for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
+    return count;
+}
+
+/** Finer / Coarser keys in a layout file; they load as KC_NO. */
+function countRetiredPointKeys(js: any): number {
+    let count = 0;
+    const visit = (value: unknown): void => {
+        if (typeof value === "string") { if (RETIRED_POINT_NAMES.has(value)) count++; }
+        else if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") Object.values(value).forEach(visit);
+    };
     for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
     return count;
 }
@@ -219,6 +232,8 @@ export class FileService {
         // numbering the file was written in; the import check warns when it differs.
         kbinfo.keycode_version = typeof js.keycode_version === "string" ? js.keycode_version : undefined;
         kbinfo.raw_keycode_count = countRawKeycodes(js);
+        const retiredPointKeys = countRetiredPointKeys(js);
+        if (retiredPointKeys) kbinfo.retired_point_key_count = retiredPointKeys;
 
         // Restore precise UID (JSON.parse loses precision on large integers)
         if (rawUidStr && kbinfo) {
@@ -321,7 +336,8 @@ export class FileService {
                 for (let r = 0; r < kbinfo.rows; r++) {
                     const rowArr: string[] = [];
                     for (let c = 0; c < kbinfo.cols; c++) {
-                        rowArr.push(keyService.stringify(km[(r * kbinfo.cols) + c]));
+                        const code = km[(r * kbinfo.cols) + c];
+                        rowArr.push(hasPointControls(kbinfo) && pointKey(code) ? pointKey(code)!.name : keyService.stringify(code));
                     }
                     layerArr.push(rowArr);
                 }
@@ -418,6 +434,10 @@ export class FileService {
             settings: kbinfo.settings || {},
         };
 
+        if (kbinfo.pointing_controls) {
+            validatePointControls(kbinfo.pointing_controls);
+            svil.pointing_controls = structuredClone(kbinfo.pointing_controls);
+        }
         // Only include oneshot if present
         if (oneshot) {
             svil.oneshot = oneshot;
@@ -633,6 +653,15 @@ export class FileService {
     svilToKBINFO(svil: any): KeyboardInfo {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
+        // Optional: a damaged pointing tools block is dropped, never the whole layout.
+        if (svil.pointing_controls !== undefined) {
+            try {
+                validatePointControls(svil.pointing_controls);
+                kbinfo.pointing_controls = structuredClone(svil.pointing_controls);
+            } catch (e) {
+                console.warn("Skipping damaged pointing tool settings:", e);
+            }
+        }
         // Store protocol versions
         kbinfo.svil_proto = svil.sval_protocol || svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
         kbinfo.via_proto = svil.via_protocol || 12;

@@ -1,3 +1,4 @@
+import { isPointCode, pointKey, supportsPointControls, validatePointControls, upgradePointControls } from "@/constants/point-controls";
 import type { KeyboardInfo } from '../types/keyboard.types';
 import { customValueService } from './custom-value.service';
 import { MacroService } from './macro.service';
@@ -26,6 +27,20 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
     if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
     const next = structuredClone(current);
+    // Pointing tool settings are optional: when the board can't take them, the rest of the
+    // layout still imports and the tool settings are left as they are on the board.
+    if (file.pointing_controls) {
+        let valid = true;
+        try { validatePointControls(file.pointing_controls); } catch { valid = false; }
+        const keys = (file.keymap ?? []).flat(2).filter(isPointCode).length;
+        if (!valid) warnings.push('The pointing tool settings in this file are damaged, so they are skipped. The rest of the layout imports normally.');
+        else if (!supportsPointControls(current)) warnings.push(`This keyboard's firmware has no pointing tools, so the file's pointing tool settings are skipped.${keys ? ` Its ${keys} pointing tool key${keys === 1 ? '' : 's'} will do nothing until you install firmware with pointing tools.` : ''}`);
+        else if (!current.pointing_controls || file.pointing_controls.version > current.pointing_controls.version) warnings.push('The keyboard did not report pointing tool settings this file can update, so they are skipped. Reconnect the keyboard, or update its firmware, and import again to bring them over.');
+        else { next.pointing_controls = current.pointing_controls.version >= 3 ? upgradePointControls(file.pointing_controls, current.pointing_controls.version as 3|4|5) : structuredClone(file.pointing_controls); summary.push('Pointing tool settings'); }
+    }
+    if (file.retired_point_key_count) warnings.push(`${file.retired_point_key_count} Finer / Coarser key${file.retired_point_key_count === 1 ? ' is' : 's are'} no longer available and will be set to KC_NO. Set the travel per step with the Tool speeds sliders instead.`);
+    const retiredCodes = (file.keymap ?? []).flat(2).filter(code => pointKey(code)?.name.startsWith('SV_POINT_RETIRED_')).length;
+    if (retiredCodes && supportsPointControls(current)) warnings.push(`${retiredCodes} key${retiredCodes === 1 ? ' uses' : 's use'} a retired pointing tools code that does nothing. Bind ${retiredCodes === 1 ? 'it' : 'them'} to a tool key again after importing.`);
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
     if ((file.layers ?? 0) > (current.layers ?? 0)) errors.push(`The file has ${file.layers} layers; this keyboard supports ${current.layers}.`);
     if (file.kbid && current.kbid && file.kbid.toLowerCase() !== current.kbid.toLowerCase()) warnings.push('This file identifies a different keyboard. Matching dimensions do not guarantee matching physical key positions.');

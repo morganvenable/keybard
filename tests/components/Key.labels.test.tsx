@@ -52,3 +52,24 @@ describe('Key: sniper/boost toggle labels fit at every key size', () => {
         expect(el.style.whiteSpace).toBe('pre-line');
     });
 });
+
+describe('Key: pointing tool caps spell their words out and fit small keys', () => {
+    const cap = (variant: Variant, keycode: string, label: string) => {
+        const { container } = render(
+            <Key x={0} y={0} w={1} h={1} row={0} col={0} keycode={keycode} label={label} keyContents={{ type: 'user', str: label }}
+                 forceLabel isRelative variant={variant} disableTooltip />
+        );
+        return [...container.querySelectorAll<HTMLElement>('div')].find(el => el.textContent === label && el.children.length === 0)!;
+    };
+    it('scales a small key cap below the shrink size so "VOLUME / TOGGLE" stays inside the key', () => {
+        const size = parseFloat(cap('small', 'SV_POINT_TOOL1_TOGGLE', 'VOLUME\nTOGGLE').style.fontSize);
+        expect(size).toBeGreaterThan(4);
+        expect(size).toBeLessThan(9.6);
+    });
+    it('gives HOLD and TOGGLE caps the same size on small keys', () => {
+        expect(cap('small', 'SV_POINT_TOOL3_HOLD', 'TABS\nHOLD').style.fontSize).toBe(cap('small', 'SV_POINT_TOOL3_TOGGLE', 'TABS\nTOGGLE').style.fontSize);
+    });
+    it('leaves medium keys at the shrink size', () => {
+        expect(cap('medium', 'SV_POINT_TOOL1_HOLD', 'VOLUME\nHOLD').style.fontSize).toBe('0.6rem');
+    });
+});

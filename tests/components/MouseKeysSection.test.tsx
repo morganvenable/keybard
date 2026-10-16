@@ -1,18 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { POINT_CONTROL_FLAG } from '@/constants/point-controls';
+import { render, screen, fireEvent } from '@testing-library/react';
 import MouseKeysSection from '../../src/layout/SecondarySidebar/Panels/MouseKeysSection';
 
 // The section must size every key row from one effectiveVariant, so the keys
 // are stubbed to expose exactly the props that control sizing.
+const preview = vi.hoisted(() => ({ keyboard: null as any, target: null as any, assign: vi.fn() }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/PointControlSettings', () => ({ default: () => null }));
 const layoutSettings = { keyVariant: 'default' as 'small' | 'medium' | 'default', layoutMode: 'sidebar' };
 
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
-vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: null }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: preview.keyboard }) }));
 vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
-vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: vi.fn() }) }));
+vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: preview.assign, selectedTarget: preview.target }) }));
 vi.mock('@/components/Key', () => ({
-    Key: ({ keycode, variant, className }: { keycode: string; variant?: string; className?: string }) => (
-        <div data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} />
+    Key: ({ keycode, variant, className, onClick }: { onClick?: () => void; keycode: string; variant?: string; className?: string }) => (
+        <div onClick={onClick} data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} />
     ),
 }));
 
@@ -43,6 +46,7 @@ function expectUniformSizing(expectedVariant: string, expectedSize: string) {
 describe('MouseKeysSection: mouse buttons, sniper and boost rows size identically', () => {
     beforeEach(() => {
         layoutSettings.keyVariant = 'default';
+        preview.keyboard = null; preview.target = null; preview.assign.mockClear();
     });
 
     it('renders the Boost row alongside Mouse Buttons and Sniper Keys', () => {
@@ -70,5 +74,25 @@ describe('MouseKeysSection: mouse buttons, sniper and boost rows size identicall
     it('compact without an override drops every row to small', () => {
         render(<MouseKeysSection compact />);
         expectUniformSizing('small', 'h-[30px] w-[30px]');
+    });
+});
+
+describe('Pointing control key integration', () => {
+    it.each([false, true])('sizes and assigns physical control keys (compact=%s)', compact => {
+        preview.keyboard = { feature_flags2:POINT_CONTROL_FLAG };
+        preview.target = { type: 'keyboard' };
+        render(<MouseKeysSection compact={compact} />);
+        const keys = screen.getAllByTestId('key');
+        for (const key of keys) expect(key.dataset.size).toBe(compact ? 'h-[30px] w-[30px]' : 'h-[60px] w-[60px]');
+        fireEvent.click(keys.find(key => key.dataset.keycode === 'SV_POINT_TOOL1_HOLD')!);
+        expect(preview.assign).toHaveBeenCalledWith('SV_POINT_TOOL1_HOLD');
+        // One shared set of tool keys: no Left / Right pointer switcher.
+        expect(screen.queryByText(/Left (pointer|ball|pad|stick)|Right (pointer|ball|pad|stick)/)).toBeNull();
+        const codes = screen.getAllByTestId('key').map(key => key.dataset.keycode);
+        expect(screen.getByText('Pointing tools')).toBeTruthy();
+        expect(codes.filter(code => code?.startsWith('SV_POINT'))).toEqual([
+            ...[1, 2, 3, 4].flatMap(n => [`SV_POINT_TOOL${n}_HOLD`, `SV_POINT_TOOL${n}_TOGGLE`]), 'SV_POINT_STOP_ALL']);
+        expect(codes).not.toContain('SV_POINT_TRACE');
+        expect(codes.filter(code => code?.startsWith('SV_POINT_RESERVED'))).toEqual([]);
     });
 });

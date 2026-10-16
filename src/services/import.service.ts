@@ -1,3 +1,5 @@
+import { pointControlsService } from "./point-controls.service";
+import { supportsPointControls } from "@/constants/point-controls";
 import { KeyboardInfo } from "../types/keyboard.types";
 import { PendingChange } from "./changes.service";
 import { customValueService } from "./custom-value.service";
@@ -48,6 +50,11 @@ export class ImportService {
         // macros_size is required for the macro buffer allocation
         newKb.macros_size = currentKb.macros_size;
 
+        if (newKb.pointing_controls && JSON.stringify(newKb.pointing_controls) !== JSON.stringify(currentKb.pointing_controls)) {
+            if (!supportsPointControls(currentKb)) throw new Error('The keyboard does not support pointing tools.');
+            const controls = structuredClone(newKb.pointing_controls);
+            await queue('Pointing tools settings', () => pointControlsService.save(controls), { type: 'setting', writeKey: 'pointing-controls' });
+        }
         // 1. Sync Keymap
         // Use hardware dimensions from currentKb for iteration
         if (newKb.keymap && currentKb.keymap) {

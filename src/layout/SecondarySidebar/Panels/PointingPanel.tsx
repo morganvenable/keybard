@@ -1,3 +1,4 @@
+import { hasPointControls } from "@/constants/point-controls";
 import DynamicMenuPanel from "./DynamicMenuPanel";
 import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -34,7 +35,7 @@ const PointingPanel = ({ isPicker }: Props) => {
     ) ?? -1;
 
     // Not connected (skipped in picker mode — the keys don't need a live connection)
-    if (!isConnected && !isPicker) {
+    if (!isConnected && !isPicker && !hasPointControls(keyboard)) {
         return (
             <section className="h-full flex flex-col pt-2">
                 <DescriptionBlock>

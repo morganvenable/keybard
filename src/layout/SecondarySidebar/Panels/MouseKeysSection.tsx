@@ -1,3 +1,5 @@
+import { hasPointControls, PICKER_POINT_KEYS, pointKey, configuredPointKey } from "@/constants/point-controls";
+import PointControlSettings from "./PointControlSettings";
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
@@ -20,10 +22,12 @@ interface Props {
 }
 
 const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
-    const { assignKeycode } = useKeyBinding();
+    const { assignKeycode, selectedTarget } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant } = useLayoutSettings();
+    const pointControls = hasPointControls(keyboard);
+    const canAssignPoint = selectedTarget?.type === "keyboard" && selectedTarget.keyboardSubsection !== "inner";
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
     const [modifierSide, setModifierSide] = useModifierSide();
 
@@ -110,7 +114,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 hoverBorderColor={hoverBorderColor}
                 hoverBackgroundColor={hoverBackgroundColor}
                 hoverLayerColor={layerColorName}
-                onClick={() => assignKeycode(finalKeycode)}
+                onClick={() => { if (!pointKey(finalKeycode) || canAssignPoint) assignKeycode(finalKeycode); }}
                 disableTooltip={true}
             />
         );
@@ -118,6 +122,18 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
 
     return (
         <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
+            {pointControls && <>
+                <section className="flex flex-col gap-2" aria-label="Pointing tools keys">
+                    <h3 className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>Pointing tools</h3>
+                    <p className="text-xs text-muted-foreground">{canAssignPoint ? "Choose a hold or toggle for the selected key." : "Select a physical key on your layout, then choose a hold or toggle here."}</p>
+                    <div className={`grid grid-cols-[repeat(4,max-content)] gap-1 ${canAssignPoint ? '' : 'opacity-50'}`}>
+                        {PICKER_POINT_KEYS.filter(k => k.slot !== undefined).map(k => renderKey({keycode:k.name, label:configuredPointKey(k,keyboard?.pointing_controls).label}))}
+                    </div>
+                    <div className={`flex gap-1 ${canAssignPoint ? '' : 'opacity-50'}`}>{PICKER_POINT_KEYS.filter(k => k.slot === undefined).map(k => renderKey({keycode:k.name, label:k.label}))}</div>
+                    <p className="text-xs text-muted-foreground">A tool works on whichever pointer moves, on either half. HOLD runs while pressed; TOGGLE stays on until pressed again. STOP TOOLS turns every tool off. Set the travel per step with the Tool speeds below. Arrows carries held Shift and Ctrl; the other key-based tools wait while a modifier is held. Proportional scrolling sends normal wheel input.</p>
+                </section>
+                <PointControlSettings compact={compact} />
+            </>}
             <div className="flex flex-col gap-1">
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Mouse Buttons
