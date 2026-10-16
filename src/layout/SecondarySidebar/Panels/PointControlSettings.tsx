@@ -101,9 +101,11 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         <span className="flex justify-between text-xs text-muted-foreground"><span>Slower · fewer steps</span><span>Faster · more steps</span></span>
     </label>;
     const proportional = (i:number) => draft.profiles[i].action===7;
+    // Tabs and Tasks with no limit set are paced by the firmware: 140 ms, about 7 steps a second.
+    const switcher = (i:number) => draft.profiles[i].action===2 || draft.profiles[i].action===3;
     const rateControl = (i:number) => <div key={i} className="rounded border p-2 flex flex-col gap-2">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.profiles[i].interval!==0} disabled={needsUpdate} onChange={e=>change(next=>{next.profiles[i].interval=e.target.checked?80:0;})}/>Limit {toolName(i)} {proportional(i)?'speed':'action rate'}</label>
-        {draft.profiles[i].interval!==0 ? <label className="text-sm">{toolName(i)} maximum {proportional(i)?'wheel steps / second (per axis)':'actions / second'}<Input type="number" min={4} max={250} step={0.25} disabled={needsUpdate} value={Number((1000/draft.profiles[i].interval).toFixed(2))} onChange={e=>change(next=>{const n=Number(e.target.value);next.profiles[i].interval=n>0?Math.round(1000/n):-1;})}/></label> : <p className="text-xs text-muted-foreground">Uncapped — USB and the application determine throughput.</p>}
+        {draft.profiles[i].interval!==0 ? <label className="text-sm">{toolName(i)} maximum {proportional(i)?'wheel steps / second (per axis)':'actions / second'}<Input type="number" min={4} max={250} step={0.25} disabled={needsUpdate} value={Number((1000/draft.profiles[i].interval).toFixed(2))} onChange={e=>change(next=>{const n=Number(e.target.value);next.profiles[i].interval=n>0?Math.round(1000/n):-1;})}/></label> : <p className="text-xs text-muted-foreground">{switcher(i)?'Default: about 7 a second.':'Uncapped — USB and the application determine throughput.'}</p>}
     </div>;
     return <section className={`flex flex-col gap-3 rounded-lg border border-kb-gray-medium p-3 ${compact ? 'w-80' : ''}`} aria-label="Pointing tools tuning">
         <div className="flex items-center justify-between gap-2">

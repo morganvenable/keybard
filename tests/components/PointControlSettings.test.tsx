@@ -68,6 +68,20 @@ it('shows per-tool rate limits outside Advanced and removes them without changin
     const unlimited=await save();expect(unlimited.profiles.every((p:any)=>p.interval===0)).toBe(true);
 });
 
+it('gives Tabs and Tasks the firmware default rate when no limit is set, and leaves the others uncapped',()=>{
+    render(<PointControlSettings/>);
+    expect(screen.getAllByText('Default: about 7 a second.')).toHaveLength(2);
+    expect(screen.getAllByText(/^Uncapped/)).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));
+    fireEvent.change(screen.getByLabelText('Tool 1 action'),{target:{value:'3'}});
+    // A selected tool shows only its own rate control.
+    expect(screen.getByText('Default: about 7 a second.')).toBeInTheDocument();
+    expect(screen.queryByText(/^Uncapped/)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Tool 1 action'),{target:{value:'4'}});
+    expect(screen.queryByText('Default: about 7 a second.')).toBeNull();
+    expect(screen.getByText(/^Uncapped/)).toBeInTheDocument();
+});
+
 it.each([false,true])('configures a zoom slot and direction without changing its tuning, compact=%s',async compact=>{
     render(<PointControlSettings compact={compact}/>);
     fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));
