@@ -48,6 +48,9 @@ from . import backdrop, ontop
 
 class Bridge(QObject):
     command = Signal(object)
+    # Touchpad input reports, from the Raw Input thread (demo: --touch-contacts).
+    touch_report = Signal(bytes)
+    touch_status = Signal(str)
 
 
 class LocalPage(QWebEnginePage):
@@ -318,6 +321,17 @@ class Host(QObject):
         self.pointing_sent = 0.0
         self.demo_pointing = None
         self.bridge.command.connect(self.command)
+        # Demo: only this board (--serial), and its touchpad contacts in the overlay (--touch-contacts).
+        self.serial_pin = None
+        self.touch_mode = None          # None, 'live' or 'replay'
+        self.touch_tracker = None
+        self.touch_reader = None
+        self.touch_recorder = None
+        self.touch_dirty = False
+        self.touch_sent = None
+        self.touch_status = ''
+        self.bridge.touch_report.connect(self.touch_report)
+        self.bridge.touch_status.connect(self.set_touch_status)
         # Paranoid mode trusts no website, only the Keybard this host serves itself.
         self.paranoid = paranoid
         self.keybard_url = KEYBARD_URL
@@ -570,12 +584,16 @@ class Host(QObject):
     def place(self):
         self.size_surface()
         area = (self.surface.screen() or self.app.primaryScreen()).availableGeometry()
-        self.surface.move(area.x() + (area.width() - self.surface.width()) // 2, area.bottom() - self.surface.height() - 25)
+        # Demo (--place-top): near the top of the screen (below a browser's tabs and address bar),
+        # clear of another Host's overlay at the bottom.
+        top = area.top() + 150 if getattr(self, 'place_top', False) else area.bottom() - self.surface.height() - 25
+        self.surface.move(area.x() + (area.width() - self.surface.width()) // 2, top)
 
     def scan(self):
         hid = hid_backend()
         try:
             devices = candidates(hid)
+            if self.serial_pin: devices = [d for d in devices if d.get('serial_number') == self.serial_pin]
             self.devices = {hashlib.sha256(d['path']).hexdigest()[:20]: d for d in devices}
             with self.state.lock:
                 self.state.devices = [dict(id=key, name=d.get('product_string') or 'Svalboard', serial=d.get('serial_number') or '') for key, d in self.devices.items()]
@@ -584,6 +602,7 @@ class Host(QObject):
                 matches = [key for key, d in self.devices.items() if remembered and remembered.get('serial') and d.get('serial_number') == remembered['serial']]
                 if remembered and len(matches) == 1: self.connect(matches[0], remembered.get('uid'))
                 elif not remembered and len(self.devices) == 1: self.connect(next(iter(self.devices)))
+                elif self.serial_pin and len(self.devices) == 1: self.connect(next(iter(self.devices)))
         except (OSError, ValueError) as e:
             with self.state.lock: self.state.status = f'Could not enumerate boards: {e}'
 
@@ -601,8 +620,10 @@ class Host(QObject):
         self.worker.pointing.connect(self.pointing_motion)
         self.worker.set_pointing_tracking(self.pointing_wanted())
         self.worker.start()
+        if self.touch_mode == 'live': self.start_touch_reader(self.selected.get('serial_number'))
 
     def disconnect(self):
+        if self.touch_reader: self.touch_reader.stop(); self.touch_reader = None
         if self.worker:
             self.worker.stop()
             if not self.worker.wait(1600): return False
@@ -628,6 +649,7 @@ class Host(QObject):
         self.profile_ready = True
         if self.worker: self.worker.set_pointing_tracking(self.pointing_wanted())
         self.size_surface()
+        if getattr(self, 'place_top', False) and not getattr(self, 'placed_top', False): self.placed_top = True; self.place()
         self.publish_state()
 
     def layers(self, snapshot):
@@ -758,7 +780,83 @@ class Host(QObject):
         self.demo_pointing.start(16)
         self.publish_state()
 
+    # --- demo: touchpad contacts ---------------------------------------------
+
+    def enable_touch(self, mode, replay=None, record=None):
+        """Draw the native touchpad's contacts: 'live' reads the board's touchpad through
+        Windows Raw Input (read only), 'replay' loops a recording."""
+        from .touch import ContactTracker, Recorder, load_recording
+        self.touch_mode = mode
+        self.touch_tracker = ContactTracker()
+        if record: self.touch_recorder = Recorder(record)
+        with self.state.lock: self.state.touch_contacts = True
+        self.touch_timer = QTimer(self); self.touch_timer.timeout.connect(self.touch_tick); self.touch_timer.start(16)
+        if mode == 'replay':
+            rows = load_recording(replay)
+            if not rows: raise SystemExit(f'No reports in {replay}')
+            span = rows[-1][0] + .6
+            started, position = [time.monotonic()], [0]
+
+            def step():
+                t = time.monotonic() - started[0]
+                while position[0] < len(rows) and rows[position[0]][0] <= t:
+                    self.touch_report(rows[position[0]][1]); position[0] += 1
+                if t > span: started[0], position[0] = time.monotonic(), 0
+            self.touch_replay = QTimer(self); self.touch_replay.timeout.connect(step); self.touch_replay.start(4)
+            self.set_touch_status(f'Touchpad: replaying {Path(replay).name}')
+        self.publish_state()
+
+    def start_touch_reader(self, serial):
+        from .touch import RawTouchpadReader, touchpad_paths
+        if self.touch_reader: self.touch_reader.stop(); self.touch_reader = None
+        if not RawTouchpadReader.supported(): return self.set_touch_status('Touchpad: live contacts need Windows')
+        paths = touchpad_paths(hid_backend(), serial) if serial else []
+        if not paths: return self.set_touch_status('Touchpad: this board has no touchpad interface (not a native touchpad build?)')
+        self.touch_reader = RawTouchpadReader(paths, self.bridge.touch_report.emit, self.bridge.touch_status.emit)
+        self.touch_reader.start()
+
+    def set_touch_status(self, text):
+        self.touch_status = text
+        with self.state.lock: self.state.touch_status = text
+        try: print(text, flush=True)
+        except (OSError, AttributeError): pass  # pythonw has no console
+
+    def touch_report(self, report):
+        if self.touch_tracker is None: return
+        if self.touch_recorder: self.touch_recorder.write(report)
+        with self.state.lock: self.state.touch_reports += 1
+        if self.touch_tracker.feed(report): self.touch_dirty = True
+
+    def touch_tick(self):
+        if self.touch_tracker.expire(): self.touch_dirty = True
+        if not self.touch_dirty: return
+        self.touch_dirty = False
+        detail = json.dumps(self.touch_tracker.snapshot(), separators=(',', ':'))
+        if detail == self.touch_sent: return
+        self.touch_sent = detail
+        self.surface.page().runJavaScript("window.dispatchEvent(new CustomEvent('keybard-host-touch',{detail:" + detail + "}))")
+
+    def start_demo_touch(self):
+        """--demo-touch: the illustration board with a touchpad on each hand (no board)."""
+        from dataclasses import replace
+        from .device.model import demo_profile
+        profile = replace(demo_profile(), pointing=(('left', 'touchpad'), ('right', 'touchpad')))
+        with self.state.lock:
+            self.state.board = serialize_profile(profile); self.state.layout_revision += 1
+            self.state.valid = True; self.state.status = 'Touchpad demo (no board)'
+        self.profile_ready = True
+        self.auto_connect = False
+        self.size_surface()
+
+        def alive():
+            self.last_state = time.monotonic()
+            with self.state.lock: self.state.valid = True
+        self.demo_touch_keepalive = QTimer(self); self.demo_touch_keepalive.timeout.connect(alive); self.demo_touch_keepalive.start(100)
+        self.publish_state()
+
     def shutdown(self):
+        if self.touch_reader: self.touch_reader.stop()
+        if self.touch_recorder: self.touch_recorder.close()
         self.modifier_timer.stop(); self.modifier_reader.close()
         if self.demo_pointing is not None: self.demo_pointing.stop()
         self.scan_timer.stop(); self.timer.stop()
@@ -807,13 +905,20 @@ def main():
     parser.add_argument('--keybard-url', default=KEYBARD_URL, help='Keybard page that Open Keybard opens (testing)')
     parser.add_argument('--demo-pointing', action='store_true', help='review: an illustration board with pointing devices, rolling, sniper on (no board needed)')
     parser.add_argument('--show-pointing', action='store_true', help='review: turn on Show pointing devices for this run, without saving it')
+    parser.add_argument('--serial', help='demo: follow only the board with this USB serial (never opens any other board)')
+    parser.add_argument('--data-dir', type=Path, help='demo: own lock and preferences folder, so this Host runs beside another')
+    parser.add_argument('--touch-contacts', action='store_true', help="demo: draw the native touchpad's finger contacts, read through Windows Raw Input (read only)")
+    parser.add_argument('--replay-ptp', type=Path, help="demo: loop recorded touchpad reports (JSON lines) instead of the board's touchpad")
+    parser.add_argument('--record-ptp', type=Path, help='demo: also append every touchpad report to this file (JSON lines)')
+    parser.add_argument('--place-top', action='store_true', help='demo: place the overlay at the top of the screen')
+    parser.add_argument('--demo-touch', action='store_true', help='demo: an illustration board with a touchpad on each hand (no board); use with --replay-ptp')
     args = parser.parse_args()
     if args.paranoid:
         if args.allow_origin: parser.error('--paranoid accepts no extra origins')
         if args.assets == parser.get_default('assets'): args.assets = args.assets.parent / 'web-paranoid'
     app = QApplication(sys.argv[:1]); app.setApplicationName('Keybard Host'); app.setQuitOnLastWindowClosed(False)
     hide_dock_icon()  # macOS: a menu bar app, without a Dock icon
-    folder = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
+    folder = args.data_dir.resolve() if args.data_dir else Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
     folder.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(str(folder / 'host.lock')); lock.setStaleLockTime(0)
     url = f'http://127.0.0.1:{args.port}/'
@@ -836,7 +941,14 @@ def main():
     host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid, page)
     host.keybard_url = args.keybard_url
     if args.show_pointing: state.config['showPointing'] = True
+    if args.serial: host.serial_pin = args.serial
+    if args.place_top: host.place_top = True; host.place()
     if args.demo_pointing: host.start_demo_pointing()
+    if args.demo_touch: host.start_demo_touch()
+    if args.replay_ptp: host.enable_touch('replay', replay=args.replay_ptp, record=args.record_ptp)
+    elif args.touch_contacts:
+        if not args.serial: parser.error('--touch-contacts needs --serial')
+        host.enable_touch('live', record=args.record_ptp)
     if not args.no_open: host.open_controls()
     sys.exit(app.exec())
 

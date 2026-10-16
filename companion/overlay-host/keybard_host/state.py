@@ -130,6 +130,10 @@ class HostState:
         self.visible = True
         self.session = secrets.token_hex(12)
         self.pointing_looks = {}
+        # Demo: the overlay draws the native touchpad's contacts (--touch-contacts).
+        self.touch_contacts = False
+        self.touch_status = ''
+        self.touch_reports = 0
         try:
             saved = json.loads(self.path.read_text())
         except (OSError, ValueError):
@@ -190,7 +194,8 @@ class HostState:
             return copy.deepcopy(dict(apiVersion=1, config=self.config, revision=self.revision,
                 layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device, active=self.active, default=self.default, valid=self.valid,
-                modifiers=self.modifiers, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
+                modifiers=self.modifiers, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session,
+                touchContacts=self.touch_contacts, touchStatus=self.touch_status, touchReports=self.touch_reports))
 
 
 def serialize_profile(profile):

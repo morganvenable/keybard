@@ -26,7 +26,7 @@ interface Props {
 const kindOf = (v: unknown): HandKind => (v === 'trackball' || v === 'touchpad' ? v : null);
 
 /** Where the OverlaySurface SVG puts key unit (0, 0) and how big a unit is, in window px. */
-function surfaceFrame(keys: KeyRect[], w: number, h: number) {
+export function surfaceFrame(keys: KeyRect[], w: number, h: number) {
     const minX = Math.min(...keys.map(k => k.x)), minY = Math.min(...keys.map(k => k.y));
     const width = Math.max(...keys.map(k => k.x + k.w)) - minX, height = Math.max(...keys.map(k => k.y + k.h)) - minY;
     const vbW = width * 40 + 8, vbH = height * 40 + 8;
