@@ -8,6 +8,7 @@ Comprehensive documentation for the KeyBard-NG keyboard configuration tool, a mo
 
 - [README](../README.md) - Project overview and quick start guide
 - [VITE_SETUP](../VITE_SETUP.md) - Development environment setup
+- [User-flow tests](./e2e-tests.md) - Playwright tests of real user flows: `npm run test:ux`
 
 ## 📖 Core Documentation
 

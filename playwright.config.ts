@@ -8,7 +8,7 @@ const BASE = "/keybard/";
 export default defineConfig({
     testDir: "e2e",
     testMatch: /.*\.e2e\.ts$/,
-    outputDir: "e2e/.results",
+    outputDir: process.env.UX_OUT || "e2e/.results",
     fullyParallel: true,
     workers: process.env.CI ? 2 : 4,
     retries: 0,
