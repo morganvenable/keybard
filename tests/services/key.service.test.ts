@@ -151,12 +151,8 @@ describe('KeyService', () => {
       keyService.generateAllKeycodes(kbinfo);
 
       // Assert
-      expect(KEYMAP['USER00']).toEqual({
-        code: 0x7e00,
-        qmkid: 'CUSTOM_KEY_1',
-        str: 'CK1',
-        title: 'Custom Key 1'
-      });
+      // Custom keycodes live at QK_USER (0x7E40+); USER00 (0x7E00, QK_KB) keeps its own name.
+      expect(KEYMAP['USER00'].qmkid).toBe('USER00');
       expect(KEYMAP['CUSTOM_KEY_1']).toEqual({
         code: 0x7e40,
         qmkid: 'CUSTOM_KEY_1',
@@ -492,13 +488,9 @@ describe('KeyService', () => {
       // Act
       keyService.generateAllKeycodes(kbinfo);
 
-      // Assert
-      expect(KEYMAP['USER63']).toEqual({
-        code: 0x7e3f,
-        qmkid: 'CUSTOM_63',
-        str: 'C63',
-        title: 'Custom 63'
-      });
+      // Assert: the QK_USER block takes the first 32; nothing is named at 0x7E00+
+      expect(KEYMAP['CUSTOM_31'].code).toBe(0x7e5f);
+      expect(KEYMAP['USER63'].qmkid).toBe('USER63');
     });
 
     it('should handle modifier(kc) pattern with KC_NO', () => {

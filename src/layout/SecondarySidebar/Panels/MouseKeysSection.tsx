@@ -73,6 +73,20 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_SNIPER_5_TG", label: "Sniper 5xTG" },
     ];
 
+    // Drag scroll: pointer motion scrolls while held or toggled on. Only the keys
+    // this board's firmware advertises (its customKeycodes, at QK_USER 0x7E40+).
+    const advertised = new Set((keyboard?.custom_keycodes ?? []).map((ck) => ck.name));
+    const scrollKeys = [
+        // Short caps, like the Sniper row: the heading says Drag Scroll, and longer
+        // words crop at the small key size.
+        { keycode: "SV_SCROLL_HOLD", label: "Hold" },
+        { keycode: "SV_SCROLL_TOGGLE", label: "TG" },
+        { keycode: "SV_LEFT_SCROLL_TOGGLE", label: "Left TG" },
+        { keycode: "SV_RIGHT_SCROLL_TOGGLE", label: "Right TG" },
+        { keycode: "SV_AXIS_SCROLL_LOCK", label: "Axis Lock" },
+        { keycode: "SV_NATURAL_SCROLL_TOGGLE", label: "Nat TG" },
+    ].filter((k) => advertised.has(k.keycode));
+
     // Row 3: 6 boost keys (multiplier mirror of sniper)
     const boostKeys = [
         { keycode: "SV_BOOST_2", label: "Boost 2x" },
@@ -103,6 +117,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 row={0}
                 col={0}
                 keycode={finalKeycode}
+                data-keycode={finalKeycode}
                 label={k.label}
                 forceLabel={true}
                 keyContents={keyContents as KeyContent | undefined}
@@ -225,6 +240,17 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                     </div>
                 )}
             </div>
+
+            {scrollKeys.length > 0 && (
+                <section className="flex flex-col gap-1" aria-label="Drag scroll keys">
+                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
+                        Drag Scroll
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                        {scrollKeys.map((k) => renderKey(k, false))}
+                    </div>
+                </section>
+            )}
 
             <div className="flex flex-col gap-1">
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>

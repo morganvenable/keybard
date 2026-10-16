@@ -66,6 +66,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
         style, unitSize,
+        // Props of Key only; never spread onto the DOM element.
+        disableTooltip, dragItemData,
         ...rest
     } = props;
 
@@ -73,7 +75,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const drag = useKeyDrag({
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
         isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag,
-        dragItemData: props.dragItemData,
+        dragItemData,
         unitSize
     });
 
@@ -219,7 +221,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={props.disableTooltip ? undefined : (title || keycode)}
+                title={disableTooltip ? undefined : (title || keycode)}
                 {...rest}
             >
                 <span className={headerClass} style={headerStyle}>{keyContents?.layertext}</span>
@@ -245,7 +247,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             onMouseLeave={drag.handleMouseLeave}
             onMouseDown={drag.handleMouseDown}
             onMouseUp={drag.handleMouseUp}
-            title={props.disableTooltip ? undefined : (title || keycode)}
+            title={disableTooltip ? undefined : (title || keycode)}
             {...rest}
         >
             {keyData.topLabel && (
