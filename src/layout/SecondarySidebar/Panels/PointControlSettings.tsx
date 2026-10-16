@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useId } from 'react';
 import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
-import { POINT_PRESETS, POINT_ACTIONS, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls } from '@/constants/point-controls';
+import { POINT_PRESETS, POINT_ACTIONS, POINT_ACTION_DEFAULTS, PROPORTIONAL_ACTION, describeActionDefaults, formatPace, formatTravel, actionStepCounts, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls } from '@/constants/point-controls';
 import { pointControlsService, type PointStatus } from '@/services/point-controls.service';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
@@ -100,12 +100,21 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         <input className="w-full accent-primary disabled:opacity-40" type="range" min="0" max="63" step="1" aria-label={`${axis==='horizontal'?'Horizontal':'Vertical'} speed`} value={current[axis]} disabled={inherited||needsUpdate} onChange={e=>setSpeed(axis,Number(e.target.value))}/>
         <span className="flex justify-between text-xs text-muted-foreground"><span>Slower · fewer steps</span><span>Faster · more steps</span></span>
     </label>;
-    const proportional = (i:number) => draft.profiles[i].action===7;
-    // Tabs and Tasks with no limit set are paced by the firmware: 140 ms, about 7 steps a second.
-    const switcher = (i:number) => draft.profiles[i].action===2 || draft.profiles[i].action===3;
+    const actionOf = (i:number) => draft.profiles[i].action ?? i;
+    const proportional = (i:number) => actionOf(i)===PROPORTIONAL_ACTION;
+    // With no limit set, the firmware paces each action by its own default (none for Volume).
+    const pace = (i:number) => formatPace(actionOf(i));
+    // The tool's default step and pace for its action, and the step its speed gives now.
+    const toolDefaults = (i:number) => {
+        const action=actionOf(i), speed=effectiveSpeed(draft,i);
+        const position=POINT_ACTION_DEFAULTS[action]?.vertical ? speed.vertical : speed.horizontal;
+        const multiplier=64/speedDistance(position);
+        const now=action!==PROPORTIONAL_ACTION && position!==36 ? ` At ${multiplier.toFixed(2)}×: ${formatTravel(actionStepCounts(action,position))} a step.` : '';
+        return <p key={i} className="text-xs text-muted-foreground" data-testid={`tool-defaults-${i+1}`}>{describeActionDefaults(action)}{now}</p>;
+    };
     const rateControl = (i:number) => <div key={i} className="rounded border p-2 flex flex-col gap-2">
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.profiles[i].interval!==0} disabled={needsUpdate} onChange={e=>change(next=>{next.profiles[i].interval=e.target.checked?80:0;})}/>Limit {toolName(i)} {proportional(i)?'speed':'action rate'}</label>
-        {draft.profiles[i].interval!==0 ? <label className="text-sm">{toolName(i)} maximum {proportional(i)?'wheel steps / second (per axis)':'actions / second'}<Input type="number" min={4} max={250} step={0.25} disabled={needsUpdate} value={Number((1000/draft.profiles[i].interval).toFixed(2))} onChange={e=>change(next=>{const n=Number(e.target.value);next.profiles[i].interval=n>0?Math.round(1000/n):-1;})}/></label> : <p className="text-xs text-muted-foreground">{switcher(i)?'Default: about 7 a second.':'Uncapped — USB and the application determine throughput.'}</p>}
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.profiles[i].interval!==0} disabled={needsUpdate} onChange={e=>change(next=>{next.profiles[i].interval=e.target.checked?(POINT_ACTION_DEFAULTS[next.profiles[i].action ?? i]?.pace || 80):0;})}/>Limit {toolName(i)} {proportional(i)?'speed':'action rate'}</label>
+        {draft.profiles[i].interval!==0 ? <label className="text-sm">{toolName(i)} maximum {proportional(i)?'wheel steps / second (per axis)':'actions / second'}<Input type="number" min={4} max={250} step={0.25} disabled={needsUpdate} value={Number((1000/draft.profiles[i].interval).toFixed(2))} onChange={e=>change(next=>{const n=Number(e.target.value);next.profiles[i].interval=n>0?Math.round(1000/n):-1;})}/></label> : <p className="text-xs text-muted-foreground">{pace(i)?`Default: ${pace(i)}.`:'Uncapped — USB and the application determine throughput.'}</p>}
     </div>;
     return <section className={`flex flex-col gap-3 rounded-lg border border-kb-gray-medium p-3 ${compact ? 'w-80' : ''}`} aria-label="Pointing tools tuning">
         <div className="flex items-center justify-between gap-2">
@@ -150,10 +159,14 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
             const speed:PointSpeed=index<0?next.defaults!:next.profiles[index].speed!;speed.linked=e.target.checked;if(speed.linked)speed.vertical=speed.horizontal;
         })}/>Link horizontal and vertical speeds</label>
         {slider('horizontal')}{slider('vertical')}
-        <p className="text-xs text-muted-foreground">Linking uses the horizontal value for both axes. {index>=0&&proportional(index)?'Speeds set scroll velocity per displacement: at 1×, 64 counts beyond the dead zone gives 20 wheel steps/second. Staying off-center keeps scrolling.':'For discrete tools, speeds measure actions per trackball travel.'} Your existing free-scroll / axis-lock policy stays in charge.</p>
+        <p className="text-xs text-muted-foreground">Linking uses the horizontal value for both axes. {index>=0&&proportional(index)?'Speeds set scroll velocity per displacement: at 1×, 64 counts beyond the dead zone gives 20 wheel steps/second. Staying off-center keeps scrolling.':'Each action has its own default step; the speed multiplies it: twice the speed, half the ball travel per step.'} Your existing free-scroll / axis-lock policy stays in charge.</p>
+        <section aria-label="Tool defaults" className="flex flex-col gap-1">
+            <h4 className="font-semibold text-sm">Defaults for each action</h4>
+            {index<0?POINT_PRESETS.map((_,i)=>toolDefaults(i)):toolDefaults(index)}
+        </section>
         <section aria-label="Output rate limits" className="flex flex-col gap-2">
             <h4 className="font-semibold text-sm">Output rate limits</h4>
-            <p className="text-xs text-muted-foreground">These optional limits cap each tool’s output. Discrete actions stop with motion; proportional scrolling continues while displaced and stops when centered or switched off. Limits discard excess output without a catch-up queue. New configurations are uncapped.</p>
+            <p className="text-xs text-muted-foreground">These optional limits cap each tool’s output. Discrete actions stop with motion; proportional scrolling continues while displaced and stops when centered or switched off. Limits discard excess output without a catch-up queue. With no limit set, each action keeps its own default pace; Volume and Proportional scroll have none.</p>
             {index<0?POINT_PRESETS.map((_,i)=>rateControl(i)):rateControl(index)}
             <Button size="sm" variant="secondary" disabled={needsUpdate} onClick={()=>change(next=>{next.profiles.forEach(p=>p.interval=0);})}>Remove all action rate limits</Button>
         </section>

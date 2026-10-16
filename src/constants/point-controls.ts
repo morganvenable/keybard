@@ -20,6 +20,44 @@ export const POINT_ACTIONS = [
     {name:'Undo / Redo (Ctrl+Y)', cap:'UNDO', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Y (redo). On macOS, Command+Z / Command+Shift+Z, the Mac redo. Windows app preset.'},
     {name:'Proportional scroll', cap:'SCROLL', description:'Move away from the activation point to set scrolling velocity. Return to center to stop; release Hold or switch Toggle off to stop and recenter. Both axes use your existing free-scroll / axis-lock policy.'},
 ] as const;
+/**
+ * Each action's own default step and pace, as the firmware runs them (point_config.c's
+ * action_defaults): travel is a multiple of the tool's speed (64 counts at 800 CPI, about
+ * 2 mm of ball travel, at 1.00×); pace is the shortest time between actions while the tool's
+ * rate limit is off (0: none). Proportional scroll is continuous and has neither.
+ */
+export const POINT_ACTION_DEFAULTS: readonly { travel: number; pace: number; vertical: boolean }[] = [
+    {travel:1, pace:0, vertical:true},     // Volume
+    {travel:2.5, pace:65, vertical:false}, // Arrows
+    {travel:5, pace:140, vertical:false},  // Tabs
+    {travel:5, pace:140, vertical:false},  // Tasks
+    {travel:3, pace:100, vertical:true},   // Zoom
+    {travel:4, pace:150, vertical:false},  // Undo / Redo
+    {travel:4, pace:150, vertical:false},  // Undo / Redo (Ctrl+Y)
+    {travel:1, pace:0, vertical:false},    // Proportional scroll
+];
+export const PROPORTIONAL_ACTION = 7;
+const COUNTS_PER_MM = 800 / 25.4;
+/** Ball travel for one step, rounded the way people read it: "about 5 mm". */
+export function formatTravel(counts: number) {
+    const mm = counts / COUNTS_PER_MM;
+    const shown = mm >= 10 ? Math.round(mm) : mm >= 1 ? Math.round(mm * 2) / 2 : Math.round(mm * 10) / 10;
+    return `about ${shown} mm`;
+}
+/** Counts at 800 CPI for one step of an action at a speed position. */
+export const actionStepCounts = (action: number, speed: number) => speedDistance(speed) * (POINT_ACTION_DEFAULTS[action]?.travel ?? 1);
+/** The default pace in words: "about 15 a second", or null when the action has none. */
+export function formatPace(action: number) {
+    const pace = POINT_ACTION_DEFAULTS[action]?.pace ?? 0;
+    return pace ? `about ${Math.round(1000 / pace)} a second` : null;
+}
+/** "Arrows: default about 5 mm a step, about 15 a second." */
+export function describeActionDefaults(action: number) {
+    const name = POINT_ACTIONS[action]?.name ?? 'Tool';
+    if (action === PROPORTIONAL_ACTION) return `${name}: continuous, no steps; the speed sets how fast it scrolls.`;
+    const pace = formatPace(action);
+    return `${name}: default ${formatTravel(actionStepCounts(action, 36))} a step, ${pace ?? 'no default limit'}.`;
+}
 export const pointAction = (value: PointControls, index: number) => POINT_ACTIONS[value.profiles[index].action ?? index];
 export const pointSlotName = (value: PointControls, index: number) => `Tool ${index+1} · ${pointAction(value,index).name}`;
 /** The cap and tooltip a tool key shows: the action its slot runs and hold or toggle. Tools aren't per side. */
