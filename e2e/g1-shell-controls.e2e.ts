@@ -20,6 +20,12 @@ async function expectNoRailOverlap(page: Page) {
 test.describe("A9 collapse the navigation rail", () => {
     test("collapse shows icons with tooltips; it survives a reload; Ctrl+B toggles it", async ({ page }) => {
         await openDemo(page);
+        // The rail eases to its width after load; measure it once it has settled.
+        await expect.poll(async () => {
+            const a = await railWidth(page);
+            await page.waitForTimeout(200);
+            return Math.abs((await railWidth(page)) - a) < 0.5;
+        }).toBe(true);
         const wide = await railWidth(page);
         const leftWide = await canvasLeft(page);
         await expectNoRailOverlap(page);
@@ -42,7 +48,7 @@ test.describe("A9 collapse the navigation rail", () => {
         await page.locator("body").click({ position: { x: 900, y: 700 } });
         await page.keyboard.press("Control+b");
         await expect(page.getByRole("button", { name: "Collapse navigation" })).toBeVisible();
-        await expect.poll(() => railWidth(page)).toBe(wide);
+        await expect.poll(async () => Math.abs((await railWidth(page)) - wide)).toBeLessThan(1);
         await expectNoRailOverlap(page);
         await page.keyboard.press("Control+b");
         await expect(page.getByRole("button", { name: "Expand navigation" })).toBeVisible();

@@ -1,7 +1,7 @@
 // Group 3, binding names (C12): rename a combo and a tap dance from the
 // editor title (Enter commits, Esc cancels); the name shows in the list, the
 // key inspector, and survives an export and import of the .svil file.
-import { test, expect, openDemo } from "./fixtures";
+import { test, expect, openDemo, editorHeading } from "./fixtures";
 import type { Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { canvasKey, rail, openSettings, findingShot } from "./g3-helpers";
@@ -88,14 +88,17 @@ test.describe("C12 binding names", () => {
     });
 
     test("rename a combo from the editor title with the default placement", async ({ page }) => {
-        // g3-12: in the default "In the side panel" placement the editor title
-        // ("Editing Combo 1") is plain text; there is no way to name a combo there.
-        test.fail(true, "g3-12: no rename control in the default editor placement");
+        // Was g3-12 (no rename in the side panel placement); fixed by the combo
+        // names work: an unnamed combo offers "Name this combo", a named one
+        // renames from its title.
         await openDemo(page, "demo=combos&edit=combo:1");
-        await expect(page.getByRole("heading", { name: "Editing Combo 1" })).toBeVisible();
-        const rename = page.getByRole("button", { name: /^Rename Combo 1/ });
-        if (!(await rename.count())) await findingShot(page, "g3-12");
-        await expect(rename).toBeVisible({ timeout: 2_000 });
+        await expect(editorHeading(page, "Editing Combo 1")).toBeVisible();
+        await page.getByRole("button", { name: "Name this combo" }).click();
+        const field = page.getByRole("textbox").first();
+        await field.fill("Submit");
+        await field.press("Enter");
+        await expect(page.locator("[data-combo-editor-title]").filter({ visible: true }).first()).toContainText("Submit");
+        await expect(page.getByRole("button", { name: /^Submit, rename Combo 1$/ })).toBeVisible();
     });
 
     test("rename a tap dance from the editor title", async ({ page }) => {

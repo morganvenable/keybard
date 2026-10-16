@@ -499,6 +499,11 @@ test.describe("B. Layout editor", () => {
     });
 
     // ------------------------------------------------------------------ B13
+    // Copy and Paste Layer use the system clipboard, which every browser in the
+    // run shares, so these tests run one at a time.
+    test.describe("B13 layer clipboard", () => {
+    test.describe.configure({ mode: "default" });
+
     test("B13 Copy Layer 0, click layer 3, Ctrl+V opens the paste dialog", async ({ page }) => {
         test.fail(true, "g2-12: Ctrl+V does nothing right after clicking a layer tab (focus stays on the tab button, which the shortcut ignores)");
         await openDemo(page);
@@ -581,6 +586,7 @@ test.describe("B. Layout editor", () => {
         const dialog = page.getByRole("dialog");
         if (await dialog.isVisible().catch(() => false)) await dialog.getByRole("button", { name: "Now" }).click();
         await expect.poll(() => canvasKeycodes(page)).toEqual(layer0);
+    });
     });
 
     test("B13 right-click a layer tab offers Copy and Paste", async ({ page }) => {

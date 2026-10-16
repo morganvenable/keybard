@@ -3,7 +3,7 @@
 // MEDIUM / SMALL key sizes, at desktop and phone widths. Nothing may scroll
 // sideways or poke out of the side panel, no text may be clipped, editor slot
 // labels may not run into each other, and the key inspector card stays on screen.
-import { test, expect, openDemo } from "./fixtures";
+import { test, expect, openDemo, editorHeading } from "./fixtures";
 import type { Page } from "@playwright/test";
 import { canvasKey, rail, sidePanel, overflowingElements, clippedText, KEY_SIZES, setKeySize, findingShot, cutOffKeys } from "./g3-helpers";
 
@@ -93,7 +93,7 @@ for (const theme of ["light", "dark"] as const) {
                     for (const c of await clippedText(sidePanel(page))) problems.push(`${p.rail} panel clipped: ${c}`);
 
                     await panel.locator(`[data-binding-row="${p.editRow}"], [data-combo-row="${p.editRow}"]`).first().click({ position: { x: 14, y: 14 } });
-                    await expect(page.getByRole("heading", { name: p.heading })).toBeVisible();
+                    await expect(editorHeading(page, p.heading)).toBeVisible();
                     await page.waitForTimeout(250);
                     for (const o of await overflowingElements(sidePanel(page))) problems.push(`${p.heading}: ${o}`);
                     for (const c of await clippedText(page.locator(".binding-workspace").first())) problems.push(`${p.heading} clipped: ${c}`);
@@ -106,7 +106,7 @@ for (const theme of ["light", "dark"] as const) {
                         for (const l of await loneWraps(page)) problems.push(`${p.heading} options wrap: ${l}`);
                     }
                     await page.getByRole("button", { name: "Go back" }).click();
-                    await expect(page.getByRole("heading", { name: p.heading })).toHaveCount(0);
+                    await expect(editorHeading(page, p.heading)).toHaveCount(0);
                 }
                 // The key inspector card stays inside the window.
                 const panelOpen = page.getByRole("complementary").first();
@@ -161,7 +161,7 @@ for (const theme of ["light", "dark"] as const) {
                 await pageWide(`${p.rail} panel`);
                 if (p.card) await panel.getByText(p.card).first().click();
                 else await panel.getByRole("button", { name: p.add }).click();
-                await expect(page.getByRole("heading", { name: p.heading })).toBeVisible();
+                await expect(editorHeading(page, p.heading)).toBeVisible();
                 await page.waitForTimeout(250);
                 const ed = page.locator(".binding-workspace").first();
                 for (const o of await overflowingElements(ed, "[data-editor-slot] .absolute")) problems.push(`${p.heading}: ${o}`);
@@ -171,7 +171,7 @@ for (const theme of ["light", "dark"] as const) {
                 await pageWide(p.heading);
                 // (The key picker's width is checked on its own below.)
                 await page.getByRole("button", { name: "Go back" }).click();
-                await expect(page.getByRole("heading", { name: p.heading })).toHaveCount(0);
+                await expect(editorHeading(page, p.heading)).toHaveCount(0);
             }
             if (problems.length) {
                 test.info().annotations.push({ type: "layout", description: problems.join("\n") });
@@ -192,7 +192,7 @@ for (const theme of ["light", "dark"] as const) {
         await openDemo(page, `demo=combos&theme=${theme}`);
         await rail(page, "Combos").click();
         await page.getByRole("complementary", { name: "Combos" }).getByText(/^Combo 2$/).first().click();
-        await expect(page.getByRole("heading", { name: "Editing Combo 2" })).toBeVisible();
+        await expect(editorHeading(page, "Editing Combo 2")).toBeVisible();
         await page.waitForTimeout(500);
         const cut = await cutOffKeys(page);
         if (cut.length && theme === "dark") await findingShot(page, "g3-14");

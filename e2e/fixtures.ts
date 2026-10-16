@@ -1,6 +1,6 @@
 // Shared fixture for the UX flow tests. Every test fails on a console error
 // or an uncaught page error, unless the test lists it as expected.
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 
 type Fixtures = {
     /** Console errors and page errors seen so far in this test. */
@@ -40,4 +40,18 @@ export const CANVAS_KEY = "[data-keyboard-instance] [data-key-x]";
 export async function openDemo(page: Page, params = "demo") {
     await page.goto(`./?${params}`);
     await expect(page.locator(CANVAS_KEY).first()).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * A binding editor's title. Most editors show "Editing <Kind> N" as a heading;
+ * the combo editor in the side panel shows the combo's name (or "Combo N") with
+ * an in-place rename, so for a combo either form counts. Only an open
+ * editor's header counts (it has the editor's back button).
+ */
+export function editorHeading(scope: Page | Locator, name: string): Locator {
+    const heading = scope.getByRole("heading", { name });
+    const m = /^Editing Combo (\d+)$/.exec(name);
+    if (!m) return heading;
+    const title = scope.locator("div:has(> [data-binding-editor-back]) > [data-combo-editor-title]").filter({ hasText: new RegExp(`Combo ${m[1]}(?!\d)`), visible: true });
+    return heading.or(title).filter({ visible: true }).first();
 }

@@ -1,5 +1,5 @@
 // Group 1, area A: entry points and review URL params (A1-A4, A6, A7, A15).
-import { test, expect, openDemo, CANVAS_KEY } from "./fixtures";
+import { test, expect, openDemo, CANVAS_KEY, editorHeading } from "./fixtures";
 import { detailPanel, findingShot, knownBug, openRailPanel } from "./g1-helpers";
 
 const LAYER_LABELS = [...Array.from({ length: 15 }, (_, i) => String(i)), "mouse"];
@@ -98,7 +98,7 @@ test.describe("A6 ?edit opens an editor", () => {
             const panel = detailPanel(page);
             await expect(panel).toHaveAttribute("data-binding-open", "true");
             await expect(panel).toHaveAccessibleName(c.heading);
-            await expect(panel.getByRole("heading", { name: c.heading })).toBeVisible();
+            await expect(editorHeading(panel, c.heading)).toBeVisible();
             if (c.sub) await expect(panel).toContainText(c.sub);
             await page.keyboard.press("Escape");
             await expect(panel).not.toHaveAttribute("data-binding-open", "true");

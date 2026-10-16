@@ -2,7 +2,7 @@
 // Indicators settings, adding, editing and clearing a combo, and where the
 // combo editor sits. Demo layout: ?demo=combos (combo 0 F+D -> Esc "Quick
 // escape", combo 1 J+K -> Enter, combo 2 S+D+F -> Tab "Next field").
-import { test, expect, openDemo, CANVAS_KEY } from "./fixtures";
+import { test, expect, openDemo, CANVAS_KEY, editorHeading } from "./fixtures";
 import type { Page } from "@playwright/test";
 import {
     canvasKey, rail, sidePanel, editor, spotlightOn, openSettings, findingShot,
@@ -33,7 +33,7 @@ async function openComboRow(page: Page, index: number) {
     const named = panel.locator(`[data-combo-row="${index}"]`);
     if (await named.count()) await named.click();
     else await panel.getByText(String(index), { exact: true }).first().click();
-    await expect(page.getByRole("heading", { name: `Editing Combo ${index}` })).toBeVisible();
+    await expect(editorHeading(page, `Editing Combo ${index}`)).toBeVisible();
 }
 
 test.describe("C1 combo folded corners", () => {
@@ -71,7 +71,7 @@ test.describe("C1 combo folded corners", () => {
             await page.getByRole("group", { name: "Combo output" }).click();
             await pickerKey(page, out).click();
             await page.keyboard.press("Escape");
-            await expect(page.getByRole("heading", { name: `Editing Combo ${i}` })).toHaveCount(0);
+            await expect(editorHeading(page, `Editing Combo ${i}`)).toHaveCount(0);
         }
         await page.mouse.move(5, 995); // no row or key previewed
         await expect(fold(page, "F")).toHaveAttribute("data-combo-order", "0,2,3");
@@ -186,7 +186,7 @@ test.describe("C4 add a combo", () => {
         await expect(page.getByRole("group", { name: "Combo output" })).toContainText(/esc/i);
 
         await page.keyboard.press("Escape");
-        await expect(page.getByRole("heading", { name: "Editing Combo 3" })).toHaveCount(0);
+        await expect(editorHeading(page, "Editing Combo 3")).toHaveCount(0);
         if (!(await page.getByRole("complementary", { name: "Combos" }).isVisible())) await rail(page, "Combos").click();
         await expect(page.getByRole("button", { name: "Combo 3: Q plus W gives Esc", exact: true })).toBeVisible();
         const row = page.locator('[data-combo-row="3"]');

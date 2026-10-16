@@ -33,6 +33,9 @@ alt-repeat and leaders, `g4` files and layouts, `g5` views and pointing.
 `e2e/g4-paranoid.e2e.ts` tests the single-file build. Run
 `npm run build:paranoid` first; without it those tests skip themselves.
 
+The Copy and Paste Layer tests use the system clipboard, so a run replaces
+what you had copied.
+
 When building from Git Bash on Windows, set `MSYS_NO_PATHCONV=1`, or Git Bash
 turns the `/keybard/` base path into a Windows path.
 

@@ -1,10 +1,10 @@
 // Group 3: the binding spotlight (C13) and the key inspector's "where else
 // used" sections (C14).
-import { test, expect, openDemo } from "./fixtures";
+import { test, expect, openDemo, editorHeading } from "./fixtures";
 import type { Page } from "@playwright/test";
 import { canvasKey, rail, pickerKey, spotlightOn, openSettings } from "./g3-helpers";
 
-const editing = (page: Page, what: string) => page.getByRole("heading", { name: `Editing ${what}` });
+const editing = (page: Page, what: string) => editorHeading(page, `Editing ${what}`);
 
 async function scrimAlpha(page: Page) {
     // The page-wide scrim (the strongest one) is what dims the page.
