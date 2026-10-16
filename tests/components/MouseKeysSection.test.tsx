@@ -130,3 +130,34 @@ describe('Pointing control key integration', () => {
         expect(codes.filter(code => code?.startsWith('SV_POINT_RESERVED'))).toEqual([]);
     });
 });
+
+describe('Drag scroll keys', () => {
+    const SCROLL = ['SV_SCROLL_HOLD', 'SV_SCROLL_TOGGLE', 'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK', 'SV_NATURAL_SCROLL_TOGGLE'];
+    const custom = (names: string[]) => names.map(name => ({ name, shortName: name, title: name }));
+    beforeEach(() => { layoutSettings.keyVariant = 'default'; preview.target = null; preview.assign.mockClear(); });
+
+    it.each([false, true])('sit beside the pointing tools, sized like every row, and assign (compact=%s)', compact => {
+        preview.keyboard = { feature_flags2: POINT_CONTROL_FLAG, custom_keycodes: custom(['SV_LEFT_DPI_INC', ...SCROLL]) };
+        render(<MouseKeysSection compact={compact} />);
+        expect(screen.getByText('Drag Scroll')).toBeTruthy();
+        const keys = screen.getAllByTestId('key');
+        // Scroll Hold is offered once, in the Scroll row with Velocity Scroll.
+        expect(keys.map(k => k.dataset.keycode).filter(c => SCROLL.includes(c!))).toEqual([...SCROLL.slice(1), 'SV_SCROLL_HOLD']);
+        for (const key of keys) expect(key.dataset.size).toBe(compact ? 'h-[30px] w-[30px]' : 'h-[60px] w-[60px]');
+        fireEvent.click(keys.find(k => k.dataset.keycode === 'SV_SCROLL_TOGGLE')!);
+        expect(preview.assign).toHaveBeenCalledWith('SV_SCROLL_TOGGLE');
+    });
+
+    it('offer only the scroll keys the firmware advertises', () => {
+        preview.keyboard = { custom_keycodes: custom(['SV_SCROLL_HOLD', 'SV_SCROLL_TOGGLE']) };
+        render(<MouseKeysSection />);
+        const codes = screen.getAllByTestId('key').map(k => k.dataset.keycode);
+        expect(codes.filter(c => SCROLL.includes(c!))).toEqual(['SV_SCROLL_TOGGLE', 'SV_SCROLL_HOLD']);
+    });
+
+    it('are absent when the board advertises none', () => {
+        preview.keyboard = { custom_keycodes: [] };
+        render(<MouseKeysSection />);
+        expect(screen.queryByText('Drag Scroll')).toBeNull();
+    });
+});

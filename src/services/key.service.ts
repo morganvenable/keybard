@@ -24,32 +24,13 @@ export class KeyService {
    */
   generateAllKeycodes(kbinfo: KeyboardInfo): void {
     this.pointControls = hasPointControls(kbinfo);
-    // Populate USER00...USER63 keys as needed (legacy Vial range: 0x7e00+)
-    for (let i = 0; i < 64; i++) {
-      const userkey = 'USER' + ('' + i).padStart(2, '0');
-      const code = KEYMAP[userkey].code;
-      if (kbinfo.custom_keycodes && kbinfo.custom_keycodes[i]) {
-        const custom = kbinfo.custom_keycodes[i];
-        KEYMAP[userkey] = {
-          code,
-          qmkid: custom.name,
-          str: customKeycodeShortName(custom),
-          title: custom.title,
-        };
-        KEYMAP[custom.name] = {
-          code,
-          qmkid: custom.name,
-          str: customKeycodeShortName(custom),
-          title: custom.title,
-        };
-        KEYALIASES[custom.name] = userkey;
-        // Update CODEMAP so stringify() returns the custom name
-        CODEMAP[code] = custom.name;
-      }
-    }
+    // Svalboard QMK puts the board's custom keycodes at QK_USER (0x7E40+), never at
+    // USER00 (0x7E00+, QK_KB). QK_KB 0x7E00-0x7E3F belongs to the pointing tools, so
+    // custom names are not given to 0x7E00+ codes: a tool key must never read as an
+    // SV_ key (SV_SCROLL_TOGGLE is 0x7E50; 0x7E10 is Stop tools). Vial layout files
+    // that name custom keys USERnn are converted by name on import (file.service).
 
-    // Also populate QK_USER...QK_USER_31 keys (QMK range: 0x7e40+)
-    // These are the keycodes that Svil/QMK firmware actually uses
+    // QK_USER...QK_USER_31 (0x7E40+): where the firmware's customKeycodes live.
     for (let i = 0; i < 32; i++) {
       if (kbinfo.custom_keycodes && kbinfo.custom_keycodes[i]) {
         this.registerQkUserKeycode(i, kbinfo.custom_keycodes[i]);

@@ -9,7 +9,7 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { cn } from "@/lib/utils";
-import { KeyboardInfo, KeyContent } from "@/types/keyboard.types";
+import { KeyContent } from "@/types/keyboard.types";
 import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
@@ -22,12 +22,11 @@ import { NUMPAD_COLUMNS, NUMPAD_GAP_PX, NUMPAD_VARIANT_PX, numpadCellSize, numpa
 
 import { BUTTON_TO_KEYCODE_MAP, LAYOUTS } from "@/components/Keyboards/layouts";
 
-const getKeyCodeForButton = (keyboard: KeyboardInfo, button: string): string | undefined => {
+const getKeyCodeForButton = (button: string): string | undefined => {
     const k = BUTTON_TO_KEYCODE_MAP[button] || BUTTON_TO_KEYCODE_MAP[button.toLowerCase()];
-    if (k) return k;
-    const customKeycode = keyboard.custom_keycodes?.findIndex((ck) => ck.name === button);
-    if (customKeycode === undefined || customKeycode < 0) return button;
-    return `USER${customKeycode?.toString().padStart(2, "0")}`;
+    // A custom keycode is assigned by its own name, which parses to its QK_USER code
+    // (0x7E40+). USERnn would be 0x7E00+, the pointing tools block.
+    return k || button;
 };
 
 import {
@@ -116,7 +115,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
         if (!isBinding || !keyboard) return;
 
         // Ensure we translate names like 'SV_...' to actual keycodes if needed
-        const mappedKeycode = getKeyCodeForButton(keyboard, keycode) || keycode;
+        const mappedKeycode = getKeyCodeForButton(keycode) || keycode;
         // Blank, Transparent and plain modifier keys are never modified
         const isBlank = keycode === "KC_NO" || keycode === "KC_TRNS" || PLAIN_MODIFIER_KEYCODES.has(mappedKeycode);
         const finalKeycode = isBlank ? mappedKeycode : applyModifiers(mappedKeycode, activeModifiers, false, modifierSide);
