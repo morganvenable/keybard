@@ -11,3 +11,7 @@ docs/dev-sessions/
 
 # Screenshots from scripts/check-side-panel-overflow.cjs
 .side-panel-shots/
+
+# Playwright UX flow tests (e2e/)
+e2e/.results/
+e2e/.report/
