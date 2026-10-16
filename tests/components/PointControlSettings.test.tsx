@@ -68,18 +68,45 @@ it('shows per-tool rate limits outside Advanced and removes them without changin
     const unlimited=await save();expect(unlimited.profiles.every((p:any)=>p.interval===0)).toBe(true);
 });
 
-it('gives Tabs and Tasks the firmware default rate when no limit is set, and leaves the others uncapped',()=>{
+it('gives every action its firmware default rate when no limit is set; Volume stays uncapped',()=>{
     render(<PointControlSettings/>);
+    // Volume, Arrows, Tabs, Tasks.
+    expect(screen.getAllByText(/^Uncapped/)).toHaveLength(1);
+    expect(screen.getByText('Default: about 15 a second.')).toBeInTheDocument();
     expect(screen.getAllByText('Default: about 7 a second.')).toHaveLength(2);
-    expect(screen.getAllByText(/^Uncapped/)).toHaveLength(2);
     fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));
-    fireEvent.change(screen.getByLabelText('Tool 1 action'),{target:{value:'3'}});
-    // A selected tool shows only its own rate control.
-    expect(screen.getByText('Default: about 7 a second.')).toBeInTheDocument();
-    expect(screen.queryByText(/^Uncapped/)).toBeNull();
-    fireEvent.change(screen.getByLabelText('Tool 1 action'),{target:{value:'4'}});
-    expect(screen.queryByText('Default: about 7 a second.')).toBeNull();
+    // A selected tool shows only its own rate control, and it follows the action.
     expect(screen.getByText(/^Uncapped/)).toBeInTheDocument();
+    const expected:[string,RegExp][]=[['1',/^Default: about 15 a second\.$/],['2',/^Default: about 7 a second\.$/],['3',/^Default: about 7 a second\.$/],['4',/^Default: about 10 a second\.$/],['5',/^Default: about 7 a second\.$/],['6',/^Default: about 7 a second\.$/],['7',/^Uncapped/],['0',/^Uncapped/]];
+    for(const [action,text] of expected){
+        fireEvent.change(screen.getByLabelText('Tool 1 action'),{target:{value:action}});
+        expect(screen.getByText(text)).toBeInTheDocument();
+        expect(screen.getAllByText(/^(Default: about|Uncapped)/)).toHaveLength(1);
+    }
+});
+
+it('shows each tool its own default step and pace, following its action and speed',async()=>{
+    render(<PointControlSettings/>);
+    expect(screen.getByTestId('tool-defaults-1')).toHaveTextContent('Volume: default about 2 mm a step, no default limit.');
+    expect(screen.getByTestId('tool-defaults-2')).toHaveTextContent('Arrows: default about 5 mm a step, about 15 a second.');
+    expect(screen.getByTestId('tool-defaults-3')).toHaveTextContent('Tabs: default about 10 mm a step, about 7 a second.');
+    expect(screen.getByTestId('tool-defaults-4')).toHaveTextContent('Tasks: default about 10 mm a step, about 7 a second.');
+    // The shared speed multiplies every action's step: at 2.00x a step takes half the travel.
+    slide('Horizontal speed',45);
+    expect(screen.getByTestId('tool-defaults-2')).toHaveTextContent('Arrows: default about 5 mm a step, about 15 a second. At 2.00×: about 2.5 mm a step.');
+    expect(screen.getByTestId('tool-defaults-1')).toHaveTextContent('At 2.00×: about 1 mm a step.');
+    fireEvent.click(screen.getByRole('button',{name:/^Tool 2 · Arrows/}));
+    fireEvent.change(screen.getByLabelText('Tool 2 action'),{target:{value:'4'}});
+    expect(screen.getByTestId('tool-defaults-2')).toHaveTextContent('Zoom: default about 6 mm a step, about 10 a second. At 2.00×: about 3 mm a step.');
+    fireEvent.change(screen.getByLabelText('Tool 2 action'),{target:{value:'5'}});
+    expect(screen.getByTestId('tool-defaults-2')).toHaveTextContent('Undo / Redo: default about 8 mm a step, about 7 a second.');
+    fireEvent.change(screen.getByLabelText('Tool 2 action'),{target:{value:'7'}});
+    expect(screen.getByTestId('tool-defaults-2')).toHaveTextContent('Proportional scroll: continuous, no steps; the speed sets how fast it scrolls.');
+    // Turning a limit on starts from the action's own default pace.
+    fireEvent.change(screen.getByLabelText('Tool 2 action'),{target:{value:'1'}});
+    check('Limit Tool 2 · Arrows action rate');
+    expect(screen.getByLabelText('Tool 2 · Arrows maximum actions / second')).toHaveValue(15.38);
+    const value=await save();expect(value.profiles[1]).toMatchObject({action:1,interval:65});
 });
 
 it.each([false,true])('configures a zoom slot and direction without changing its tuning, compact=%s',async compact=>{
@@ -121,7 +148,7 @@ describe('save model: the same as every other setting',()=>{
     });
     it.each([
         ['tool action',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 2 · Arrows'}));slide('Tool 2 action',4);},(v:any)=>expect(v.profiles[1].action).toBe(4)],
-        ['rate limit',()=>check('Limit Tool 3 · Tabs action rate'),(v:any)=>expect(v.profiles[2].interval).toBe(80)],
+        ['rate limit',()=>check('Limit Tool 3 · Tabs action rate'),(v:any)=>expect(v.profiles[2].interval).toBe(140)], // starts at Tabs' default pace
         ['reverse direction',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));check('Reverse horizontal direction');},(v:any)=>expect(v.profiles[0].invertHorizontal).toBe(true)],
         ['dead zone',()=>{fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Tool 1 action',7);slide('Center dead zone',12);},(v:any)=>expect(v.profiles[0]).toMatchObject({action:7,reversal:13})],
     ])('queues a %s change with no extra step',async(_,act,verify)=>{
