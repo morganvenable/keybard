@@ -17,7 +17,8 @@
         "build:next": "tsc && vite build --mode next",
         "build:paranoid": "tsc && vite build --mode paranoid",
         "dev:sval-preview": "vite --mode sval-preview --host 127.0.0.1 --port 5176",
-        "test:ux": "playwright test"
+        "test:ux": "playwright test",
+        "test:ux:import": "playwright test -c playwright.import.config.ts"
     },
     "repository": {
         "type": "git",

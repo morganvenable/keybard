@@ -10,3 +10,4 @@ docs/dev-sessions/
 # Playwright UX flow tests (e2e/)
 e2e/.results/
 e2e/.report/
+e2e/.results-import/
