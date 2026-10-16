@@ -16,7 +16,7 @@ export const POINT_ACTIONS = [
     {name:'Tasks', short:'Tsk', description:'Horizontal: Alt+Shift+Tab / Alt+Tab. Release or Enter accepts; Escape cancels. On macOS, Command+Shift+Tab / Command+Tab.'},
     {name:'Zoom', short:'Zm', description:'Vertical: up sends Ctrl+= (zoom in); down sends Ctrl+- (zoom out). On macOS, Command+= / Command+-. Browser/app zoom, US keyboard layout.'},
     {name:'Undo / Redo', short:'Un', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Shift+Z (redo). On macOS, Command+Z / Command+Shift+Z. Choose the Ctrl+Y preset if your app needs it.'},
-    {name:'Undo / Redo (Ctrl+Y)', short:'UnY', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Y (redo). On macOS, Command+Z / Command+Y. Windows app preset.'},
+    {name:'Undo / Redo (Ctrl+Y)', short:'UnY', description:'Horizontal: left sends Ctrl+Z (undo); right sends Ctrl+Y (redo). On macOS, Command+Z / Command+Shift+Z, the Mac redo. Windows app preset.'},
     {name:'Proportional scroll', short:'Pan', description:'Move away from the activation point to set scrolling velocity. Return to center to stop; release Hold or switch Toggle off to stop and recenter. Both axes use your existing free-scroll / axis-lock policy.'},
 ] as const;
 export const pointAction = (value: PointControls, index: number) => POINT_ACTIONS[value.profiles[index].action ?? index];
