@@ -13,7 +13,7 @@ beforeEach(()=>{
     config.universal=true;config.profiles.forEach(p=>{p.useDefaults=true;p.interval=0;});
     state.keyboard={feature_flags2:POINT_CONTROL_FLAG,pointing_controls:config};
     state.queue.mockResolvedValue(undefined);state.save.mockResolvedValue(undefined);state.stop.mockResolvedValue(undefined);
-    state.status.mockResolvedValue({left:0,right:0,axes:3,locked:false,session:false,multiplier:1,recognized:0,admitted:0,dropped:0});
+    state.status.mockResolvedValue({left:0,right:0,axes:3,locked:false,session:false,recognized:0,admitted:0,dropped:0});
 });
 afterEach(cleanup);
 const slide=(label:string,value:number)=>fireEvent.change(screen.getByLabelText(label),{target:{value:String(value)}});
@@ -45,8 +45,14 @@ describe('shared pointing speeds',()=>{
         state.keyboard.pointing_controls={version:1,profiles:structuredClone(POINT_DEFAULTS)};render(<PointControlSettings/>);
         expect(screen.getByText(/Update the firmware on both halves/)).toBeInTheDocument();expect(screen.getByLabelText('Horizontal speed')).toBeDisabled();expect(state.queue).not.toHaveBeenCalled();
     });
+    it('shows the one active tool every pointer follows, with no side and no Finer / Coarser note',async()=>{
+        state.status.mockResolvedValue({left:2,right:2,axes:1,locked:true,session:false,recognized:1,admitted:1,dropped:0});
+        render(<PointControlSettings/>);
+        expect(await screen.findByText('Active tool: Tool 2 · Arrows')).toBeInTheDocument();
+        expect(screen.queryByText(/Left|Right|Temporary key adjustment/)).toBeNull();
+    });
     it('rejects invalid advanced limits and stops controls immediately',async()=>{
-        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop all tools'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
+        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop tools'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
     });
 });
 

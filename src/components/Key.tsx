@@ -44,6 +44,17 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     unitSize?: number;
 }
 
+let capMeasure: CanvasRenderingContext2D | null | undefined;
+/** Largest font size (at most 9.6px) at which every line fits the width, in the key font (Inter 600). */
+function fitCapFontSize(lines: string[], width: number): number {
+    if (capMeasure === undefined) {
+        try { capMeasure = document.createElement("canvas").getContext("2d"); } catch { capMeasure = null; }
+        if (capMeasure) capMeasure.font = "600 10px Inter, sans-serif";
+    }
+    const widest = Math.max(...lines.map((line) => capMeasure ? capMeasure.measureText(line).width : line.length * 7.5));
+    return Math.min(9.6, Math.floor((10 * width / Math.max(widest, 1)) * 10) / 10);
+}
+
 /**
  * Renders a single key in the keyboard layout.
  */
@@ -102,9 +113,16 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         const isCompactSmallLabel = isSmall && !shouldShrinkText &&
             typeof keyData.centerContent === "string" && keyData.centerContent.length >= 4;
 
+        // Pointing tool caps spell their words out ("VOLUME / TOGGLE"). On small keys the
+        // shrink size runs past the edge, so they scale to fit the key's width.
+        const pointCapLines = isSmall && keycode.startsWith("SV_POINT_") && typeof keyData.centerContent === "string"
+            ? keyData.centerContent.split("\n") : undefined;
+
         // Dynamic center text sizing based on crowding and variant
         let fontSize: string | undefined;
-        if (isCrowded) {
+        if (pointCapLines && !isCrowded) {
+            fontSize = `${fitCapFontSize([...pointCapLines, "TOGGLE"], w * 30 - 8)}px`; // HOLD and TOGGLE caps match
+        } else if (isCrowded) {
             fontSize = isSmall ? "0.5rem" : isMedium ? "0.6rem" : "13px";
         } else if (shouldShrinkText) {
             fontSize = "0.6rem";

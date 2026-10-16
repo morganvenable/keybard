@@ -1,4 +1,4 @@
-import { validatePointControls, hasPointControls, pointKey } from "@/constants/point-controls";
+import { validatePointControls, hasPointControls, pointKey, RETIRED_POINT_NAMES } from "@/constants/point-controls";
 import type { CustomValueEntry, KeyboardInfo } from "../types/keyboard.types";
 import { ComboOptions } from "../types/keyboard.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
@@ -40,6 +40,18 @@ function countRawKeycodes(js: any): number {
         else if (value && typeof value === "object") Object.values(value).forEach(visit);
     };
     for (const layer of js.layout ?? []) for (const row of layer) for (const key of row) if (typeof key === "number" && key > 0) count++;
+    for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
+    return count;
+}
+
+/** Finer / Coarser keys in a layout file; they load as KC_NO. */
+function countRetiredPointKeys(js: any): number {
+    let count = 0;
+    const visit = (value: unknown): void => {
+        if (typeof value === "string") { if (RETIRED_POINT_NAMES.has(value)) count++; }
+        else if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") Object.values(value).forEach(visit);
+    };
     for (const field of ["layout", "macro", "combo", "tap_dance", "key_override", "alt_repeat_key", "leader", "encoder_layout"]) visit(js[field]);
     return count;
 }
@@ -218,6 +230,8 @@ export class FileService {
         // numbering the file was written in; the import check warns when it differs.
         kbinfo.keycode_version = typeof js.keycode_version === "string" ? js.keycode_version : undefined;
         kbinfo.raw_keycode_count = countRawKeycodes(js);
+        const retiredPointKeys = countRetiredPointKeys(js);
+        if (retiredPointKeys) kbinfo.retired_point_key_count = retiredPointKeys;
 
         // Restore precise UID (JSON.parse loses precision on large integers)
         if (rawUidStr && kbinfo) {

@@ -12,7 +12,7 @@ import { SvilUSB } from '@/services/usb.service';
 
 const config = () => ({version: 1 as const, profiles: structuredClone(POINT_DEFAULTS)});
 const reply = (cmd=SvilUSB.CMD_SVIL_POINT_TOOLS_GET, generation=4, status=0) => new Uint8Array([cmd,status,1,generation,0,...POINT_DEFAULTS.flatMap(p=>[p.distance&255,p.distance>>8,p.interval,p.reversal])]);
-const keyboard = () => ({rows:1, cols:2, layers:1, keymap:[[0x7e08,0x7e10]], feature_flags2:POINT_CONTROL_FLAG, pointing_controls:config(), svil_proto:3, kbid:'01', custom_keycodes:[], macros:[], combos:[], tapdances:[], key_overrides:[], alt_repeat_keys:[], leaders:[]} as KeyboardInfo);
+const keyboard = () => ({rows:1, cols:2, layers:1, keymap:[[0x7e02,0x7e10]], feature_flags2:POINT_CONTROL_FLAG, pointing_controls:config(), svil_proto:3, kbid:'01', custom_keycodes:[], macros:[], combos:[], tapdances:[], key_overrides:[], alt_repeat_keys:[], leaders:[]} as KeyboardInfo);
 
 describe('pointing controls system contract', () => {
     it('loads the firmware table and sends a bounded versioned atomic update with its generation', async () => {
@@ -36,9 +36,9 @@ describe('pointing controls system contract', () => {
         expect(()=>validatePointControls({version:2,profiles:POINT_DEFAULTS})).toThrow();
     });
     it('decodes live status and verifies Stop acknowledgement', async () => {
-        const usb={sendSvil:vi.fn().mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS,1,1,4,2,1,1,1,5,0,0,0,3,0,0,0,2,0,0,0])).mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_POINT_TOOLS_STOP,0,1]))};
+        const usb={sendSvil:vi.fn().mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS,1,3,3,2,1,1,1,5,0,0,0,3,0,0,0,2,0,0,0])).mockResolvedValueOnce(new Uint8Array([SvilUSB.CMD_SVIL_POINT_TOOLS_STOP,0,1]))};
         const service=new PointControlsService(usb as any);
-        expect(await service.status()).toEqual({left:1,right:4,axes:2,locked:true,session:true,multiplier:1,recognized:5,admitted:3,dropped:2});
+        expect(await service.status()).toEqual({left:3,right:3,axes:2,locked:true,session:true,recognized:5,admitted:3,dropped:2});
         await service.stop();expect(usb.sendSvil).toHaveBeenLastCalledWith(SvilUSB.CMD_SVIL_POINT_TOOLS_STOP,[],{uint8:true});
     });
     it('uses named keys without confusing existing Sval custom keycodes', () => {
@@ -56,7 +56,7 @@ describe('pointing controls system contract', () => {
     it('round-trips named bindings and all tuning through a normal layout export', () => {
         const kb=keyboard(); kb.pointing_controls!.profiles[2].distance=233;
         const exported=JSON.parse(fileService.kbinfoToSvil(kb));
-        expect(exported.layout[0][0]).toEqual(['SV_POINT_R_TOOL1_HOLD','SV_POINT_STOP_ALL']);
+        expect(exported.layout[0][0]).toEqual(['SV_POINT_TOOL2_HOLD','SV_POINT_STOP_ALL']);
         const imported=fileService.svilToKBINFO(exported);
         expect(imported.keymap?.[0].slice(0,2)).toEqual(kb.keymap![0]);
         expect(imported.pointing_controls).toEqual(kb.pointing_controls);
@@ -72,7 +72,7 @@ describe('pointing controls system contract', () => {
         exported.pointing_controls.profiles[0].distance=5;
         const imported=fileService.svilToKBINFO(exported);
         expect(imported.pointing_controls).toBeUndefined();
-        expect(imported.keymap?.[0].slice(0,2)).toEqual([0x7e08,0x7e10]);
+        expect(imported.keymap?.[0].slice(0,2)).toEqual([0x7e02,0x7e10]);
     });
     it('never queues a pointing write when the board has no pointing tools', async () => {
         const kb={...keyboard(),feature_flags2:0,pointing_controls:undefined};
