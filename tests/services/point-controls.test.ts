@@ -56,7 +56,7 @@ describe('pointing controls system contract', () => {
     it('round-trips named bindings and all tuning through a normal layout export', () => {
         const kb=keyboard(); kb.pointing_controls!.profiles[2].distance=233;
         const exported=JSON.parse(fileService.kbinfoToSvil(kb));
-        expect(exported.layout[0][0]).toEqual(['SV_POINT_R_VOLUME_HOLD','SV_POINT_CANCEL']);
+        expect(exported.layout[0][0]).toEqual(['SV_POINT_R_TOOL1_HOLD','SV_POINT_STOP_ALL']);
         const imported=fileService.svilToKBINFO(exported);
         expect(imported.keymap?.[0].slice(0,2)).toEqual(kb.keymap![0]);
         expect(imported.pointing_controls).toEqual(kb.pointing_controls);

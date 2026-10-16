@@ -7,14 +7,14 @@ export class PointControlsService {
     private version = 1;
     constructor(private usb: SvilUSB) {}
     private decode(reply: Uint8Array, command: number): PointControls {
-        if (reply.length < 21 || reply[0] !== command || ![1,2,3,4,5].includes(reply[2])) throw new Error('Pointing controls need matching keyboard firmware.');
+        if (reply.length < 21 || reply[0] !== command || ![1,2,3,4,5].includes(reply[2])) throw new Error('Pointing tools need matching keyboard firmware.');
         const errors: Record<number, string> = {
-            1: 'Stop active pointing controls before saving their settings.',
+            1: 'Stop active pointing tools before saving their settings.',
             2: 'Pointing settings changed in another window. Reload the keyboard before trying again.',
             3: 'The keyboard rejected those motion settings.',
             4: 'The keyboard could not save the pointing settings. Reconnect and try again.',
         };
-        if (reply[1]) throw new Error(errors[reply[1]] ?? 'Could not save pointing controls.');
+        if (reply[1]) throw new Error(errors[reply[1]] ?? 'Could not save pointing tools.');
         const value: PointControls = reply[2] !== 1 ? decodePointControls(reply.slice(5,reply[2]>=4?24:21),reply[2] as 2|3|4|5) : { version: 1, profiles: Array.from({length: 4}, (_, i) => ({
             distance: reply[5+i*4] | reply[6+i*4] << 8, interval: reply[7+i*4], reversal: reply[8+i*4],
         })) };

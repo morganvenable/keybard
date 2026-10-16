@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useId } from 'react';
 import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
-import { POINT_PRESETS, POINT_ACTIONS, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls } from '@/constants/point-controls';
+import { POINT_PRESETS, POINT_ACTIONS, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls, pointSideName } from '@/constants/point-controls';
 import { pointControlsService, type PointStatus } from '@/services/point-controls.service';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
@@ -43,7 +43,7 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         try { validatePointControls(value); } catch (e) { setError((e as Error).message); return; }
         setError('');
         setKeyboard(current => current ? {...current, pointing_controls: value} : current);
-        await queue('Pointing control settings', () => pointControlsService.save(value), {type:'setting', writeKey:'pointing-controls'});
+        await queue('Pointing tools settings', () => pointControlsService.save(value), {type:'setting', writeKey:'pointing-controls'});
     };
     const stop = async () => {
         const targetSession = session.current;
@@ -82,17 +82,17 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.profiles[i].interval!==0} disabled={needsUpdate} onChange={e=>change(next=>{next.profiles[i].interval=e.target.checked?80:0;})}/>Limit {toolName(i)} {proportional(i)?'speed':'action rate'}</label>
         {draft.profiles[i].interval!==0 ? <label className="text-sm">{toolName(i)} maximum {proportional(i)?'wheel steps / second (per axis)':'actions / second'}<Input type="number" min={4} max={250} step={0.25} disabled={needsUpdate} value={Number((1000/draft.profiles[i].interval).toFixed(2))} onChange={e=>change(next=>{const n=Number(e.target.value);next.profiles[i].interval=n>0?Math.round(1000/n):-1;})}/></label> : <p className="text-xs text-muted-foreground">Uncapped — USB and the application determine throughput.</p>}
     </div>;
-    return <section className={`flex flex-col gap-3 rounded-lg border border-kb-gray-medium p-3 ${compact ? 'w-80' : ''}`} aria-label="Pointing control tuning">
+    return <section className={`flex flex-col gap-3 rounded-lg border border-kb-gray-medium p-3 ${compact ? 'w-80' : ''}`} aria-label="Pointing tools tuning">
         <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold">Control speeds</h3>
-            {isConnected && <Button variant="secondary" size="sm" disabled={stopping} onClick={stop}>Stop all controls</Button>}
+            <h3 className="font-semibold">Tool speeds</h3>
+            {isConnected && <Button variant="secondary" size="sm" disabled={stopping} onClick={stop}>Stop all tools</Button>}
         </div>
         {needsUpdate && <div role="status" className="rounded border border-kb-gray-medium p-2 text-sm">
             Update the firmware on both halves for these pointing tools, then reconnect. Existing bindings and tuning are kept.
         </div>}
         <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={draft.universal} disabled={needsUpdate} onChange={e=>change(next=>{next.universal=e.target.checked;})}/>Use shared speeds for every tool</label>
         <p className="text-xs text-muted-foreground">Shared speeds are the default. Turn this off to customize individual tools. Turning it back on keeps overrides for later; Revert all clears them.</p>
-        <nav className="flex flex-wrap gap-1" aria-label="Control speed selection">
+        <nav className="flex flex-wrap gap-1" aria-label="Tool speed selection">
             <Button variant={index<0?'default':'secondary'} size="sm" onClick={()=>setIndex(-1)}>Shared defaults</Button>
             {POINT_PRESETS.map((_,i)=><Button key={i} size="sm" variant={index===i?'default':'secondary'} onClick={()=>setIndex(i)}>{toolName(i)}{differs(i)&&<AlertTriangle size={14} aria-label={`${toolName(i)} differs from defaults`}/>}</Button>)}
         </nav>
@@ -137,10 +137,10 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         </details>}
         <div className="flex flex-wrap items-center gap-2"><Button variant="secondary" size="sm" disabled={needsUpdate} onClick={resetAll}><RotateCcw size={14}/>Revert all tools to defaults</Button><span className="text-xs text-muted-foreground">{overrideCount ? `${overrideCount} tools differ` : 'All tools match defaults'}</span></div>
         <Button disabled={!dirty || isSaving || needsUpdate} onClick={save}>{isConnected ? isInstant ? 'Save tuning to keyboard' : 'Queue tuning for Apply' : 'Keep tuning in layout'}</Button>
-        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Changes save together on the USB-connected half and in layout exports. Stop active controls before saving.</p>
+        <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Changes save together on the USB-connected half and in layout exports. Stop active tools before saving.</p>
 
         {status && <div className="text-xs text-muted-foreground" role="status">
-            <p>Left: {status.left?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.left-1):'Normal'} · Right: {status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.right-1):'Normal'}</p>
+            <p>{pointSideName(0,keyboard)}: {status.left?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.left-1):'Normal'} · {pointSideName(1,keyboard)}: {status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),status.right-1):'Normal'}</p>
             <p>{status.locked ? `Axis lock: ${status.axes === 2 ? 'vertical' : 'horizontal'}` : 'Free scrolling'}{status.session ? ' · Task switcher open' : ''}</p>
             <p>{status.recognized} steps recognized · {status.admitted} actions admitted · {status.dropped} coalesced/dropped</p>
             {status.multiplier !== 1 && <p>Temporary key adjustment: {status.multiplier}× distance. Saving tuning resets it.</p>}

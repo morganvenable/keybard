@@ -1,4 +1,4 @@
-import { supportsPointControls, validatePointControls, upgradePointControls } from "@/constants/point-controls";
+import { isPointCode, supportsPointControls, validatePointControls, upgradePointControls } from "@/constants/point-controls";
 import type { KeyboardInfo } from '../types/keyboard.types';
 import { customValueService } from './custom-value.service';
 import { MacroService } from './macro.service';
@@ -31,7 +31,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.pointing_controls) {
         let valid = true;
         try { validatePointControls(file.pointing_controls); } catch { valid = false; }
-        const keys = (file.keymap ?? []).flat(2).filter(code => typeof code === 'number' && code >= 0x7e00 && code <= 0x7e13).length;
+        const keys = (file.keymap ?? []).flat(2).filter(isPointCode).length;
         if (!valid) warnings.push('The pointing tool settings in this file are damaged, so they are skipped. The rest of the layout imports normally.');
         else if (!supportsPointControls(current)) warnings.push(`This keyboard's firmware has no pointing tools, so the file's pointing tool settings are skipped.${keys ? ` Its ${keys} pointing tool key${keys === 1 ? '' : 's'} will do nothing until you install firmware with pointing tools.` : ''}`);
         else if (!current.pointing_controls || file.pointing_controls.version > current.pointing_controls.version) warnings.push('The keyboard did not report pointing tool settings this file can update, so they are skipped. Reconnect the keyboard, or update its firmware, and import again to bring them over.');

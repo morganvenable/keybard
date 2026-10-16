@@ -1,4 +1,4 @@
-import { hasPointControls, POINT_KEYS, pointKey, configuredPointKey } from "@/constants/point-controls";
+import { hasPointControls, PICKER_POINT_KEYS, pointKey, configuredPointKey, pointSideName } from "@/constants/point-controls";
 import PointControlSettings from "./PointControlSettings";
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -124,17 +124,17 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     return (
         <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
             {pointControls && <>
-                <section className="flex flex-col gap-2" aria-label="Trackball control keys">
-                    <h3 className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>Trackball controls</h3>
+                <section className="flex flex-col gap-2" aria-label="Pointing tools keys">
+                    <h3 className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>Pointing tools</h3>
                     <div className="flex gap-2">
-                        {["Left pointer", "Right pointer"].map((label, i) => <Button key={label} size="sm" variant={pointSide === i ? "default" : "secondary"} onClick={() => setPointSide(i)}>{label}</Button>)}
+                        {[0, 1].map(i => <Button key={i} size="sm" variant={pointSide === i ? "default" : "secondary"} onClick={() => setPointSide(i)}>{pointSideName(i, keyboard)}</Button>)}
                     </div>
                     <p className="text-xs text-muted-foreground">{canAssignPoint ? "Choose a hold or toggle for the selected key." : "Select a physical key on your layout, then choose a hold or toggle here."}</p>
                     <div className={`grid grid-cols-[repeat(4,max-content)] gap-1 ${canAssignPoint ? '' : 'opacity-50'}`}>
-                        {POINT_KEYS.filter(k => k.side === pointSide).map(k => renderKey({keycode:k.name, label:configuredPointKey(k,keyboard?.pointing_controls).label}))}
+                        {PICKER_POINT_KEYS.filter(k => k.side === pointSide).map(k => renderKey({keycode:k.name, label:configuredPointKey(k,keyboard?.pointing_controls,keyboard).label}))}
                     </div>
-                    <div className="flex gap-1">{renderKey({keycode:"SV_POINT_CANCEL", label:"Stop\nall"})}</div>
-                    <p className="text-xs text-muted-foreground">Hold runs while pressed; TG toggles until pressed again. Stop controls cancels both pointers. Held keyboard modifiers pause key-based tools; proportional scrolling sends normal wheel input.</p>
+                    <div className={`flex gap-1 ${canAssignPoint ? '' : 'opacity-50'}`}>{PICKER_POINT_KEYS.filter(k => k.side < 0).map(k => renderKey({keycode:k.name, label:k.label}))}</div>
+                    <p className="text-xs text-muted-foreground">Hold runs while pressed; TG toggles until pressed again. Stop all stops the tools on both pointers. Finer and Coarser halve or double the travel per step until the next save. Arrows carries held Shift and Ctrl; the other key-based tools wait while a modifier is held. Proportional scrolling sends normal wheel input.</p>
                 </section>
                 <PointControlSettings compact={compact} />
             </>}

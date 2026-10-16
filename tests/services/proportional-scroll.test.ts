@@ -9,7 +9,7 @@ import { SvilUSB } from '@/services/usb.service';
 const make=()=>{const c=upgradePointControls({version:1,profiles:structuredClone(POINT_DEFAULTS)});c.profiles[0].action=7;c.profiles[0].reversal=1;return decodePointControls(encodePointControls(c),5);};
 describe('proportional scrolling configuration',()=>{
     it('uses the existing slot bindings and storage with a zero or nonzero dead zone',()=>{
-        const c=make();expect(c.version).toBe(5);expect(configuredPointKey(POINT_KEYS[0],c).label).toBe('Pan1\nHold');
+        const c=make();expect(c.version).toBe(5);expect(configuredPointKey(POINT_KEYS[0],c).label).toBe('L Pan\nHold');
         for(const dead of [0,7,63]){c.profiles[0].reversal=dead+1;const packed=encodePointControls(c);expect(packed).toHaveLength(19);expect(decodePointControls(packed,5)).toEqual(c);}
         expect(()=>validatePointControls({...c,version:4})).toThrow();
     });

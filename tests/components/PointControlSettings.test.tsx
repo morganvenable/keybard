@@ -46,7 +46,7 @@ describe('shared pointing speeds',()=>{
         expect(screen.getByText(/Update the firmware on both halves/)).toBeInTheDocument();expect(screen.getByLabelText('Horizontal speed')).toBeDisabled();expect(state.queue).not.toHaveBeenCalled();
     });
     it('rejects invalid advanced limits and stops controls immediately',async()=>{
-        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop all controls'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
+        render(<PointControlSettings/>);fireEvent.click(screen.getByRole('button',{name:'Tool 1 · Volume'}));slide('Reversal tolerance',0);fireEvent.click(screen.getByRole('button',{name:'Queue tuning for Apply'}));expect(await screen.findByRole('alert')).toHaveTextContent('Invalid');expect(state.queue).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Stop all tools'}));await waitFor(()=>expect(state.stop).toHaveBeenCalledOnce());
     });
 });
 

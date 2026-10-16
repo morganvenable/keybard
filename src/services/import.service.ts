@@ -51,9 +51,9 @@ export class ImportService {
         newKb.macros_size = currentKb.macros_size;
 
         if (newKb.pointing_controls && JSON.stringify(newKb.pointing_controls) !== JSON.stringify(currentKb.pointing_controls)) {
-            if (!supportsPointControls(currentKb)) throw new Error('The keyboard does not support pointing controls.');
+            if (!supportsPointControls(currentKb)) throw new Error('The keyboard does not support pointing tools.');
             const controls = structuredClone(newKb.pointing_controls);
-            await queue('Pointing control settings', () => pointControlsService.save(controls), { type: 'setting', writeKey: 'pointing-controls' });
+            await queue('Pointing tools settings', () => pointControlsService.save(controls), { type: 'setting', writeKey: 'pointing-controls' });
         }
         // 1. Sync Keymap
         // Use hardware dimensions from currentKb for iteration
