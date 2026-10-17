@@ -85,7 +85,7 @@ jobs:
         run: python companion/overlay-host/packaging/windows/build.py --version "${{ inputs.tag }}"
       - name: Install, run and uninstall
         shell: pwsh
-        run: ./companion/overlay-host/packaging/windows/smoke-test.ps1 -Installer build-windows/KeybardHostSetup.exe
+        run: ./companion/overlay-host/packaging/windows/smoke-test.ps1 -Installer build-windows/KeybardOverlaySetup.exe
       - name: Attach to the draft release
         shell: bash
         env:
@@ -94,5 +94,5 @@ jobs:
         run: |
           cd build-windows
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --clobber
-          echo "$(sha256sum KeybardHostSetup.exe | cut -d' ' -f1)  KeybardHostSetup.exe" >> SHA256SUMS.txt
-          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" KeybardHostSetup.exe SHA256SUMS.txt --clobber
+          echo "$(sha256sum KeybardOverlaySetup.exe | cut -d' ' -f1)  KeybardOverlaySetup.exe" >> SHA256SUMS.txt
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" KeybardOverlaySetup.exe SHA256SUMS.txt --clobber

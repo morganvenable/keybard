@@ -1,8 +1,8 @@
-"""Build the Keybard Host Windows installer.
+"""Build the Keybard Overlay Windows installer.
 
 Freezes the host with PyInstaller (Python, Qt and both Keybard builds included,
 so nothing is downloaded on first run), then packages it with Inno Setup into
-build-windows/KeybardHostSetup.exe.
+build-windows/KeybardOverlaySetup.exe.
 
 Run from the repository root after `npm run build:svalboard` and
 `npm run build:paranoid`, with the packages in requirements.txt and PyInstaller
@@ -75,14 +75,14 @@ def stage():
 def freeze(staged):
     data = [(staged / 'web', 'web'), (staged / 'web-paranoid', 'web-paranoid'), (HOST / 'keybard_host' / 'assets', 'keybard_host/assets')]
     command = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--windowed',
-               '--name', 'Keybard Host', '--icon', str(ICON), '--paths', str(HOST), '--hidden-import', 'hid',
+               '--name', 'Keybard Overlay', '--icon', str(ICON), '--paths', str(HOST), '--hidden-import', 'hid',
                '--distpath', str(BUILD / 'dist'), '--workpath', str(BUILD / 'work'), '--specpath', str(BUILD)]
     for source, dest in data: command += ['--add-data', f'{source}{os.pathsep}{dest}']
     subprocess.run(command + [str(HERE / 'keybard_host_app.py')], check=True)
-    app = BUILD / 'dist' / 'Keybard Host'
-    for required in ('Keybard Host.exe', '_internal/web/index.html', '_internal/web-paranoid/index.html', '_internal/keybard_host/assets/svalboard.png'):
+    app = BUILD / 'dist' / 'Keybard Overlay'
+    for required in ('Keybard Overlay.exe', '_internal/web/index.html', '_internal/web-paranoid/index.html', '_internal/keybard_host/assets/svalboard.png'):
         if not (app / required).is_file(): raise SystemExit(f'Frozen app is missing {required}')
-    sign(app / 'Keybard Host.exe')
+    sign(app / 'Keybard Overlay.exe')
     return app
 
 
@@ -95,8 +95,8 @@ def installer(app, paranoid, version):
         # ISCC can't parse escaped quotes on its command line; Inno's sign-tool syntax
         # spells a quote as $q (and the quoted file name as $f).
         command += ['/DSign', '/Skeybard=' + SIGN_COMMAND.replace('"', '$q').replace('{file}', '$f')]
-    subprocess.run(command + [str(HERE / 'KeybardHost.iss')], check=True)
-    setup = BUILD / 'KeybardHostSetup.exe'
+    subprocess.run(command + [str(HERE / 'KeybardOverlay.iss')], check=True)
+    setup = BUILD / 'KeybardOverlaySetup.exe'
     if SIGN_COMMAND: verify_signature(setup)
     else: print('Not code signed: KEYBARD_SIGN_COMMAND is not set (see docs/code-signing.md).')
     return setup

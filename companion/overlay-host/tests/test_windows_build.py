@@ -19,7 +19,7 @@ class SigningSwitchTests(unittest.TestCase):
     def test_unsigned_when_not_configured(self):
         build = load_build('')
         with mock.patch.object(build.subprocess, 'run') as run, mock.patch.object(build, 'find_iscc', return_value=Path('ISCC.exe')):
-            self.assertFalse(build.sign(Path('C:/app/Keybard Host.exe')))
+            self.assertFalse(build.sign(Path('C:/app/Keybard Overlay.exe')))
             build.installer(Path('C:/app'), Path('C:/p.html'), '0.1.0-preview.6')
         iscc = run.call_args_list[-1].args[0]
         self.assertFalse(any(a == '/DSign' or a.startswith('/S') for a in iscc))
@@ -28,15 +28,15 @@ class SigningSwitchTests(unittest.TestCase):
     def test_signs_app_installer_and_uninstaller_and_verifies(self):
         build = load_build('signtool sign /fd SHA256 /tr http://ts.example /td SHA256 {file}')
         with mock.patch.object(build.subprocess, 'run') as run, mock.patch.object(build, 'find_iscc', return_value=Path('ISCC.exe')):
-            self.assertTrue(build.sign(Path('C:/app/Keybard Host.exe')))
+            self.assertTrue(build.sign(Path('C:/app/Keybard Overlay.exe')))
             build.installer(Path('C:/app'), Path('C:/p.html'), '0.1.0')
         calls = [c.args[0] for c in run.call_args_list]
-        self.assertEqual(calls[0], f'signtool sign /fd SHA256 /tr http://ts.example /td SHA256 "{Path("C:/app/Keybard Host.exe")}"')
+        self.assertEqual(calls[0], f'signtool sign /fd SHA256 /tr http://ts.example /td SHA256 "{Path("C:/app/Keybard Overlay.exe")}"')
         self.assertIn('Get-AuthenticodeSignature', calls[1][-1])
         iscc = calls[2]
         self.assertIn('/DSign', iscc)
         self.assertIn('/Skeybard=signtool sign /fd SHA256 /tr http://ts.example /td SHA256 $f', iscc)
-        self.assertIn('KeybardHostSetup.exe', calls[3][-1])  # installer signature verified
+        self.assertIn('KeybardOverlaySetup.exe', calls[3][-1])  # installer signature verified
 
     def test_quotes_in_the_command_reach_inno_as_q(self):
         build = load_build(r'"C:\Program Files (x86)\Windows Kits\signtool.exe" sign /fd SHA256 {file}')

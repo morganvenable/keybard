@@ -1,13 +1,13 @@
 # Code signing the Windows installer
 
-The Keybard Host installer (`KeybardHostSetup.exe`) is not code-signed yet, so Windows SmartScreen warns on first run ("Windows protected your PC" → **More info → Run anyway**). Signing is already wired into the build. It switches on when credentials are added, with no build changes.
+The Keybard Overlay installer (`KeybardOverlaySetup.exe`) is not code-signed yet, so Windows SmartScreen warns on first run ("Windows protected your PC" → **More info → Run anyway**). Signing is already wired into the build. It switches on when credentials are added, with no build changes.
 
 ## What gets signed
 
 When signing is configured, `companion/overlay-host/packaging/windows/build.py`:
 
-1. Signs `Keybard Host.exe` after PyInstaller builds it, before it goes into the installer.
-2. Has Inno Setup sign `KeybardHostSetup.exe` and the uninstaller it generates (`SignTool` / `SignedUninstaller`).
+1. Signs `Keybard Overlay.exe` after PyInstaller builds it, before it goes into the installer.
+2. Has Inno Setup sign `KeybardOverlaySetup.exe` and the uninstaller it generates (`SignTool` / `SignedUninstaller`).
 3. Checks each file with Windows' own `Get-AuthenticodeSignature`. The build fails unless every signature is valid and timestamped.
 
 The CMD/ZIP package and `keybard-paranoid.html` are not executables and are not signed. Their checksums are in `SHA256SUMS.txt`.
@@ -42,7 +42,7 @@ An EV certificate no longer bypasses SmartScreen on its own, so it is rarely wor
 
 - **SmartScreen reputation builds with real downloads.** The warning fades over the first weeks of a signed release, not instantly.
 - **Sign every release with the same identity,** so reputation carries over.
-- **winget follows naturally:** submit a manifest pointing at the signed installer, and `winget install Svalboard.KeybardHost` works.
+- **winget follows naturally:** submit a manifest pointing at the signed installer, and `winget install Svalboard.KeybardOverlay` works.
 - **The Microsoft Store (MSIX) is a separate route** with Store signing and automatic updates. It needs MSIX packaging and Store review.
 
 ## Testing the switch without a certificate
