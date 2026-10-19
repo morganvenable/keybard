@@ -72,6 +72,26 @@ describe("the drawn touchpad with contacts from the board", () => {
         expect(drawn.every((d) => d.press === 1)).toBe(true);
     });
 
+    it("draws six fingers on one pad", () => {
+        const send = mount();
+        const six = [0, 1, 2, 3, 4, 5].map((id) => ({ id, x: -0.75 + 0.3 * id, y: id % 2 ? 0.5 : -0.5, confident: true }));
+        send(report(half(six)));
+        runFrames(20);
+        expect(drawn).toHaveLength(6);
+        expect(drawn.map((d) => [d.x, d.y])).toEqual(six.map((c) => [c.x, c.y]));
+    });
+
+    it("draws a finger the touchpad left out beside one with the same ID", () => {
+        const send = mount();
+        send(report(half([
+            { id: 3, x: -0.5, y: 0, confident: true },
+            { id: 4, x: 0, y: 0, confident: true },
+            { id: 3, x: 0.5, y: 0, confident: true, leftOut: true },
+        ])));
+        runFrames(20);
+        expect(drawn.map((d) => d.x)).toEqual([-0.5, 0, 0.5]);
+    });
+
     it("moves a finger with its contact and lifts the ones that are gone", () => {
         const send = mount();
         send(report(half([{ id: 1, x: -0.5, y: 0, confident: true }, { id: 2, x: 0.5, y: 0, confident: true }])));
