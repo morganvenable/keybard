@@ -3,7 +3,7 @@
 import { describeFirmware } from "@/constants/firmware";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { UpdaterClient } from "@/services/updater/client";
-import { HAND_SELF, POINTING_NAMES, Presence, UPDATER_PROTOCOL, otherHand, type Hand } from "@/services/updater/protocol";
+import { HAND_SELF, Presence, UPDATER_PROTOCOL, otherHand, type Hand } from "@/services/updater/protocol";
 import type { UpdaterTransport } from "@/services/updater/transport";
 import type { SideHost } from "@/services/side-host";
 import { assessSides, type SideAssessment } from "@/services/side-decision";
@@ -14,7 +14,6 @@ export interface HalfSummary {
     /** The release tag, or "build <n>" for the half without USB when it differs. */
     tag: string;
     fwVersion: number;
-    pointing: string;
     answered: boolean;
 }
 
@@ -74,12 +73,12 @@ export async function readBoardSummary(transport: UpdaterTransport, keyboard?: K
     const status = await c.status(usbHand);
     const o = await c.info(otherHand(usbHand)).catch(() => null);
     const halves: HalfSummary[] = [
-        { hand: usbHand, usb: true, tag, fwVersion: usb.fwVersion, pointing: POINTING_NAMES[usb.pointingId] ?? "Unknown", answered: true },
+        { hand: usbHand, usb: true, tag, fwVersion: usb.fwVersion, answered: true },
     ];
     if (o?.answered) {
-        halves.push({ hand: otherHand(usbHand), usb: false, tag: o.fwVersion === usb.fwVersion ? tag : `build ${o.fwVersion}`, fwVersion: o.fwVersion, pointing: POINTING_NAMES[o.pointingId] ?? "Unknown", answered: true });
+        halves.push({ hand: otherHand(usbHand), usb: false, tag: o.fwVersion === usb.fwVersion ? tag : `build ${o.fwVersion}`, fwVersion: o.fwVersion, answered: true });
     } else {
-        halves.push({ hand: otherHand(usbHand), usb: false, tag: "", fwVersion: 0, pointing: "", answered: false });
+        halves.push({ hand: otherHand(usbHand), usb: false, tag: "", fwVersion: 0, answered: false });
     }
     // On one-image firmware, two halves on one side (SAME_HAND) is a side to set, not firmware to finish.
     const sideTrouble = !!sides && (sides.kind === "same" || sides.kind === "unknown");

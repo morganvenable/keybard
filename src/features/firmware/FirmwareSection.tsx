@@ -100,7 +100,6 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                         <p key={h.hand} className={`flex flex-wrap items-center gap-x-2 text-sm ${stale ? "text-kb-orange" : ""}`} data-half={h.hand}>
                             <span className="font-medium">{HALF(h.hand)}</span>
                             {h.answered ? <span className="font-mono">{h.tag}</span> : <span className="text-muted-foreground">not answering</span>}
-                            {h.answered && <span className="text-muted-foreground">· {h.pointing}</span>}
                             {h.usb && <span className="rounded border border-kb-gray-border px-1 text-[10px] uppercase text-muted-foreground">USB</span>}
                         </p>
                     );
