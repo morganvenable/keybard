@@ -122,7 +122,7 @@ describe("progress titles and footers (5.1)", () => {
 
 const board = (o: Partial<BoardSummary> = {}): BoardSummary => ({
     updater: true, legacyLabel: null, usbHand: 1, differ: false, noChord: false, fwVersion: 3000, tag: "v3",
-    halves: [{ hand: 0, usb: false, tag: "v3", fwVersion: 3000, pointing: "Trackball", answered: true }, { hand: 1, usb: true, tag: "v3", fwVersion: 3000, pointing: "No pointing module", answered: true }], ...o,
+    halves: [{ hand: 0, usb: false, tag: "v3", fwVersion: 3000, answered: true }, { hand: 1, usb: true, tag: "v3", fwVersion: 3000, answered: true }], ...o,
 });
 
 describe("the Firmware page (D2)", () => {

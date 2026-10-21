@@ -29,10 +29,10 @@ const pin = (tag: string, fw: number, highlights: string[] = []): FirmwareReleas
 });
 const RELEASES = [pin("x4", 4000, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pin("v3", 3000)];
 
-const half = (hand: 0 | 1, tag: string, fw: number, usb: boolean, pointing = "Trackball") => ({ hand, usb, tag, fwVersion: fw, pointing, answered: true });
-const BOARD: BoardSummary = { updater: true, legacyLabel: null, usbHand: 1, halves: [half(0, "v3", 3000, false), half(1, "v3", 3000, true, "No pointing module")], differ: false, noChord: false, fwVersion: 3000, tag: "v3" };
-const UP_TO_DATE: BoardSummary = { ...BOARD, halves: [half(0, "x4", 4000, false), half(1, "x4", 4000, true, "No pointing module")], fwVersion: 4000, tag: "x4" };
-const DIFFER: BoardSummary = { ...BOARD, halves: [half(0, "build 4000", 4000, false), half(1, "v3", 3000, true, "No pointing module")], differ: true };
+const half = (hand: 0 | 1, tag: string, fw: number, usb: boolean) => ({ hand, usb, tag, fwVersion: fw, answered: true });
+const BOARD: BoardSummary = { updater: true, legacyLabel: null, usbHand: 1, halves: [half(0, "v3", 3000, false), half(1, "v3", 3000, true)], differ: false, noChord: false, fwVersion: 3000, tag: "v3" };
+const UP_TO_DATE: BoardSummary = { ...BOARD, halves: [half(0, "x4", 4000, false), half(1, "x4", 4000, true)], fwVersion: 4000, tag: "x4" };
+const DIFFER: BoardSummary = { ...BOARD, halves: [half(0, "build 4000", 4000, false), half(1, "v3", 3000, true)], differ: true };
 const LEGACY: BoardSummary = { updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", usbHand: 1, halves: [], differ: false, noChord: false, fwVersion: 0, tag: "" };
 
 const info0 = (o: Partial<Info0>): Info0 => ({
