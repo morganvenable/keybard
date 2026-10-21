@@ -182,6 +182,18 @@ describe("the one image: the update and after", () => {
         expect(asks[1].sideAsk!.note).toContain("https://www.svalboard.com/discord");
         expect(state.phase).toBe("result");
     });
+    it("status 4 on the other half: Keybard's put-back is refused, so it asks, offering the plugged-in half first", async () => {
+        const { fake, state, asks } = await run(
+            { supported: false, after: { other: { side: "right", strap: Strap.RIGHT, source: SideSource.STRAP } } },
+            { answer: (s) => writesForAnswer(assessmentFromAsk(s.sideAsk!), s.sideAsk!.suggested!) },
+        );
+        expect(fake.writes.map((w) => `${w.role}:${w.side}:${w.status}`)).toEqual(["other:left:4", "usb:left:0"]);
+        expect(asks).toHaveLength(1);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "same", suggested: "left" });
+        expect(asks[0].sideAsk!.note).toContain("a right thumb cluster");
+        expect(state.phase).toBe("result");
+        expect(state.result?.sides).toMatchObject({ usb: "left", other: "right" });
+    });
     it("a refusal every time ends on F21, with the reason", async () => {
         const { state, fake } = await run(
             { supported: true, after: { usb: { side: "right", strap: Strap.RIGHT }, other: { side: "right", strap: Strap.RIGHT } } },

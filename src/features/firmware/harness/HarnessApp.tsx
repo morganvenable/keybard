@@ -4,6 +4,8 @@
 //   ?real=1            the keyboard over WebHID (Connect), with the app's backup and restore
 //   ?gallery=1         every screen at once, for review screenshots
 //   &theme=dark        dark mode
+//   &sides=<scenario>  one-image firmware: the release is one image, and the board has SIDE
+//                      (scenarios in services/updater/fake-sides-scenarios.ts)
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -14,7 +16,10 @@ import { KeyboardProvider, useKeyboard } from "@/contexts/KeyboardContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import type { Fault } from "@/services/updater/fake-board";
-import { FakeHost, fakeSetup, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
+import { FakeHost, fakeSetup, fixtureOneImage, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
+import { sidesScenario } from "@/services/updater/fake-sides-scenarios";
+import type { SideWrite } from "@/services/side-decision";
+import { applySideWrites } from "../side-actions";
 import { HAND_LEFT, HAND_RIGHT, type Hand } from "@/services/updater/protocol";
 import type { SvupFile } from "@/services/updater/svup";
 import type { Clock } from "@/services/updater/transport";
@@ -106,6 +111,8 @@ function useDialogWiring(host: FirmwareUiHost | null, releases: FirmwareReleaseP
             onCancel={() => (fw.ui.kind === "flow" ? fw.flow?.cancel() : fw.close())}
             onClose={fw.close}
             onFailureAction={onFailureAction}
+            onFixSides={(w) => void fw.fixSides(w)}
+            onAnswerSide={fw.answerSide}
         />
     );
     return { fw, install, dialog, manual, setManual };
@@ -119,26 +126,34 @@ function FakeHarness() {
             const size = 0x1e000; // a release image's size
             const v2 = await fixtureRelease("v2", 2000, { imageLen: size });
             const v3 = await fixtureRelease("v3", 3000, { imageLen: size });
-            const x4 = await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
+            const sides = sidesScenario(params.get("sides"));
+            const x4 = sides ? await fixtureOneImage("x4", 4000, { imageLen: size }) : await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
             const running = params.get("running") === "x4" ? x4 : params.get("running") === "v2" ? v2 : v3;
             const clock = new ScaledClock(Number(params.get("speed") ?? 4));
-            const { board: fake } = fakeSetup({
+            const { board: fake, sides: fakeSides } = fakeSetup({
                 clock, running, noChord: params.has("nochord"), faults: parseFaults(), usbHand: params.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
-                chordAfterMs: params.get("chord") === "never" ? "never" : 3000,
+                chordAfterMs: params.get("chord") === "never" ? "never" : 3000, sides,
             });
             const host = new HarnessFakeHost(fake, clock);
+            host.sides = fakeSides?.host;
             const releases = [pinOf(x4, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
             setReady({ host, releases, byTag: { v2, v3, x4 } });
         })();
     }, []);
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
     const { fw, install, dialog, manual, setManual } = useDialogWiring(ready?.host ?? null, ready?.releases ?? [], files);
-    const refresh = useCallback(() => { if (ready) void readBoardSummary(ready.host.board).then(setBoard).catch(() => setBoard(null)); }, [ready]);
+    const refresh = useCallback(() => { if (ready) void readBoardSummary(ready.host.board, null, ready.host.sides).then(setBoard).catch(() => setBoard(null)); }, [ready]);
     useEffect(() => { refresh(); }, [refresh, fw.ui.kind]);
+    const [side, setSide] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
+    const applySides = useCallback((writes: SideWrite[]) => {
+        if (!ready) return;
+        setSide({ busy: true, note: null });
+        void applySideWrites(ready.host, writes).then((note) => { setSide({ busy: false, note }); refresh(); });
+    }, [ready, refresh]);
     if (!ready) return <Page title="Firmware harness · mock board">Building fixture files…</Page>;
     return (
         <Page title="Firmware harness · mock board">
-            <FirmwareSection board={board} releases={ready.releases} onInstall={install} onManual={(r) => setManual(r)} />
+            <FirmwareSection board={board} releases={ready.releases} onInstall={install} onManual={(r) => setManual(r)} sides={{ ...side, apply: applySides }} />
             {dialog}
             {manual !== undefined && (
                 <div className="rounded-md border border-kb-gray-border bg-kb-surface p-4">

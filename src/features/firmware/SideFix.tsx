@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { oppositeSide, type Side } from "@/services/side";
 import type { HalfRole, SideAssessment, SideWrite } from "@/services/side-decision";
 import type { SideAsk } from "@/services/updater/flow";
-import { sameSideFix, writesForAnswer } from "@/services/side-decision";
+import { sameSideFix, suggestedSide, writesForAnswer } from "@/services/side-decision";
 
 const cap = (s: Side) => (s === "left" ? "Left" : "Right");
 
@@ -52,7 +52,7 @@ export interface SideFixProps {
 export function SideFix({ sides, onApply, suggested, busy, note, bare }: SideFixProps) {
     const problem = sideProblem(sides);
     if (!problem) return null;
-    const pick = suggested ?? (sides.kind === "unknown" ? sides.guess.usb ?? null : null);
+    const pick = suggested ?? suggestedSide(sides, "usb");
     return (
         <div className="flex flex-col gap-3" data-testid="side-fix" data-sides={sides.kind} aria-busy={busy || undefined}>
             {!bare && (
@@ -64,18 +64,33 @@ export function SideFix({ sides, onApply, suggested, busy, note, bare }: SideFix
             <p className="text-sm text-kb-ink">{problem}</p>
             {sides.kind === "same" ? (
                 <div className="flex flex-col items-start gap-2">
-                    <Button size="sm" variant="kb-primary" disabled={busy} data-side-action="fix-other" onClick={() => onApply([sameSideFix(sides.side)])}>
-                        Make the other half the {oppositeSide(sides.side)} half
-                    </Button>
-                    <button
-                        type="button"
-                        className="text-left text-sm text-kb-primary underline disabled:opacity-50"
-                        disabled={busy}
-                        data-side-action="fix-usb"
-                        onClick={() => onApply(writesForAnswer(sides, oppositeSide(sides.side)))}
-                    >
-                        No, the half plugged into your computer is the {oppositeSide(sides.side)} half
-                    </button>
+                    {(() => {
+                        const flip = oppositeSide(sides.side);
+                        // Usually the other half moved: fix it first. After that half refused, offer the plugged-in half first.
+                        const usbFirst = suggested === flip;
+                        const fixOther = (
+                            <Button key="other" size="sm" variant={usbFirst ? "outline" : "kb-primary"} disabled={busy} data-side-action="fix-other" onClick={() => onApply([sameSideFix(sides.side)])}>
+                                Make the other half the {flip} half
+                            </Button>
+                        );
+                        const fixUsb = usbFirst ? (
+                            <Button key="usb" size="sm" variant="kb-primary" disabled={busy} data-side-action="fix-usb" onClick={() => onApply(writesForAnswer(sides, flip))}>
+                                Make the half plugged into your computer the {flip} half
+                            </Button>
+                        ) : (
+                            <button
+                                key="usb"
+                                type="button"
+                                className="text-left text-sm text-kb-primary underline disabled:opacity-50"
+                                disabled={busy}
+                                data-side-action="fix-usb"
+                                onClick={() => onApply(writesForAnswer(sides, flip))}
+                            >
+                                No, the half plugged into your computer is the {flip} half
+                            </button>
+                        );
+                        return usbFirst ? [fixUsb, fixOther] : [fixOther, fixUsb];
+                    })()}
                 </div>
             ) : (
                 <div className="flex flex-col gap-2">

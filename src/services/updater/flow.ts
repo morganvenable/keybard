@@ -20,7 +20,7 @@ import {
     handName, hex, otherHand, type Hand,
 } from "./protocol";
 import { loadSvup, type SvupFile } from "./svup";
-import { SideStatus, type Side, type SideValue } from "../side";
+import { SideStatus, oppositeSide, type Side, type SideValue } from "../side";
 import {
     assessSides, currentSides, explainSideStatus, planAfterUpdate, suggestedSide, type HalfRole, type KnownSides,
     type SideAssessment, type SideWrite,
@@ -746,6 +746,8 @@ export class UpdateFlow {
         const before: KnownSides = { ...(this.state.sidesBefore ?? { usb: null, other: null }) };
         const wrote = new Set<HalfRole>();
         let note: string | null = null;
+        /** The last refused write: its half keeps the side it has, so offer the other fix first. */
+        let refused: SideWrite | null = null;
         let migrated = false;
         for (let round = 0; round < 4; round++) {
             const a = await this.readSides(sides);
@@ -754,7 +756,8 @@ export class UpdateFlow {
             let writes: SideWrite[] = plan.writes;
             if (!writes.length && plan.ask.length) {
                 const now = currentSides(a);
-                const ask: SideAsk = { reason: a.kind === "same" ? "same" : "unknown", suggested: suggestedSide(a, "usb"), ...now, note };
+                const suggested = refused && a.kind === "same" ? (refused.role === "other" ? oppositeSide(a.side) : a.side) : suggestedSide(a, "usb");
+                const ask: SideAsk = { reason: a.kind === "same" ? "same" : "unknown", suggested, ...now, note };
                 writes = await new Promise<SideWrite[]>((resolve) => {
                     this.answer = resolve;
                     this.update({ sideAsk: ask });
@@ -779,6 +782,7 @@ export class UpdateFlow {
                 const status = await this.writeSide(sides, w);
                 if (status === SideStatus.OK || status === SideStatus.OTHER_ACCEPTED) { wrote.add(w.role); continue; }
                 note = explainSideStatus(status, { role: w.role, wanted: w.side, strap: w.role === "usb" ? strap : undefined });
+                refused = w;
                 // Never retry a refused side: take what the half says now, and ask if that still doesn't fit.
                 if (w.role === "usb") before.usb = null; else before.other = null;
                 break;

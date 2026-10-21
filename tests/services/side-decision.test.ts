@@ -86,6 +86,11 @@ describe("the customer's answer and the one-click fix", () => {
     it("same side: the fix sets the other half to the other side", () => {
         expect(sameSideFix("right")).toEqual({ role: "other", side: "left", why: "same" });
         expect(suggestedSide({ kind: "same", side: "right" }, "other")).toBe("left");
+        expect(suggestedSide({ kind: "same", side: "right" }, "usb")).toBe("right");
+        // The half with USB knows its side, the other doesn't: offer the plugged-in half's own side.
+        expect(suggestedSide(assessSides(true, pair("right", "unknown")), "usb")).toBe("right");
+        expect(suggestedSide(assessSides(true, pair("unknown", "right")), "usb")).toBe("left");
+        expect(suggestedSide(assessSides(true, pair("unknown", "unknown")), "usb")).toBeNull();
     });
     it("writes only what differs, the other half first", () => {
         expect(writesForAnswer(assessSides(true, pair("right", "right")), "left")).toEqual([{ role: "usb", side: "left", why: "same" }]);
@@ -103,7 +108,7 @@ describe("explainSideStatus", () => {
     it("status 4: the thumb strap, in plain words, with where to get help", () => {
         const text = explainSideStatus(SideStatus.STRAP_DISAGREES, { role: "usb", wanted: "left", strap: Strap.RIGHT })!;
         expect(text).toContain("right thumb cluster");
-        expect(text).toContain("stays the right half");
+        expect(text).toBe("The half plugged into your computer has a right thumb cluster, which makes it the right half. If it's really the left half, it has the wrong thumb cluster. To sort it out, open a ticket in #customer-service on the Svalboard Discord (https://www.svalboard.com/discord).");
         expect(text).toContain("#customer-service on the Svalboard Discord (https://www.svalboard.com/discord)");
         expect(text).not.toMatch(/strap|status|0x/i);
         // Without the strap read (the other half), it says the other side of what was asked.

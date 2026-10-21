@@ -93,7 +93,8 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                 <h3 className={`text-sm font-semibold ${status === "Halves differ" || sideTrouble ? "text-kb-orange" : "text-muted-foreground"}`}>{status ?? "This keyboard"}</h3>
                 {!board && <p className="text-sm">Connect a keyboard to see its firmware.</p>}
                 {board && !board.updater && <p className="text-sm"><span className="font-mono">{board.legacyLabel ?? "Older firmware"}</span></p>}
-                {board?.updater && board.halves.map((h) => {
+                {/* A half without a side, or two on one side: the side fix says which is which, not these rows. */}
+                {board?.updater && !sideTrouble && board.halves.map((h) => {
                     const stale = board.differ && newest && h.fwVersion !== Math.max(...board.halves.map((x) => x.fwVersion));
                     return (
                         <p key={h.hand} className={`flex flex-wrap items-center gap-x-2 text-sm ${stale ? "text-kb-orange" : ""}`} data-half={h.hand}>

@@ -26,6 +26,8 @@ export interface FakeSidesOptions {
     after?: { usb?: Partial<FakeSideHalf>; other?: Partial<FakeSideHalf> };
     /** The other half hasn't reported its side yet, for this many GETs. */
     pendingReads?: number;
+    /** GET fails until the update (so Keybard doesn't know the sides before it). */
+    unreadableBefore?: boolean;
 }
 
 const half = (h: Partial<FakeSideHalf> | undefined, fallback: SideValue): FakeSideHalf => ({ side: h?.side ?? fallback, source: h?.source ?? SideSource.NONE, strap: h?.strap ?? Strap.NONE });
@@ -83,6 +85,7 @@ export class FakeSides implements SvalTransport {
         if (cmd !== CMD_SVIL_SIDE || !this.supported()) throw new Error("Svil protocol error: code 1");
         this.applyAfter();
         const op = args[0];
+        if (this.o.unreadableBefore && !this.updated()) throw new Error("USB Command Timeout");
         if (op === SideOp.GET) {
             const u = this.halves.usb;
             const ot = this.halves.other;

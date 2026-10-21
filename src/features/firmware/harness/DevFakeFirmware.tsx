@@ -1,11 +1,12 @@
 // Development only (?fwfake=1): Settings > Firmware against the mock board, as the harness
-// runs it. &running=v3|x4|v2  &nochord=1  &fault=...  &speed=4  &differ=1
+// runs it. &running=v3|x4|v2  &nochord=1  &fault=...  &speed=4  &differ=1  &sides=<scenario>
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import type { Fault } from "@/services/updater/fake-board";
-import { FakeHost, fakeSetup, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
+import { FakeHost, fakeSetup, fixtureOneImage, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
+import { sidesScenario } from "@/services/updater/fake-sides-scenarios";
 import { HAND_LEFT, HAND_RIGHT, type Hand } from "@/services/updater/protocol";
 import { readBoardSummary, type BoardSummary } from "../board-summary";
 import { FirmwareUpdateProvider } from "../FirmwareUpdateProvider";
@@ -36,21 +37,23 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
             const size = 0x1e000;
             const v2 = await fixtureRelease("v2", 2000, { imageLen: size });
             const v3 = await fixtureRelease("v3", 3000, { imageLen: size });
-            const x4 = await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
+            const sides = sidesScenario(params.get("sides"));
+            const x4 = sides ? await fixtureOneImage("x4", 4000, { imageLen: size }) : await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
             const running = params.get("running") === "x4" ? x4 : params.get("running") === "v2" ? v2 : v3;
             const clock = new ScaledClock(Number(params.get("speed") ?? 4));
             const f = params.get("fault");
             const faults: Fault[] = !f ? [] : f.startsWith("unplug-") ? [{ kind: "unplug", at: f.slice(7) as "other-send" }] : [{ kind: f } as Fault];
-            const { board } = fakeSetup({
+            const { board, sides: fakeSides } = fakeSetup({ sides,
                 clock, running, noChord: params.has("nochord"), faults, usbHand: params.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
                 chordAfterMs: 3000, otherRunning: params.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
             });
             const host = new DevFakeHost(board, clock);
+            host.sides = fakeSides?.host;
             const releases = [pinOf(x4, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
             setReady({ host, releases, byTag: { v2, v3, x4 } });
         })();
     }, []);
-    const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board) : null), [ready]);
+    const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board, null, ready.host.sides) : null), [ready]);
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
     if (!ready) return <>{children}</>;
     return (

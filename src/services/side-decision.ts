@@ -143,10 +143,14 @@ export function planAfterUpdate(before: KnownSides, now: SideAssessment): AfterU
     return { writes, ask, kept: false, migrated: false };
 }
 
-/** The side to offer first when asking about a half. */
+/** The side to offer first when asking about a half: its own side when it has one, or the likely one. */
 export function suggestedSide(a: SideAssessment, role: HalfRole): Side | null {
-    if (a.kind === "unknown") return a.guess[role] ?? null;
-    if (a.kind === "same") return role === "other" ? oppositeSide(a.side) : null;
+    if (a.kind === "unknown") {
+        const own = role === "usb" ? a.usb : a.other;
+        return own === "left" || own === "right" ? own : a.guess[role] ?? null;
+    }
+    // Two on one side: keeping the plugged-in half as it is takes one write (the other half).
+    if (a.kind === "same") return role === "other" ? oppositeSide(a.side) : a.side;
     return null;
 }
 
@@ -197,11 +201,11 @@ export function explainSideStatus(status: number, o: { role?: HalfRole; wanted?:
         case SideStatus.OTHER_ACCEPTED:
             return null;
         case SideStatus.STRAP_DISAGREES: {
-            const fitted = o.strap !== undefined ? strapSide(o.strap) : null;
-            const fittedText = fitted ? `a ${fitted} thumb cluster` : o.wanted ? `a ${oppositeSide(o.wanted)} thumb cluster` : "a thumb cluster for the other side";
-            const is = fitted ?? (o.wanted ? oppositeSide(o.wanted) : null);
-            return `The thumb cluster on ${which} is ${fittedText}, and its wiring sets the side, so the half stays ${is ? `the ${is} half` : "as it is"}. ` +
-                `If it really is the ${o.wanted ?? "other"} half, the thumb cluster was fitted to the wrong half. To sort it out, ${SUPPORT}.`;
+            // The thumb cluster's wiring sets the side, and it wins over a write.
+            const fitted = (o.strap !== undefined ? strapSide(o.strap) : null) ?? (o.wanted ? oppositeSide(o.wanted) : null);
+            if (!fitted) return `${capitalize(which)} has a thumb cluster for the other side, which sets its side. To sort it out, ${SUPPORT}.`;
+            return `${capitalize(which)} has a ${fitted} thumb cluster, which makes it the ${fitted} half. ` +
+                `If it's really the ${oppositeSide(fitted)} half, it has the wrong thumb cluster. To sort it out, ${SUPPORT}.`;
         }
         case SideStatus.NO_RECORD_AREA:
             return `${capitalize(which)} has no room to save its side. To sort it out, ${SUPPORT}.`;
