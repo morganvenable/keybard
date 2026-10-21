@@ -1,7 +1,9 @@
 // Development only (?fwfake=1): Settings > Firmware against the mock board, as the harness
 // runs it. &running=v3|x4|v2  &nochord=1  &fault=...  &speed=4  &differ=1  &sides=<scenario>
+// Review links land on the state with no clicks: Settings > Firmware opens by itself, and
+// &fwrun=1 starts the newest release's update (the sheet, then Start once it's ready).
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import type { Fault } from "@/services/updater/fake-board";
@@ -9,7 +11,24 @@ import { FakeHost, fakeSetup, fixtureOneImage, fixtureRelease, type FixtureRelea
 import { sidesScenario } from "@/services/updater/fake-sides-scenarios";
 import { HAND_LEFT, HAND_RIGHT, type Hand } from "@/services/updater/protocol";
 import { readBoardSummary, type BoardSummary } from "../board-summary";
-import { FirmwareUpdateProvider } from "../FirmwareUpdateProvider";
+import { FirmwareUpdateProvider, useFirmwareUpdates } from "../FirmwareUpdateProvider";
+import { OPEN_FIRMWARE_EVENT } from "../useHalvesDiffer";
+
+/** Open Settings > Firmware, and with &fwrun=1 start the update, once the board has been read. */
+function ReviewOpener({ run }: { run: boolean }) {
+    const updates = useFirmwareUpdates();
+    const done = useRef(false);
+    useEffect(() => {
+        if (done.current || !updates?.board) return;
+        done.current = true;
+        const t = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent(OPEN_FIRMWARE_EVENT));
+            if (run && updates.releases[0]) updates.install({ kind: "release", release: updates.releases[0] });
+        }, 300);
+        return () => clearTimeout(t);
+    }, [updates, run]);
+    return null;
+}
 import type { FirmwareUiHost, UpdateBackup } from "../useFirmwareUpdate";
 import { pinOf, ScaledClock } from "./HarnessApp";
 
@@ -57,8 +76,9 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
     if (!ready) return <>{children}</>;
     return (
-        <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files}>
+        <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files} autoStart={new URLSearchParams(location.search).has("fwrun")}>
             {children}
+            <ReviewOpener run={new URLSearchParams(location.search).has("fwrun")} />
         </FirmwareUpdateProvider>
     );
 }

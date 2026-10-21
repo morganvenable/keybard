@@ -139,9 +139,18 @@ export function UpdateDialog(p: UpdateDialogProps) {
                 )}
                 {ui.kind === "flow" && ui.state.phase === "running" && ui.state.sideAsk && (
                     <div className="flex flex-col gap-4" data-testid="flow-sides">
-                        <h2 className="text-lg font-semibold text-kb-ink">Set which half is which</h2>
+                        <h2 className="text-lg font-semibold text-kb-ink">{ui.state.sideAsk.reason === "confirm" ? "Check which half is which" : "Set which half is which"}</h2>
                         <p className="text-sm text-muted-foreground">The new firmware is installed on both halves.</p>
-                        <SideFix bare sides={assessmentFromAsk(ui.state.sideAsk)} suggested={ui.state.sideAsk.suggested} note={ui.state.sideAsk.note} onApply={(w) => p.onAnswerSide?.(w)} />
+                        <SideFix
+                            bare
+                            mode={ui.state.sideAsk.reason === "confirm" ? "confirm" : "fix"}
+                            from={ui.state.sideAsk.from}
+                            restore={ui.state.sideAsk.restore}
+                            sides={assessmentFromAsk(ui.state.sideAsk)}
+                            suggested={ui.state.sideAsk.suggested}
+                            note={ui.state.sideAsk.note}
+                            onApply={(w) => p.onAnswerSide?.(w)}
+                        />
                     </div>
                 )}
                 {ui.kind === "flow" && ui.state.phase === "running" && !ui.state.sideAsk && (

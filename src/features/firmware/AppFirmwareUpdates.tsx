@@ -1,15 +1,17 @@
-// The editor's firmware updates. In development, `?fwfake=1` backs them with the mock board
-// (the harness's), so Settings > Firmware can be tried and reviewed without a keyboard.
-// The mock is a dynamic import inside a DEV-only branch: production and Paranoid builds drop it.
+// The editor's firmware updates. On dev servers and the test site, `?fwfake=1` backs them
+// with the mock board (the harness's), so Settings > Firmware can be tried and reviewed
+// without a keyboard (`&sides=<scenario>` for the one-image screens). The mock is a dynamic
+// import behind the build constant __FW_FAKE__: production, next and Paranoid builds drop it.
 
 import { lazy, Suspense, type ReactNode } from "react";
 
 import { FirmwareUpdateProvider } from "./FirmwareUpdateProvider";
 
-const DevFakeFirmware = import.meta.env.DEV ? lazy(() => import("./harness/DevFakeFirmware")) : null;
+const FW_FAKE = typeof __FW_FAKE__ !== "undefined" && __FW_FAKE__;
+const DevFakeFirmware = FW_FAKE ? lazy(() => import("./harness/DevFakeFirmware")) : null;
 
 function wantsFake(): boolean {
-    if (!import.meta.env.DEV || typeof location === "undefined") return false;
+    if (!FW_FAKE || typeof location === "undefined") return false;
     return new URLSearchParams(location.search).has("fwfake");
 }
 

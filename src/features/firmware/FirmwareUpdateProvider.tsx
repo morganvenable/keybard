@@ -2,7 +2,7 @@
 // started in Settings > Firmware keeps its dialog wherever the user is, and a reload mid-update
 // picks it back up. Also the rail dot, and the "open Firmware" and "open Backups" requests.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { OPEN_BACKUPS_EVENT } from "@/components/StorageResetDialog";
@@ -73,9 +73,11 @@ export interface FirmwareUpdateProviderProps {
     readBoard?: () => Promise<BoardSummary | null>;
     releases?: FirmwareReleasePin[];
     files?: (pin: FirmwareReleasePin) => ReturnType<typeof loadCarriedRelease>;
+    /** Review links only (the mock board): press Start once the sheet is ready. */
+    autoStart?: boolean;
 }
 
-export function FirmwareUpdateProvider({ children, host: injected, readBoard, releases: givenReleases, files }: FirmwareUpdateProviderProps) {
+export function FirmwareUpdateProvider({ children, host: injected, readBoard, releases: givenReleases, files, autoStart }: FirmwareUpdateProviderProps) {
     const kb = useKeyboard();
     const backups = useBackups();
     const appHost = useAppFirmwareHost();
@@ -116,6 +118,14 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
             .catch(() => "The keyboard stopped answering. Reconnect it, then try again.")
             .then((note) => { setSideState({ busy: false, note }); setRefresh((n) => n + 1); });
     }, [host]);
+
+    // Review links (the mock board): Start as soon as the sheet allows it, once.
+    const autoStarted = useRef(false);
+    useEffect(() => {
+        if (!autoStart || autoStarted.current || fw.ui.kind !== "sheet" || !fw.ui.plan || fw.ui.plan.refusal || fw.ui.backup.state === "pending") return;
+        autoStarted.current = true;
+        fw.start();
+    }, [autoStart, fw]);
 
     // Requests from elsewhere: the halves-differ banner, the reset dialog's "Other backups".
     useEffect(() => {

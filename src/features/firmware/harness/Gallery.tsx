@@ -46,7 +46,7 @@ const file = { manifest: { tag: "x4" } } as unknown as SvupFile;
 const plan = (o: Partial<Plan> = {}): Plan => ({
     board: boardState(), target: "both", files: { 0: file, 1: file }, kind: "update", toTag: "x4", fromTag: "v3", title: "Update to x4",
     checks: [{ id: "connected", label: "Both halves connected", state: "ok" }, { id: "files", label: "Firmware files verified", state: "ok" }, { id: "host", label: "Keybard Overlay paused", state: "ok" }],
-    warnings: [], refusal: null, otherSilent: false, pinned: true, sidesBefore: { usb: "right", other: "left" }, oneImage: false, ...o,
+    warnings: [], refusal: null, otherSilent: false, pinned: true, sidesBefore: { usb: "right", other: "left" }, oneImage: false, sidesFromSide: true, ...o,
 });
 const sheet = (p: Plan, backup: "ok" | "failed" | "pending" = "ok"): Extract<UpdateUi, { kind: "sheet" }> => ({
     kind: "sheet", source: { kind: "file", files: [] }, plan: p, preFailure: null, error: null, afterwards: backup === "failed" ? "defaults" : "restore",

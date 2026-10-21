@@ -62,9 +62,14 @@ const releaseTag = getReleaseTag();
 const devPort = getPortForBranch(gitBranch);
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
     const env = loadEnv(mode, process.cwd(), "VITE_");
     const paranoid = mode === "paranoid";
+    // The firmware mock board (?fwfake) for review: dev servers and the test site
+    // (base /keybard-test/, default mode) only. A build constant, so production, next and
+    // Paranoid builds drop the mock and its chunk entirely.
+    const base = env.VITE_BASE_PATH || "/keybard/";
+    const fwFake = command === "serve" || (mode === "production" && base.includes("/keybard-test/"));
     return {
     base: env.VITE_BASE_PATH || "/keybard/",
     plugins: [
@@ -107,6 +112,7 @@ export default defineConfig(({ mode }) => {
         __GIT_SHA__: JSON.stringify(gitSha),
         __GIT_SUBJECT__: JSON.stringify(gitSubject),
         __RELEASE_TAG__: JSON.stringify(releaseTag),
+        __FW_FAKE__: JSON.stringify(fwFake),
     },
     server: {
         port: devPort,

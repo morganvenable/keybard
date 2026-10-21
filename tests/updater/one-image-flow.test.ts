@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { SideSource, Strap } from "@/services/side";
-import { sameSideFix, writesForAnswer } from "@/services/side-decision";
+import { writesForAnswer } from "@/services/side-decision";
 import { assessmentFromAsk } from "@/features/firmware/SideFix";
 import { UpdaterClient } from "@/services/updater/client";
 import { planInstall, type Plan } from "@/services/updater/checks";
@@ -109,18 +109,36 @@ describe("the one image: sides before the update", () => {
     });
 });
 
+/** The customer answers "the plugged-in half is `usb`" (the writes a click on that button sends). */
+const says = (usb: "left" | "right") => (s: FlowState) => writesForAnswer(assessmentFromAsk(s.sideAsk!), usb);
+/** "That's right". */
+const thatsRight = () => [];
+
 describe("the one image: the update and after", () => {
-    it("migrated: one chord, the same image to both halves, nothing written or asked", async () => {
-        const { board, fake, state, asks } = await run({ supported: false });
+    it("migrated: one chord, the same image to both halves, then the sides shown once: That's right", async () => {
+        const { board, fake, state, asks } = await run({ supported: false }, { answer: thatsRight });
         expect(state.phase).toBe("result");
         expect(state.approvalsAsked).toBe(1);
         expect(board.halves[L].cfg.fwVersion).toBe(4000);
         expect(board.halves[R].cfg.fwVersion).toBe(4000);
         expect(board.halves[L].cfg.imageId).toBe(board.halves[R].cfg.imageId);
         expect(board.requests.filter((r) => r.op === Op.ARM).map((a) => a.hand)).toEqual([L, R]);
+        expect(asks).toHaveLength(1);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "confirm", from: "migrated", usb: "right", other: "left", suggested: "right" });
         expect(fake.writes).toEqual([]);
-        expect(asks).toEqual([]);
         expect(state.result?.sides).toEqual({ usb: "right", other: "left", wrote: [], migrated: true });
+    });
+    it("migrated, Swap: both halves set, other half first, after the customer's confirm", async () => {
+        const { fake, state } = await run({ supported: false }, { answer: says("left") });
+        expect(fake.writes.map((w) => `${w.role}:${w.side}:${w.status}`)).toEqual(["other:right:7", "usb:left:0"]);
+        expect(state.phase).toBe("result");
+        expect(state.result?.sides).toMatchObject({ usb: "left", other: "right", wrote: ["other", "usb"] });
+    });
+    it("a one-image board whose sides Keybard read before, unchanged: nothing asked, nothing written", async () => {
+        const { fake, state, asks } = await run({ supported: true, usb: { source: SideSource.KEYBARD }, other: { source: SideSource.KEYBARD } });
+        expect(asks).toEqual([]);
+        expect(fake.writes).toEqual([]);
+        expect(state.result?.sides).toMatchObject({ usb: "right", other: "left", wrote: [] });
     });
     it("a per-hand board and a per-hand release (no SIDE): today's flow, no side result", async () => {
         const { board, host } = fakeSetup({ clock, running: v3 });
@@ -131,77 +149,90 @@ describe("the one image: the update and after", () => {
         expect(state.phase).toBe("result");
         expect(state.result?.sides ?? null).toBeNull();
     });
-    it("the other half came back unknown: Keybard puts back its side without asking", async () => {
-        const { fake, state, asks } = await run({ supported: false, after: { other: { side: "unknown" } } });
-        expect(state.phase).toBe("result");
-        expect(asks).toEqual([]);
+    it("the other half came back unknown: Keybard asks to keep the sides, never writes by itself", async () => {
+        const { fake, state, asks } = await run({ supported: false, after: { other: { side: "unknown" } } }, { answer: says("right") });
+        expect(asks).toHaveLength(1);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "unknown", restore: true, suggested: "right" });
         expect(fake.writes).toEqual([{ role: "other", side: "left", status: 7 }]);
         expect(state.result?.sides).toMatchObject({ usb: "right", other: "left", wrote: ["other"] });
     });
-    it("both came back unknown: the other half first, then the half with USB (it reconnects)", async () => {
-        const { board, fake, state } = await run({ supported: false, after: { usb: { side: "unknown" }, other: { side: "unknown" } } });
+    it("no answer, no write: the flow waits on the question", async () => {
+        const { host, fake, plan: p } = await plan({ supported: false, after: { other: { side: "unknown" } } });
+        if ("id" in p) throw new Error(p.id);
+        const flow = UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: "restore", backup: { fileName: "k.svil", svil: "{}" } });
+        const asked = new Promise<FlowState>((resolve) => flow.subscribe((s) => { if (s.sideAsk) resolve(s); }));
+        const done = flow.run();
+        const s = await asked;
+        for (let i = 0; i < 20; i++) await clock.sleep(1000);
+        expect(s.step).toBe("sides");
+        expect(flow.state.phase).toBe("running");
+        expect(fake!.writes).toEqual([]);
+        flow.answerSide([]);
+        await done;
+    });
+    it("both came back unknown: one answer sets both, the other half first (USB reconnects)", async () => {
+        const { board, fake, state } = await run({ supported: false, after: { usb: { side: "unknown" }, other: { side: "unknown" } } }, { answer: says("right") });
         expect(state.phase).toBe("result");
         expect(fake.writes.map((w) => `${w.role}:${w.side}`)).toEqual(["other:left", "usb:right"]);
         expect(board.usbReboots).toBeGreaterThanOrEqual(2);
-        expect(state.result?.sides).toMatchObject({ usb: "right", other: "left" });
     });
-    it("unknown and not known before: asks which half is plugged in, then sets it", async () => {
+    it("unknown and not known before: asks which half is plugged in, no guess", async () => {
         const { fake, state, asks } = await run(
             { supported: true, after: { usb: { side: "unknown" }, other: { side: "unknown" } } },
-            { override: { sidesBefore: { usb: null, other: null } }, answer: (s) => writesForAnswer(assessmentFromAsk(s.sideAsk!), "left") },
+            { override: { sidesBefore: { usb: null, other: null } }, answer: says("left") },
         );
-        expect(asks.length).toBe(1);
-        expect(asks[0].sideAsk).toMatchObject({ reason: "unknown", usb: "unknown", other: "unknown", suggested: null });
-        expect(asks[0].step).toBe("sides");
+        expect(asks).toHaveLength(1);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "unknown", usb: "unknown", other: "unknown", suggested: null, restore: false });
         expect(fake.writes.map((w) => `${w.role}:${w.side}`)).toEqual(["other:right", "usb:left"]);
-        expect(state.phase).toBe("result");
         expect(state.result?.sides).toMatchObject({ usb: "left", other: "right" });
     });
-    it("same side after, not known before: one click sets the other half", async () => {
+    it("same side after, not known before: no guess; the answer sets the half that's wrong", async () => {
         const { fake, state, asks } = await run(
             { supported: true, after: { usb: { side: "right" }, other: { side: "right" } } },
-            { override: { sidesBefore: { usb: null, other: null } }, answer: () => [sameSideFix("right")] },
+            { override: { sidesBefore: { usb: null, other: null } }, answer: says("left") },
         );
-        expect(asks[0].sideAsk).toMatchObject({ reason: "same", usb: "right", other: "right" });
-        expect(fake.writes).toEqual([{ role: "other", side: "left", status: 7 }]);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "same", usb: "right", other: "right", suggested: null });
+        expect(fake.writes).toEqual([{ role: "usb", side: "left", status: 0 }]);
         expect(state.phase).toBe("result");
     });
-    it("status 4: the thumb cluster wins; Keybard explains it and asks again, never retries", async () => {
+    it("the thumb PCBA set the side: shown once to confirm", async () => {
+        const { asks, state } = await run({ supported: true, usb: { source: SideSource.KEYBARD }, after: { usb: { side: "right", source: SideSource.STRAP, strap: Strap.RIGHT } } }, { answer: thatsRight });
+        expect(asks).toHaveLength(1);
+        expect(asks[0].sideAsk).toMatchObject({ reason: "confirm", from: "strap" });
+        expect(state.phase).toBe("result");
+    });
+    it("status 4: the thumb PCBA wins; Keybard explains it and asks again, never retries", async () => {
         let n = 0;
         const { fake, state, asks } = await run(
             { supported: true, after: { usb: { side: "right", strap: Strap.RIGHT, source: SideSource.STRAP }, other: { side: "right" } } },
-            {
-                override: { sidesBefore: { usb: null, other: null } },
-                // First: "the half plugged in is the left half" (the strap says right). Then the one-click fix.
-                answer: () => (n++ === 0 ? [{ role: "usb", side: "left", why: "same" }] : [sameSideFix("right")]),
-            },
+            { override: { sidesBefore: { usb: null, other: null } }, answer: (s) => says(n++ === 0 ? "left" : "right")(s) },
         );
+        expect(asks[0].sideAsk!.suggested).toBe("right");
         expect(fake.writes).toEqual([{ role: "usb", side: "left", status: 4 }, { role: "other", side: "left", status: 7 }]);
-        expect(asks.length).toBe(2);
-        expect(asks[1].sideAsk!.note).toContain("right thumb cluster");
+        expect(asks).toHaveLength(2);
+        expect(asks[1].sideAsk!.note).toContain("right thumb PCBA");
         expect(asks[1].sideAsk!.note).toContain("https://www.svalboard.com/discord");
         expect(state.phase).toBe("result");
     });
-    it("status 4 on the other half: Keybard's put-back is refused, so it asks, offering the plugged-in half first", async () => {
+    it("status 4 on the other half: asks again, offering the plugged-in half that fits", async () => {
         const { fake, state, asks } = await run(
             { supported: false, after: { other: { side: "right", strap: Strap.RIGHT, source: SideSource.STRAP } } },
-            { answer: (s) => writesForAnswer(assessmentFromAsk(s.sideAsk!), s.sideAsk!.suggested!) },
+            { answer: (s) => says(s.sideAsk!.suggested!)(s) },
         );
+        expect(asks[0].sideAsk).toMatchObject({ reason: "same", restore: true, suggested: "right" });
+        expect(asks[1].sideAsk).toMatchObject({ reason: "same", restore: false, suggested: "left" });
+        expect(asks[1].sideAsk!.note).toContain("a right thumb PCBA");
         expect(fake.writes.map((w) => `${w.role}:${w.side}:${w.status}`)).toEqual(["other:left:4", "usb:left:0"]);
-        expect(asks).toHaveLength(1);
-        expect(asks[0].sideAsk).toMatchObject({ reason: "same", suggested: "left" });
-        expect(asks[0].sideAsk!.note).toContain("a right thumb cluster");
-        expect(state.phase).toBe("result");
         expect(state.result?.sides).toMatchObject({ usb: "left", other: "right" });
     });
     it("a refusal every time ends on F21, with the reason", async () => {
         const { state, fake } = await run(
             { supported: true, after: { usb: { side: "right", strap: Strap.RIGHT }, other: { side: "right", strap: Strap.RIGHT } } },
-            { override: { sidesBefore: { usb: null, other: null } }, answer: () => [sameSideFix("right")] },
+            { override: { sidesBefore: { usb: null, other: null } }, answer: says("right") },
         );
         expect(fake.writes.every((w) => w.status === 4)).toBe(true);
         expect(state.phase).toBe("failed");
         expect(state.failure).toMatchObject({ id: "F21" });
-        expect(state.failure?.detail).toContain("thumb cluster");
+        expect(state.failure?.detail).toContain("thumb PCBA");
     });
 });

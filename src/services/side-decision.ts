@@ -1,14 +1,16 @@
 // What Keybard does about each half's side, as pure functions of what the board reports.
 //
 // - Boards without SIDE (per-hand builds) keep today's flow: nothing here applies.
+// - Keybard never writes a side by itself. Every SET follows the customer's answer and a
+//   confirmation, with the likely answer as the main button.
 // - Before an update Keybard notes each half's side (from SIDE, or from the updater's
-//   INFO hand on a per-hand build). After the update it reads SIDE again and writes a
-//   side only where a half came back unknown or changed. Halves that ran a per-hand
-//   build adopt its side on their own (source "migrated"), so usually nothing is written.
-// - The customer is asked only when a half has no side and Keybard didn't know it before.
-// - Two halves on the same side: neither types until it is fixed. Keybard shows it with a
-//   one-click fix that sets the other half to the other side.
-// - Hardware mismatches warn and confirm; nothing here refuses. A thumb strap that
+//   INFO hand on a per-hand build). After the update it reads SIDE again. A half that came
+//   back unknown, changed, or two halves on one side: Keybard asks which half is plugged in.
+//   Halves that took their side from the firmware (the per-hand build, or the thumb PCBA)
+//   are shown once to confirm: "That's right" or "Swap".
+// - Two halves on the same side: neither types until it is fixed. Keybard doesn't assume
+//   which half is wrong.
+// - Hardware mismatches warn and confirm; nothing here refuses. A thumb PCBA that
 //   disagrees (SET status 4) is explained, not retried.
 
 import {
@@ -30,9 +32,9 @@ export type SideAssessment =
     /** The other half connected moments ago and hasn't reported yet. */
     | { kind: "pending"; usb: SideValue }
     /** One or both halves have no side. `guess` is the side the half most likely is. */
-    | { kind: "unknown"; halves: HalfRole[]; usb: SideValue; other: SideValue | null; guess: Partial<Record<HalfRole, Side>> }
-    /** Both halves claim the same side. */
-    | { kind: "same"; side: Side };
+    | { kind: "unknown"; halves: HalfRole[]; usb: SideValue; other: SideValue | null; guess: Partial<Record<HalfRole, Side>>; strap?: Side }
+    /** Both halves claim the same side. `strap`: the plugged-in half's thumb PCBA names a side. */
+    | { kind: "same"; side: Side; strap?: Side };
 
 /** Read the board's SIDE reply. */
 export function assessSides(supported: boolean, r: SideReport | null): SideAssessment {
@@ -40,7 +42,9 @@ export function assessSides(supported: boolean, r: SideReport | null): SideAsses
     if (!r) return { kind: "unreadable" };
     const otherKnown = r.otherConnected && r.otherReported;
     const other: SideValue | null = otherKnown ? r.otherSide : null;
-    if (r.pair === "same" && r.side !== "unknown") return { kind: "same", side: r.side };
+    const strap = strapSide(r.strap);
+    const withStrap = strap ? { strap } : {};
+    if (r.pair === "same" && r.side !== "unknown") return { kind: "same", side: r.side, ...withStrap };
     const unknown: HalfRole[] = [];
     if (r.side === "unknown") unknown.push("usb");
     if (otherKnown && r.otherSide === "unknown") unknown.push("other");
@@ -49,12 +53,12 @@ export function assessSides(supported: boolean, r: SideReport | null): SideAsses
         // One half known: the other is the opposite.
         if (unknown.length === 1 && unknown[0] === "usb" && other && other !== "unknown") guess.usb = oppositeSide(other);
         if (unknown.length === 1 && unknown[0] === "other" && r.side !== "unknown") guess.other = oppositeSide(r.side);
-        return { kind: "unknown", halves: unknown, usb: r.side, other, guess };
+        return { kind: "unknown", halves: unknown, usb: r.side, other, guess, ...withStrap };
     }
     if (!r.otherConnected) return { kind: "alone", usb: r.side };
     if (!r.otherReported || r.pair === "pending") return { kind: "pending", usb: r.side };
     if (r.side === "unknown" || r.otherSide === "unknown") return { kind: "unknown", halves: [], usb: r.side, other, guess: {} };
-    if (r.side === r.otherSide) return { kind: "same", side: r.side };
+    if (r.side === r.otherSide) return { kind: "same", side: r.side, ...withStrap };
     return { kind: "ok", usb: r.side, other: r.otherSide, migrated: r.source === 3 };
 }
 
@@ -85,73 +89,61 @@ export function knownSidesFrom(a: SideAssessment, updaterHand?: number, otherAns
 export interface SideWrite {
     role: HalfRole;
     side: Side;
-    /** Why: the half came back without a side, or with a different one. */
-    why: "unknown" | "changed" | "same";
+    /** Why: the half has no side, or both halves claim one, or the customer swapped them. */
+    why: "unknown" | "same" | "swap" | "changed";
 }
 
 export interface AfterUpdatePlan {
-    /** SETs Keybard sends on its own: the side each half had before the update. */
-    writes: SideWrite[];
-    /** Halves only the customer can name. */
-    ask: HalfRole[];
-    /** Both halves kept their sides. */
-    kept: boolean;
-    /** A half took its side from its per-hand build. */
+    /**
+     * none: both halves have the sides Keybard read before; nothing to say.
+     * confirm: both halves have a side, but the firmware chose it (from the per-hand build or
+     *   the thumb PCBA): show it once, "That's right" or "Swap".
+     * ask: a half has no side, both claim one, or they changed: ask which half is plugged in.
+     */
+    action: "none" | "confirm" | "ask";
+    /** The likely side of the plugged-in half: the main button. Null when Keybard can't tell. */
+    likelyUsb: Side | null;
+    /** Keybard knew the plugged-in half's side before: word the question as "Keep ... as the left half?". */
+    restore: boolean;
+    /** A half took its side from the per-hand build it ran. */
     migrated: boolean;
 }
 
 /**
- * After an update: compare the sides now with the sides before, and decide what to write.
- * A half that came back unknown or different gets the side it had before. Only a half with
- * no side that Keybard didn't know before is asked about.
+ * The plugged-in half's likely side: what Keybard read before, else its thumb PCBA, else
+ * the opposite of the other half when only the plugged-in half has no side. Two halves on
+ * one side give no guess from each other: either could be the wrong one.
  */
-export function planAfterUpdate(before: KnownSides, now: SideAssessment): AfterUpdatePlan {
-    const none: AfterUpdatePlan = { writes: [], ask: [], kept: true, migrated: false };
-    if (now.kind === "unsupported" || now.kind === "unreadable") return none;
-    if (now.kind === "ok") {
-        const writes: SideWrite[] = [];
-        if (before.usb && now.usb !== before.usb && before.other && now.other !== before.other) {
-            // Both swapped: put both back.
-            writes.push({ role: "other", side: before.other, why: "changed" }, { role: "usb", side: before.usb, why: "changed" });
-        }
-        return { writes, ask: [], kept: writes.length === 0, migrated: now.migrated };
-    }
-    if (now.kind === "alone" || now.kind === "pending") {
-        if (now.usb === "unknown") {
-            return before.usb ? { writes: [{ role: "usb", side: before.usb, why: "unknown" }], ask: [], kept: false, migrated: false } : { ...none, ask: ["usb"], kept: false };
-        }
-        return none;
-    }
-    if (now.kind === "same") {
-        // Put back whichever half moved. Unknown before: the customer says.
-        if (before.usb && before.other && before.usb !== before.other) {
-            const role: HalfRole = before.usb === now.side ? "other" : "usb";
-            return { writes: [{ role, side: role === "usb" ? before.usb : before.other, why: "same" }], ask: [], kept: false, migrated: false };
-        }
-        return { writes: [], ask: ["other"], kept: false, migrated: false };
-    }
-    // unknown
-    const writes: SideWrite[] = [];
-    const ask: HalfRole[] = [];
-    for (const role of now.halves) {
-        const was = role === "usb" ? before.usb : before.other;
-        if (was) writes.push({ role, side: was, why: "unknown" });
-        else ask.push(role);
-    }
-    // The other half first: writing the half with USB restarts the connection.
-    writes.sort((a, b) => (a.role === b.role ? 0 : a.role === "other" ? -1 : 1));
-    return { writes, ask, kept: false, migrated: false };
+export function likelyUsbSide(a: SideAssessment, before: KnownSides = { usb: null, other: null }): Side | null {
+    if (before.usb) return before.usb;
+    if (before.other) return oppositeSide(before.other);
+    if ((a.kind === "unknown" || a.kind === "same") && a.strap) return a.strap;
+    if (a.kind === "unknown") return a.usb === "left" || a.usb === "right" ? a.usb : a.guess.usb ?? null;
+    if (a.kind === "ok") return a.usb;
+    return null;
 }
 
-/** The side to offer first when asking about a half: its own side when it has one, or the likely one. */
-export function suggestedSide(a: SideAssessment, role: HalfRole): Side | null {
-    if (a.kind === "unknown") {
-        const own = role === "usb" ? a.usb : a.other;
-        return own === "left" || own === "right" ? own : a.guess[role] ?? null;
+/**
+ * After an update: compare the sides now with the sides before. Keybard never writes a side
+ * by itself: every change is a question for the customer, with the likely answer first.
+ * `firmwareChose`: the halves took their sides from the firmware this time (a per-hand
+ * build before, or the thumb PCBA), so the result is shown once to confirm.
+ */
+export function planAfterUpdate(before: KnownSides, now: SideAssessment, o: { firmwareChose?: boolean } = {}): AfterUpdatePlan {
+    const none: AfterUpdatePlan = { action: "none", likelyUsb: null, restore: false, migrated: false };
+    if (now.kind === "unsupported" || now.kind === "unreadable") return none;
+    const ask = (): AfterUpdatePlan => ({ action: "ask", likelyUsb: likelyUsbSide(now, before), restore: !!before.usb, migrated: false });
+    if (now.kind === "ok") {
+        const changed = (before.usb !== null && before.usb !== now.usb) || (before.other !== null && before.other !== now.other);
+        if (changed) return ask();
+        if (o.firmwareChose) return { action: "confirm", likelyUsb: now.usb, restore: false, migrated: now.migrated };
+        return { ...none, migrated: now.migrated };
     }
-    // Two on one side: keeping the plugged-in half as it is takes one write (the other half).
-    if (a.kind === "same") return role === "other" ? oppositeSide(a.side) : a.side;
-    return null;
+    if (now.kind === "alone" || now.kind === "pending") {
+        if (now.usb === "unknown" || (before.usb && now.usb !== before.usb)) return ask();
+        return none;
+    }
+    return ask();
 }
 
 /** The sides each half runs as now (null: not connected, or not reported). */
@@ -172,17 +164,12 @@ export function currentSides(a: SideAssessment): { usb: SideValue | null; other:
  */
 export function writesForAnswer(a: SideAssessment, usb: Side): SideWrite[] {
     const now = currentSides(a);
-    const why = a.kind === "same" ? "same" : "unknown";
+    const why: SideWrite["why"] = a.kind === "same" ? "same" : a.kind === "ok" ? "swap" : "unknown";
     const writes: SideWrite[] = [];
     const other = oppositeSide(usb);
     if (now.other !== null && now.other !== other) writes.push({ role: "other", side: other, why: now.other === "unknown" ? "unknown" : why });
     if (now.usb !== usb) writes.push({ role: "usb", side: usb, why: now.usb === "unknown" ? "unknown" : why });
     return writes;
-}
-
-/** The one-click fix for two halves on the same side: the other half takes the other side. */
-export function sameSideFix(side: Side): SideWrite {
-    return { role: "other", side: oppositeSide(side), why: "same" };
 }
 
 const SUPPORT = "open a ticket in #customer-service on the Svalboard Discord (https://www.svalboard.com/discord)";
@@ -201,11 +188,11 @@ export function explainSideStatus(status: number, o: { role?: HalfRole; wanted?:
         case SideStatus.OTHER_ACCEPTED:
             return null;
         case SideStatus.STRAP_DISAGREES: {
-            // The thumb cluster's wiring sets the side, and it wins over a write.
+            // The thumb PCBA's wiring sets the side, and it wins over a write.
             const fitted = (o.strap !== undefined ? strapSide(o.strap) : null) ?? (o.wanted ? oppositeSide(o.wanted) : null);
-            if (!fitted) return `${capitalize(which)} has a thumb cluster for the other side, which sets its side. To sort it out, ${SUPPORT}.`;
-            return `${capitalize(which)} has a ${fitted} thumb cluster, which makes it the ${fitted} half. ` +
-                `If it's really the ${oppositeSide(fitted)} half, it has the wrong thumb cluster. To sort it out, ${SUPPORT}.`;
+            if (!fitted) return `${capitalize(which)} has a thumb PCBA for the other side, which sets its side. To sort it out, ${SUPPORT}.`;
+            return `${capitalize(which)} has a ${fitted} thumb PCBA, which makes it the ${fitted} half. ` +
+                `If it's really the ${oppositeSide(fitted)} half, it has the wrong thumb PCBA. To sort it out, ${SUPPORT}.`;
         }
         case SideStatus.NO_RECORD_AREA:
             return `${capitalize(which)} has no room to save its side. To sort it out, ${SUPPORT}.`;

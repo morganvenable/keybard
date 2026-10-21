@@ -20,9 +20,9 @@ import {
     handName, hex, otherHand, type Hand,
 } from "./protocol";
 import { loadSvup, type SvupFile } from "./svup";
-import { SideStatus, oppositeSide, type Side, type SideValue } from "../side";
+import { SideSource, SideStatus, type Side, type SideValue } from "../side";
 import {
-    assessSides, currentSides, explainSideStatus, planAfterUpdate, suggestedSide, type HalfRole, type KnownSides,
+    assessSides, currentSides, explainSideStatus, planAfterUpdate, type HalfRole, type KnownSides,
     type SideAssessment, type SideWrite,
 } from "../side-decision";
 import type { SideHost } from "../side-host";
@@ -87,9 +87,14 @@ export interface SidesResult {
     migrated: boolean;
 }
 
-/** The flow waits for the customer: which half is plugged into the computer? */
+/** The flow waits for the customer: which half is plugged into the computer? Or: are these sides right? */
 export interface SideAsk {
-    reason: "unknown" | "same";
+    /** confirm: the firmware chose the sides; "That's right" or "Swap". */
+    reason: "unknown" | "same" | "confirm";
+    /** Keybard knew the plugged-in half's side before: "Keep the plugged-in half as the left half?". */
+    restore?: boolean;
+    /** confirm: where the sides came from (the per-hand build, or the thumb PCBA). */
+    from?: "migrated" | "strap" | null;
     /** The side to offer first, when Keybard can tell. */
     suggested: Side | null;
     /** The sides each half reports now. */
@@ -133,6 +138,8 @@ export interface FlowState {
     measurements: Record<string, number>;
     /** One-image firmware: each half's side as read before the install. */
     sidesBefore?: KnownSides | null;
+    /** sidesBefore came from SIDE (true) or from a per-hand build's updater hand (false). */
+    sidesFromSide?: boolean;
     /** Set while the flow waits for the customer to say which half is which. */
     sideAsk?: SideAsk | null;
 }
@@ -367,6 +374,7 @@ export class UpdateFlow {
             failure: null,
             measurements: {},
             sidesBefore: plan.sidesBefore ?? null,
+            sidesFromSide: plan.sidesFromSide ?? true,
             sideAsk: null,
         };
         const flow = new UpdateFlow(host, store, state);
@@ -735,8 +743,10 @@ export class UpdateFlow {
     }
 
     /**
-     * After the install, on one-image firmware: read both sides; put back any half that came
-     * back without its side, or with another; ask the customer only when Keybard can't tell.
+     * After the install, on one-image firmware: read both sides. Keybard never writes a side
+     * by itself. A half that came back unknown or changed, or two halves on one side: it asks
+     * which half is plugged in, the likely answer first. Sides the firmware chose (from the
+     * per-hand build or the thumb PCBA) are shown once: "That's right" or "Swap".
      */
     private async checkSides(): Promise<void> {
         const sides = this.host.sides;
@@ -746,45 +756,67 @@ export class UpdateFlow {
         const before: KnownSides = { ...(this.state.sidesBefore ?? { usb: null, other: null }) };
         const wrote = new Set<HalfRole>();
         let note: string | null = null;
-        /** The last refused write: its half keeps the side it has, so offer the other fix first. */
-        let refused: SideWrite | null = null;
+        let restoreWording = true;
+        // Read from a per-hand build before: the firmware chose these sides.
+        let firmwareChose = this.state.sidesFromSide === false;
+        /** The customer answered once: the firmware's choice needs no second confirmation. */
+        let answered = false;
         let migrated = false;
-        for (let round = 0; round < 4; round++) {
+        for (let round = 0; round < 5; round++) {
             const a = await this.readSides(sides);
-            const plan = planAfterUpdate(before, a);
-            migrated ||= plan.migrated;
-            let writes: SideWrite[] = plan.writes;
-            if (!writes.length && plan.ask.length) {
-                const now = currentSides(a);
-                const suggested = refused && a.kind === "same" ? (refused.role === "other" ? oppositeSide(a.side) : a.side) : suggestedSide(a, "usb");
-                const ask: SideAsk = { reason: a.kind === "same" ? "same" : "unknown", suggested, ...now, note };
-                writes = await new Promise<SideWrite[]>((resolve) => {
-                    this.answer = resolve;
-                    this.update({ sideAsk: ask });
-                });
-                this.update({ sideAsk: null });
-                note = null;
-                // What the customer said is now what Keybard knows.
-                for (const role of ["usb", "other"] as HalfRole[]) {
-                    const w = writes.find((x) => x.role === role);
-                    const cur = now[role];
-                    before[role] = w ? w.side : cur === "left" || cur === "right" ? cur : null;
-                }
-            }
-            if (!writes.length) {
+            const report = await sides.read();
+            const fromStrap = report?.source === SideSource.STRAP;
+            const plan = planAfterUpdate(before, a, { firmwareChose: !answered && (firmwareChose || fromStrap || report?.source === SideSource.MIGRATED) });
+            migrated ||= plan.migrated || (firmwareChose && a.kind === "ok");
+            if (plan.action === "none") {
                 const done = currentSides(a);
                 this.update({ sidesBefore: before, sideAsk: null });
                 this.sidesResult = { usb: done.usb, other: done.other, wrote: [...wrote], migrated };
                 return;
             }
-            const strap = (await sides.read())?.strap;
+            const now = currentSides(a);
+            const ask: SideAsk = {
+                reason: plan.action === "confirm" ? "confirm" : a.kind === "same" ? "same" : "unknown",
+                suggested: plan.likelyUsb,
+                restore: plan.restore && restoreWording,
+                from: plan.action === "confirm" ? (fromStrap ? "strap" : "migrated") : null,
+                ...now,
+                note,
+            };
+            const writes = await new Promise<SideWrite[]>((resolve) => {
+                this.answer = resolve;
+                this.update({ sideAsk: ask });
+            });
+            this.update({ sideAsk: null });
+            note = null;
+            answered = true;
+            if (!writes.length) {
+                // "That's right": the customer confirmed the sides as they are.
+                const done = currentSides(a);
+                for (const role of ["usb", "other"] as HalfRole[]) {
+                    const cur = done[role];
+                    if (cur === "left" || cur === "right") before[role] = cur;
+                }
+                this.update({ sidesBefore: before, sideAsk: null });
+                this.sidesResult = { usb: done.usb, other: done.other, wrote: [...wrote], migrated };
+                return;
+            }
+            // What the customer said is now what Keybard knows.
+            for (const role of ["usb", "other"] as HalfRole[]) {
+                const w = writes.find((x) => x.role === role);
+                const cur = now[role];
+                before[role] = w ? w.side : cur === "left" || cur === "right" ? cur : null;
+            }
+            firmwareChose = false;
+            const strap = report?.strap;
             for (const w of writes) {
                 const status = await this.writeSide(sides, w);
                 if (status === SideStatus.OK || status === SideStatus.OTHER_ACCEPTED) { wrote.add(w.role); continue; }
                 note = explainSideStatus(status, { role: w.role, wanted: w.side, strap: w.role === "usb" ? strap : undefined });
-                refused = w;
-                // Never retry a refused side: take what the half says now, and ask if that still doesn't fit.
-                if (w.role === "usb") before.usb = null; else before.other = null;
+                restoreWording = false;
+                // Never retry a refused side. The half keeps the side its thumb PCBA gives it,
+                // so the likely answer for the plugged-in half follows from that.
+                if (w.role === "usb") { before.usb = null; before.other = null; } else { before.usb = w.side; before.other = null; }
                 break;
             }
         }

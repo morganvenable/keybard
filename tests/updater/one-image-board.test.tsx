@@ -42,13 +42,37 @@ describe("the side fix", () => {
         expect(sideProblem({ kind: "ok", usb: "left", other: "right", migrated: false })).toBeNull();
         expect(sideProblem({ kind: "unsupported" })).toBeNull();
     });
-    it("same side: the one-click fix sets the other half", () => {
+    it("same side: asks which half is plugged in (no guess), then confirms before any write", () => {
         const onApply = vi.fn();
         render(<SideFix sides={{ kind: "same", side: "right" }} onApply={onApply} />);
-        fireEvent.click(screen.getByRole("button", { name: "Make the other half the left half" }));
-        expect(onApply).toHaveBeenCalledWith([{ role: "other", side: "left", why: "same" }]);
-        fireEvent.click(screen.getByRole("button", { name: "No, the half plugged into your computer is the left half" }));
-        expect(onApply).toHaveBeenLastCalledWith([{ role: "usb", side: "left", why: "same" }]);
+        expect(screen.getByText("Which half is plugged into your computer?")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Left half" }).getAttribute("data-variant") ?? "").not.toBe("kb-primary");
+        fireEvent.click(screen.getByRole("button", { name: "Right half" }));
+        expect(onApply).not.toHaveBeenCalled();
+        expect(screen.getByText("The half on the split cable becomes the left half.")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+        fireEvent.click(screen.getByRole("button", { name: "Left half" }));
+        expect(screen.getByText("The half plugged into your computer becomes the left half.")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Set the sides" }));
+        expect(onApply).toHaveBeenCalledWith([{ role: "usb", side: "left", why: "same" }]);
+    });
+    it("restore wording: Keep the plugged-in half as the left half?", () => {
+        const onApply = vi.fn();
+        render(<SideFix restore suggested="left" sides={{ kind: "unknown", halves: ["other"], usb: "left", other: "unknown", guess: { other: "right" } }} onApply={onApply} />);
+        expect(screen.getByText("Keep the plugged-in half as the left half?")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "No, it's the right half" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Yes, the left half" }));
+        fireEvent.click(screen.getByRole("button", { name: "Set the sides" }));
+        expect(onApply).toHaveBeenCalledWith([{ role: "other", side: "right", why: "unknown" }]);
+    });
+    it("confirm: That's right sends nothing; Swap confirms, then sets both", () => {
+        const onApply = vi.fn();
+        render(<SideFix mode="confirm" from="migrated" sides={{ kind: "ok", usb: "right", other: "left", migrated: true }} onApply={onApply} />);
+        fireEvent.click(screen.getByRole("button", { name: "That's right" }));
+        expect(onApply).toHaveBeenLastCalledWith([]);
+        fireEvent.click(screen.getByRole("button", { name: "Swap" }));
+        fireEvent.click(screen.getByRole("button", { name: "Set the sides" }));
+        expect(onApply).toHaveBeenLastCalledWith([{ role: "other", side: "right", why: "swap" }, { role: "usb", side: "left", why: "swap" }]);
     });
     it("unknown: asks which half is plugged in, the likely one first", () => {
         const onApply = vi.fn();
@@ -56,14 +80,16 @@ describe("the side fix", () => {
         expect(screen.getByText("Which half is plugged into your computer?")).toBeInTheDocument();
         expect(screen.getByRole("alert")).toHaveTextContent("Why it didn't take");
         fireEvent.click(screen.getByRole("button", { name: "Left half" }));
+        fireEvent.click(screen.getByRole("button", { name: "Set the sides" }));
         expect(onApply).toHaveBeenCalledWith([{ role: "usb", side: "left", why: "unknown" }]);
     });
-    it("the Firmware page shows the warning with its fix", () => {
+    it("the Firmware page shows the warning with its question", () => {
         const board = { updater: true, legacyLabel: null, usbHand: 1 as const, halves: [], differ: false, noChord: false, fwVersion: 4000, tag: "x4", sides: { kind: "same" as const, side: "right" as const } };
         const apply = vi.fn();
         render(<FirmwareSection board={board} releases={[]} onInstall={vi.fn()} onManual={vi.fn()} sides={{ busy: false, note: null, apply }} paranoid={false} />);
         expect(screen.getByText("Set which half is which")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Make the other half the left half" }));
+        fireEvent.click(screen.getByRole("button", { name: "Right half" }));
+        fireEvent.click(screen.getByRole("button", { name: "Set the sides" }));
         expect(apply).toHaveBeenCalledWith([{ role: "other", side: "left", why: "same" }]);
     });
     it("applySideWrites: sets the side, and explains status 4", async () => {
@@ -72,7 +98,7 @@ describe("the side fix", () => {
         expect(ok.sides!.halves.other.side).toBe("left");
         const strap = fakeSetup({ clock, running: v3, sides: { supported: true, usb: { side: "right", strap: Strap.RIGHT }, other: { side: "right" } } });
         const note = await applySideWrites({ sides: strap.host.sides, clock, waitForDevice: (ms) => strap.host.waitForDevice(ms) }, [{ role: "usb", side: "left", why: "same" }]);
-        expect(note).toContain("right thumb cluster");
+        expect(note).toContain("right thumb PCBA");
     });
 });
 

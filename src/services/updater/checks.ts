@@ -67,6 +67,8 @@ export interface Plan {
     sidesBefore: KnownSides;
     /** Every file is the one image for both halves. */
     oneImage: boolean;
+    /** sidesBefore came from SIDE (true), or from a per-hand build's updater hand (false). */
+    sidesFromSide: boolean;
 }
 
 export interface CheckOptions {
@@ -277,7 +279,7 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     const kind = lead ? kindFor(board, lead, pinned) : "custom";
     return {
         board, target, files, kind, toTag, fromTag: board.usbTag, title: titleFor(kind, toTag), checks, warnings, refusal,
-        otherSilent, pinned, sidesBefore, oneImage,
+        otherSilent, pinned, sidesBefore, oneImage, sidesFromSide: sideRead.kind !== "unsupported",
     };
 }
 
