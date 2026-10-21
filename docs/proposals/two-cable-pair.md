@@ -50,3 +50,22 @@ nothing passes between them on its own.
 
 Test only on test boards, one job per board, always by serial. Never the daily
 driver.
+
+## Measured latency (2026-10-21, right test board)
+
+Round trip, computer to one half and back, with Keybard Overlay also polling
+the board:
+
+| Case | p50 | p99 | max |
+|---|---|---|---|
+| Native (hidapi) | 3.0 ms | 5.0 ms | 23 ms |
+| Browser, tab in front | 3.1 ms | 5.1 ms | 23 ms |
+| Browser, tab in background | 3.1 ms | 5.4 ms | 27 ms |
+| Browser, window minimized | 3.1 ms | 5.3 ms | 23 ms |
+
+- Chrome doesn't slow WebHID in background tabs or minimized windows.
+- About 1 in 1,000 round trips stalls for 17-27 ms in every case, native too.
+- A relayed layer change would take about 3 ms typically and 5-9 ms at p99.
+  The split cable delivers keys in order, so a key is never read on the old
+  layer. A relay can be late, so a key pressed 10-20 ms after a layer key on
+  the other half would land on the old layer about once in several hundred.
