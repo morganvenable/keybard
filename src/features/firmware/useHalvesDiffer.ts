@@ -7,6 +7,7 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { updateInFlight } from "@/services/updater/flow";
 import { usbInstance } from "@/services/usb.service";
 import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
+import { usbSideHost } from "@/services/side-host";
 import { readBoardSummary, type BoardSummary } from "./board-summary";
 
 /** Ask the app to open Settings > Firmware (FirmwareUpdateProvider listens). */
@@ -21,7 +22,7 @@ export function useBoardSummary(refresh = 0): BoardSummary | null {
         if (!loaded || updateInFlight()) return;
         let cancelled = false;
         const session = connectionSessionId;
-        void readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboard)
+        void readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboard, usbSideHost(usbInstance))
             .then((board) => { if (!cancelled) setSummary({ session, refresh, board }); })
             .catch(() => undefined);
         return () => { cancelled = true; };

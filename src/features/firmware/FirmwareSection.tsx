@@ -10,6 +10,8 @@ import { PARANOID } from "@/lib/paranoid";
 import { loadSvup, SvupError, type SvupFile } from "@/services/updater/svup";
 import type { Hand } from "@/services/updater/protocol";
 import type { BoardSummary } from "./board-summary";
+import type { SideFixControl } from "./FirmwareUpdateProvider";
+import { SideFix, sideProblem } from "./SideFix";
 
 export type FirmwarePick = { kind: "release"; release: FirmwareReleasePin } | { kind: "files"; files: SvupFile[] };
 
@@ -23,6 +25,8 @@ export interface FirmwareSectionProps {
     paranoid?: boolean;
     /** Its own "Firmware" title; off inside Settings, whose section is titled already. */
     heading?: boolean;
+    /** One-image firmware: set which half is which. */
+    sides?: SideFixControl;
 }
 
 const HALF = (h: Hand) => (h === 0 ? "Left half" : "Right half");
@@ -36,7 +40,7 @@ function buttonLabel(pick: FirmwareReleasePin | null, board: BoardSummary | null
     return `Install ${pick.tag}`;
 }
 
-export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true }: FirmwareSectionProps) {
+export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true, sides }: FirmwareSectionProps) {
     const newest = releases[0] ?? null;
     const installedTag = board?.updater ? board.tag : null;
     const initial = useMemo(() => {
@@ -78,14 +82,15 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     let label = buttonLabel(pick, board, newest);
     if (!board) label = "Connect";
     else if (!board.updater) label = `Install ${(pick ?? newest)?.tag ?? "by hand"}`;
-    const status = !board ? null : board.updater && board.differ ? "Halves differ" : board.updater && newest && board.halves.every((h) => h.fwVersion >= newest.fwVersion) ? "Up to date" : null;
+    const sideTrouble = board?.sides ? sideProblem(board.sides) : null;
+    const status = !board ? null : sideTrouble ? "Set which half is which" : board.updater && board.differ ? "Halves differ" : board.updater && newest && board.halves.length > 0 && board.halves.every((h) => h.fwVersion >= newest.fwVersion) ? "Up to date" : null;
 
     return (
         <section aria-labelledby={heading ? "fw-title" : undefined} aria-label={heading ? undefined : "Firmware"} className="flex flex-col gap-4" data-testid="firmware-section">
             {heading && <h2 id="fw-title" className="text-lg font-semibold text-kb-ink">Firmware</h2>}
 
             <div className="flex flex-col gap-1" aria-label="This keyboard">
-                <h3 className={`text-sm font-semibold ${status === "Halves differ" ? "text-kb-orange" : "text-muted-foreground"}`}>{status ?? "This keyboard"}</h3>
+                <h3 className={`text-sm font-semibold ${status === "Halves differ" || sideTrouble ? "text-kb-orange" : "text-muted-foreground"}`}>{status ?? "This keyboard"}</h3>
                 {!board && <p className="text-sm">Connect a keyboard to see its firmware.</p>}
                 {board && !board.updater && <p className="text-sm"><span className="font-mono">{board.legacyLabel ?? "Older firmware"}</span></p>}
                 {board?.updater && board.halves.map((h) => {
@@ -100,6 +105,12 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                     );
                 })}
                 {boardNewer && <p className="text-sm text-muted-foreground">Newer than this Keybard</p>}
+                {board?.sides && sideTrouble && (
+                    <div className="mt-2 rounded-md border border-kb-gray-border p-3">
+                        <SideFix bare sides={board.sides} busy={sides?.busy} note={sides?.note} onApply={(w) => sides?.apply(w)} />
+                    </div>
+                )}
+                {board?.sides && !sideTrouble && sides?.note && <p role="alert" className="text-sm text-kb-red">{sides.note}</p>}
             </div>
 
             <div className="flex flex-col gap-1" role="radiogroup" aria-label="Install">

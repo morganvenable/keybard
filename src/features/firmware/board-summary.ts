@@ -5,6 +5,8 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { UpdaterClient } from "@/services/updater/client";
 import { HAND_SELF, POINTING_NAMES, Presence, UPDATER_PROTOCOL, otherHand, type Hand } from "@/services/updater/protocol";
 import type { UpdaterTransport } from "@/services/updater/transport";
+import type { SideHost } from "@/services/side-host";
+import { assessSides, type SideAssessment } from "@/services/side-decision";
 
 export interface HalfSummary {
     hand: Hand;
@@ -28,10 +30,23 @@ export interface BoardSummary {
     noChord: boolean;
     fwVersion: number;
     tag: string;
+    /** One-image firmware: which half is which (null: a per-hand build, or not read). */
+    sides?: SideAssessment | null;
+}
+
+/** SIDE on one-image firmware; null on a per-hand build. Waits out "not reported yet" (0.5 s). */
+export async function readSides(sides: SideHost | undefined, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): Promise<SideAssessment | null> {
+    if (!sides || !(await sides.supported())) return null;
+    let a = assessSides(true, await sides.read());
+    for (let i = 0; i < 6 && (a.kind === "pending" || a.kind === "unreadable"); i++) {
+        await sleep(250);
+        a = assessSides(true, await sides.read());
+    }
+    return a;
 }
 
 /** Read the board's firmware state; a board without a protocol-4 updater reads as legacy. */
-export async function readBoardSummary(transport: UpdaterTransport, keyboard?: KeyboardInfo | null): Promise<BoardSummary> {
+export async function readBoardSummary(transport: UpdaterTransport, keyboard?: KeyboardInfo | null, sideHost?: SideHost): Promise<BoardSummary> {
     const legacy = (): BoardSummary => ({
         updater: false, legacyLabel: keyboard ? describeFirmware(keyboard) : null, usbHand: 1, halves: [], differ: false,
         noChord: false, fwVersion: 0, tag: keyboard ? describeFirmware(keyboard) ?? "" : "",
@@ -42,6 +57,14 @@ export async function readBoardSummary(transport: UpdaterTransport, keyboard?: K
         usb = await c.info(HAND_SELF);
     } catch {
         return legacy();
+    }
+    const sides = await readSides(sideHost).catch(() => null);
+    if (usb.protocol === UPDATER_PROTOCOL && usb.hand === HAND_SELF) {
+        // One-image firmware on a half with no side yet: it answers as hand 0xFF. Show the fix, no halves.
+        return {
+            updater: true, legacyLabel: null, usbHand: 1, halves: [], differ: false, noChord: usb.noChord, fwVersion: usb.fwVersion,
+            tag: (await c.info1().catch(() => null))?.tag ?? "", sides: sides ?? { kind: "unknown", halves: ["usb"], usb: "unknown", other: null, guess: {} },
+        };
     }
     if (usb.protocol !== UPDATER_PROTOCOL || (usb.hand !== 0 && usb.hand !== 1)) {
         return { ...legacy(), legacyLabel: usb.protocol === 3 ? "vNext1" : legacy().legacyLabel };
@@ -58,7 +81,9 @@ export async function readBoardSummary(transport: UpdaterTransport, keyboard?: K
     } else {
         halves.push({ hand: otherHand(usbHand), usb: false, tag: "", fwVersion: 0, pointing: "", answered: false });
     }
-    const differ = usb.otherDiffers || status.presence === Presence.VERSION || status.presence === Presence.SAME_HAND || status.presence === Presence.INVALID;
+    // On one-image firmware, two halves on one side (SAME_HAND) is a side to set, not firmware to finish.
+    const sideTrouble = !!sides && (sides.kind === "same" || sides.kind === "unknown");
+    const differ = usb.otherDiffers || status.presence === Presence.VERSION || (!sideTrouble && (status.presence === Presence.SAME_HAND || status.presence === Presence.INVALID));
     halves.sort((a, b) => a.hand - b.hand);
-    return { updater: true, legacyLabel: null, usbHand, halves, differ, noChord: usb.noChord, fwVersion: usb.fwVersion, tag };
+    return { updater: true, legacyLabel: null, usbHand, halves, differ, noChord: usb.noChord, fwVersion: usb.fwVersion, tag, sides };
 }

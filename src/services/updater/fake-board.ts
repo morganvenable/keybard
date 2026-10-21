@@ -455,6 +455,13 @@ export class FakeSvalboard implements UpdaterTransport {
         this.disconnect();
     }
 
+    /** A half restarts by itself, as after a SIDE write with the restart flag (fake-sides.ts). */
+    restartForSide(role: "usb" | "other"): void {
+        const now = this.clock.now();
+        if (role === "usb") this.restartUsb(now);
+        else this.restartHalf(this.other(), now, this.timing.otherRebootMs);
+    }
+
     private restartHalf(h: Half, now: number, ms: number) {
         h.alive = false;
         h.backAt = Number.isFinite(ms) ? now + ms : null;

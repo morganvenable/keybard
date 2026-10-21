@@ -13,6 +13,8 @@ import { FailureView, type FailureAction } from "./failures";
 import { ProgressView, useTicker } from "./ProgressDialog";
 import { UpdateSheet } from "./UpdateSheet";
 import type { UpdateUi } from "./useFirmwareUpdate";
+import type { SideWrite } from "@/services/side-decision";
+import { SideFix, assessmentFromAsk } from "./SideFix";
 
 const HALF = (h: Hand) => (h === 0 ? "Left half" : "Right half");
 
@@ -40,6 +42,12 @@ export function ResultView({ state, notesUrl, onDone }: { state: FlowState; note
                     {r.layout === "restored" ? "Layout put back" : r.layout === "blank" ? "Wiped to a blank board" : "Reset to the default layout"}
                     {state.backup && <span className="font-mono text-xs text-muted-foreground">{state.backup.fileName}</span>}
                 </p>
+                {r.sides && (
+                    <p className="flex items-center gap-2" data-testid="result-sides">
+                        <Check className="h-4 w-4 text-kb-green" aria-hidden />
+                        {r.sides.wrote.length ? "Each half knows its side now" : "Each half kept its side"}
+                    </p>
+                )}
                 {r.trimmed.map((line) => (
                     <p key={line} className="flex items-center gap-2 text-kb-orange"><CircleAlert className="h-4 w-4" aria-hidden />{line}</p>
                 ))}
@@ -66,6 +74,10 @@ export interface UpdateDialogProps {
     onFailureAction: (a: FailureAction) => void;
     onOpenBackups?: () => void;
     onSaveManually?: () => void;
+    /** Before an update: send the side fixes the board needs. */
+    onFixSides?: (writes: SideWrite[]) => void;
+    /** During an update: the customer's answer about which half is which. */
+    onAnswerSide?: (writes: SideWrite[]) => void;
 }
 
 function useHiddenToast(active: boolean) {
@@ -112,13 +124,27 @@ export function UpdateDialog(p: UpdateDialogProps) {
                 <DialogTitle className="sr-only">{label}</DialogTitle>
                 <DialogDescription className="sr-only">Firmware update for the {handName(usb)} half with USB and its other half</DialogDescription>
                 {ui.kind === "sheet" && (
-                    ui.preFailure ? (
+                    ui.preFailure?.id === "sides" ? (
+                        <div className="flex flex-col gap-4" data-testid="sheet-sides">
+                            <h2 className="text-lg font-semibold text-kb-ink">Set which half is which first</h2>
+                            <SideFix bare sides={ui.preFailure.sides} busy={ui.sideBusy} note={ui.sideNote} onApply={(w) => p.onFixSides?.(w)} />
+                            <p className="text-xs text-muted-foreground">Then Keybard checks the keyboard again and offers the update.</p>
+                            <div className="flex justify-end"><Button variant="outline" onClick={p.onCancel}>Cancel</Button></div>
+                        </div>
+                    ) : ui.preFailure ? (
                         <FailureView failure={{ id: ui.preFailure.id === "unsupported" ? "F18" : ui.preFailure.id }} onAction={p.onFailureAction} />
                     ) : (
                         <UpdateSheet ui={ui} chordLegends={p.chordLegends} onAfterwards={p.onAfterwards} onStart={p.onStart} onCancel={p.onCancel} onOpenBackups={p.onOpenBackups} onSaveManually={p.onSaveManually} />
                     )
                 )}
-                {ui.kind === "flow" && ui.state.phase === "running" && (
+                {ui.kind === "flow" && ui.state.phase === "running" && ui.state.sideAsk && (
+                    <div className="flex flex-col gap-4" data-testid="flow-sides">
+                        <h2 className="text-lg font-semibold text-kb-ink">Set which half is which</h2>
+                        <p className="text-sm text-muted-foreground">The new firmware is installed on both halves.</p>
+                        <SideFix bare sides={assessmentFromAsk(ui.state.sideAsk)} suggested={ui.state.sideAsk.suggested} note={ui.state.sideAsk.note} onApply={(w) => p.onAnswerSide?.(w)} />
+                    </div>
+                )}
+                {ui.kind === "flow" && ui.state.phase === "running" && !ui.state.sideAsk && (
                     <>
                         <ProgressView state={ui.state} legends={p.chordLegends(ui.state.usbHand)} now={now} />
                         {p.cancellable && <div className="flex justify-end"><Button variant="outline" onClick={p.onCancel}>Cancel</Button></div>}

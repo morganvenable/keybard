@@ -32,6 +32,7 @@ export interface FirmwareReleasePin {
     updaterProtocol: number;
     /** Sval (configurator) protocol of the firmware, when known. */
     svalProtocol?: number;
+    /** One-image releases (svalboard/either) name the same file for both halves. */
     files: { left: ReleaseFilePin; right: ReleaseFilePin };
     /** Up to three one-line highlights for the Firmware page. */
     highlights: string[];

@@ -20,6 +20,12 @@ import {
     handName, hex, otherHand, type Hand,
 } from "./protocol";
 import { loadSvup, type SvupFile } from "./svup";
+import { SideStatus, type Side, type SideValue } from "../side";
+import {
+    assessSides, currentSides, explainSideStatus, planAfterUpdate, suggestedSide, type HalfRole, type KnownSides,
+    type SideAssessment, type SideWrite,
+} from "../side-decision";
+import type { SideHost } from "../side-host";
 import { DisconnectedError, ReplyTimeoutError, type Clock, type UpdaterTransport } from "./transport";
 
 /** The layout choice before an install: Keep my layout, Reset to the default layout, Wipe to a blank board. */
@@ -27,14 +33,14 @@ export type Afterwards = "restore" | "defaults" | "blank";
 
 export type Stage =
     | "waiting" | "approve" | "preparing" | "sending" | "checking" | "copying" | "installing" | "restarting"
-    | "reconnecting" | "checking-halves" | "restoring" | "done" | "stopped";
+    | "reconnecting" | "checking-halves" | "checking-sides" | "restoring" | "done" | "stopped";
 
 export type Step =
     | "start" | "approve" | "other-erase" | "other-send" | "other-verify" | "relay" | "other-install" | "other-restart"
-    | "self-arm" | "self-erase" | "self-send" | "self-verify" | "self-install" | "reconnect" | "check-halves"
+    | "self-arm" | "self-erase" | "self-send" | "self-verify" | "self-install" | "reconnect" | "sides" | "check-halves"
     | "settings-reset" | "restore" | "done" | "failed";
 
-export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20";
+export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20" | "F21";
 
 export interface Failure {
     id: FailureId;
@@ -68,6 +74,29 @@ export interface FlowResult {
     layout: "restored" | "defaults" | "blank";
     /** Lines the import preflight trimmed, e.g. "Combos: 6 of 8 (this firmware has 6)". */
     trimmed: string[];
+    /** One-image firmware: each half's side after the update (absent on per-hand builds). */
+    sides?: SidesResult | null;
+}
+
+export interface SidesResult {
+    usb: SideValue | null;
+    other: SideValue | null;
+    /** Halves Keybard set (put back, or as the customer said). */
+    wrote: HalfRole[];
+    /** The halves took their sides from the per-hand build they ran. */
+    migrated: boolean;
+}
+
+/** The flow waits for the customer: which half is plugged into the computer? */
+export interface SideAsk {
+    reason: "unknown" | "same";
+    /** The side to offer first, when Keybard can tell. */
+    suggested: Side | null;
+    /** The sides each half reports now. */
+    usb: SideValue | null;
+    other: SideValue | null;
+    /** Why the last write didn't take (e.g. the thumb strap), in plain words. */
+    note: string | null;
 }
 
 export interface FlowState {
@@ -102,6 +131,10 @@ export interface FlowState {
     failure: Failure | null;
     /** WebHID round trips and stage times, for update-technical.md 1.9. */
     measurements: Record<string, number>;
+    /** One-image firmware: each half's side as read before the install. */
+    sidesBefore?: KnownSides | null;
+    /** Set while the flow waits for the customer to say which half is which. */
+    sideAsk?: SideAsk | null;
 }
 
 /** What the flow needs from the app (or the mock): the connection, the layout, backups. */
@@ -121,6 +154,8 @@ export interface FlowHost {
     keymapBlank?(): Promise<boolean>;
     /** Hold a Web Lock and a Screen Wake Lock for the update; returns their release. */
     holdLocks?(): Promise<() => void>;
+    /** SIDE (0x33): each half's side on the one-image firmware. Absent: never checked. */
+    sides?: SideHost;
 }
 
 export interface FlowStore {
@@ -331,6 +366,8 @@ export class UpdateFlow {
             result: null,
             failure: null,
             measurements: {},
+            sidesBefore: plan.sidesBefore ?? null,
+            sideAsk: null,
         };
         const flow = new UpdateFlow(host, store, state);
         flow.files = plan.files;
@@ -640,7 +677,7 @@ export class UpdateFlow {
     /** After a reload: pick up after the restart, or say the update didn't finish. */
     private async resume() {
         const { step, usbHand, target } = this.state;
-        const after: Step[] = ["self-install", "reconnect", "check-halves", "settings-reset", "restore"];
+        const after: Step[] = ["self-install", "reconnect", "sides", "check-halves", "settings-reset", "restore"];
         if (this.state.committed.includes(usbHand) || (target !== "both" && target !== usbHand && this.state.committed.length)) {
             if (step === "self-install" || step === "reconnect") {
                 const t = this.host.transport();
@@ -654,8 +691,105 @@ export class UpdateFlow {
         throw new Stop({ id: "F6", tags: this.fromTags() });
     }
 
+    // ---- sides (one-image firmware) -------------------------------------------------------------
+
+    private answer: ((writes: SideWrite[]) => void) | null = null;
+    private sidesResult: SidesResult | null = null;
+
+    /** The customer's answer to "Which half is plugged into your computer?", as the SETs it takes. */
+    answerSide(writes: SideWrite[]): void {
+        const resolve = this.answer;
+        this.answer = null;
+        resolve?.(writes);
+    }
+
+    /** GET until the other half has reported (up to 3 s after a restart). */
+    private async readSides(sides: SideHost): Promise<SideAssessment> {
+        const deadline = this.now() + 3000;
+        for (;;) {
+            const a = assessSides(true, await sides.read());
+            if ((a.kind !== "pending" && a.kind !== "unreadable") || this.now() >= deadline) return a;
+            await this.host.clock.sleep(POLL_MS);
+        }
+    }
+
+    /** One SET; the half restarts. Returns the status. */
+    private async writeSide(sides: SideHost, w: SideWrite): Promise<number> {
+        trace(`side: set the ${w.role} half to ${w.side} (${w.why})`);
+        const status = await sides.write(w.role, w.side);
+        if (status !== SideStatus.OK && status !== SideStatus.OTHER_ACCEPTED) return status;
+        if (w.role === "usb") {
+            await this.reconnect();
+            this.step("sides");
+        } else {
+            // The other half saves it from its main loop and restarts: wait for it to report the new side.
+            const deadline = this.now() + PRESENCE_MS;
+            await this.host.clock.sleep(500);
+            while (this.now() < deadline) {
+                const r = await sides.read();
+                if (r?.otherConnected && r.otherReported && r.otherSide === w.side) break;
+                await this.host.clock.sleep(500);
+            }
+        }
+        return status;
+    }
+
+    /**
+     * After the install, on one-image firmware: read both sides; put back any half that came
+     * back without its side, or with another; ask the customer only when Keybard can't tell.
+     */
+    private async checkSides(): Promise<void> {
+        const sides = this.host.sides;
+        if (!sides || !(await sides.supported().catch(() => false))) return;
+        this.step("sides");
+        for (const r of this.state.rows) this.row(r.hand, { stage: "checking-sides", progress: null });
+        const before: KnownSides = { ...(this.state.sidesBefore ?? { usb: null, other: null }) };
+        const wrote = new Set<HalfRole>();
+        let note: string | null = null;
+        let migrated = false;
+        for (let round = 0; round < 4; round++) {
+            const a = await this.readSides(sides);
+            const plan = planAfterUpdate(before, a);
+            migrated ||= plan.migrated;
+            let writes: SideWrite[] = plan.writes;
+            if (!writes.length && plan.ask.length) {
+                const now = currentSides(a);
+                const ask: SideAsk = { reason: a.kind === "same" ? "same" : "unknown", suggested: suggestedSide(a, "usb"), ...now, note };
+                writes = await new Promise<SideWrite[]>((resolve) => {
+                    this.answer = resolve;
+                    this.update({ sideAsk: ask });
+                });
+                this.update({ sideAsk: null });
+                note = null;
+                // What the customer said is now what Keybard knows.
+                for (const role of ["usb", "other"] as HalfRole[]) {
+                    const w = writes.find((x) => x.role === role);
+                    const cur = now[role];
+                    before[role] = w ? w.side : cur === "left" || cur === "right" ? cur : null;
+                }
+            }
+            if (!writes.length) {
+                const done = currentSides(a);
+                this.update({ sidesBefore: before, sideAsk: null });
+                this.sidesResult = { usb: done.usb, other: done.other, wrote: [...wrote], migrated };
+                return;
+            }
+            const strap = (await sides.read())?.strap;
+            for (const w of writes) {
+                const status = await this.writeSide(sides, w);
+                if (status === SideStatus.OK || status === SideStatus.OTHER_ACCEPTED) { wrote.add(w.role); continue; }
+                note = explainSideStatus(status, { role: w.role, wanted: w.side, strap: w.role === "usb" ? strap : undefined });
+                // Never retry a refused side: take what the half says now, and ask if that still doesn't fit.
+                if (w.role === "usb") before.usb = null; else before.other = null;
+                break;
+            }
+        }
+        throw new Stop({ id: "F21", detail: note ?? undefined });
+    }
+
     /** Both halves' versions and presence, then the Afterwards choice, then 0x2A. */
     private async after() {
+        await this.checkSides();
         const { usbHand, target } = this.state;
         const o = otherHand(usbHand);
         this.step("check-halves");
@@ -754,7 +888,7 @@ export class UpdateFlow {
             phase: "result",
             step: "done",
             finishedAt: this.now(),
-            result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed },
+            result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed, sides: this.sidesResult },
         });
     }
 }

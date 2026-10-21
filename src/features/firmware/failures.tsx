@@ -38,6 +38,7 @@ export function failureCopy(f: Failure, o: { fromTag?: string; udevCommand?: str
         F17: { title: "Your keyboard can't save settings", body: "Updates from Keybard are off until this is fixed.", actions: [{ action: "manual", label: "Install by hand" }, { action: "close", label: "Close", primary: true }] },
         F18: { title: "This keyboard installs firmware by hand", body: "", actions: [{ action: "manual", label: "Install by hand", primary: true }] },
         F19: { title: "This Keybard can't configure this firmware", body: "Reload Keybard to get a newer one.", actions: [{ action: "reload", label: "Reload", primary: true }] },
+        F21: { title: "Set which half is which", body: <>{f.detail && <p>{f.detail}</p>}<p>The new firmware is installed. Keys stay off until each half knows its side.</p></>, actions: [{ action: "retry", label: "Set the sides", primary: true }, { action: "close", label: "Close" }] },
         F20: { title: "Keyboard not wiped", body: f.detail ?? "The new firmware is installed.", actions: [{ action: "retry", label: "Try again", primary: true }, { action: "close", label: "Close" }] },
     };
     const copy = table[f.id];

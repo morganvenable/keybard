@@ -13,6 +13,8 @@ export async function loadCarriedRelease(release: FirmwareReleasePin, fetcher: t
         if (!res.ok) throw new Error(`Couldn't load ${name} (${res.status}).`);
         return loadSvup(new Uint8Array(await res.arrayBuffer()));
     };
-    const [left, right] = await Promise.all([get(release.files.left.svup), get(release.files.right.svup)]);
+    // A one-image release names the same file for both halves: fetch it once.
+    const same = release.files.left.svup === release.files.right.svup;
+    const [left, right] = same ? await get(release.files.left.svup).then((f) => [f, f]) : await Promise.all([get(release.files.left.svup), get(release.files.right.svup)]);
     return { 0: left, 1: right } as Record<Hand, SvupFile>;
 }

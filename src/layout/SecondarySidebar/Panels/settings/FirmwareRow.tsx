@@ -36,6 +36,7 @@ const FirmwareRow: React.FC = () => {
                 onInstall={updates.install}
                 onManual={updates.openManual}
                 onConnect={updates.connect}
+                sides={updates.sides}
                 heading={false}
             />
         </div>
