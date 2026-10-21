@@ -14,6 +14,8 @@ export const SVBI_BYTES = 32;
 /** F-N1: the image is a no-chord developer build (build-info byte 5). */
 export const BUILD_FLAG_NO_CHORD = 0x40;
 export const BUILD_FLAG_RELEASE = 0x01;
+/** D45: a dev build that keeps its settings across flashes (build-info byte 5); a release board refuses it. */
+export const BUILD_FLAG_KEEP_SETTINGS = 0x80;
 
 export class SvupError extends Error {
     constructor(message: string) {
@@ -50,6 +52,7 @@ export interface BuildInfo {
     hand: number;
     pointingId: number;
     noChord: boolean;
+    keepSettings: boolean;
     release: boolean;
 }
 
@@ -62,6 +65,8 @@ export interface SvupFile {
     buildInfo: BuildInfo | null;
     /** The image's build-info says it skips the approval chord (F-N1). */
     noChord: boolean;
+    /** The image's build-info says it keeps its settings across flashes (a dev build, D45). */
+    keepSettings: boolean;
     /** SHA-256 of the whole .svup, lowercase hex: what pins name. */
     sha256: string;
     /** SHA-512 of the 108-byte manifest (ARM reports its first 4 bytes). */
@@ -132,6 +137,7 @@ export function findBuildInfo(image: Uint8Array): BuildInfo | null {
             hand: image[i + 28],
             pointingId: image[i + 29],
             noChord: !!(flags & BUILD_FLAG_NO_CHORD),
+            keepSettings: !!(flags & BUILD_FLAG_KEEP_SETTINGS),
             release: !!(flags & BUILD_FLAG_RELEASE),
         };
     }
@@ -178,6 +184,7 @@ export async function loadSvup(input: Uint8Array | ArrayBuffer): Promise<SvupFil
         manifest,
         buildInfo,
         noChord: !!buildInfo?.noChord,
+        keepSettings: !!buildInfo?.keepSettings,
         sha256,
         manifestSha512,
         crcBody: imageCrc(image),

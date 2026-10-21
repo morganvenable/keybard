@@ -4,7 +4,7 @@ import { UpdaterClient, UpdaterStatusError } from "@/services/updater/client";
 import { fakeSetup, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
 import type { FakeSvalboard } from "@/services/updater/fake-board";
 import {
-    ARM_MODE_PAIR, ARM_MODE_SINGLE, HAND_LEFT, HAND_RIGHT, HAND_SELF, Op, Presence, State, Status, chunkArgs, hex,
+    ARM_MODE_PAIR, ARM_MODE_SINGLE, HAND_LEFT, HAND_RIGHT, HAND_SELF, Op, Presence, State, Status, armArgs, chunkArgs, hex,
     manifestArgs, settingsResetArgs,
 } from "@/services/updater/protocol";
 import { loadSvup, buildSvup, type SvupFile } from "@/services/updater/svup";
@@ -131,8 +131,20 @@ describe("updater protocol 4 against the mock board", () => {
         const ok = await loadSvup(await buildSvup({ hand: L, fwVersion: 4000, tag: "x4", securityEpoch: 2 }));
         await c.loadManifest(L, ok.manifestBytes);
         await c.loadManifest(R, low.manifestBytes, true);
-        await expect(c.arm(L, ARM_MODE_PAIR)).rejects.toMatchObject({ status: Status.EPOCH });
+        // The board's side: the refused ARM latches ERROR (sent raw, without the client's ABORT).
+        expect((await c.op(Op.ARM, L, armArgs(ARM_MODE_PAIR))).status).toBe(Status.EPOCH);
         expect(board.state).toBe(State.ERROR);
+    });
+
+    it("P4-05 Keybard ABORTs a refused ARM, so the red light doesn't stay on", async () => {
+        const { c, board } = setup({ half: { securityEpoch: 2 } });
+        const low = await loadSvup(await buildSvup({ hand: R, fwVersion: 4000, tag: "x4", securityEpoch: 1 }));
+        const ok = await loadSvup(await buildSvup({ hand: L, fwVersion: 4000, tag: "x4", securityEpoch: 2 }));
+        await c.loadManifest(L, ok.manifestBytes);
+        await c.loadManifest(R, low.manifestBytes, true);
+        await expect(c.arm(L, ARM_MODE_PAIR)).rejects.toMatchObject({ status: Status.EPOCH });
+        expect(board.state).toBe(State.IDLE);
+        expect(c.log.map((e) => e.op)).toContain(Op.ABORT);
     });
 
     it("P4-07 a pair ARM on a chord build reports both hashes and only the PAIR flag", async () => {
@@ -381,7 +393,7 @@ describe("updater protocol 4 against the mock board", () => {
         const ok = await loadSvup(await buildSvup({ hand: R, fwVersion: 4000, tag: "x4", securityEpoch: 2 }));
         await c.loadManifest(L, low.manifestBytes);
         await c.loadManifest(R, ok.manifestBytes, true);
-        await expect(c.arm(L, ARM_MODE_PAIR)).rejects.toMatchObject({ status: Status.EPOCH });
+        expect((await c.op(Op.ARM, L, armArgs(ARM_MODE_PAIR))).status).toBe(Status.EPOCH);
         expect(board.state).toBe(State.ERROR);
         expect(board.approvalHeld).toBe(false);
     });

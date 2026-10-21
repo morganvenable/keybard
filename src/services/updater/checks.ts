@@ -103,10 +103,12 @@ export async function readBoard(client: UpdaterClient, clock: Clock): Promise<Bo
 /** Why a half would refuse this file, as far as its INFO shows (null: none seen). */
 export function refusalFor(file: SvupFile, half: Info0, isOther: boolean): string | null {
     const m = file.manifest;
-    const ok = isOther ? [2, 3, 4] : [UPDATER_PROTOCOL];
+    // The half without USB may run protocol 3 or 4 (the relay is unchanged); never 2.
+    const ok = isOther ? [3, UPDATER_PROTOCOL] : [UPDATER_PROTOCOL];
     if (!ok.includes(half.protocol)) return `it speaks updater protocol ${half.protocol}`;
-    // A no-chord build (D43) is a developer file even if it was packed without DIAGNOSTIC.
-    if (half.releaseBuild && (m.diagnostic || file.noChord)) return "it's a developer file and this keyboard runs a release";
+    // A no-chord or kept-settings build (D43, D45) is a developer file even if it was packed
+    // without DIAGNOSTIC: a release half refuses its image with BAD_IMAGE after the chord.
+    if (half.releaseBuild && (m.diagnostic || file.noChord || file.keepSettings)) return "it's a developer file and this keyboard runs a release";
     if (m.securityEpoch < half.securityEpoch) return "it's older than this keyboard allows";
     if (m.storageFormat < half.storageFormat) return "its settings format is older than this keyboard's";
     if (m.imageLen > half.maxImage) return "it's too large for this keyboard";
@@ -189,7 +191,12 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         }
         if (!f.imageHashOk) integrityOk = false;
     }
-    if (!integrityOk) {
+    // A chosen file that is damaged: get it again. A carried file that misses its pin: reload Keybard.
+    const damagedFile = source.kind === "file" && halves.some((h) => files[h] && !files[h]!.imageHashOk);
+    if (damagedFile) {
+        refusal = { id: "file-damaged", label: "Firmware file is damaged", state: "refuse", detail: "Keybard won't install it. Download the file again, then choose it." };
+        checks.push(refusal);
+    } else if (!integrityOk) {
         refusal = { id: "integrity", label: "Firmware file failed its check", state: "refuse", detail: "Keybard won't install it. Reload Keybard and try again." };
         checks.push(refusal);
     } else {
@@ -228,6 +235,21 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     }
     if (source.kind === "release" && o.maxSvalProtocol !== undefined && (source.release.svalProtocol ?? 0) > o.maxSvalProtocol) {
         warnings.push({ id: "sval-protocol", label: "Keybard may not configure this firmware", state: "warn", detail: "You can still install it." });
+    }
+    // The file's updater protocol (manifest byte 15) against the board's: warn, never refuse.
+    for (const h of halves) {
+        const f = files[h];
+        const info = h === usbHand ? board.usb : board.other;
+        const proto = f?.manifest.updaterProto;
+        if (!f || !info || proto === undefined || proto === info.protocol) continue;
+        // Older than the board's. On the half with USB that means installs by hand from then on
+        // (Keybard installs only through protocol 4 there); the other half is updated through the
+        // relay on protocol 3 or 4, so only an older one matters there.
+        const manualAfter = h === usbHand ? proto < UPDATER_PROTOCOL : proto < 3;
+        if (proto < info.protocol && manualAfter) warnings.push({ id: `updater-protocol-${h}`, label: `Older updater in this file (protocol ${proto})`, state: "warn", detail: "Afterwards, Keybard can't update this keyboard: later firmware installs by hand, until a manual install of a newer release." });
+        else if (proto < info.protocol) warnings.push({ id: `updater-protocol-${h}`, label: `Older updater in this file (protocol ${proto})`, state: "warn", detail: `The ${handName(h)} half goes back to protocol ${proto}.` });
+        // Newer than this Keybard speaks: the next update may need a newer Keybard.
+        else if (proto > UPDATER_PROTOCOL) warnings.push({ id: `updater-protocol-${h}`, label: `Newer updater in this file (protocol ${proto})`, state: "warn", detail: "This Keybard may not install firmware on the keyboard afterwards." });
     }
     if (halves.some((h) => files[h]?.noChord)) warnings.push({ id: "developer", label: "Developer build", state: "warn", detail: "Later installs on this keyboard won't ask for approval." });
     for (const row of o.hostRows ?? []) {

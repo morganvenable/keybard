@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { UpdaterClient } from "@/services/updater/client";
 import { planInstall, type Plan, type PreFailure } from "@/services/updater/checks";
 import { fakeSetup, fixtureRelease, FakeHost, type FixtureRelease } from "@/services/updater/fake-host";
-import { memoryFlowStore, UpdateFlow, type Afterwards, type FlowState } from "@/services/updater/flow";
-import { HAND_LEFT, HAND_RIGHT, Op } from "@/services/updater/protocol";
+import { memoryFlowStore, settingsResetProblem, UpdateFlow, type Afterwards, type FlowState } from "@/services/updater/flow";
+import { HAND_LEFT, HAND_RIGHT, Op, Status, makeRsp } from "@/services/updater/protocol";
+import { buildSvup, loadSvup } from "@/services/updater/svup";
 import { VirtualClock } from "@/services/updater/transport";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 
@@ -245,6 +246,49 @@ describe("the sheet's checks", () => {
         expect(p.refusal?.label).toMatch(/won't accept this file/);
     });
 
+    it("D45 refuses a kept-settings build (build-info 0x80) on a release board before sending it", async () => {
+        const keep = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", buildFlags: 0x80 }))));
+        expect(keep[0].keepSettings).toBe(true);
+        const { board } = fakeSetup({ clock, running: v3, release: true });
+        const p = await planInstall(new UpdaterClient(board), { kind: "file", files: keep }, { clock }) as Plan;
+        expect(p.refusal?.detail).toMatch(/developer file/);
+    });
+
+    it("accepts an other half on updater protocol 3 or 4, never 2", async () => {
+        for (const [proto, refused] of [[2, true], [3, false], [4, false]] as const) {
+            const { board } = fakeSetup({ clock, running: v3 });
+            board.halves[L].cfg.protocol = proto;
+            const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(x4), files: x4.files }, { clock, releases: [pin(x4)] }) as Plan;
+            expect(p.refusal?.id === `refused-${L}`).toBe(refused);
+        }
+    });
+
+    it("a damaged chosen file says to get the file again, not to reload", async () => {
+        const bytes = x4.files[L].bytes.slice();
+        bytes[bytes.length - 1] ^= 0xff;
+        const damaged = await loadSvup(bytes);
+        const { board } = fakeSetup({ clock, running: v3 });
+        const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [damaged, x4.files[R]] }, { clock }) as Plan;
+        expect(p.refusal).toMatchObject({ id: "file-damaged", label: "Firmware file is damaged" });
+        expect(p.refusal?.detail).toMatch(/Download the file again/);
+        expect(p.refusal?.detail).not.toMatch(/Reload/);
+    });
+
+    it("warns, never refuses, when a file's updater protocol differs from the board's", async () => {
+        const p3 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", updaterProto: 3 }))));
+        const { board } = fakeSetup({ clock, running: v3 });
+        const p = await planInstall(new UpdaterClient(board), { kind: "file", files: p3 }, { clock }) as Plan;
+        expect(p.refusal).toBeNull();
+        const usbWarn = p.warnings.find((w) => w.id === `updater-protocol-${R}`);
+        expect(usbWarn?.label).toBe("Older updater in this file (protocol 3)");
+        expect(usbWarn?.detail).toMatch(/installs by hand/);
+        const p5 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", updaterProto: 5 }))));
+        const q = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: p5 }, { clock }) as Plan;
+        expect(q.warnings.map((w) => w.label)).toContain("Newer updater in this file (protocol 5)");
+        const same = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [x4.files[L], x4.files[R]] }, { clock }) as Plan;
+        expect(same.warnings.some((w) => w.id.startsWith("updater-protocol"))).toBe(false);
+    });
+
     it("refuses a no-chord build on a release board even without DIAGNOSTIC", async () => {
         const { board } = fakeSetup({ clock, running: v3, release: true });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [dev.files[L], dev.files[R]] }, { clock }) as Plan;
@@ -263,6 +307,26 @@ describe("afterwards", () => {
         expect(host.restores).toBe(0);
         expect(host.events[host.events.length - 1]).toBe("0x2A");
         expect(board.requests.some((r) => r.op === Op.SETTINGS_RESET)).toBe(true);
+    });
+
+    it("a refused SETTINGS_RESET on the defaults path says why, as Settings not reset (not as a layout restore)", async () => {
+        for (const [status, done, why] of [
+            [Status.FLASH_ERR, 0x01, /left half couldn't save the reset; the right half took it/],
+            [Status.INVALID, 0, /refused the request/],
+            [Status.UNAVAILABLE, 0, /other half didn't answer/],
+            [Status.BUSY, 0, /busy/],
+        ] as const) {
+            const { board, host, plan: p } = await plan({ release: v3 });
+            if ("id" in p) throw new Error(`plan failed: ${p.id}`);
+            const request = board.request.bind(board);
+            board.request = async (op, hand, args) => (op === Op.SETTINGS_RESET ? { status, rsp: makeRsp(status, [done]) } : request(op, hand, args));
+            const state = await UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: "defaults", backup: null }).run();
+            expect(state.failure?.id).toBe("F21");
+            expect(state.failure?.detail).toMatch(why);
+            expect(host.clears).toBe(0);
+        }
+        expect(settingsResetProblem(Status.FLASH_ERR, 0x02, R, "reset its settings")).toBe("the right half couldn't save the reset; the left half took it");
+        expect(settingsResetProblem(Status.FLASH_ERR, 0, R, "reset its settings")).toBe("the right half and the left half couldn't save the reset");
     });
 
     it("start from defaults after a different build sends no reset (bit 2 already set)", async () => {

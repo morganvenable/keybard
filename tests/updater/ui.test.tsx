@@ -115,7 +115,9 @@ describe("progress titles and footers (5.1)", () => {
 
     it("words the failures with their exact next step", () => {
         expect(failureCopy({ id: "F9", tags: { 0: "x4", 1: "v3" } })).toMatchObject({ title: "Halves differ", body: "Left half x4 · Right half v3" });
-        expect(failureCopy({ id: "F5" }, { fromTag: "v3" }).body).toBe("Nothing was changed. Your keyboard still runs v3.");
+        render(<>{failureCopy({ id: "F5", detail: "The keyboard's copy doesn't match the file." }, { fromTag: "v3" }).body}</>);
+        expect(screen.getByText("The keyboard's copy doesn't match the file.")).toBeTruthy();
+        expect(screen.getByText("Nothing was changed. Your keyboard still runs v3.")).toBeTruthy();
         expect(failureCopy({ id: "F11", hand: 0 }).title).toBe("Left half needs a manual install");
     });
 });
@@ -191,10 +193,10 @@ describe("the sheet (B1) and the dialog against the mock board", () => {
         );
     }
 
-    async function setup(o: { noChord?: boolean; failBackup?: boolean; devFile?: boolean } = {}) {
+    async function setup(o: { noChord?: boolean; failBackup?: boolean; devFile?: boolean; releaseBoard?: boolean } = {}) {
         const v3 = await fixtureRelease("v3", 3000);
         const x4 = await fixtureRelease("x4", 4000, { noChord: o.devFile });
-        const { board: fake } = fakeSetup({ clock, running: v3, noChord: o.noChord });
+        const { board: fake } = fakeSetup({ clock, running: v3, noChord: o.noChord, release: o.releaseBoard });
         const host = new UiHost(fake, clock);
         host.failBackup = !!o.failBackup;
         render(<Harness host={host} source={{ kind: "file", files: [x4.files[0], x4.files[1]] }} />);
@@ -212,6 +214,14 @@ describe("the sheet (B1) and the dialog against the mock board", () => {
         expect(screen.getByText("One hold approves both halves")).toBeTruthy();
         const start = screen.getByRole("button", { name: "Update anyway" });
         expect(start).not.toBeDisabled();
+    });
+
+    it("a refused install downloads no backup", async () => {
+        const { host } = await setup({ devFile: true, releaseBoard: true });
+        expect(screen.getByText(/won't accept this file/)).toBeTruthy();
+        await act(async () => { await clock.sleep(1000); });
+        expect(host.backups).toBe(0);
+        expect(screen.queryByText("Layout saved")).toBeNull();
     });
 
     it("on a developer build, says there's nothing to press", async () => {

@@ -136,6 +136,8 @@ export function useFirmwareUpdate(host: FirmwareUiHost | null, o: UseFirmwareUpd
                 return;
             }
             setUi((u) => (u.kind === "sheet" ? { ...u, plan: result } : u));
+            // A refused install installs nothing: no backup, no file in Downloads.
+            if (result.refusal) return;
             try {
                 const backup = await h.makeBackup({ fromTag: result.fromTag, toTag: result.toTag });
                 setUi((u) => (u.kind === "sheet" ? { ...u, backup: { state: "ok", fileName: backup.fileName, backup } } : u));

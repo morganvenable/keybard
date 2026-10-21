@@ -17,7 +17,7 @@ import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
 import {
     ARM_MODE_PAIR, ARM_MODE_SINGLE, CHUNK_PIECE_MAX, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
-    handName, hex, otherHand, type Hand,
+    handName, hex, otherHand, statusName, type Hand,
 } from "./protocol";
 import { manualOwnsResetNotice } from "./manual";
 import { loadSvup, type SvupFile } from "./svup";
@@ -35,7 +35,7 @@ export type Step =
     | "self-arm" | "self-erase" | "self-send" | "self-verify" | "self-install" | "reconnect" | "check-halves"
     | "settings-reset" | "restore" | "done" | "failed";
 
-export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20";
+export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20" | "F21";
 
 export interface Failure {
     id: FailureId;
@@ -717,11 +717,9 @@ export class UpdateFlow {
                 this.step("settings-reset");
                 this.row(usbHand, { stage: "restarting", progress: null });
                 const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH, SETTINGS_RESET_BLANK);
-                trace(`SETTINGS_RESET blank: status ${r.status}`);
+                trace(`SETTINGS_RESET blank: status ${r.status} done 0x${r.done.toString(16)}`);
                 if (r.status !== Status.OK) {
-                    const why = r.status === Status.INVALID ? "the keyboard refused the request"
-                        : r.status === Status.UNAVAILABLE ? "the other half didn't answer, or its firmware can't wipe to a blank board" : "the keyboard was busy";
-                    throw new Stop({ id: "F20", detail: `The new firmware is installed, but the keyboard wasn't wiped: ${why}.` });
+                    throw new Stop({ id: "F20", detail: `The new firmware is installed, but the keyboard wasn't wiped: ${settingsResetProblem(r.status, r.done, usbHand, "wipe to a blank board")}.` });
                 }
                 this.update({ settingsResetSent: true });
                 await this.reconnect();
@@ -741,8 +739,8 @@ export class UpdateFlow {
             this.step("settings-reset");
             this.row(usbHand, { stage: "restarting", progress: null });
             const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH);
-            trace(`SETTINGS_RESET defaults: status ${r.status}`);
-            if (r.status !== Status.OK) throw new Stop({ id: "F16", detail: `The keyboard couldn't reset its settings (${r.status === Status.UNAVAILABLE ? "the other half didn't answer" : "busy"}).` });
+            trace(`SETTINGS_RESET defaults: status ${r.status} done 0x${r.done.toString(16)}`);
+            if (r.status !== Status.OK) throw new Stop({ id: "F21", detail: `The new firmware is installed, but the settings weren't reset to the defaults: ${settingsResetProblem(r.status, r.done, usbHand, "reset its settings")}.` });
             this.update({ settingsResetSent: true });
             await this.reconnect();
             c = this.connection();
@@ -760,6 +758,24 @@ export class UpdateFlow {
             finishedAt: this.now(),
             result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed },
         });
+    }
+}
+
+/**
+ * Why SETTINGS_RESET didn't happen, from its status and done mask (bit0 the half with USB,
+ * bit1 the other half): INVALID, UNAVAILABLE, BUSY and FLASH_ERR each mean something else.
+ */
+export function settingsResetProblem(status: number, done: number, usbHand: Hand, what: string): string {
+    switch (status) {
+        case Status.INVALID: return "the keyboard refused the request";
+        case Status.UNAVAILABLE: return `the other half didn't answer, or its firmware can't ${what}. Nothing was changed`;
+        case Status.BUSY: return "the keyboard was busy. Nothing was changed";
+        case Status.FLASH_ERR: {
+            const took = [usbHand, otherHand(usbHand)].filter((_, i) => done & (1 << i)).map((h) => `the ${handName(h)} half`);
+            const failed = [usbHand, otherHand(usbHand)].filter((_, i) => !(done & (1 << i))).map((h) => `the ${handName(h)} half`);
+            return `${failed.join(" and ") || "a half"} couldn't save the reset${took.length ? `; ${took.join(" and ")} took it` : ""}`;
+        }
+        default: return `the keyboard answered ${statusName(status)}`;
     }
 }
 

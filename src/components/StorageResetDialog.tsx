@@ -136,7 +136,7 @@ export const StorageResetDialog: FC = () => {
 
 /** The reset notice, with the newest backup of this board to put back. */
 function ResetDialog({ keyboard, firmware, onAcknowledged }: { keyboard: KeyboardInfo; firmware: boolean; onAcknowledged: () => void }) {
-    const { setKeyboard } = useKeyboard();
+    const { setKeyboard, markAsSaved } = useKeyboard();
     const { queue, commit } = useChanges();
     const { snapshots, board } = useBackups();
     const [busy, setBusy] = useState(false);
@@ -172,7 +172,7 @@ function ResetDialog({ keyboard, firmware, onAcknowledged }: { keyboard: Keyboar
             const service = getBackupService();
             if (!service) throw new Error("Backups are unavailable in this browser.");
             const svil = await service.getSvil(newest.id);
-            await restoreLayoutToBoard(svil, { keyboard, setKeyboard, queue, commit });
+            await restoreLayoutToBoard(svil, { keyboard, setKeyboard, queue, commit, markSaved: markAsSaved });
             await acknowledgeReset();
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));

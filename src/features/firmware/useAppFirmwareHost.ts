@@ -125,7 +125,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             while (Date.now() < deadline) {
                 if (keyboardLoaded() && usbInstance.isOpen()) return transport;
                 const [device] = await listPermittedDevices();
-                if (device && !usbInstance.hasDevice(device)) await ref.current.kb.connectDevice(device).catch(() => false);
+                if (device && !usbInstance.hasDevice(device)) await ref.current.kb.connectDevice(device, { discardEdits: true }).catch(() => false);
                 await realClock.sleep(500);
             }
             return null;
@@ -148,7 +148,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             const { kb: k, changes: ch } = ref.current;
             const current = k.keyboard;
             if (!current) throw new Error("The keyboard didn't finish loading.");
-            return restoreLayoutToBoard(svil, { keyboard: current, setKeyboard: k.setKeyboard, queue: ch.queue, commit: ch.commit });
+            return restoreLayoutToBoard(svil, { keyboard: current, setKeyboard: k.setKeyboard, queue: ch.queue, commit: ch.commit, markSaved: k.markAsSaved });
         },
         async keymapBlank() {
             // After the wipe's reconnect: wait for the load, then every key on every layer is KC_NO.
