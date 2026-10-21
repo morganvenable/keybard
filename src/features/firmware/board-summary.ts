@@ -30,6 +30,15 @@ export interface BoardSummary {
     tag: string;
 }
 
+/**
+ * What an updater build calls itself: its version string (the release tag release CI
+ * builds it with), or its numeric version when the string is empty (a local build).
+ */
+export function updaterVersionLabel(versionString: string, fwVersion: number): string {
+    const text = versionString.trim();
+    return text || `fw version ${fwVersion}`;
+}
+
 /** Read the board's firmware state; a board without a protocol-4 updater reads as legacy. */
 export async function readBoardSummary(transport: UpdaterTransport, keyboard?: KeyboardInfo | null): Promise<BoardSummary> {
     const legacy = (): BoardSummary => ({
@@ -44,10 +53,13 @@ export async function readBoardSummary(transport: UpdaterTransport, keyboard?: K
         return legacy();
     }
     if (usb.protocol !== UPDATER_PROTOCOL || (usb.hand !== 0 && usb.hand !== 1)) {
-        return { ...legacy(), legacyLabel: usb.protocol === 3 ? "vNext1" : legacy().legacyLabel };
+        // An updater Keybard doesn't install through (protocol 3, vNext1 and x3.x): name what it
+        // runs from INFO page 1, which every updater protocol answers.
+        const label = await c.info1().then((p) => updaterVersionLabel(p.tag, p.fwVersion || usb.fwVersion)).catch(() => updaterVersionLabel("", usb.fwVersion));
+        return { ...legacy(), legacyLabel: label, tag: label, fwVersion: usb.fwVersion, usbHand: usb.hand === 0 ? 0 : 1 };
     }
     const usbHand = usb.hand as Hand;
-    const tag = (await c.info1()).tag;
+    const tag = updaterVersionLabel((await c.info1()).tag, usb.fwVersion);
     const status = await c.status(usbHand);
     const o = await c.info(otherHand(usbHand)).catch(() => null);
     const halves: HalfSummary[] = [

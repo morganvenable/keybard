@@ -19,6 +19,7 @@ import {
     ARM_MODE_PAIR, ARM_MODE_SINGLE, CHUNK_PIECE_MAX, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
     handName, hex, otherHand, type Hand,
 } from "./protocol";
+import { manualOwnsResetNotice } from "./manual";
 import { loadSvup, type SvupFile } from "./svup";
 import { DisconnectedError, ReplyTimeoutError, type Clock, type UpdaterTransport } from "./transport";
 
@@ -135,7 +136,8 @@ const KEY = "keybard:firmware-update";
 /** Sent on window when this tab's saved update changes, or the flow clears the reset notice. */
 export const FLOW_STATE_EVENT = "keybard:firmware-update-state";
 
-function announce() {
+/** Tell listeners (the reset dialog) that this tab's update or manual install changed. */
+export function announceFlowState() {
     try { if (typeof window !== "undefined") window.dispatchEvent(new Event(FLOW_STATE_EVENT)); } catch { /* nothing listens */ }
 }
 
@@ -175,7 +177,7 @@ export function sessionFlowStore(storage: Storage | null = typeof sessionStorage
             // Only a change of update or phase matters to listeners, not each progress step.
             let prev: Pick<FlowState, "id" | "phase"> | null = null;
             try { prev = before ? JSON.parse(before) as FlowState : null; } catch { prev = null; }
-            if (prev?.id !== state.id || prev?.phase !== state.phase) announce();
+            if (prev?.id !== state.id || prev?.phase !== state.phase) announceFlowState();
         },
         saveFiles(files, backupSvil) {
             const raw: Partial<Record<Hand, string>> = {};
@@ -184,7 +186,7 @@ export function sessionFlowStore(storage: Storage | null = typeof sessionStorage
             for (const h of [0, 1] as Hand[]) if (files[h]) raw[h] = toB64(files[h]!);
             set(`${KEY}:files`, JSON.stringify(raw));
         },
-        clear() { del(KEY); del(`${KEY}:files`); del(`${KEY}:backup`); announce(); },
+        clear() { del(KEY); del(`${KEY}:files`); del(`${KEY}:backup`); announceFlowState(); },
     };
 }
 
@@ -200,6 +202,8 @@ export function updateInFlight(store: FlowStore = sessionFlowStore()): boolean {
  * the defaults or the wipe, then 0x2A), so the reset dialog must not ask as well.
  */
 export function updateOwnsResetNotice(storage: Storage | null = typeof sessionStorage === "undefined" ? null : sessionStorage): boolean {
+    // A manual install open in this tab acts on the notice too, once the keyboard is back.
+    if (manualOwnsResetNotice(storage)) return true;
     let raw: string | null = null;
     try { raw = storage?.getItem(KEY) ?? null; } catch { return false; }
     if (!raw) return false;
@@ -214,7 +218,7 @@ let clearedSession: { session: unknown } | null = null;
 /** The update sent 0x2A on this connection: the layout loaded before it still shows the notice. */
 export function noteResetNoticeCleared(session: unknown): void {
     clearedSession = { session };
-    announce();
+    announceFlowState();
 }
 
 /** Whether an update cleared the reset notice on this connection. */

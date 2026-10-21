@@ -117,7 +117,7 @@ export function Gallery() {
                 {show("F9") && <Card id="F9" title="Halves differ"><FailureView failure={{ id: "F9", tags: { 0: "x4", 1: "v3" } }} onAction={noop} /></Card>}
                 {show("F9b") && <Card id="F9" title="Banner on connect"><HalvesDifferView board={DIFFER} onFinish={noop} /></Card>}
                 {show("F5") && <Card id="F5" title="Update stopped"><FailureView failure={{ id: "F5", tags: { 0: "v3", 1: "v3" } }} fromTag="v3" onAction={noop} /></Card>}
-                {show("M") && <Card id="M" title="Manual install"><ManualInstall release={RELEASES[0]} backup={{ state: "ok", fileName: "Kip-vLaunch2-2026-10-15.svil", backup: { fileName: "", svil: "" } }} afterwards="restore" onAfterwards={noop} onConnect={noop} connected={false} onClose={noop} /></Card>}
+                {show("M") && <Card id="M" title="Manual install"><ManualInstall release={RELEASES[0]} backup={{ state: "ok", fileName: "Kip-vLaunch2-2026-10-15.svil" }} afterwards="restore" onAfterwards={noop} onConnect={noop} connected={false} onClose={noop} /></Card>}
             </div>
         </div>
     );

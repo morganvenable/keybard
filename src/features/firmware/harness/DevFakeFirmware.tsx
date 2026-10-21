@@ -1,7 +1,8 @@
 // Development only (?fwfake=1): Settings > Firmware against the mock board, as the harness
 // runs it. &running=v3|x4|v2  &nochord=1  &fault=...  &speed=4  &differ=1
+// &proto=3: a board on updater protocol 3, which Keybard installs on only by hand.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import type { Fault } from "@/services/updater/fake-board";
@@ -44,6 +45,7 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
             const { board } = fakeSetup({
                 clock, running, noChord: params.has("nochord"), faults, usbHand: params.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
                 chordAfterMs: 3000, otherRunning: params.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
+                half: params.get("proto") === "3" ? { protocol: 3 } : undefined,
             });
             const host = new DevFakeHost(board, clock);
             const releases = [pinOf(x4, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
@@ -52,9 +54,12 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
     }, []);
     const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board) : null), [ready]);
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
+    // The mock board is always plugged in; Connect stands for plugging it back in after a manual install.
+    const [plugs, setPlugs] = useState(0);
+    const connection = useMemo(() => ({ key: `fake:${plugs}`, connect: () => setPlugs((n) => n + 1) }), [plugs]);
     if (!ready) return <>{children}</>;
     return (
-        <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files}>
+        <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files} connection={connection}>
             {children}
         </FirmwareUpdateProvider>
     );

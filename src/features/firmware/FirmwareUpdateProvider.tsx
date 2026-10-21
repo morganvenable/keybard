@@ -11,6 +11,7 @@ import { serializeForBackup, useBackups } from "@/contexts/BackupContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/settings/anchor";
+import { manualReconnected } from "@/services/updater/manual";
 import type { Hand } from "@/services/updater/protocol";
 import type { BoardSummary } from "./board-summary";
 import { loadCarriedRelease } from "./carried";
@@ -21,6 +22,7 @@ import { UpdateDialog } from "./UpdateDialog";
 import { backupFileName, downloadText, useAppFirmwareHost } from "./useAppFirmwareHost";
 import { useFirmwareStatus, type FirmwareStatus } from "./useFirmwareStatus";
 import { useFirmwareUpdate, type FirmwareUiHost } from "./useFirmwareUpdate";
+import { useManualInstall } from "./useManualInstall";
 import { OPEN_FIRMWARE_EVENT, useBoardSummary } from "./useHalvesDiffer";
 
 export interface FirmwareUpdates {
@@ -62,16 +64,20 @@ export interface FirmwareUpdateProviderProps {
     readBoard?: () => Promise<BoardSummary | null>;
     releases?: FirmwareReleasePin[];
     files?: (pin: FirmwareReleasePin) => ReturnType<typeof loadCarriedRelease>;
+    /** Dev and tests: the connection, when the host isn't the app's (key: null while none is open). */
+    connection?: { key: string | null; connect: () => void };
 }
 
-export function FirmwareUpdateProvider({ children, host: injected, readBoard, releases: givenReleases, files }: FirmwareUpdateProviderProps) {
+/** This page load: a connection after a reload is a new one, whatever its session number. */
+const PAGE_ID = Math.random().toString(36).slice(2, 10);
+
+export function FirmwareUpdateProvider({ children, host: injected, readBoard, releases: givenReleases, files, connection }: FirmwareUpdateProviderProps) {
     const kb = useKeyboard();
     const backups = useBackups();
     const appHost = useAppFirmwareHost();
     const host = injected === undefined ? appHost : injected;
     const releases = useMemo(() => givenReleases ?? releasesForSite(currentSite()), [givenReleases]);
     const fw = useFirmwareUpdate(host, { releases });
-    const [manual, setManual] = useState<FirmwareReleasePin | null | undefined>(undefined);
     const openSection = useOpenSettingsSection();
 
     // The board: from the connection, re-read after each update or dialog close.
@@ -87,6 +93,12 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     useEffect(() => { if (fw.ui.kind === "idle") setRefresh((n) => n + 1); }, [fw.ui.kind]);
     const board = readBoard ? injectedBoard : appBoard;
     const status = useFirmwareStatus(board, { releases });
+
+    // The manual install: a backup when it opens, the layout put back once the keyboard is.
+    const connectionKey = connection ? connection.key : kb.isConnected && kb.keyboard ? `${PAGE_ID}:${kb.connectionSessionId}` : null;
+    const connect = useCallback(() => (connection ? connection.connect() : void kb.connect()), [connection, kb]);
+    const manual = useManualInstall(host, { connectionKey, fromTag: board?.tag || board?.legacyLabel || "", usualHand: board?.usbHand });
+    const setManual = manual.open;
 
     const install = useCallback((pick: FirmwarePick, onlyHand?: Hand) => {
         if (pick.kind === "files") return void fw.openSheet({ kind: "file", files: pick.files }, onlyHand);
@@ -112,7 +124,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         if (a === "retry") fw.retry();
         else if (a === "finish") fw.finish();
         else if (a === "reload") location.reload();
-        else if (a === "manual" || a === "download") { fw.close(); setManual(releases[0] ?? null); }
+        else if (a === "manual" || a === "download") { fw.close(); manual.open(releases[0] ?? null); }
         else if (a === "backups") { fw.close(); openSection("backups"); }
         else fw.close();
     };
@@ -125,8 +137,9 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     }, [kb.keyboard, board?.tag, backups.board?.name]);
 
     const value = useMemo<FirmwareUpdates>(() => ({
-        board, reading: !readBoard && kb.isConnected && !board, releases, status, install, openManual: (r) => setManual(r), connect: () => void kb.connect(),
-    }), [board, readBoard, releases, status, install, kb]);
+        board, reading: !readBoard && kb.isConnected && !board, releases, status, install, openManual: (r) => setManual(r), connect,
+    }), [board, readBoard, releases, status, install, kb.isConnected, setManual, connect]);
+    const session = manual.session;
 
     return (
         <FirmwareUpdatesContext.Provider value={value}>
@@ -146,19 +159,27 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                     onSaveManually={saveManually}
                 />
             )}
-            {manual !== undefined && (
-                <Dialog open onOpenChange={(open) => { if (!open) setManual(undefined); }}>
+            {session && (
+                <Dialog open onOpenChange={(open) => { if (!open && session.phase !== "restoring") manual.close(); }}>
                     <DialogContent className="sm:max-w-[520px]" onInteractOutside={(e) => e.preventDefault()}>
                         <DialogTitle className="sr-only">Install firmware by hand</DialogTitle>
                         <DialogDescription className="sr-only">Download the firmware and copy it onto each half</DialogDescription>
                         <ManualInstall
-                            release={manual}
-                            backup={null}
-                            afterwards="defaults"
-                            onAfterwards={() => undefined}
-                            connected={kb.isConnected}
-                            onConnect={() => { setManual(undefined); void kb.connect(); }}
-                            onClose={() => setManual(undefined)}
+                            release={releases.find((r) => r.tag === session.releaseTag) ?? null}
+                            only={session.only}
+                            usualHand={session.usualHand}
+                            backup={session.backup}
+                            afterwards={session.afterwards}
+                            onAfterwards={(a) => { if (a !== "blank") manual.setAfterwards(a); }}
+                            downloaded={session.downloaded}
+                            installed={session.installed}
+                            onDownloaded={manual.markDownloaded}
+                            onInstalled={manual.markInstalled}
+                            outcome={session}
+                            connected={manualReconnected(session, connectionKey)}
+                            onConnect={connect}
+                            onClose={manual.close}
+                            onOpenBackups={() => { manual.close(); openSection("backups"); }}
                         />
                     </DialogContent>
                 </Dialog>
