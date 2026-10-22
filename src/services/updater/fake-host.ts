@@ -2,9 +2,12 @@
 // and a stand-in for putting the layout back. Used by the tests and the harness.
 
 import { FakeSvalboard, type Fault, type FakeHalfConfig } from "./fake-board";
+import { FakeSides, type FakeSidesOptions } from "./fake-sides";
+import type { SideHost } from "../side-host";
 import type { FlowHost } from "./flow";
-import { HAND_LEFT, HAND_RIGHT, type Hand } from "./protocol";
+import { HAND_EITHER, HAND_LEFT, HAND_RIGHT, MANIFEST_BYTES, type Hand } from "./protocol";
 import { buildSvup, loadSvup, type SvupFile } from "./svup";
+import { buildPairUf2, buildPlainUf2, loadFirmwareFile } from "./uf2";
 import type { Clock, UpdaterTransport } from "./transport";
 
 export interface FakeHostOptions {
@@ -17,6 +20,8 @@ export class FakeHost implements FlowHost {
     clears = 0;
     /** Order of the Sval-side calls, for "0x2A last". */
     readonly events: string[] = [];
+    /** SIDE on the mock board, when the setup gave it one. */
+    sides?: SideHost;
 
     constructor(readonly board: FakeSvalboard, readonly clock: Clock, private o: FakeHostOptions = {}) {}
 
@@ -67,6 +72,24 @@ export interface FixtureRelease {
     files: Record<Hand, SvupFile>;
 }
 
+/** The pair UF2 bytes of a synthetic one image (manifest hand 2, svalboard/either), as a release ships it (x4 on). */
+export async function fixturePairUf2(tag: string, fwVersion: number, o: { noChord?: boolean; imageLen?: number; flags?: number } = {}): Promise<Uint8Array> {
+    const svup = await buildSvup({ hand: HAND_EITHER, fwVersion, tag, imageLen: o.imageLen ?? 0x2000, buildFlags: o.noChord ? 0x40 : 0, flags: o.flags });
+    return buildPairUf2(svup.subarray(0, MANIFEST_BYTES), svup.subarray(MANIFEST_BYTES));
+}
+
+/** One release's one file for both halves: a pair UF2 of a synthetic one image, loaded as Keybard loads it. */
+export async function fixtureOneImage(tag: string, fwVersion: number, o: { noChord?: boolean; imageLen?: number; flags?: number } = {}): Promise<FixtureRelease> {
+    const file = await loadFirmwareFile(await fixturePairUf2(tag, fwVersion, o));
+    return { tag, fwVersion, files: { [HAND_LEFT]: file, [HAND_RIGHT]: file } as Record<Hand, SvupFile> };
+}
+
+/** A per-side .uf2 as releases shipped before x4 (no pair record): Keybard refuses it. */
+export async function fixturePerSideUf2(tag: string, fwVersion: number, hand: Hand, o: { imageLen?: number } = {}): Promise<Uint8Array> {
+    const svup = await buildSvup({ hand, fwVersion, tag, imageLen: o.imageLen ?? 0x2000 });
+    return buildPlainUf2(svup.subarray(MANIFEST_BYTES));
+}
+
 /** A pair of synthetic .svup files for one release. */
 export async function fixtureRelease(tag: string, fwVersion: number, o: { noChord?: boolean; imageLen?: number; flags?: number } = {}): Promise<FixtureRelease> {
     const make = async (hand: Hand) => loadSvup(await buildSvup({
@@ -87,10 +110,12 @@ export interface FakeSetupOptions {
     otherRunning?: { tag: string; fwVersion: number };
     host?: FakeHostOptions;
     half?: Partial<FakeHalfConfig>;
+    /** SIDE on the mock board (fake-sides.ts). Absent: the board has none, as a per-hand build. */
+    sides?: FakeSidesOptions;
 }
 
 /** A mock board running `running` on both halves, and its host. */
-export function fakeSetup(o: FakeSetupOptions): { board: FakeSvalboard; host: FakeHost } {
+export function fakeSetup(o: FakeSetupOptions): { board: FakeSvalboard; host: FakeHost; sides: FakeSides | null } {
     const imageId = (hand: Hand, r: FakeSetupOptions["running"]) =>
         "files" in r ? Array.from(r.files[hand].manifestBytes.subarray(44, 60), (b) => b.toString(16).padStart(2, "0")).join("") : `${r.tag}-${r.fwVersion}-${hand}`;
     const usbHand = o.usbHand ?? HAND_RIGHT;
@@ -101,5 +126,8 @@ export function fakeSetup(o: FakeSetupOptions): { board: FakeSvalboard; host: Fa
     const board = new FakeSvalboard({
         usbHand, clock: o.clock, left: cfg(HAND_LEFT), right: cfg(HAND_RIGHT), chordAfterMs: o.chordAfterMs, faults: o.faults,
     });
-    return { board, host: new FakeHost(board, o.clock, o.host) };
+    const host = new FakeHost(board, o.clock, o.host);
+    const sides = o.sides ? new FakeSides(board, o.sides) : null;
+    if (sides) host.sides = sides.host;
+    return { board, host, sides };
 }

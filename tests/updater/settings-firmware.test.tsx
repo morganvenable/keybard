@@ -17,8 +17,8 @@ import FirmwareRow from "@/layout/SecondarySidebar/Panels/settings/FirmwareRow";
 const board: BoardSummary = {
     updater: true, legacyLabel: null, usbHand: 1, differ: false, noChord: false, fwVersion: 3000, tag: "v3",
     halves: [
-        { hand: 0, usb: false, tag: "v3", fwVersion: 3000, pointing: "Trackball", answered: true },
-        { hand: 1, usb: true, tag: "v3", fwVersion: 3000, pointing: "Trackball", answered: true },
+        { hand: 0, usb: false, tag: "v3", fwVersion: 3000, answered: true },
+        { hand: 1, usb: true, tag: "v3", fwVersion: 3000, answered: true },
     ],
 };
 
@@ -39,6 +39,14 @@ describe("Settings > Firmware", () => {
         expect(screen.queryByRole("heading", { name: "Firmware" })).toBeNull(); // Settings titles the section
         expect(screen.getByTestId("firmware-halves").textContent).toBe("Left halfv3Right halfv3 · plugged in");
         expect(screen.getByRole("button", { name: "Other versions and files" })).toBeTruthy();
+    });
+
+    it("shows each half's firmware, not its pointing module (that's detected at run time)", () => {
+        render(<FirmwareRow />);
+        for (const row of document.querySelectorAll("[data-half]")) {
+            expect(row.textContent).not.toMatch(/Any module|pointing|Trackball|Touchpad|Trackpoint/i);
+        }
+        expect(document.querySelectorAll("[data-half]").length).toBe(2);
     });
 
     it("says it's reading while the board's firmware is read", () => {

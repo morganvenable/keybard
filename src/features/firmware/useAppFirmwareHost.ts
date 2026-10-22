@@ -14,6 +14,7 @@ import type { CheckRow } from "@/services/updater/checks";
 import { noteResetNoticeCleared } from "@/services/updater/flow";
 import { realClock, type UpdaterTransport } from "@/services/updater/transport";
 import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
+import { usbSideHost } from "@/services/side-host";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { getKeyLabel } from "@/utils/layers";
 import { restoreLayoutToBoard } from "./restore";
@@ -158,6 +159,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             return !!keymap?.length && keymap.every((layer) => layer.every((code) => code === 0));
         },
         holdLocks: holdUpdateLocks,
+        sides: usbSideHost(usbInstance),
         async makeBackup({ fromTag, toTag }): Promise<UpdateBackup> {
             const { kb: k, backups: b } = ref.current;
             if (!k.keyboard) throw new Error("No layout loaded.");

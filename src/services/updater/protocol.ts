@@ -30,6 +30,8 @@ export const HAND_RIGHT = 1;
 /** INFO only: "this half", whichever it is. */
 export const HAND_SELF = 0xff;
 export type Hand = typeof HAND_LEFT | typeof HAND_RIGHT;
+/** Manifests and build info only: one image for both halves (svalboard/either). */
+export const HAND_EITHER = 2;
 
 export const otherHand = (hand: Hand): Hand => (hand === HAND_LEFT ? HAND_RIGHT : HAND_LEFT);
 export const handName = (hand: number): "left" | "right" => (hand === HAND_LEFT ? "left" : "right");

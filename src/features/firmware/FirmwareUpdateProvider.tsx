@@ -14,6 +14,7 @@ import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/setting
 import type { Hand } from "@/services/updater/protocol";
 import { usbInstance } from "@/services/usb.service";
 import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
+import { usbSideHost } from "@/services/side-host";
 import { readBoardSummary, type BoardSummary } from "./board-summary";
 import { loadCarriedRelease } from "./carried";
 import type { FailureAction } from "./failures";
@@ -26,6 +27,15 @@ import { useFirmwareStatus, type FirmwareStatus } from "./useFirmwareStatus";
 import { useFirmwareUpdate, type FirmwareUiHost } from "./useFirmwareUpdate";
 import { useManualInstall } from "./useManualInstall";
 import { OPEN_FIRMWARE_EVENT, useBoardSummary } from "./useHalvesDiffer";
+import type { SideWrite } from "@/services/side-decision";
+import { applySideWrites } from "./side-actions";
+
+/** The side fix on the Firmware page and the banner (one-image firmware). */
+export interface SideFixControl {
+    busy: boolean;
+    note: string | null;
+    apply: (writes: SideWrite[]) => void;
+}
 
 export interface FirmwareUpdates {
     /** What the connected board runs (null: none, or still reading). */
@@ -37,6 +47,8 @@ export interface FirmwareUpdates {
     install: (pick: FirmwarePick, onlyHand?: Hand) => void;
     openManual: (release: FirmwareReleasePin | null) => void;
     connect: () => void;
+    /** Set which half is which (absent without a host). */
+    sides?: SideFixControl;
 }
 
 const FirmwareUpdatesContext = createContext<FirmwareUpdates | null>(null);
@@ -103,7 +115,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     keyboardRef.current = kb.keyboard;
     // On Connect: what each half runs, read fresh on the connection open now.
     const readBoardNow = useCallback(
-        () => (readBoard ? readBoard() : readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboardRef.current)),
+        () => (readBoard ? readBoard() : readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboardRef.current, usbSideHost(usbInstance))),
         [readBoard],
     );
     const manual = useManualInstall(host, {
@@ -127,6 +139,16 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
             await fw.openSheet({ kind: "release", release: pick.release, files: loaded }, onlyHand);
         })().catch((error) => console.warn("[firmware] couldn't load the release", error));
     }, [fw, files]);
+
+    // Which half is which, from the Firmware page or the banner: send the fix, then read the board again.
+    const [sideState, setSideState] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
+    const applySides = useCallback((writes: SideWrite[], then?: () => void) => {
+        if (!host) return;
+        setSideState({ busy: true, note: null });
+        void applySideWrites(host, writes)
+            .catch(() => "The keyboard stopped answering. Reconnect it, then try again.")
+            .then((note) => { setSideState({ busy: false, note }); setRefresh((n) => n + 1); then?.(); });
+    }, [host]);
 
     // Requests from elsewhere: the halves-differ banner, the reset dialog's "Other backups".
     useEffect(() => {
@@ -166,7 +188,8 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
 
     const value = useMemo<FirmwareUpdates>(() => ({
         board, reading: !readBoard && kb.isConnected && !board, releases, status, install, openManual: (r) => setManual(r), connect,
-    }), [board, readBoard, releases, status, install, kb.isConnected, setManual, connect]);
+        sides: host ? { ...sideState, apply: applySides } : undefined,
+    }), [board, readBoard, releases, status, install, kb.isConnected, setManual, connect, host, sideState, applySides]);
     const session = manual.session;
 
     return (
@@ -184,6 +207,8 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                     onClose={fw.close}
                     onFailureAction={onFailureAction}
                     onSaveManually={saveManually}
+                    onFixSides={(w) => void fw.fixSides(w)}
+                    onAnswerSide={fw.answerSide}
                 />
             )}
             {session && (
@@ -203,6 +228,9 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                                 onConnect={manualConnect}
                                 onClose={manual.close}
                                 onOpenBackups={() => { manual.close(); openSection("backups"); }}
+                                onSides={(w) => applySides(w, manual.checkNow)}
+                                sidesBusy={sideState.busy}
+                                sidesNote={sideState.note}
                             />
                         </InFirmwareDialog.Provider>
                     </DialogContent>

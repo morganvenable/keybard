@@ -1,6 +1,8 @@
 // D2: the Firmware card. What each half runs, the newest release with a link to its notes
-// and one button, and the rest (older versions, a .svup file, one half) under
+// and one button, and the rest (older versions, a firmware file, one half) under
 // "Other versions and files". Every button opens a dialog; nothing installs from here.
+// One-image firmware: a half without a side, or two on one side, shows the side question
+// in place of the update (neither half types until it's answered).
 
 import { ChevronRight } from "lucide-react";
 import { useRef, useState } from "react";
@@ -8,9 +10,12 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { PARANOID } from "@/lib/paranoid";
-import { loadSvup, SvupError, type SvupFile } from "@/services/updater/svup";
+import { SvupError, type SvupFile } from "@/services/updater/svup";
+import { loadFirmwareFile } from "@/services/updater/uf2";
 import type { Hand } from "@/services/updater/protocol";
 import type { BoardSummary } from "./board-summary";
+import type { SideFixControl } from "./FirmwareUpdateProvider";
+import { SideFix, sideProblem } from "./SideFix";
 
 export type FirmwarePick = { kind: "release"; release: FirmwareReleasePin } | { kind: "files"; files: SvupFile[] };
 
@@ -24,6 +29,19 @@ export interface FirmwareSectionProps {
     paranoid?: boolean;
     /** Its own "Firmware" title; off inside Settings, whose section is titled already. */
     heading?: boolean;
+    /** One-image firmware: set which half is which. */
+    sides?: SideFixControl;
+}
+
+/** A chosen file's bytes (FileReader where Blob.arrayBuffer is missing). */
+function readBytes(file: File): Promise<Uint8Array> {
+    if (typeof file.arrayBuffer === "function") return file.arrayBuffer().then((b) => new Uint8Array(b));
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(new Uint8Array(r.result as ArrayBuffer));
+        r.onerror = () => reject(r.error);
+        r.readAsArrayBuffer(file);
+    });
 }
 
 const HALF = (h: Hand) => (h === 0 ? "Left half" : "Right half");
@@ -35,7 +53,7 @@ function NotesLink({ release, label }: { release: FirmwareReleasePin; label: str
     return <a className={link} href={release.notesUrl} target="_blank" rel="noreferrer">{label} ↗</a>;
 }
 
-export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true }: FirmwareSectionProps) {
+export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true, sides }: FirmwareSectionProps) {
     const offered = paranoid ? [] : releases;
     const newest = offered[0] ?? null;
     const [more, setMore] = useState(false);
@@ -57,8 +75,10 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     const onFiles = async (list: FileList | null) => {
         if (!list?.length) return;
         try {
-            const files = await Promise.all([...list].slice(0, 2).map(async (f) => loadSvup(new Uint8Array(await f.arrayBuffer()))));
-            onInstall({ kind: "files", files }, pendingHand);
+            // One file installs both halves (a pair UF2, x4 on).
+            const file = await loadFirmwareFile(await readBytes(list[0]));
+            setFileError(null);
+            onInstall({ kind: "files", files: [file] }, pendingHand);
         } catch (error) {
             setFileError(error instanceof SvupError ? error.message : "Keybard couldn't read that file.");
         } finally {
@@ -73,7 +93,15 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
 
     // What the card offers first: connect, finish, the newest release, or a file.
     let lead: React.ReactNode = null;
-    if (!board) {
+    const sideTrouble = board?.sides ? sideProblem(board.sides) : null;
+    if (board?.sides && sideTrouble) {
+        lead = (
+            <div className="flex flex-col gap-2" data-testid="firmware-sides">
+                <p className="text-sm font-semibold text-kb-warn-ink">Set which half is which</p>
+                <SideFix bare sides={board.sides} busy={sides?.busy} note={sides?.note} onApply={(w) => sides?.apply(w)} />
+            </div>
+        );
+    } else if (!board) {
         lead = (
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm">Connect a keyboard to see its firmware.</p>
@@ -121,8 +149,8 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     } else if (paranoid) {
         lead = (
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm">Install firmware from a .svup file.</p>
-                <Button variant="kb-primary" onClick={() => chooseFiles()}>Install a .svup file…</Button>
+                <p className="text-sm">Install firmware from a file.</p>
+                <Button variant="kb-primary" onClick={() => chooseFiles()}>Install a firmware file…</Button>
             </div>
         );
     }
@@ -134,7 +162,8 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
         <section aria-labelledby={heading ? "fw-title" : undefined} aria-label={heading ? undefined : "Firmware"} className="flex flex-col gap-4" data-testid="firmware-section">
             {heading && <h2 id="fw-title" className="text-lg font-semibold text-kb-ink">Firmware</h2>}
 
-            {board && (
+            {/* A half without a side answers as neither half: the side question names the halves instead. */}
+            {board && !(updater && board.halves.length === 0) && (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm tabular-nums" aria-label="This keyboard" data-testid="firmware-halves">
                     {updater ? board.halves.map((h) => {
                         const stale = board.differ && h.fwVersion !== Math.max(...board.halves.map((x) => x.fwVersion));
@@ -172,7 +201,7 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                                     {r.notesUrl && !paranoid && <span className="text-muted-foreground">· <NotesLink release={r} label="What's new" /></span>}
                                 </li>
                             ))}
-                            <li><button type="button" className={linkButton} onClick={() => chooseFiles()}>Install a .svup file…</button></li>
+                            <li><button type="button" className={linkButton} onClick={() => chooseFiles()}>Install a firmware file…</button></li>
                             <li className="flex flex-col gap-1.5">
                                 <button type="button" className={linkButton} aria-expanded={oneHalf} onClick={() => setOneHalf((o) => !o)}>Update one half only…</button>
                                 {oneHalf && (
@@ -189,8 +218,9 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                     )}
                 </div>
             )}
-            <input ref={fileInput} type="file" accept=".svup" multiple hidden data-testid="svup-input" onChange={(e) => void onFiles(e.target.files)} />
-            {fileError && <p role="alert" className="text-sm text-kb-red">{fileError}</p>}
+            <input ref={fileInput} type="file" accept=".uf2" hidden data-testid="firmware-file-input" onChange={(e) => void onFiles(e.target.files)} />
+            {fileError && <p role="alert" className="text-sm text-kb-red" data-testid="firmware-file-error">{fileError}</p>}
+            {board?.sides && !sideTrouble && sides?.note && <p role="alert" className="text-sm text-kb-red">{sides.note}</p>}
         </section>
     );
 }

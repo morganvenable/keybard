@@ -9,6 +9,7 @@
 // the tab, forgets it; the pre-update snapshot and the downloaded file still hold the layout.
 
 import type { FlowHost } from "./flow";
+import { sidesNeedAnswer, type SideAssessment } from "../side-decision";
 import type { Hand } from "./protocol";
 
 /** The manual install can't wipe to a blank board: that needs the in-app updater's SETTINGS_RESET. */
@@ -31,6 +32,8 @@ export type ManualHalfState =
 
 export interface ManualCheck {
     halves: Partial<Record<Hand, ManualHalfState>>;
+    /** One-image firmware: a half has no side, or both claim one. Asked before the layout goes back. */
+    sides?: SideAssessment | null;
 }
 
 export interface ManualSession {
@@ -138,6 +141,7 @@ export interface ManualBoardRead {
     tag: string;
     fwVersion: number;
     halves: Array<{ hand: Hand; answered: boolean; fwVersion: number; tag: string }>;
+    sides?: SideAssessment | null;
 }
 
 /**
@@ -148,6 +152,12 @@ export function checkManual(s: Pick<ManualSession, "releaseFw" | "fromTag" | "fr
     const halves: Partial<Record<Hand, ManualHalfState>> = {};
     const name = (fw: number, tag: string) => (s.fromFw !== null && fw === s.fromFw && s.fromTag ? s.fromTag : tag && !tag.startsWith("build ") && !tag.startsWith("fw version") ? tag : undefined);
     if (!board) return { halves: { 0: { state: "unknown" }, 1: { state: "unknown" } } };
+    // One-image firmware that needs its sides set: ask that first (a half without a side
+    // answers as neither half, so its version waits until it has one).
+    if (board.updater && board.sides && sidesNeedAnswer(board.sides)) {
+        for (const h of board.halves) if (h.answered && (s.releaseFw === null || h.fwVersion === s.releaseFw)) halves[h.hand] = { state: "new" };
+        return { halves, sides: board.sides };
+    }
     if (!board.updater) {
         halves[board.usbHand] = { state: "old", tag: name(board.fwVersion, board.legacyLabel ?? board.tag) };
         halves[(board.usbHand === 0 ? 1 : 0) as Hand] = { state: "unknown" };

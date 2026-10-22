@@ -6,11 +6,13 @@
 import { matchPin, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { UpdaterClient, UpdaterStatusError } from "./client";
 import {
-    HAND_SELF, POINTING_AUTO, POINTING_NAMES, Presence, State, Status, UPDATER_PROTOCOL, handName, otherHand,
+    HAND_EITHER, HAND_SELF, POINTING_AUTO, POINTING_NAMES, Presence, State, Status, UPDATER_PROTOCOL, handName, otherHand,
     statusName, type Hand, type Info0, type Info1, type StatusReply,
 } from "./protocol";
 import type { SvupFile } from "./svup";
 import type { Clock } from "./transport";
+import type { SideHost } from "../side-host";
+import { assessSides, knownSidesFrom, sidesSound, type KnownSides, type SideAssessment } from "../side-decision";
 
 export type CheckState = "pending" | "ok" | "warn" | "refuse";
 
@@ -40,7 +42,10 @@ export interface BoardState {
 }
 
 /** A stop before the sheet can offer Start (update-flow 8). */
-export type PreFailure = { id: "F3" | "F17" | "F18" | "unsupported"; detail?: string };
+export type PreFailure =
+    | { id: "F3" | "F17" | "F18" | "unsupported"; detail?: string }
+    /** One-image firmware: a half has no side, or both claim the same one. Set it first. */
+    | { id: "sides"; sides: SideAssessment; detail?: string };
 
 export interface Plan {
     board: BoardState;
@@ -57,6 +62,12 @@ export interface Plan {
     /** The other half didn't answer: offer the half with USB only. */
     otherSilent: boolean;
     pinned: boolean;
+    /** Each half's side before the install, to compare with after it (one-image firmware). */
+    sidesBefore: KnownSides;
+    /** Every file is the one image for both halves. */
+    oneImage: boolean;
+    /** sidesBefore came from SIDE (true), or from a per-hand build's updater hand (false). */
+    sidesFromSide: boolean;
 }
 
 export interface CheckOptions {
@@ -68,6 +79,8 @@ export interface CheckOptions {
     releases?: FirmwareReleasePin[];
     /** Extra rows from the host: Keybard Overlay paused, Scan Lab closed, device access. */
     hostRows?: CheckRow[];
+    /** SIDE (0x33), read first on one-image firmware. */
+    sides?: SideHost;
 }
 
 /** "it's too large for this keyboard" as a sentence. */
@@ -121,6 +134,12 @@ function assignFiles(source: InstallSource): { files: Partial<Record<Hand, SvupF
     if (source.kind === "release") return { files: source.files, problems: [] };
     const files: Partial<Record<Hand, SvupFile>> = {};
     const problems: CheckRow[] = [];
+    // The one image (hand 2) serves both halves.
+    const either = source.files.filter((f) => f.manifest.hand === HAND_EITHER);
+    if (either.length) {
+        if (source.files.length > 1) problems.push({ id: "file-twice", label: "This file is for both halves.", state: "refuse", detail: "Choose it on its own." });
+        return { files: { 0: either[0], 1: either[0] }, problems };
+    }
     for (const f of source.files) {
         const h = f.manifest.hand === 0 || f.manifest.hand === 1 ? (f.manifest.hand as Hand) : null;
         if (h === null) problems.push({ id: "file-hand", label: "This file doesn't say which half it's for.", state: "refuse", detail: "Choose a Svalboard firmware file." });
@@ -147,12 +166,27 @@ export function titleFor(kind: InstallKind, tag: string): string {
 
 /** Every check of tech doc 2.1 and update-flow 4.1-4.2, against the board as it is now. */
 export async function planInstall(client: UpdaterClient, source: InstallSource, o: CheckOptions): Promise<Plan | PreFailure> {
+    // One-image firmware: both halves need a side before an update (the relay can't reach a
+    // half without one), and Keybard notes them to compare after the install.
+    let sideRead: SideAssessment = { kind: "unsupported" };
+    if (o.sides && (await o.sides.supported())) {
+        const deadline = o.clock.now() + 2000;
+        for (;;) {
+            sideRead = assessSides(true, await o.sides.read());
+            if ((sideRead.kind !== "pending" && sideRead.kind !== "unreadable") || o.clock.now() >= deadline) break;
+            await o.clock.sleep(250);
+        }
+        if (sideRead.kind === "unknown" || sideRead.kind === "same" || (sideRead.kind === "alone" && sideRead.usb === "unknown")) {
+            return { id: "sides", sides: sideRead };
+        }
+    }
     const read = await readBoard(client, o.clock).catch((error) => {
         if (error instanceof UpdaterStatusError && (error.status === Status.OTHER_CLIENT || error.status === Status.BUSY)) return { id: "F3" } as PreFailure;
         throw error;
     });
     if ("id" in read) return read;
     const board = read;
+    if (board.usb.hand !== 0 && board.usb.hand !== 1) return { id: "sides", sides: sideRead.kind === "unsupported" ? { kind: "unreadable" } : sideRead };
     const usbHand = board.usb.hand as Hand;
     const oHand = otherHand(usbHand);
     const { files, problems } = assignFiles(source);
@@ -185,8 +219,8 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         if (!f) continue;
         const pin = matchPin(f.sha256, releases);
         if (source.kind === "release") {
-            const want = h === 0 ? source.release.files.left.sha256 : source.release.files.right.sha256;
-            if (f.sha256 !== want) integrityOk = false;
+            // A release pins its one file for both halves.
+            if (f.sha256 !== source.release.file.sha256) integrityOk = false;
         } else if (!pin) {
             pinned = false;
         }
@@ -224,7 +258,7 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         const f = files[h];
         const info = h === usbHand ? board.usb : board.other;
         if (!f || !info) continue;
-        if (f.manifest.hand !== h) warnings.push({ id: `hand-${h}`, label: `This file is for the ${handName(f.manifest.hand)} half.`, state: "warn", detail: `On the ${handName(h)} half, the halves stop working together. Choose the ${handName(h)} half's file instead.` });
+        if (f.manifest.hand !== h && f.manifest.hand !== HAND_EITHER) warnings.push({ id: `hand-${h}`, label: `This file is for the ${handName(f.manifest.hand)} half.`, state: "warn", detail: `On the ${handName(h)} half, the halves stop working together. Choose the ${handName(h)} half's file instead.` });
         if (f.manifest.pointingId !== POINTING_AUTO && f.manifest.pointingId !== info.pointingId) {
             const module = POINTING_NAMES[info.pointingId] ?? "pointing module";
             warnings.push({ id: `pointing-${h}`, label: `This file has no ${module.toLowerCase()} driver.`, state: "warn", detail: `Pointing stops working on the ${handName(h)} half.` });
@@ -258,11 +292,15 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         if (row.state === "warn") warnings.push(row);
     }
 
+    const oneImage = halves.length > 0 && halves.every((h) => files[h]?.manifest.hand === HAND_EITHER);
+    const sidesBefore = knownSidesFrom(sideRead, usbHand, !otherSilent);
+    if (sideRead.kind !== "unsupported" && sidesSound(sideRead)) checks.push({ id: "sides", label: "Each half knows its side", state: "ok" });
+
     const toTag = lead?.manifest.tag || (source.kind === "release" ? source.release.tag : "custom firmware");
     const kind = lead ? kindFor(board, lead, pinned) : "custom";
     return {
         board, target, files, kind, toTag, fromTag: board.usbTag, title: titleFor(kind, toTag), checks, warnings, refusal,
-        otherSilent, pinned,
+        otherSilent, pinned, sidesBefore, oneImage, sidesFromSide: sideRead.kind !== "unsupported",
     };
 }
 

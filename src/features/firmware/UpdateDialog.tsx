@@ -14,6 +14,8 @@ import { FwTitle, InFirmwareDialog, Problem } from "./parts";
 import { awaitingConfirm, ConfirmView, ProgressView, useTicker } from "./ProgressDialog";
 import { UpdateSheet } from "./UpdateSheet";
 import type { UpdateUi } from "./useFirmwareUpdate";
+import type { SideWrite } from "@/services/side-decision";
+import { SideFix, assessmentFromAsk } from "./SideFix";
 
 /** The Done screen's title: what is on the keyboard now. */
 export function resultTitle(s: FlowState): string {
@@ -24,9 +26,9 @@ export function resultTitle(s: FlowState): string {
 
 export function resultLine(s: FlowState): string {
     const layout = s.result?.layout;
-    if (layout === "restored") return "Your layout is back on the keyboard.";
-    if (layout === "blank") return "Every key is blank, ready for your layout.";
-    return "Your keyboard has the default layout.";
+    const line = layout === "restored" ? "Your layout is back on the keyboard." : layout === "blank" ? "Every key is blank, ready for your layout." : "Your keyboard has the default layout.";
+    // One-image firmware: Keybard set a side the customer gave it.
+    return s.result?.sides?.wrote.length ? `${line} Each half knows its side now.` : line;
 }
 
 /** A1: done. */
@@ -57,6 +59,10 @@ export interface UpdateDialogProps {
     onClose: () => void;
     onFailureAction: (a: FailureAction) => void;
     onSaveManually?: () => void;
+    /** Before an update: send the side fixes the board needs. */
+    onFixSides?: (writes: SideWrite[]) => void;
+    /** During an update: the customer's answer about which half is which. */
+    onAnswerSide?: (writes: SideWrite[]) => void;
 }
 
 function useHiddenToast(active: boolean) {
@@ -101,13 +107,34 @@ export function UpdateDialog(p: UpdateDialogProps) {
             >
                 <InFirmwareDialog.Provider value>
                 {ui.kind === "sheet" && (
-                    ui.preFailure ? (
+                    ui.preFailure?.id === "sides" ? (
+                        <div className="flex flex-col gap-4" data-testid="sheet-sides">
+                            <FwTitle sub="Then Keybard checks the keyboard again and offers the update.">Set which half is which first</FwTitle>
+                            <SideFix bare sides={ui.preFailure.sides} busy={ui.sideBusy} note={ui.sideNote} onApply={(w) => p.onFixSides?.(w)} />
+                            <div className="flex justify-end"><Button variant="outline" onClick={p.onCancel}>Cancel</Button></div>
+                        </div>
+                    ) : ui.preFailure ? (
                         <FailureView failure={{ id: ui.preFailure.id === "unsupported" ? "F18" : ui.preFailure.id }} onAction={p.onFailureAction} />
                     ) : (
                         <UpdateSheet ui={ui} onAfterwards={p.onAfterwards} onStart={p.onStart} onCancel={p.onCancel} onSaveManually={p.onSaveManually} />
                     )
                 )}
-                {ui.kind === "flow" && ui.state.phase === "running" && (
+                {ui.kind === "flow" && ui.state.phase === "running" && ui.state.sideAsk && (
+                    <div className="flex flex-col gap-4" data-testid="flow-sides">
+                        <FwTitle sub={`${ui.state.toTag} is installed on both halves.`}>{ui.state.sideAsk.reason === "confirm" ? "Check which half is which" : "Set which half is which"}</FwTitle>
+                        <SideFix
+                            bare
+                            mode={ui.state.sideAsk.reason === "confirm" ? "confirm" : "fix"}
+                            from={ui.state.sideAsk.from}
+                            restore={ui.state.sideAsk.restore}
+                            sides={assessmentFromAsk(ui.state.sideAsk)}
+                            suggested={ui.state.sideAsk.suggested}
+                            note={ui.state.sideAsk.note}
+                            onApply={(w) => p.onAnswerSide?.(w)}
+                        />
+                    </div>
+                )}
+                {ui.kind === "flow" && ui.state.phase === "running" && !ui.state.sideAsk && (
                     <>
                         {awaitingConfirm(ui.state)
                             ? <ConfirmView state={ui.state} legends={p.chordLegends(ui.state.usbHand as Hand)} now={now} />

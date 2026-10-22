@@ -108,7 +108,7 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         void readRef.current().catch(() => null).then((board) => {
             const result = checkManual(s, board);
             patch(s.id, (x) => ({ ...x, check: result, checkedKey: key }));
-            if (!manualPending(s, result).length) finish(s.id);
+            if (!result.sides && !manualPending(s, result).length) finish(s.id);
         }).finally(() => checking.delete(s.id));
     }, [patch, finish]);
 

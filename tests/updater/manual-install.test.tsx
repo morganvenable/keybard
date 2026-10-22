@@ -1,7 +1,8 @@
 // Install by hand from Settings > Firmware: plain instructions (no Next buttons, nothing
-// ticked off), a backup when it opens, and one real check on Connect: Keybard reads what
-// each half runs. Both on the release: the layout goes back and it says so. One half old,
-// or silent: only that half's file and steps. Neither: the instructions, with one line.
+// ticked off), one file copied onto either half (the other half follows by itself), a backup
+// when it opens, and one real check on Connect: Keybard reads what each half runs. Both on
+// the release: the layout goes back and it says so. One half old, or silent: that half's
+// steps. Neither: the instructions, with one line. A half without a side: which is which first.
 // Also: what Settings shows for a board on an updater Keybard installs on only by hand.
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -11,6 +12,8 @@ import { readBoardSummary, updaterVersionLabel } from "@/features/firmware/board
 import { ManualInstall } from "@/features/firmware/ManualInstall";
 import { useManualInstall, type ManualHost } from "@/features/firmware/useManualInstall";
 import { FakeHost, fakeSetup } from "@/services/updater/fake-host";
+import type { FakeSidesOptions } from "@/services/updater/fake-sides";
+import { applySideWrites } from "@/features/firmware/side-actions";
 import type { FakeSvalboard } from "@/services/updater/fake-board";
 import { updateOwnsResetNotice } from "@/services/updater/flow";
 import {
@@ -22,8 +25,8 @@ import { VirtualClock } from "@/services/updater/transport";
 vi.mock("@/lib/paranoid", () => ({ PARANOID: false, userIsLooking: () => true }));
 
 const release: FirmwareReleasePin = {
-    tag: "x3.2", kind: "x", fwVersion: 4000, updaterProtocol: 4,
-    files: { left: { svup: "l.svup", uf2: "left-x3.2.uf2", sha256: "l", size: 1, pid: 0x4044 }, right: { svup: "r.svup", uf2: "right-x3.2.uf2", sha256: "r", size: 1, pid: 0x4045 } },
+    tag: "x4", kind: "x", fwVersion: 4000, updaterProtocol: 4,
+    file: { uf2: "svalboard_sval_x4.uf2", sha256: "sha", size: 1 },
     notesUrl: "",
 };
 
@@ -37,24 +40,27 @@ class Host extends FakeHost implements ManualHost {
     }
 }
 
-function setup(o: { restoreFails?: boolean; trimmed?: string[] } = {}) {
+function setup(o: { restoreFails?: boolean; trimmed?: string[]; sides?: FakeSidesOptions } = {}) {
     const clock = new VirtualClock();
-    const { board } = fakeSetup({ clock, running: { tag: "x3.1.3", fwVersion: 2301 }, half: { protocol: 3 }, host: o });
-    return { board, host: new Host(board, clock, o) };
+    const { board, sides } = fakeSetup({ clock, running: { tag: "x3.1.3", fwVersion: 2301 }, half: { protocol: 3 }, host: o, sides: o.sides });
+    const host = new Host(board, clock, o);
+    host.sides = sides?.host;
+    return { board, host, sides, clock };
 }
 
 const flash = (board: FakeSvalboard, hand: 0 | 1) => board.flashByHand(hand, { fwVersion: release.fwVersion, tag: release.tag });
 
 /** The editor's part: the controller and the dialog, remounted on every reconnect like the app. */
 function Editor({ host, store, connectionKey }: { host: Host; store: ManualStore; connectionKey: string | null }) {
-    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board), fromTag: "x3.1.3", fromFw: 2301, once: true, store });
+    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides), fromTag: "x3.1.3", fromFw: 2301, once: true, store });
     const s = m.session;
-    if (!s) return <button onClick={() => m.open(release)}>Update to x3.2</button>;
+    if (!s) return <button onClick={() => m.open(release)}>Update to x4</button>;
     return (
         <ManualInstall
             release={release} usualHand={s.usualHand} once={s.once} backup={s.backup} afterwards={s.afterwards}
             onAfterwards={(a) => { if (a !== "blank") m.setAfterwards(a); }}
             check={s.check} outcome={s} onConnect={m.checkNow} onClose={m.close}
+            onSides={(w) => void applySideWrites({ sides: host.sides, clock: host.clock, waitForDevice: (ms) => host.waitForDevice(ms) }, w).then(() => m.checkNow())}
         />
     );
 }
@@ -64,7 +70,7 @@ const radio = (name: string) => screen.getByRole("radio", { name }) as HTMLInput
 async function opened(o: Parameters<typeof setup>[0] = {}, store: ManualStore = memoryManualStore()) {
     const s = setup(o);
     const view = render(<Editor host={s.host} store={store} connectionKey="p:1" />);
-    fireEvent.click(screen.getByRole("button", { name: "Update to x3.2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update to x4" }));
     await waitFor(() => expect(screen.getByText("Kip-x3.1.3-2026-10-21.svil")).toBeTruthy());
     const reconnect = async (key: string) => { await act(async () => { view.rerender(<Editor host={s.host} store={store} connectionKey={key} />); }); };
     return { ...s, view, store, reconnect };
@@ -72,7 +78,7 @@ async function opened(o: Parameters<typeof setup>[0] = {}, store: ManualStore = 
 
 describe("the manual install's state", () => {
     it("checks each new connection once, never the one it opened on", () => {
-        const s = newManualSession({ releaseTag: "x3.2", releaseFw: 4000, openKey: "p:1", connected: true });
+        const s = newManualSession({ releaseTag: "x4", releaseFw: 4000, openKey: "p:1", connected: true });
         expect(s.afterwards).toBe("restore");
         expect(s.backup).toEqual({ state: "pending" });
         expect(manualShouldCheck(s, "p:1")).toBe(false);
@@ -90,8 +96,8 @@ describe("the manual install's state", () => {
 
     it("reads each half against the release, and names a half by what the board ran before", () => {
         const s = { releaseFw: 4000, fromTag: "x3.1.3", fromFw: 2301 };
-        const half = (hand: 0 | 1, fwVersion: number, answered = true) => ({ hand, answered, fwVersion, tag: fwVersion === 4000 ? "x3.2" : `build ${fwVersion}` });
-        const board = (halves: ReturnType<typeof half>[]) => ({ updater: true, legacyLabel: null, usbHand: 1 as const, tag: "x3.2", fwVersion: 4000, halves });
+        const half = (hand: 0 | 1, fwVersion: number, answered = true) => ({ hand, answered, fwVersion, tag: fwVersion === 4000 ? "x4" : `build ${fwVersion}` });
+        const board = (halves: ReturnType<typeof half>[]) => ({ updater: true, legacyLabel: null, usbHand: 1 as const, tag: "x4", fwVersion: 4000, halves });
         expect(checkManual(s, board([half(0, 4000), half(1, 4000)]))).toEqual({ halves: { 0: { state: "new" }, 1: { state: "new" } } });
         expect(checkManual(s, board([half(0, 2301), half(1, 4000)])).halves[0]).toEqual({ state: "old", tag: "x3.1.3" });
         expect(checkManual(s, board([half(0, 0, false), half(1, 4000)])).halves[0]).toEqual({ state: "silent" });
@@ -104,7 +110,7 @@ describe("the manual install's state", () => {
     it("Put my layout back puts the backup back, then clears the reset notice last", async () => {
         const { board, host } = setup();
         board.storageFlags = 0x04;
-        const s = { ...newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
+        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
         expect(await runManualAfterwards(host, s)).toEqual({ layout: "restored", trimmed: [] });
         expect(host.events).toEqual(["restore", "flags:4", "0x2A"]);
         expect(board.storageFlags & 0x04).toBe(0);
@@ -112,7 +118,7 @@ describe("the manual install's state", () => {
 
     it("the default layout writes nothing; with no reset notice there's nothing to clear", async () => {
         const { host } = setup();
-        const s = { ...newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
+        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
         expect(await runManualAfterwards(host, s)).toEqual({ layout: "defaults", trimmed: [] });
         expect(host.restores).toBe(0);
         expect(host.clears).toBe(0);
@@ -122,7 +128,7 @@ describe("the manual install's state", () => {
         sessionStorage.clear();
         expect(manualOwnsResetNotice()).toBe(false);
         const store = sessionManualStore(sessionStorage);
-        store.save(newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }));
+        store.save(newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }));
         expect(sessionStorage.getItem(MANUAL_KEY)).toBeTruthy();
         expect(manualOwnsResetNotice()).toBe(true);
         expect(updateOwnsResetNotice()).toBe(true);
@@ -134,24 +140,29 @@ describe("the manual install's state", () => {
 describe("Install by hand from Settings > Firmware", () => {
     beforeEach(() => sessionStorage.clear());
 
-    it("is plain instructions: the layout choice, both files, the steps with the reset timing, and no Next or check marks", async () => {
+    it("is plain instructions: the layout choice, one file, the steps with the reset timing, and no Next or check marks", async () => {
         await opened();
         const dialog = screen.getByTestId("manual-install");
-        expect(screen.getByRole("heading", { name: "Install x3.2 by hand" })).toBeTruthy();
-        expect(screen.getByText("Your keyboard needs this once. After that, Keybard installs updates for you. It takes about five minutes.")).toBeTruthy();
+        expect(screen.getByRole("heading", { name: "Install x4 by hand" })).toBeTruthy();
+        expect(screen.getByText("Your keyboard needs this once. After that, Keybard installs updates for you. It takes a few minutes.")).toBeTruthy();
         expect(radio("Put my layout back").checked).toBe(true);
         expect(radio("Put my layout back").disabled).toBe(false);
         expect(radio("Start from the default layout")).toBeTruthy();
         expect(screen.queryByRole("radio", { name: "Start from a blank keyboard" })).toBeNull();
-        expect(dialog.querySelectorAll("[data-file]")).toHaveLength(2);
+        const files = dialog.querySelectorAll("[data-file]");
+        expect(files).toHaveLength(1);
+        expect(files[0].getAttribute("download")).toBe("svalboard_sval_x4.uf2");
         expect(dialog.textContent).toContain("Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.");
-        expect(dialog.textContent).toContain("Plug the USB cable into the half's U port.");
+        expect(dialog.textContent).toContain("Plug the USB cable into either half's U port.");
+        expect(dialog.textContent).toContain("Drag the file onto the drive. The half restarts and the drive closes.");
+        expect(dialog.textContent).toContain("The other half updates by itself, in about half a minute. Keep the split cable connected.");
+        expect(dialog.textContent).not.toMatch(/\.svup|both files|each half's file/);
         expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
         expect(dialog.querySelector("svg")).toBeNull();
         expect(screen.getByRole("button", { name: "Connect keyboard" })).toBeTruthy();
     });
 
-    it("Connect with both halves on x3.2 puts the layout back and says it's done, across the reconnect remount", async () => {
+    it("Connect with both halves on x4 puts the layout back and says it's done, across the reconnect remount", async () => {
         const store = sessionManualStore(sessionStorage);
         const { board, host, view } = await opened({}, store);
         flash(board, 0);
@@ -159,7 +170,7 @@ describe("Install by hand from Settings > Firmware", () => {
         // Back on a new connection: the editor unmounts and mounts again, the dialog carries on.
         view.unmount();
         render(<Editor host={host} store={store} connectionKey="p:2" />);
-        await waitFor(() => expect(screen.getByRole("heading", { name: "x3.2 is installed" })).toBeTruthy());
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
         expect(screen.getByText("Your layout is back on the keyboard. From now on, updates install from Keybard.")).toBeTruthy();
         expect(host.restores).toBe(1);
         expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
@@ -170,15 +181,16 @@ describe("Install by hand from Settings > Firmware", () => {
         flash(board, 1); // the right half, with USB
         await reconnect("p:2");
         await waitFor(() => expect(screen.getByRole("heading", { name: "The left half still runs x3.1.3" })).toBeTruthy());
-        expect(screen.getByText("The right half has x3.2. Install the left half's file, then connect again.")).toBeTruthy();
+        expect(screen.getByText("The right half has x4. Install the file on the left half, then connect again.")).toBeTruthy();
         const dialog = screen.getByTestId("manual-install");
-        expect([...dialog.querySelectorAll("[data-file]")].map((a) => a.getAttribute("data-file"))).toEqual(["left"]);
+        expect(dialog.querySelectorAll("[data-file]")).toHaveLength(1);
         expect(dialog.textContent).toContain("Plug the USB cable into the left half's U port.");
+        expect(dialog.textContent).not.toContain("updates by itself");
         expect(within(screen.getByTestId("manual-halves")).getByText("x3.1.3")).toBeTruthy();
         expect(host.restores).toBe(0);
         flash(board, 0);
         await reconnect("p:3");
-        await waitFor(() => expect(screen.getByRole("heading", { name: "x3.2 is installed" })).toBeTruthy());
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
         expect(host.restores).toBe(1);
     });
 
@@ -195,8 +207,8 @@ describe("Install by hand from Settings > Firmware", () => {
         const { host, reconnect } = await opened();
         await reconnect("p:2");
         await waitFor(() => expect(screen.getByTestId("manual-still")).toBeTruthy());
-        expect(screen.getByTestId("manual-still").textContent).toBe("The right half still runs x3.1.3. Install its file, and the left half's file if you haven't yet, then connect again.");
-        expect(screen.getByRole("heading", { name: "Install x3.2 by hand" })).toBeTruthy();
+        expect(screen.getByTestId("manual-still").textContent).toBe("The right half still runs x3.1.3. Install the file on it, then connect again.");
+        expect(screen.getByRole("heading", { name: "Install x4 by hand" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "Connect again" })).toBeTruthy();
         expect(host.restores).toBe(0);
     });
@@ -214,11 +226,27 @@ describe("Install by hand from Settings > Firmware", () => {
         expect(host.restores).toBe(0);
     });
 
+    it("a half without a side after the install: which half is which first, one click, then the layout goes back", async () => {
+        const { board, host, sides, reconnect } = await opened({ sides: { supported: false, after: { other: { side: "unknown" } } } });
+        flash(board, 0);
+        flash(board, 1);
+        await reconnect("p:2");
+        await waitFor(() => expect(screen.getByRole("heading", { name: "Set which half is which" })).toBeTruthy());
+        expect(screen.getByText("The half on the split cable doesn't know which side it is, so neither half types.")).toBeTruthy();
+        expect(host.restores).toBe(0);
+        expect(sides!.writes).toEqual([]);
+        // The plugged-in half is the right one, so the likely answer for it is Right half.
+        fireEvent.click(screen.getByRole("button", { name: "Right half" }));
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
+        expect(sides!.writes).toEqual([{ role: "other", side: "left", status: 7 }]);
+        expect(host.restores).toBe(1);
+    });
+
     it("a failed backup says so and starts from the default layout", async () => {
         const { host } = setup();
         host.failBackup = true;
         render(<Editor host={host} store={memoryManualStore()} connectionKey="p:1" />);
-        fireEvent.click(screen.getByRole("button", { name: "Update to x3.2" }));
+        fireEvent.click(screen.getByRole("button", { name: "Update to x4" }));
         await waitFor(() => expect(screen.getByText("Keybard couldn't save your layout.")).toBeTruthy());
         expect(screen.getByText(/Disk full\. Afterward the keyboard starts from the default layout\./)).toBeTruthy();
         expect(screen.queryByRole("radio", { name: "Put my layout back" })).toBeNull();
