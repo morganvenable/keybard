@@ -33,12 +33,12 @@ function updates(o: Partial<FirmwareUpdates> = {}): FirmwareUpdates {
 beforeEach(() => { ctx.updates = updates(); ctx.connected = true; });
 
 describe("Settings > Firmware", () => {
-    it("shows the board's halves and the install list, under the section's own title", () => {
+    it("shows the board's halves under the section's own title, the rest under Other versions and files", () => {
         render(<FirmwareRow />);
         expect(screen.getByTestId("firmware-section")).toBeTruthy();
         expect(screen.queryByRole("heading", { name: "Firmware" })).toBeNull(); // Settings titles the section
-        expect(screen.getByRole("radiogroup", { name: "Install" })).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Install file" })).toBeTruthy();
+        expect(screen.getByTestId("firmware-halves").textContent).toBe("Left halfv3Right halfv3 · plugged in");
+        expect(screen.getByRole("button", { name: "Other versions and files" })).toBeTruthy();
     });
 
     it("says it's reading while the board's firmware is read", () => {

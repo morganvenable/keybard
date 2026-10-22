@@ -2,22 +2,24 @@
 // started in Settings > Firmware keeps its dialog wherever the user is, and a reload mid-update
 // picks it back up. Also the rail dot, and the "open Firmware" and "open Backups" requests.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { OPEN_BACKUPS_EVENT } from "@/components/StorageResetDialog";
 import { currentSite, releasesForSite, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { serializeForBackup, useBackups } from "@/contexts/BackupContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/settings/anchor";
-import { manualReconnected } from "@/services/updater/manual";
 import type { Hand } from "@/services/updater/protocol";
-import type { BoardSummary } from "./board-summary";
+import { usbInstance } from "@/services/usb.service";
+import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
+import { readBoardSummary, type BoardSummary } from "./board-summary";
 import { loadCarriedRelease } from "./carried";
 import type { FailureAction } from "./failures";
 import type { FirmwarePick } from "./FirmwareSection";
 import { ManualInstall } from "./ManualInstall";
+import { InFirmwareDialog } from "./parts";
 import { UpdateDialog } from "./UpdateDialog";
 import { backupFileName, downloadText, useAppFirmwareHost } from "./useAppFirmwareHost";
 import { useFirmwareStatus, type FirmwareStatus } from "./useFirmwareStatus";
@@ -97,8 +99,26 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     // The manual install: a backup when it opens, the layout put back once the keyboard is.
     const connectionKey = connection ? connection.key : kb.isConnected && kb.keyboard ? `${PAGE_ID}:${kb.connectionSessionId}` : null;
     const connect = useCallback(() => (connection ? connection.connect() : void kb.connect()), [connection, kb]);
-    const manual = useManualInstall(host, { connectionKey, fromTag: board?.tag || board?.legacyLabel || "", usualHand: board?.usbHand });
+    const keyboardRef = useRef(kb.keyboard);
+    keyboardRef.current = kb.keyboard;
+    // On Connect: what each half runs, read fresh on the connection open now.
+    const readBoardNow = useCallback(
+        () => (readBoard ? readBoard() : readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboardRef.current)),
+        [readBoard],
+    );
+    const manual = useManualInstall(host, {
+        connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater, usualHand: board?.usbHand,
+    });
     const setManual = manual.open;
+    // Connect in the manual install: plug in again, or, already connected, check this connection.
+    const manualConnect = useCallback(() => {
+        if (connection) connection.connect();
+        else if (kb.isConnected && kb.keyboard) manual.checkNow();
+        else void kb.connect();
+    }, [connection, kb, manual]);
+    // The card reads the board again once the manual install closes or finishes.
+    const manualPhase = manual.session?.phase ?? "closed";
+    useEffect(() => { if (manualPhase === "done" || manualPhase === "closed") setRefresh((n) => n + 1); }, [manualPhase]);
 
     const install = useCallback((pick: FirmwarePick, onlyHand?: Hand) => {
         if (pick.kind === "files") return void fw.openSheet({ kind: "file", files: pick.files }, onlyHand);
@@ -124,7 +144,15 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         if (a === "retry") fw.retry();
         else if (a === "finish") fw.finish();
         else if (a === "reload") location.reload();
-        else if (a === "manual" || a === "download") { fw.close(); manual.open(releases[0] ?? null); }
+        else if (a === "manual" || a === "download") {
+            // A half stuck as a drive (F10, F11): only that half's file and steps.
+            const state = fw.ui.kind === "flow" ? fw.ui.state : null;
+            const failure = state?.failure ?? null;
+            const only = failure && (failure.id === "F10" || failure.id === "F11") ? failure.hand : undefined;
+            const release = (state && releases.find((r) => r.tag === state.toTag)) || releases[0] || null;
+            fw.close();
+            manual.open(release, only);
+        }
         else if (a === "backups") { fw.close(); openSection("backups"); }
         else fw.close();
     };
@@ -150,7 +178,6 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                     now={() => host.clock.now()}
                     chordLegends={(h) => host.chordLegends(h)}
                     cancellable={!!fw.flow?.cancellable}
-                    notesUrl={releases.find((r) => fw.ui.kind === "flow" && r.tag === fw.ui.state.toTag)?.notesUrl}
                     onAfterwards={fw.setAfterwards}
                     onStart={fw.start}
                     onCancel={() => (fw.ui.kind === "flow" ? fw.flow?.cancel() : fw.close())}
@@ -161,26 +188,23 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
             )}
             {session && (
                 <Dialog open onOpenChange={(open) => { if (!open && session.phase !== "restoring") manual.close(); }}>
-                    <DialogContent className="sm:max-w-[520px]" onInteractOutside={(e) => e.preventDefault()}>
-                        <DialogTitle className="sr-only">Install firmware by hand</DialogTitle>
-                        <DialogDescription className="sr-only">Download the firmware and copy it onto each half</DialogDescription>
-                        <ManualInstall
-                            release={releases.find((r) => r.tag === session.releaseTag) ?? null}
-                            only={session.only}
-                            usualHand={session.usualHand}
-                            backup={session.backup}
-                            afterwards={session.afterwards}
-                            onAfterwards={(a) => { if (a !== "blank") manual.setAfterwards(a); }}
-                            downloaded={session.downloaded}
-                            installed={session.installed}
-                            onDownloaded={manual.markDownloaded}
-                            onInstalled={manual.markInstalled}
-                            outcome={session}
-                            connected={manualReconnected(session, connectionKey)}
-                            onConnect={connect}
-                            onClose={manual.close}
-                            onOpenBackups={() => { manual.close(); openSection("backups"); }}
-                        />
+                    <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e) => e.preventDefault()} aria-describedby={undefined}>
+                        <InFirmwareDialog.Provider value>
+                            <ManualInstall
+                                release={releases.find((r) => r.tag === session.releaseTag) ?? null}
+                                only={session.only}
+                                usualHand={session.usualHand}
+                                once={session.once}
+                                backup={session.backup}
+                                afterwards={session.afterwards}
+                                onAfterwards={(a) => { if (a !== "blank") manual.setAfterwards(a); }}
+                                check={session.check}
+                                outcome={session}
+                                onConnect={manualConnect}
+                                onClose={manual.close}
+                                onOpenBackups={() => { manual.close(); openSection("backups"); }}
+                            />
+                        </InFirmwareDialog.Provider>
                     </DialogContent>
                 </Dialog>
             )}

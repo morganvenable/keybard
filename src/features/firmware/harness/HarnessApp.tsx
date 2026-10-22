@@ -41,14 +41,14 @@ export class ScaledClock implements Clock {
     sleep(ms: number) { return new Promise<void>((r) => setTimeout(r, ms / this.speed)); }
 }
 
-export function pinOf(r: FixtureRelease, highlights: string[] = []): FirmwareReleasePin {
+export function pinOf(r: FixtureRelease): FirmwareReleasePin {
     return {
         tag: r.tag, kind: r.tag.startsWith("x") ? "x" : "v", fwVersion: r.fwVersion, updaterProtocol: 4,
         files: {
             left: { svup: `left-${r.tag}.svup`, uf2: `left-${r.tag}.uf2`, sha256: r.files[HAND_LEFT].sha256, size: r.files[HAND_LEFT].bytes.length, pid: 0x4044 },
             right: { svup: `right-${r.tag}.svup`, uf2: `right-${r.tag}.uf2`, sha256: r.files[HAND_RIGHT].sha256, size: r.files[HAND_RIGHT].bytes.length, pid: 0x4045 },
         },
-        highlights, notesUrl: "https://github.com/svalboard/qmk/releases",
+        notesUrl: "https://github.com/svalboard/qmk/releases",
     };
 }
 
@@ -127,7 +127,7 @@ function FakeHarness() {
                 chordAfterMs: params.get("chord") === "never" ? "never" : 3000,
             });
             const host = new HarnessFakeHost(fake, clock);
-            const releases = [pinOf(x32, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
+            const releases = [pinOf(x32), pinOf(v3)];
             setReady({ host, releases, byTag: { v2, v3, [x32.tag]: x32 } });
         })();
     }, []);
@@ -142,7 +142,7 @@ function FakeHarness() {
             {dialog}
             {manual !== undefined && (
                 <div className="rounded-md border border-kb-gray-border bg-kb-surface p-4">
-                    <ManualInstall release={manual} backup={null} afterwards="defaults" onAfterwards={() => undefined} connected={false} onConnect={() => setManual(undefined)} onClose={() => setManual(undefined)} />
+                    <ManualInstall release={manual} backup={null} afterwards="defaults" onAfterwards={() => undefined} onConnect={() => setManual(undefined)} onClose={() => setManual(undefined)} />
                 </div>
             )}
         </Page>

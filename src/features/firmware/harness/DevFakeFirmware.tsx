@@ -1,16 +1,25 @@
-// Development only (?fwfake=1): Settings > Firmware against the mock board, as the harness
-// runs it. &running=v3|x3.2|v2  &nochord=1  &fault=...  &speed=4  &differ=1
-// &proto=3: a board on updater protocol 3, which Keybard installs on only by hand
-// (&running=x3.1.3 names what it runs).
+// Development and the test site only (?fwfake=1): Settings > Firmware against the mock board.
+//   &running=v3|x3.2|v2|<tag>  what both halves run (another tag: version 8)
+//   &proto=3                   a board on updater protocol 3, which installs by hand
+//   &nochord=1  &fault=...  &speed=4  &differ=1  &usb=left
+//   &chord=never|<ms>          when the person presses the two keys (default 3000 ms)
+//   &badfile=1                 the carried x3.2 files miss their pins: the install is refused
+// Install by hand: Connect stands for plugging the keyboard back in after the install.
+//   &byhand=both|left|right|none  the halves the person installed before the first Connect
+//                                 (every later Connect installs the rest)
+//   &silent=1                     a half still on its old firmware doesn't answer
+// Zero-click review links:
+//   &open=update|<tag>  open the dialog for the newest release (or that tag) once the board is read
+//   &go=1               then press Update (or Connect keyboard) once it's enabled
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
-import type { Fault } from "@/services/updater/fake-board";
+import { imageIdOf, type Fault } from "@/services/updater/fake-board";
 import { FakeHost, fakeSetup, fixtureRelease, type FixtureRelease } from "@/services/updater/fake-host";
-import { HAND_LEFT, HAND_RIGHT, type Hand } from "@/services/updater/protocol";
+import { HAND_LEFT, HAND_RIGHT, otherHand, type Hand } from "@/services/updater/protocol";
 import { readBoardSummary, type BoardSummary } from "../board-summary";
-import { FirmwareUpdateProvider } from "../FirmwareUpdateProvider";
+import { FirmwareUpdateProvider, useFirmwareUpdates } from "../FirmwareUpdateProvider";
 import type { FirmwareUiHost, UpdateBackup } from "../useFirmwareUpdate";
 import { pinOf, ScaledClock } from "./HarnessApp";
 
@@ -28,41 +37,100 @@ interface Ready {
     host: DevFakeHost;
     releases: FirmwareReleasePin[];
     byTag: Record<string, FixtureRelease>;
+    newest: FixtureRelease;
+}
+
+const params = () => new URLSearchParams(location.search);
+
+function handsOf(value: string | null): Hand[] {
+    if (value === "none") return [];
+    if (value === "left") return [HAND_LEFT];
+    if (value === "right") return [HAND_RIGHT];
+    return [HAND_LEFT, HAND_RIGHT];
+}
+
+/** &open and &go: land in a dialog state with no clicks. */
+function AutoOpen() {
+    const updates = useFirmwareUpdates();
+    const opened = useRef(false);
+    const p = params();
+    const open = p.get("open");
+    useEffect(() => {
+        if (!open || opened.current || !updates?.board) return;
+        const release = (open === "update" ? updates.releases[0] : updates.releases.find((r) => r.tag === open)) ?? null;
+        if (!release) return;
+        opened.current = true;
+        if (updates.board.updater) updates.install({ kind: "release", release });
+        else updates.openManual(release);
+    }, [open, updates]);
+    useEffect(() => {
+        if (!open || !p.has("go")) return;
+        let pressed = false;
+        const id = setInterval(() => {
+            if (pressed) return;
+            const update = document.querySelector<HTMLButtonElement>("[data-testid=update-sheet] [data-primary]:not(:disabled)");
+            const manual = document.querySelector("[data-testid=manual-install]");
+            const connect = manual?.textContent?.includes("Saved to Downloads") ? manual.querySelector<HTMLButtonElement>("[data-connect]") : null;
+            const button = update ?? connect;
+            if (button) { pressed = true; button.click(); clearInterval(id); }
+        }, 200);
+        return () => clearInterval(id);
+        // Once per page load.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return null;
 }
 
 export default function DevFakeFirmware({ children }: { children: ReactNode }) {
     const [ready, setReady] = useState<Ready | null>(null);
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
+        const p = params();
         void (async () => {
             const size = 0x1e000;
             const v2 = await fixtureRelease("v2", 7, { imageLen: size });
             const v3 = await fixtureRelease("v3", 8, { imageLen: size });
-            const x32 = await fixtureRelease("x3.2", 9, { imageLen: size, noChord: params.has("nochord") });
+            const x32 = await fixtureRelease("x3.2", 9, { imageLen: size, noChord: p.has("nochord") });
             // Another tag names a board that runs it (e.g. &proto=3&running=x3.1.3), at version 8.
-            const asked = params.get("running");
+            const asked = p.get("running");
             const running = asked === "x3.2" ? x32 : asked === "v2" ? v2 : asked && asked !== "v3" ? { tag: asked, fwVersion: 8 } : v3;
-            const clock = new ScaledClock(Number(params.get("speed") ?? 4));
-            const f = params.get("fault");
+            const clock = new ScaledClock(Number(p.get("speed") ?? 4));
+            const f = p.get("fault");
             const faults: Fault[] = !f ? [] : f.startsWith("unplug-") ? [{ kind: "unplug", at: f.slice(7) as "other-send" }] : [{ kind: f } as Fault];
+            const chord = p.get("chord");
             const { board } = fakeSetup({
-                clock, running, noChord: params.has("nochord"), faults, usbHand: params.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
-                chordAfterMs: 3000, otherRunning: params.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
-                half: params.get("proto") === "3" ? { protocol: 3 } : undefined,
+                clock, running, noChord: p.has("nochord"), faults, usbHand: p.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
+                chordAfterMs: chord === "never" ? "never" : chord ? Number(chord) : 3000,
+                otherRunning: p.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
+                half: p.get("proto") === "3" ? { protocol: 3 } : undefined,
             });
             const host = new DevFakeHost(board, clock);
-            const releases = [pinOf(x32, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
-            setReady({ host, releases, byTag: { v2, v3, [x32.tag]: x32 } });
+            setReady({ host, releases: [pinOf(x32), pinOf(v3)], byTag: { v2, v3, [x32.tag]: x32 }, newest: x32 });
         })();
     }, []);
     const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board) : null), [ready]);
-    const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
-    // The mock board is always plugged in; Connect stands for plugging it back in after a manual install.
+    // &badfile=1: hand back another release's files, which miss the pins.
+    const files = useCallback(async (pin: FirmwareReleasePin) => (params().has("badfile") ? ready!.byTag.v2.files : ready!.byTag[pin.tag].files), [ready]);
+    // The mock board is always plugged in; Connect stands for plugging it back in after an install by hand.
     const [plugs, setPlugs] = useState(0);
-    const connection = useMemo(() => ({ key: `fake:${plugs}`, connect: () => setPlugs((n) => n + 1) }), [plugs]);
+    const connect = useCallback(() => {
+        if (!ready) return;
+        const board = ready.host.board;
+        const p = params();
+        const installs: Hand[] = plugs === 0 ? handsOf(p.get("byhand")) : [HAND_LEFT, HAND_RIGHT];
+        for (const h of installs) {
+            board.flashByHand(h, { fwVersion: ready.newest.fwVersion, tag: ready.newest.tag, protocol: 4, imageId: imageIdOf(ready.newest.files[h].manifestBytes) });
+            board.setAnswering(h, true);
+        }
+        // A half still on old firmware doesn't answer over the split cable (&silent=1).
+        const other = otherHand(board.usbHand);
+        if (p.has("silent") && !installs.includes(other)) board.setAnswering(other, false);
+        setPlugs((n) => n + 1);
+    }, [ready, plugs]);
+    const connection = useMemo(() => ({ key: `fake:${plugs}`, connect }), [plugs, connect]);
     if (!ready) return <>{children}</>;
     return (
         <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files} connection={connection}>
+            <AutoOpen />
             {children}
         </FirmwareUpdateProvider>
     );

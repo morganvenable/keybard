@@ -69,8 +69,8 @@ describe("an update while the editor remounts on each reconnect", () => {
         try {
             fireEvent.click(screen.getByRole("button", { name: "Open" }));
             await screen.findByTestId("update-sheet");
-            fireEvent.click(await screen.findByRole("radio", { name: "Wipe to a blank board" }));
-            const start = await screen.findByRole("button", { name: /Update anyway|Start update/ });
+            fireEvent.click(await screen.findByRole("radio", { name: "Start from a blank keyboard" }));
+            const start = await screen.findByRole("button", { name: /^(Update anyway|Update)$/ });
             await waitFor(() => expect(start).not.toBeDisabled());
             await act(async () => { fireEvent.click(start); });
             if (o.hidden) await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });

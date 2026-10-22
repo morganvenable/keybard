@@ -66,7 +66,7 @@ async function pauseKeybardHost(): Promise<CheckRow | null> {
         if (!boot.ok) return null;
         const { token } = await boot.json();
         const r = await fetch(`/api/host/command`, { method: "POST", headers: { "Content-Type": "application/json", "X-Keybard-Token": token }, body: JSON.stringify({ op: "disconnect" }), signal: AbortSignal.timeout(1500) });
-        return r.ok ? { id: "host", label: "Keybard Overlay paused", state: "ok" } : { id: "host", label: "Keybard Overlay still connected", state: "warn", detail: "Quit it if the update stops." };
+        return r.ok ? { id: "host", label: "Keybard Overlay paused", state: "ok" } : { id: "host", label: "Keybard Overlay is still using the keyboard.", state: "warn", detail: "Quit Keybard Overlay if the update stops." };
     } catch {
         return null;
     }

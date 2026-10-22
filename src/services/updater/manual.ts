@@ -1,5 +1,7 @@
-// The guided manual install's state (M): the backup taken when it opened, the layout
-// choice, the steps done, and what happened after the keyboard came back.
+// The manual install's state (M): the backup taken when it opened, the layout choice,
+// what Keybard read from each half when the keyboard came back, and what happened then.
+// Nothing here records what the person says they did: the only check is the firmware
+// each half runs when it is connected again.
 //
 // It lives in sessionStorage, like the flow's, because the editor unmounts while the
 // keyboard reconnects (it shows the connect screen until the layout loads): the dialog
@@ -17,8 +19,22 @@ export type ManualBackup =
     | { state: "ok"; fileName: string; snapshotId?: string; svil: string }
     | { state: "failed"; error: string };
 
+/** What one half runs, as read on Connect. */
+export type ManualHalfState =
+    | { state: "new" }
+    /** tag: what it runs, when Keybard can name it. */
+    | { state: "old"; tag?: string }
+    /** It didn't answer over the split cable (firmware without the updater doesn't). */
+    | { state: "silent" }
+    /** The half with USB runs firmware Keybard can't ask about the other half. */
+    | { state: "unknown" };
+
+export interface ManualCheck {
+    halves: Partial<Record<Hand, ManualHalfState>>;
+}
+
 export interface ManualSession {
-    version: 1;
+    version: 2;
     id: string;
     /** The release offered for download (null: the firmware release page). */
     releaseTag: string | null;
@@ -28,10 +44,19 @@ export interface ManualSession {
     /** Null: no keyboard was connected when it opened, so there's no backup. */
     backup: ManualBackup | null;
     afterwards: ManualAfterwards;
-    downloaded: Partial<Record<Hand, boolean>>;
-    installed: Partial<Record<Hand, boolean>>;
+    /** The release's firmware version, to tell a half that has it (null: no release carried). */
+    releaseFw: number | null;
+    /** What the board ran when it opened, to name a half that still runs it. */
+    fromTag: string;
+    fromFw: number | null;
+    /** The board had no updater Keybard installs through: this install is the once-only move onto one. */
+    once: boolean;
     /** The connection when it opened: the keyboard coming back is any other one. */
     openKey: string | null;
+    /** The connection the last check read, so each connection is checked once. */
+    checkedKey: string | null;
+    /** The last check, null until the first Connect. */
+    check: ManualCheck | null;
     phase: "steps" | "restoring" | "done" | "failed";
     result: { layout: "restored" | "defaults"; trimmed: string[] } | null;
     error: string | null;
@@ -51,7 +76,8 @@ export function sessionManualStore(storage: Storage | null = typeof sessionStora
         load() {
             try {
                 const raw = storage?.getItem(MANUAL_KEY);
-                return raw ? (JSON.parse(raw) as ManualSession) : null;
+                const s = raw ? (JSON.parse(raw) as ManualSession) : null;
+                return s?.version === 2 ? s : null;
             } catch { return null; }
         },
         save(session) {
@@ -80,31 +106,64 @@ export function manualOwnsResetNotice(storage: Storage | null = typeof sessionSt
     try { return !!storage?.getItem(MANUAL_KEY); } catch { return false; }
 }
 
-export function newManualSession(o: { releaseTag: string | null; only?: Hand; usualHand?: Hand; openKey: string | null; connected: boolean }): ManualSession {
+export function newManualSession(o: {
+    releaseTag: string | null; releaseFw?: number | null; fromTag?: string; fromFw?: number | null;
+    only?: Hand; usualHand?: Hand; openKey: string | null; connected: boolean; once?: boolean;
+}): ManualSession {
     return {
-        version: 1, id: Math.random().toString(36).slice(2, 10), releaseTag: o.releaseTag, only: o.only, usualHand: o.usualHand ?? 1, backup: o.connected ? { state: "pending" } : null,
-        // Keep my layout once the backup is saved; with no keyboard there is nothing to keep.
+        version: 2, id: Math.random().toString(36).slice(2, 10), releaseTag: o.releaseTag, releaseFw: o.releaseFw ?? null,
+        fromTag: o.fromTag ?? "", fromFw: o.fromFw ?? null, once: !!o.once, only: o.only, usualHand: o.usualHand ?? 1,
+        backup: o.connected ? { state: "pending" } : null,
+        // Put my layout back once the backup is saved; with no keyboard there is nothing to keep.
         afterwards: o.connected ? "restore" : "defaults",
-        downloaded: {}, installed: {}, openKey: o.openKey, phase: "steps", result: null, error: null,
+        openKey: o.openKey, checkedKey: null, check: null, phase: "steps", result: null, error: null,
     };
 }
 
-/** The halves the steps cover, the other half first (U-Q5). */
+/** The halves the install covers, the other half first (U-Q5). */
 export function manualHalves(only: Hand | undefined, usualHand: Hand = 1): Hand[] {
     return only !== undefined ? [only] : [(usualHand === 0 ? 1 : 0) as Hand, usualHand];
 }
 
-/**
- * Whether the keyboard is back after the install: connected again, on another
- * connection than the one the dialog opened on, with every half's install step done.
- */
-export function manualReady(s: ManualSession, key: string | null): boolean {
-    return s.phase === "steps" && manualReconnected(s, key) && manualHalves(s.only, s.usualHand).every((h) => s.installed[h]);
+/** Whether a connection is one to check: a new one since the dialog opened, not checked yet. */
+export function manualShouldCheck(s: ManualSession, key: string | null): boolean {
+    return s.phase === "steps" && !!key && key !== s.openKey && key !== s.checkedKey;
 }
 
-/** Connected again since the dialog opened: another connection than the one it opened on. */
-export function manualReconnected(s: ManualSession, key: string | null): boolean {
-    return !!key && key !== s.openKey;
+/** What the board answered on Connect, as far as the check needs it (BoardSummary fits). */
+export interface ManualBoardRead {
+    updater: boolean;
+    legacyLabel: string | null;
+    usbHand: Hand;
+    tag: string;
+    fwVersion: number;
+    halves: Array<{ hand: Hand; answered: boolean; fwVersion: number; tag: string }>;
+}
+
+/**
+ * Read each half's firmware against the release. The half with USB on firmware without a
+ * protocol-4 updater can't be asked about the other half, so that one is unknown.
+ */
+export function checkManual(s: Pick<ManualSession, "releaseFw" | "fromTag" | "fromFw">, board: ManualBoardRead | null): ManualCheck {
+    const halves: Partial<Record<Hand, ManualHalfState>> = {};
+    const name = (fw: number, tag: string) => (s.fromFw !== null && fw === s.fromFw && s.fromTag ? s.fromTag : tag && !tag.startsWith("build ") && !tag.startsWith("fw version") ? tag : undefined);
+    if (!board) return { halves: { 0: { state: "unknown" }, 1: { state: "unknown" } } };
+    if (!board.updater) {
+        halves[board.usbHand] = { state: "old", tag: name(board.fwVersion, board.legacyLabel ?? board.tag) };
+        halves[(board.usbHand === 0 ? 1 : 0) as Hand] = { state: "unknown" };
+        return { halves };
+    }
+    for (const h of board.halves) {
+        if (!h.answered) halves[h.hand] = { state: "silent" };
+        else if (s.releaseFw === null || h.fwVersion === s.releaseFw) halves[h.hand] = { state: "new" };
+        else halves[h.hand] = { state: "old", tag: name(h.fwVersion, h.tag) };
+    }
+    return { halves };
+}
+
+/** The halves of the install that don't run the release yet, in the install's order. */
+export function manualPending(s: Pick<ManualSession, "only" | "usualHand">, check: ManualCheck): Hand[] {
+    return manualHalves(s.only, s.usualHand).filter((h) => check.halves[h]?.state !== "new");
 }
 
 /**

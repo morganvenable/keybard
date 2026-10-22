@@ -326,6 +326,25 @@ export class FakeSvalboard implements UpdaterTransport {
         this.isConnected = true;
     }
 
+    /**
+     * A person installed a release on one half by hand (RPI-RP2 and a .uf2): it boots the
+     * new image, which resets its settings. The demo and the tests stand in for that with this.
+     */
+    flashByHand(hand: Hand, release: { fwVersion: number; tag: string; protocol?: number; imageId?: string }) {
+        const h = this.halves[hand];
+        h.cfg = { ...h.cfg, fwVersion: release.fwVersion, tag: release.tag, protocol: release.protocol ?? 4, imageId: release.imageId ?? `${release.tag}-${release.fwVersion}-${hand}` };
+        this.session = null;
+        this.held = null;
+        this.latched = null;
+        this.boot(h);
+    }
+
+    /** A half stops answering over the split cable, as firmware without the updater doesn't. */
+    setAnswering(hand: Hand, answering: boolean) {
+        this.halves[hand].alive = answering;
+        this.halves[hand].backAt = null;
+    }
+
     async request(op: number, hand: number, args: ArrayLike<number> = []): Promise<UpdaterReply> {
         this.tick();
         if (!this.isConnected) throw new DisconnectedError();

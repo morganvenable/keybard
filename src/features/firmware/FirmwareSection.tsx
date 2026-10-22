@@ -1,8 +1,9 @@
-// D2: the Firmware page. "This keyboard", the install list (carried releases and
-// Choose a file…), highlights, one primary button, Advanced. Every button opens the sheet.
+// D2: the Firmware card. What each half runs, the newest release with a link to its notes
+// and one button, and the rest (older versions, a .svup file, one half) under
+// "Other versions and files". Every button opens a dialog; nothing installs from here.
 
 import { ChevronRight } from "lucide-react";
-import { useId, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
@@ -26,31 +27,27 @@ export interface FirmwareSectionProps {
 }
 
 const HALF = (h: Hand) => (h === 0 ? "Left half" : "Right half");
-const FILE_ROW = "__file__";
+const link = "font-medium text-kb-primary underline-offset-2 hover:underline";
+const linkButton = `${link} cursor-pointer text-left`;
 
-function buttonLabel(pick: FirmwareReleasePin | null, board: BoardSummary | null, newest: FirmwareReleasePin | null): string {
-    if (!pick) return "Install file";
-    if (board?.updater && board.differ) return "Finish update";
-    if (board?.updater && board.fwVersion === pick.fwVersion && board.tag === pick.tag) return `Reinstall ${pick.tag}`;
-    if (board?.updater && pick.fwVersion > board.fwVersion && pick === newest) return `Update to ${pick.tag}`;
-    return `Install ${pick.tag}`;
+function NotesLink({ release, label }: { release: FirmwareReleasePin; label: string }) {
+    if (!release.notesUrl || PARANOID) return null;
+    return <a className={link} href={release.notesUrl} target="_blank" rel="noreferrer">{label} ↗</a>;
 }
 
 export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true }: FirmwareSectionProps) {
-    const newest = releases[0] ?? null;
-    const installedTag = board?.updater ? board.tag : null;
-    const initial = useMemo(() => {
-        if (paranoid || !releases.length) return FILE_ROW;
-        return (board?.differ && releases.find((r) => r.tag === installedTag)?.tag) || newest!.tag;
-    }, [paranoid, releases, board?.differ, installedTag, newest]);
-    const [selected, setSelected] = useState<string>(initial);
-    const [advanced, setAdvanced] = useState(false);
+    const offered = paranoid ? [] : releases;
+    const newest = offered[0] ?? null;
+    const [more, setMore] = useState(false);
+    const [oneHalf, setOneHalf] = useState(false);
     const [fileError, setFileError] = useState<string | null>(null);
     const [pendingHand, setPendingHand] = useState<Hand | undefined>(undefined);
     const fileInput = useRef<HTMLInputElement>(null);
-    const group = useId();
-    const pick = releases.find((r) => r.tag === selected) ?? null;
-    const boardNewer = !!(board?.updater && newest && board.fwVersion > newest.fwVersion);
+
+    const updater = !!board?.updater;
+    const installed = updater ? offered.find((r) => r.tag === board!.tag && r.fwVersion === board!.fwVersion) ?? null : null;
+    const behind = !!(board && newest && (!updater || board.halves.some((h) => !h.answered || h.fwVersion < newest.fwVersion)));
+    const boardNewer = !!(updater && newest && board!.fwVersion > newest.fwVersion);
 
     const chooseFiles = (onlyHand?: Hand) => {
         setPendingHand(onlyHand);
@@ -68,87 +65,132 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
             if (fileInput.current) fileInput.current.value = "";
         }
     };
-    const primary = () => {
-        if (!board) return onConnect?.();
-        if (!board.updater) return onManual(pick ?? newest);
-        if (!pick) return chooseFiles();
-        onInstall({ kind: "release", release: pick });
+    const install = (r: FirmwareReleasePin, onlyHand?: Hand) => {
+        if (!updater) return onManual(r);
+        if (onlyHand === undefined) onInstall({ kind: "release", release: r });
+        else onInstall({ kind: "release", release: r }, onlyHand);
     };
 
-    let label = buttonLabel(pick, board, newest);
-    if (!board) label = "Connect";
-    else if (!board.updater) label = `Install ${(pick ?? newest)?.tag ?? "by hand"}`;
-    const status = !board ? null : board.updater && board.differ ? "Halves differ" : board.updater && newest && board.halves.every((h) => h.fwVersion >= newest.fwVersion) ? "Up to date" : null;
+    // What the card offers first: connect, finish, the newest release, or a file.
+    let lead: React.ReactNode = null;
+    if (!board) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">Connect a keyboard to see its firmware.</p>
+                {onConnect && <Button variant="kb-primary" onClick={onConnect}>Connect</Button>}
+            </div>
+        );
+    } else if (updater && board.differ) {
+        const target = offered.find((r) => r.tag === board.tag) ?? newest;
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-kb-warn-ink">The halves run different firmware.</p>
+                <Button variant="kb-primary" onClick={() => (target ? install(target) : chooseFiles())}>Finish update</Button>
+            </div>
+        );
+    } else if (behind && newest) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold">{newest.tag} is available</span>
+                    <span className="text-sm"><NotesLink release={newest} label={`What's new in ${newest.tag}`} /></span>
+                </div>
+                <Button variant="kb-primary" onClick={() => install(newest)}>Update to {newest.tag}</Button>
+            </div>
+        );
+    } else if (!updater) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">Keybard installs firmware on this keyboard after one install by hand.</p>
+                <Button variant="kb-primary" onClick={() => onManual(null)}>Install by hand</Button>
+            </div>
+        );
+    } else if (boardNewer) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">Your keyboard runs newer firmware than this Keybard knows.</p>
+                {!paranoid && <Button variant="outline" onClick={() => window.location.reload()}>Reload Keybard</Button>}
+            </div>
+        );
+    } else if (newest) {
+        lead = (
+            <p className="text-sm">
+                Your keyboard has the newest firmware. {installed && <NotesLink release={installed} label={`What's new in ${installed.tag}`} />}
+            </p>
+        );
+    } else if (paranoid) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">Install firmware from a .svup file.</p>
+                <Button variant="kb-primary" onClick={() => chooseFiles()}>Install a .svup file…</Button>
+            </div>
+        );
+    }
+
+    const others = offered.filter((r) => !(behind && r === newest));
+    const oneHalfRelease = installed ?? newest;
 
     return (
         <section aria-labelledby={heading ? "fw-title" : undefined} aria-label={heading ? undefined : "Firmware"} className="flex flex-col gap-4" data-testid="firmware-section">
             {heading && <h2 id="fw-title" className="text-lg font-semibold text-kb-ink">Firmware</h2>}
 
-            <div className="flex flex-col gap-1" aria-label="This keyboard">
-                <h3 className={`text-sm font-semibold ${status === "Halves differ" ? "text-kb-orange" : "text-muted-foreground"}`}>{status ?? "This keyboard"}</h3>
-                {!board && <p className="text-sm">Connect a keyboard to see its firmware.</p>}
-                {board && !board.updater && <p className="text-sm"><span className="font-mono">{board.legacyLabel ?? "Older firmware"}</span></p>}
-                {board?.updater && board.halves.map((h) => {
-                    const stale = board.differ && newest && h.fwVersion !== Math.max(...board.halves.map((x) => x.fwVersion));
-                    return (
-                        <p key={h.hand} className={`flex flex-wrap items-center gap-x-2 text-sm ${stale ? "text-kb-orange" : ""}`} data-half={h.hand}>
-                            <span className="font-medium">{HALF(h.hand)}</span>
-                            {h.answered ? <span className="font-mono">{h.tag}</span> : <span className="text-muted-foreground">not answering</span>}
-                            {h.answered && <span className="text-muted-foreground">· {h.pointing}</span>}
-                            {h.usb && <span className="rounded border border-kb-gray-border px-1 text-[10px] uppercase text-muted-foreground">USB</span>}
-                        </p>
-                    );
-                })}
-                {boardNewer && <p className="text-sm text-muted-foreground">Newer than this Keybard</p>}
-            </div>
-
-            <div className="flex flex-col gap-1" role="radiogroup" aria-label="Install">
-                <h3 className="text-sm font-semibold text-muted-foreground">Install</h3>
-                {!paranoid && releases.map((r, i) => {
-                    const installed = installedTag === r.tag && board?.fwVersion === r.fwVersion;
-                    return (
-                        <label key={r.tag} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${selected === r.tag ? "border-kb-primary" : "border-kb-gray-border"}`}>
-                            <input type="radio" name={group} checked={selected === r.tag} onChange={() => setSelected(r.tag)} />
-                            <span className="font-mono font-medium">{r.tag}</span>
-                            <span className="text-muted-foreground">{installed ? "Installed" : i === 0 ? "Newest" : "Older"}{r.kind === "x" ? " · Prerelease" : ""}</span>
-                            {board && !board.updater && i === 0 && <span className="text-muted-foreground">· One manual install, then updates come from Keybard</span>}
-                            {r.notesUrl && <a className="ml-auto text-kb-primary underline" href={r.notesUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>What's new</a>}
-                        </label>
-                    );
-                })}
-                <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${selected === FILE_ROW ? "border-kb-primary" : "border-kb-gray-border"}`}>
-                    <input type="radio" name={group} checked={selected === FILE_ROW} onChange={() => setSelected(FILE_ROW)} />
-                    <span className="font-medium">Choose a file…</span>
-                </label>
-                <input ref={fileInput} type="file" accept=".svup" multiple hidden data-testid="svup-input" onChange={(e) => void onFiles(e.target.files)} />
-                {fileError && <p role="alert" className="text-sm text-kb-red">{fileError}</p>}
-            </div>
-
-            {pick && pick.highlights.length > 0 && (
-                <ul className="list-disc pl-5 text-sm">{pick.highlights.slice(0, 3).map((h) => <li key={h}>{h}</li>)}</ul>
+            {board && (
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm tabular-nums" aria-label="This keyboard" data-testid="firmware-halves">
+                    {updater ? board.halves.map((h) => {
+                        const stale = board.differ && h.fwVersion !== Math.max(...board.halves.map((x) => x.fwVersion));
+                        return [
+                            <dt key={`t${h.hand}`}>{HALF(h.hand)}</dt>,
+                            <dd key={`d${h.hand}`} data-half={h.hand} className={stale || !h.answered ? "text-kb-warn-ink" : ""}>
+                                {h.answered ? <span className="font-mono">{h.tag}</span> : "didn't answer"}
+                                {h.usb && <span className="text-muted-foreground"> · plugged in</span>}
+                            </dd>,
+                        ];
+                    }) : [
+                        <dt key="t">{HALF(board.usbHand)}</dt>,
+                        <dd key="d" data-half={board.usbHand}>
+                            <span className="font-mono">{board.legacyLabel ?? "older firmware"}</span>
+                            <span className="text-muted-foreground"> · plugged in</span>
+                        </dd>,
+                    ]}
+                </dl>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
-                <Button variant="kb-primary" onClick={primary}>{label}</Button>
-                {boardNewer && !paranoid && <Button variant="outline" onClick={() => window.location.reload()}>Reload</Button>}
-            </div>
+            {lead}
 
-            {board?.updater && (
+            {updater && (
                 <div>
-                    <button type="button" className="flex items-center gap-1 text-sm text-muted-foreground" aria-expanded={advanced} onClick={() => setAdvanced((a) => !a)}>
-                        <ChevronRight className={`h-4 w-4 transition-transform ${advanced ? "rotate-90" : ""}`} aria-hidden /> Advanced
+                    <button type="button" className="flex items-center gap-1 text-sm text-muted-foreground" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+                        <ChevronRight className={`h-4 w-4 transition-transform motion-reduce:transition-none ${more ? "rotate-90" : ""}`} aria-hidden />
+                        Other versions and files
                     </button>
-                    {advanced && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                            {([0, 1] as Hand[]).map((h) => (
-                                <Button key={h} size="sm" variant="outline" onClick={() => (pick ? onInstall({ kind: "release", release: pick }, h) : chooseFiles(h))}>
-                                    Update {h === 0 ? "left" : "right"} half…
-                                </Button>
+                    {more && (
+                        <ul className="mt-2 flex flex-col gap-2 pl-5 text-sm" data-testid="firmware-more">
+                            {others.map((r) => (
+                                <li key={r.tag} className="flex flex-wrap items-baseline gap-x-2">
+                                    <button type="button" className={linkButton} onClick={() => install(r)}>{r === installed ? `Reinstall ${r.tag}` : `Install ${r.tag}`}</button>
+                                    {r === installed && <span className="text-muted-foreground">· installed</span>}
+                                    {r.notesUrl && !paranoid && <span className="text-muted-foreground">· <NotesLink release={r} label="What's new" /></span>}
+                                </li>
                             ))}
-                        </div>
+                            <li><button type="button" className={linkButton} onClick={() => chooseFiles()}>Install a .svup file…</button></li>
+                            <li className="flex flex-col gap-1.5">
+                                <button type="button" className={linkButton} aria-expanded={oneHalf} onClick={() => setOneHalf((o) => !o)}>Update one half only…</button>
+                                {oneHalf && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {([0, 1] as Hand[]).map((h) => (
+                                            <Button key={h} size="sm" variant="outline" onClick={() => (oneHalfRelease ? install(oneHalfRelease, h) : chooseFiles(h))}>
+                                                {HALF(h)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                )}
+                            </li>
+                        </ul>
                     )}
                 </div>
             )}
+            <input ref={fileInput} type="file" accept=".svup" multiple hidden data-testid="svup-input" onChange={(e) => void onFiles(e.target.files)} />
+            {fileError && <p role="alert" className="text-sm text-kb-red">{fileError}</p>}
         </section>
     );
 }

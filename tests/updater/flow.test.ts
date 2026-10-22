@@ -29,7 +29,7 @@ const pin = (r: FixtureRelease): FirmwareReleasePin => ({
         left: { svup: "left.svup", uf2: "left.uf2", sha256: r.files[L].sha256, size: r.files[L].bytes.length, pid: 0x4044 },
         right: { svup: "right.svup", uf2: "right.uf2", sha256: r.files[R].sha256, size: r.files[R].bytes.length, pid: 0x4045 },
     },
-    highlights: [], notesUrl: "",
+    notesUrl: "",
 });
 
 interface RunOptions {
@@ -210,7 +210,7 @@ describe("the sheet's checks", () => {
         bad.files.left.sha256 = "0".repeat(64);
         const p = await planInstall(new UpdaterClient(board), { kind: "release", release: bad, files: x32.files }, { clock, releases: [bad] }) as Plan;
         expect(p.refusal?.id).toBe("integrity");
-        expect(p.refusal?.label).toBe("Firmware file failed its check");
+        expect(p.refusal?.label).toBe("The firmware file failed its check.");
     });
 
     it("warns about an unknown file, a developer build and an older release, and reads the right title", async () => {
@@ -236,7 +236,7 @@ describe("the sheet's checks", () => {
         const { plan: p } = await plan({ setup: { faults: [{ kind: "other-silent" }] } });
         expect((p as Plan).target).toBe(R);
         expect((p as Plan).otherSilent).toBe(true);
-        expect((p as Plan).warnings.map((w) => w.label)).toContain("Left half not answering");
+        expect((p as Plan).warnings.map((w) => w.label)).toContain("The left half isn't answering.");
     });
 
     it("refuses a developer file on a release board (the firmware would)", async () => {
@@ -251,7 +251,7 @@ describe("the sheet's checks", () => {
         expect(keep[0].keepSettings).toBe(true);
         const { board } = fakeSetup({ clock, running: v3, release: true });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: keep }, { clock }) as Plan;
-        expect(p.refusal?.detail).toMatch(/developer file/);
+        expect(p.refusal?.detail).toMatch(/developer file/i);
     });
 
     it("accepts an other half on updater protocol 3 or 4, never 2", async () => {
@@ -269,8 +269,8 @@ describe("the sheet's checks", () => {
         const damaged = await loadSvup(bytes);
         const { board } = fakeSetup({ clock, running: v3 });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [damaged, x32.files[R]] }, { clock }) as Plan;
-        expect(p.refusal).toMatchObject({ id: "file-damaged", label: "Firmware file is damaged" });
-        expect(p.refusal?.detail).toMatch(/Download the file again/);
+        expect(p.refusal).toMatchObject({ id: "file-damaged", label: "This firmware file is damaged." });
+        expect(p.refusal?.detail).toMatch(/Download it again/);
         expect(p.refusal?.detail).not.toMatch(/Reload/);
     });
 
@@ -280,11 +280,11 @@ describe("the sheet's checks", () => {
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: p3 }, { clock }) as Plan;
         expect(p.refusal).toBeNull();
         const usbWarn = p.warnings.find((w) => w.id === `updater-protocol-${R}`);
-        expect(usbWarn?.label).toBe("Older updater in this file (protocol 3)");
+        expect(usbWarn?.label).toBe("This file has an older updater.");
         expect(usbWarn?.detail).toMatch(/installs by hand/);
         const p5 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x3.2", updaterProto: 5 }))));
         const q = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: p5 }, { clock }) as Plan;
-        expect(q.warnings.map((w) => w.label)).toContain("Newer updater in this file (protocol 5)");
+        expect(q.warnings.map((w) => w.label)).toContain("This file has a newer updater than this Keybard knows.");
         const same = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [x32.files[L], x32.files[R]] }, { clock }) as Plan;
         expect(same.warnings.some((w) => w.id.startsWith("updater-protocol"))).toBe(false);
     });

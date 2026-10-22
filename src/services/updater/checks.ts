@@ -70,7 +70,8 @@ export interface CheckOptions {
     hostRows?: CheckRow[];
 }
 
-const HAND_LABEL = (h: number) => `${handName(h) === "left" ? "Left" : "Right"} half`;
+/** "it's too large for this keyboard" as a sentence. */
+const sentence = (why: string) => `${why[0].toUpperCase()}${why.slice(1)}.`;
 
 /** Read what the board runs: INFO of both halves, the tag, presence. ABORTs a latched error first. */
 export async function readBoard(client: UpdaterClient, clock: Clock): Promise<BoardState | PreFailure> {
@@ -122,8 +123,8 @@ function assignFiles(source: InstallSource): { files: Partial<Record<Hand, SvupF
     const problems: CheckRow[] = [];
     for (const f of source.files) {
         const h = f.manifest.hand === 0 || f.manifest.hand === 1 ? (f.manifest.hand as Hand) : null;
-        if (h === null) problems.push({ id: "file-hand", label: "File names no hand", state: "refuse", detail: "Keybard can't tell which half it's for." });
-        else if (files[h]) problems.push({ id: "file-twice", label: `Two files for the ${handName(h)} hand`, state: "refuse", detail: "Choose one file per half." });
+        if (h === null) problems.push({ id: "file-hand", label: "This file doesn't say which half it's for.", state: "refuse", detail: "Choose a Svalboard firmware file." });
+        else if (files[h]) problems.push({ id: "file-twice", label: `There are two files for the ${handName(h)} half.`, state: "refuse", detail: "Choose one file per half." });
         else files[h] = f;
     }
     return { files, problems };
@@ -164,14 +165,14 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     if (o.onlyHand !== undefined) target = o.onlyHand;
     else if (files[usbHand] && files[oHand]) target = otherSilent ? usbHand : "both";
     else target = files[usbHand] ? usbHand : oHand;
-    if (target === oHand && otherSilent) refusal ??= { id: "other-silent", label: `${HAND_LABEL(oHand)} not answering`, state: "refuse", detail: "Check the split cable." };
+    if (target === oHand && otherSilent) refusal ??= { id: "other-silent", label: `The ${handName(oHand)} half isn't answering.`, state: "refuse", detail: "Check the split cable, then try again." };
 
     const halves: Hand[] = target === "both" ? [oHand, usbHand] : [target];
-    for (const h of halves) if (!files[h]) refusal ??= { id: `missing-${h}`, label: `No file for the ${handName(h)} half`, state: "refuse", detail: "Choose a file for that half." };
+    for (const h of halves) if (!files[h]) refusal ??= { id: `missing-${h}`, label: `There's no file for the ${handName(h)} half.`, state: "refuse", detail: "Choose a file for that half." };
 
     // Connection
     checks.push(otherSilent
-        ? { id: "connected", label: `${HAND_LABEL(oHand)} not answering`, state: "warn", detail: "Check the split cable." }
+        ? { id: "connected", label: `The ${handName(oHand)} half isn't answering.`, state: "warn", detail: `Check the split cable, or update the ${handName(usbHand)} half on its own.` }
         : { id: "connected", label: "Both halves connected", state: "ok" });
     if (otherSilent && target === usbHand && o.onlyHand === undefined && files[oHand]) warnings.push(checks[checks.length - 1]);
 
@@ -194,15 +195,15 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     // A chosen file that is damaged: get it again. A carried file that misses its pin: reload Keybard.
     const damagedFile = source.kind === "file" && halves.some((h) => files[h] && !files[h]!.imageHashOk);
     if (damagedFile) {
-        refusal = { id: "file-damaged", label: "Firmware file is damaged", state: "refuse", detail: "Keybard won't install it. Download the file again, then choose it." };
+        refusal = { id: "file-damaged", label: "This firmware file is damaged.", state: "refuse", detail: "Download it again, then choose it." };
         checks.push(refusal);
     } else if (!integrityOk) {
-        refusal = { id: "integrity", label: "Firmware file failed its check", state: "refuse", detail: "Keybard won't install it. Reload Keybard and try again." };
+        refusal = { id: "integrity", label: "The firmware file failed its check.", state: "refuse", detail: "Keybard won't install it. Reload Keybard and try again." };
         checks.push(refusal);
     } else {
         checks.push({ id: "files", label: "Firmware files verified", state: "ok" });
     }
-    if (source.kind === "file" && !pinned) warnings.push({ id: "unknown-file", label: "Unknown firmware file", state: "warn", detail: "Keybard can't check where it came from." });
+    if (source.kind === "file" && !pinned) warnings.push({ id: "unknown-file", label: "Keybard can't check where this file came from.", state: "warn", detail: "Install it only if you trust where you got it." });
 
     // What each half would refuse (checked on the device too, at the pair ARM).
     for (const h of halves) {
@@ -210,12 +211,12 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         const info = h === usbHand ? board.usb : board.other;
         if (!f || !info) continue;
         const why = refusalFor(f, info, h !== usbHand);
-        if (why) refusal ??= { id: `refused-${h}`, label: `The ${handName(h)} half won't accept this file`, state: "refuse", detail: `Keybard won't install it: ${why}.` };
+        if (why) refusal ??= { id: `refused-${h}`, label: `The ${handName(h)} half won't accept this file.`, state: "refuse", detail: `${sentence(why)} Choose another file.` };
     }
     // The USB half checks the other half's file and its own at the pair ARM; check its own against itself too.
     if (target === "both" && files[usbHand]) {
         const why = refusalFor(files[usbHand]!, board.usb, false);
-        if (why) refusal ??= { id: `refused-${usbHand}`, label: `The ${handName(usbHand)} half won't accept this file`, state: "refuse", detail: `Keybard won't install it: ${why}.` };
+        if (why) refusal ??= { id: `refused-${usbHand}`, label: `The ${handName(usbHand)} half won't accept this file.`, state: "refuse", detail: `${sentence(why)} Choose another file.` };
     }
 
     // Warnings, never refusals (D33).
@@ -223,18 +224,18 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         const f = files[h];
         const info = h === usbHand ? board.usb : board.other;
         if (!f || !info) continue;
-        if (f.manifest.hand !== h) warnings.push({ id: `hand-${h}`, label: `File is for the ${handName(f.manifest.hand)} hand`, state: "warn", detail: `On the ${handName(h)} half, the halves stop working together.` });
+        if (f.manifest.hand !== h) warnings.push({ id: `hand-${h}`, label: `This file is for the ${handName(f.manifest.hand)} half.`, state: "warn", detail: `On the ${handName(h)} half, the halves stop working together. Choose the ${handName(h)} half's file instead.` });
         if (f.manifest.pointingId !== POINTING_AUTO && f.manifest.pointingId !== info.pointingId) {
             const module = POINTING_NAMES[info.pointingId] ?? "pointing module";
-            warnings.push({ id: `pointing-${h}`, label: `No ${module.toLowerCase()} driver in this file`, state: "warn", detail: `Pointing stops on the ${handName(h)} half.` });
+            warnings.push({ id: `pointing-${h}`, label: `This file has no ${module.toLowerCase()} driver.`, state: "warn", detail: `Pointing stops working on the ${handName(h)} half.` });
         }
     }
     const lead = files[target === "both" ? usbHand : target]!;
     if (lead && lead.manifest.fwVersion < board.usb.fwVersion) {
-        warnings.push({ id: "older", label: `${lead.manifest.tag || "This file"} is older than ${board.usbTag || "what's installed"}`, state: "warn", detail: `Settings added since ${lead.manifest.tag || "it"} won't come back.` });
+        warnings.push({ id: "older", label: `${lead.manifest.tag || "This file"} is older than ${board.usbTag || "what's installed"}.`, state: "warn", detail: `Settings added since ${lead.manifest.tag || "it"} won't come back.` });
     }
     if (source.kind === "release" && o.maxSvalProtocol !== undefined && (source.release.svalProtocol ?? 0) > o.maxSvalProtocol) {
-        warnings.push({ id: "sval-protocol", label: "Keybard may not configure this firmware", state: "warn", detail: "You can still install it." });
+        warnings.push({ id: "sval-protocol", label: "This Keybard may not be able to edit this firmware.", state: "warn", detail: "You can still install it. Reload Keybard afterward to get a newer one." });
     }
     // The file's updater protocol (manifest byte 15) against the board's: warn, never refuse.
     for (const h of halves) {
@@ -246,12 +247,12 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
         // (Keybard installs only through protocol 4 there); the other half is updated through the
         // relay on protocol 3 or 4, so only an older one matters there.
         const manualAfter = h === usbHand ? proto < UPDATER_PROTOCOL : proto < 3;
-        if (proto < info.protocol && manualAfter) warnings.push({ id: `updater-protocol-${h}`, label: `Older updater in this file (protocol ${proto})`, state: "warn", detail: "Afterwards, Keybard can't update this keyboard: later firmware installs by hand, until a manual install of a newer release." });
-        else if (proto < info.protocol) warnings.push({ id: `updater-protocol-${h}`, label: `Older updater in this file (protocol ${proto})`, state: "warn", detail: `The ${handName(h)} half goes back to protocol ${proto}.` });
+        if (proto < info.protocol && manualAfter) warnings.push({ id: `updater-protocol-${h}`, label: "This file has an older updater.", state: "warn", detail: "Afterward, Keybard can't update this keyboard. Later firmware installs by hand." });
+        else if (proto < info.protocol) warnings.push({ id: `updater-protocol-${h}`, label: "This file has an older updater.", state: "warn", detail: `The ${handName(h)} half goes back to updater protocol ${proto}.` });
         // Newer than this Keybard speaks: the next update may need a newer Keybard.
-        else if (proto > UPDATER_PROTOCOL) warnings.push({ id: `updater-protocol-${h}`, label: `Newer updater in this file (protocol ${proto})`, state: "warn", detail: "This Keybard may not install firmware on the keyboard afterwards." });
+        else if (proto > UPDATER_PROTOCOL) warnings.push({ id: `updater-protocol-${h}`, label: "This file has a newer updater than this Keybard knows.", state: "warn", detail: "Afterward, reload Keybard to get a newer one before the next update." });
     }
-    if (halves.some((h) => files[h]?.noChord)) warnings.push({ id: "developer", label: "Developer build", state: "warn", detail: "Later installs on this keyboard won't ask for approval." });
+    if (halves.some((h) => files[h]?.noChord)) warnings.push({ id: "developer", label: "This is a developer build.", state: "warn", detail: "Later updates on this keyboard start without a key press on the keyboard." });
     for (const row of o.hostRows ?? []) {
         checks.push(row);
         if (row.state === "warn") warnings.push(row);
