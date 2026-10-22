@@ -1,5 +1,5 @@
 // Development only (?fwfake=1): Settings > Firmware against the mock board, as the harness
-// runs it. &running=v3|x4|v2  &nochord=1  &fault=...  &speed=4  &differ=1
+// runs it. &running=v3|x3.2|v2  &nochord=1  &fault=...  &speed=4  &differ=1
 // &proto=3: a board on updater protocol 3, which Keybard installs on only by hand
 // (&running=x3.1.3 names what it runs).
 
@@ -36,12 +36,12 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
         const params = new URLSearchParams(location.search);
         void (async () => {
             const size = 0x1e000;
-            const v2 = await fixtureRelease("v2", 2000, { imageLen: size });
-            const v3 = await fixtureRelease("v3", 3000, { imageLen: size });
-            const x4 = await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
-            // Another tag names a board that runs it (e.g. &proto=3&running=x3.1.3), at version 2301.
+            const v2 = await fixtureRelease("v2", 7, { imageLen: size });
+            const v3 = await fixtureRelease("v3", 8, { imageLen: size });
+            const x32 = await fixtureRelease("x3.2", 9, { imageLen: size, noChord: params.has("nochord") });
+            // Another tag names a board that runs it (e.g. &proto=3&running=x3.1.3), at version 8.
             const asked = params.get("running");
-            const running = asked === "x4" ? x4 : asked === "v2" ? v2 : asked && asked !== "v3" ? { tag: asked, fwVersion: 2301 } : v3;
+            const running = asked === "x3.2" ? x32 : asked === "v2" ? v2 : asked && asked !== "v3" ? { tag: asked, fwVersion: 8 } : v3;
             const clock = new ScaledClock(Number(params.get("speed") ?? 4));
             const f = params.get("fault");
             const faults: Fault[] = !f ? [] : f.startsWith("unplug-") ? [{ kind: "unplug", at: f.slice(7) as "other-send" }] : [{ kind: f } as Fault];
@@ -51,8 +51,8 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
                 half: params.get("proto") === "3" ? { protocol: 3 } : undefined,
             });
             const host = new DevFakeHost(board, clock);
-            const releases = [pinOf(x4, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
-            setReady({ host, releases, byTag: { v2, v3, x4 } });
+            const releases = [pinOf(x32, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
+            setReady({ host, releases, byTag: { v2, v3, [x32.tag]: x32 } });
         })();
     }, []);
     const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board) : null), [ready]);

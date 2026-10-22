@@ -20,8 +20,8 @@ import { VirtualClock } from "@/services/updater/transport";
 vi.mock("@/lib/paranoid", () => ({ PARANOID: false, userIsLooking: () => true }));
 
 const release: FirmwareReleasePin = {
-    tag: "x4", kind: "x", fwVersion: 4000, updaterProtocol: 4,
-    files: { left: { svup: "l.svup", uf2: "left-x4.uf2", sha256: "l", size: 1, pid: 0x4044 }, right: { svup: "r.svup", uf2: "right-x4.uf2", sha256: "r", size: 1, pid: 0x4045 } },
+    tag: "x3.2", kind: "x", fwVersion: 4000, updaterProtocol: 4,
+    files: { left: { svup: "l.svup", uf2: "left-x3.2.uf2", sha256: "l", size: 1, pid: 0x4044 }, right: { svup: "r.svup", uf2: "right-x3.2.uf2", sha256: "r", size: 1, pid: 0x4045 } },
     highlights: [], notesUrl: "",
 };
 
@@ -45,7 +45,7 @@ function setup(o: { restoreFails?: boolean; trimmed?: string[] } = {}) {
 function Editor({ host, store, connectionKey }: { host: Host; store: ManualStore; connectionKey: string | null }) {
     const m = useManualInstall(host, { connectionKey, fromTag: "x3.1.3", store });
     const s = m.session;
-    if (!s) return <button onClick={() => m.open(release)}>Install x4</button>;
+    if (!s) return <button onClick={() => m.open(release)}>Install x3.2</button>;
     return (
         <ManualInstall
             release={release} usualHand={s.usualHand} backup={s.backup} afterwards={s.afterwards}
@@ -60,7 +60,7 @@ const radio = (name: string) => screen.getByRole("radio", { name }) as HTMLInput
 
 describe("the manual install's state", () => {
     it("is ready only on another connection than the one it opened on, with every half's step done", () => {
-        const s = newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true });
+        const s = newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true });
         expect(s.afterwards).toBe("restore");
         expect(s.backup).toEqual({ state: "pending" });
         expect(manualReady(s, "p:1")).toBe(false);
@@ -81,7 +81,7 @@ describe("the manual install's state", () => {
     it("Keep my layout puts the backup back, then clears the reset notice last", async () => {
         const { board, host } = setup();
         board.storageFlags = 0x04;
-        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
+        const s = { ...newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
         expect(await runManualAfterwards(host, s)).toEqual({ layout: "restored", trimmed: [] });
         expect(host.events).toEqual(["restore", "flags:4", "0x2A"]);
         expect(board.storageFlags & 0x04).toBe(0);
@@ -89,7 +89,7 @@ describe("the manual install's state", () => {
 
     it("the default layout writes nothing; with no reset notice there's nothing to clear", async () => {
         const { host } = setup();
-        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
+        const s = { ...newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
         expect(await runManualAfterwards(host, s)).toEqual({ layout: "defaults", trimmed: [] });
         expect(host.restores).toBe(0);
         expect(host.clears).toBe(0);
@@ -99,7 +99,7 @@ describe("the manual install's state", () => {
         sessionStorage.clear();
         expect(manualOwnsResetNotice()).toBe(false);
         const store = sessionManualStore(sessionStorage);
-        store.save(newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }));
+        store.save(newManualSession({ releaseTag: "x3.2", openKey: "p:1", connected: true }));
         expect(sessionStorage.getItem(MANUAL_KEY)).toBeTruthy();
         expect(manualOwnsResetNotice()).toBe(true);
         expect(updateOwnsResetNotice()).toBe(true);
@@ -115,7 +115,7 @@ describe("Install by hand from Settings > Firmware", () => {
         const { host } = setup();
         const store = sessionManualStore(sessionStorage);
         const view = render(<Editor host={host} store={store} connectionKey="p:1" />);
-        fireEvent.click(screen.getByRole("button", { name: "Install x4" }));
+        fireEvent.click(screen.getByRole("button", { name: "Install x3.2" }));
 
         // The backup, as the in-app install's sheet takes one.
         await waitFor(() => expect(screen.getByText("Kip-x3.1.3-2026-10-21.svil")).toBeTruthy());
@@ -144,7 +144,7 @@ describe("Install by hand from Settings > Firmware", () => {
         const { host } = setup();
         const store = memoryManualStore();
         const view = render(<Editor host={host} store={store} connectionKey="p:1" />);
-        fireEvent.click(screen.getByRole("button", { name: "Install x4" }));
+        fireEvent.click(screen.getByRole("button", { name: "Install x3.2" }));
         await waitFor(() => expect(radio("Keep my layout").disabled).toBe(false));
         fireEvent.click(radio("Reset to the default layout"));
         expect(radio("Reset to the default layout").checked).toBe(true);
@@ -160,7 +160,7 @@ describe("Install by hand from Settings > Firmware", () => {
         const { host } = setup();
         host.failBackup = true;
         render(<Editor host={host} store={memoryManualStore()} connectionKey="p:1" />);
-        fireEvent.click(screen.getByRole("button", { name: "Install x4" }));
+        fireEvent.click(screen.getByRole("button", { name: "Install x3.2" }));
         await waitFor(() => expect(screen.getByText("Layout not saved")).toBeTruthy());
         expect(screen.getByText(/Disk full\. Switched to Reset to the default layout\./)).toBeTruthy();
         expect(radio("Keep my layout").disabled).toBe(true);
@@ -171,7 +171,7 @@ describe("Install by hand from Settings > Firmware", () => {
         const { host } = setup({ restoreFails: true });
         const store = memoryManualStore();
         const view = render(<Editor host={host} store={store} connectionKey="p:1" />);
-        fireEvent.click(screen.getByRole("button", { name: "Install x4" }));
+        fireEvent.click(screen.getByRole("button", { name: "Install x3.2" }));
         await waitFor(() => expect(radio("Keep my layout").disabled).toBe(false));
         for (const next of screen.getAllByRole("button", { name: "Next" })) fireEvent.click(next);
         await act(async () => { view.rerender(<Editor host={host} store={store} connectionKey="p:2" />); });

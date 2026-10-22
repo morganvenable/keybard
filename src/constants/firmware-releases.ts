@@ -25,7 +25,7 @@ export interface ReleaseFilePin {
 }
 
 export interface FirmwareReleasePin {
-    /** The release tag: v3, v3.1, x4 ... */
+    /** The release tag: v3, v3.1, x3.2 ... */
     tag: string;
     kind: ReleaseKind;
     fwVersion: number;

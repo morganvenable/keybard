@@ -1,6 +1,6 @@
 // Dev-only harness for the firmware flow, before Settings hosts it (M3).
 //   ?fake=1 (default)  the mock board: &fault=held-lapse|not-confirmed|unplug-other-send|...
-//                      &nochord=1  &running=v3|x4  &usb=left|right  &speed=4
+//                      &nochord=1  &running=v3|x3.2  &usb=left|right  &speed=4
 //   ?real=1            the keyboard over WebHID (Connect), with the app's backup and restore
 //   ?gallery=1         every screen at once, for review screenshots
 //   &theme=dark        dark mode
@@ -117,18 +117,18 @@ function FakeHarness() {
     useEffect(() => {
         void (async () => {
             const size = 0x1e000; // a release image's size
-            const v2 = await fixtureRelease("v2", 2000, { imageLen: size });
-            const v3 = await fixtureRelease("v3", 3000, { imageLen: size });
-            const x4 = await fixtureRelease("x4", 4000, { imageLen: size, noChord: params.has("nochord") });
-            const running = params.get("running") === "x4" ? x4 : params.get("running") === "v2" ? v2 : v3;
+            const v2 = await fixtureRelease("v2", 7, { imageLen: size });
+            const v3 = await fixtureRelease("v3", 8, { imageLen: size });
+            const x32 = await fixtureRelease("x3.2", 9, { imageLen: size, noChord: params.has("nochord") });
+            const running = params.get("running") === "x3.2" ? x32 : params.get("running") === "v2" ? v2 : v3;
             const clock = new ScaledClock(Number(params.get("speed") ?? 4));
             const { board: fake } = fakeSetup({
                 clock, running, noChord: params.has("nochord"), faults: parseFaults(), usbHand: params.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
                 chordAfterMs: params.get("chord") === "never" ? "never" : 3000,
             });
             const host = new HarnessFakeHost(fake, clock);
-            const releases = [pinOf(x4, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
-            setReady({ host, releases, byTag: { v2, v3, x4 } });
+            const releases = [pinOf(x32, ["One hold approves both halves", "Settings come back after every install", "Faster trackball start"]), pinOf(v3, ["Layer colors per half"])];
+            setReady({ host, releases, byTag: { v2, v3, [x32.tag]: x32 } });
         })();
     }, []);
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);

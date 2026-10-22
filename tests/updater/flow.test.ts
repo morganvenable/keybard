@@ -13,14 +13,14 @@ const L = HAND_LEFT;
 const R = HAND_RIGHT;
 let clock: VirtualClock;
 let v3: FixtureRelease;
-let x4: FixtureRelease;
+let x32: FixtureRelease;
 let dev: FixtureRelease;
 
 beforeEach(async () => {
     clock = new VirtualClock();
     v3 ??= await fixtureRelease("v3", 3000);
-    x4 ??= await fixtureRelease("x4", 4000);
-    dev ??= await fixtureRelease("x4", 4000, { noChord: true });
+    x32 ??= await fixtureRelease("x3.2", 4000);
+    dev ??= await fixtureRelease("x3.2", 4000, { noChord: true });
 });
 
 const pin = (r: FixtureRelease): FirmwareReleasePin => ({
@@ -42,8 +42,8 @@ interface RunOptions {
 
 async function plan(o: RunOptions = {}) {
     const { board, host } = fakeSetup({ clock, running: v3, ...o.setup });
-    const release = o.release ?? x4;
-    const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(release), files: release.files }, { clock, onlyHand: o.onlyHand, releases: [pin(v3), pin(x4)] });
+    const release = o.release ?? x32;
+    const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(release), files: release.files }, { clock, onlyHand: o.onlyHand, releases: [pin(v3), pin(x32)] });
     return { board, host, plan: p };
 }
 
@@ -70,7 +70,7 @@ describe("the install flow", () => {
         expect(board.chordRequests).toBe(1);
         expect(board.halves[L].cfg.fwVersion).toBe(4000);
         expect(board.halves[R].cfg.fwVersion).toBe(4000);
-        expect(state.result).toMatchObject({ tags: { 0: "x4", 1: "x4" }, layout: "restored" });
+        expect(state.result).toMatchObject({ tags: { 0: "x3.2", 1: "x3.2" }, layout: "restored" });
         expect(host.restores).toBe(1);
         expect(host.events[host.events.length - 1]).toBe("0x2A");
         expect(state.sent2A).toBe(true);
@@ -91,7 +91,7 @@ describe("the install flow", () => {
     it("P4-14 / P4-25 a lapsed held approval stops on F9 and never asks for a second chord", async () => {
         const { board, state } = await run({ setup: { faults: [{ kind: "held-lapse" }] } });
         expect(state.phase).toBe("failed");
-        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x4", 1: "v3" } });
+        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x3.2", 1: "v3" } });
         expect(state.approvalsAsked).toBe(1);
         expect(board.chordRequests).toBe(1);
         expect(board.halves[R].cfg.fwVersion).toBe(3000);
@@ -114,11 +114,11 @@ describe("the install flow", () => {
     });
 
     it("finishes a stopped update: the other half alone brings the halves together", async () => {
-        const { board, state } = await run({ onlyHand: L, setup: { otherRunning: { tag: "v3", fwVersion: 3000 }, running: x4 }, release: x4 });
+        const { board, state } = await run({ onlyHand: L, setup: { otherRunning: { tag: "v3", fwVersion: 3000 }, running: x32 }, release: x32 });
         expect(board.halves[L].cfg.fwVersion).toBe(4000);
         expect(state.phase).toBe("result");
         expect(state.approvalsAsked).toBe(1);
-        expect(state.result?.tags).toEqual({ 0: "x4", 1: "x4" });
+        expect(state.result?.tags).toEqual({ 0: "x3.2", 1: "x3.2" });
         expect(board.chordRequests).toBe(1);
     });
 
@@ -154,13 +154,13 @@ describe("the install flow", () => {
 
     it("F9 unplugged after the other half installed", async () => {
         const { state } = await run({ setup: { faults: [{ kind: "unplug", at: "self-send" }] } });
-        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x4", 1: "v3" } });
+        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x3.2", 1: "v3" } });
         expectOneChordAtMost(state);
     });
 
     it("P4-32 the other half doesn't come back after its install: stop before the half with USB (F9)", async () => {
         const { board, state } = await run({ setup: { faults: [{ kind: "other-no-return" }] } });
-        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x4", 1: "v3" } });
+        expect(state.failure).toMatchObject({ id: "F9", tags: { 0: "x3.2", 1: "v3" } });
         expect(state.failure?.detail).toMatch(/left half didn't answer after its install, so Keybard stopped before the right half/);
         // The half with USB was never armed and still runs its old release.
         expect(state.committed).toEqual([L]);
@@ -206,19 +206,19 @@ describe("the install flow", () => {
 describe("the sheet's checks", () => {
     it("F2 refuses a carried file that misses its pin", async () => {
         const { board } = fakeSetup({ clock, running: v3 });
-        const bad = pin(x4);
+        const bad = pin(x32);
         bad.files.left.sha256 = "0".repeat(64);
-        const p = await planInstall(new UpdaterClient(board), { kind: "release", release: bad, files: x4.files }, { clock, releases: [bad] }) as Plan;
+        const p = await planInstall(new UpdaterClient(board), { kind: "release", release: bad, files: x32.files }, { clock, releases: [bad] }) as Plan;
         expect(p.refusal?.id).toBe("integrity");
         expect(p.refusal?.label).toBe("Firmware file failed its check");
     });
 
     it("warns about an unknown file, a developer build and an older release, and reads the right title", async () => {
-        const { board } = fakeSetup({ clock, running: x4 });
-        const older = await planInstall(new UpdaterClient(board), { kind: "file", files: [v3.files[L], v3.files[R]] }, { clock, releases: [pin(v3), pin(x4)] }) as Plan;
+        const { board } = fakeSetup({ clock, running: x32 });
+        const older = await planInstall(new UpdaterClient(board), { kind: "file", files: [v3.files[L], v3.files[R]] }, { clock, releases: [pin(v3), pin(x32)] }) as Plan;
         expect(older.title).toBe("Install v3");
         expect(older.warnings.map((w) => w.id)).toContain("older");
-        const devPlan = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [dev.files[L], dev.files[R]] }, { clock, releases: [pin(v3), pin(x4)] }) as Plan;
+        const devPlan = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [dev.files[L], dev.files[R]] }, { clock, releases: [pin(v3), pin(x32)] }) as Plan;
         expect(devPlan.title).toBe("Install custom firmware");
         expect(devPlan.warnings.map((w) => w.id)).toEqual(expect.arrayContaining(["unknown-file", "developer"]));
         expect(devPlan.refusal).toBeNull();
@@ -228,7 +228,7 @@ describe("the sheet's checks", () => {
         const { plan: re } = await plan({ release: v3 });
         expect((re as Plan).title).toBe("Reinstall v3");
         const { plan: up } = await plan();
-        expect((up as Plan).title).toBe("Update to x4");
+        expect((up as Plan).title).toBe("Update to x3.2");
         expect((up as Plan).target).toBe("both");
     });
 
@@ -240,14 +240,14 @@ describe("the sheet's checks", () => {
     });
 
     it("refuses a developer file on a release board (the firmware would)", async () => {
-        const diag = await fixtureRelease("x4", 4000, { flags: 0x2 });
+        const diag = await fixtureRelease("x3.2", 4000, { flags: 0x2 });
         const { board } = fakeSetup({ clock, running: v3, release: true });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [diag.files[L], diag.files[R]] }, { clock }) as Plan;
         expect(p.refusal?.label).toMatch(/won't accept this file/);
     });
 
     it("D45 refuses a kept-settings build (build-info 0x80) on a release board before sending it", async () => {
-        const keep = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", buildFlags: 0x80 }))));
+        const keep = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x3.2", buildFlags: 0x80 }))));
         expect(keep[0].keepSettings).toBe(true);
         const { board } = fakeSetup({ clock, running: v3, release: true });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: keep }, { clock }) as Plan;
@@ -258,34 +258,34 @@ describe("the sheet's checks", () => {
         for (const [proto, refused] of [[2, true], [3, false], [4, false]] as const) {
             const { board } = fakeSetup({ clock, running: v3 });
             board.halves[L].cfg.protocol = proto;
-            const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(x4), files: x4.files }, { clock, releases: [pin(x4)] }) as Plan;
+            const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(x32), files: x32.files }, { clock, releases: [pin(x32)] }) as Plan;
             expect(p.refusal?.id === `refused-${L}`).toBe(refused);
         }
     });
 
     it("a damaged chosen file says to get the file again, not to reload", async () => {
-        const bytes = x4.files[L].bytes.slice();
+        const bytes = x32.files[L].bytes.slice();
         bytes[bytes.length - 1] ^= 0xff;
         const damaged = await loadSvup(bytes);
         const { board } = fakeSetup({ clock, running: v3 });
-        const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [damaged, x4.files[R]] }, { clock }) as Plan;
+        const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [damaged, x32.files[R]] }, { clock }) as Plan;
         expect(p.refusal).toMatchObject({ id: "file-damaged", label: "Firmware file is damaged" });
         expect(p.refusal?.detail).toMatch(/Download the file again/);
         expect(p.refusal?.detail).not.toMatch(/Reload/);
     });
 
     it("warns, never refuses, when a file's updater protocol differs from the board's", async () => {
-        const p3 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", updaterProto: 3 }))));
+        const p3 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x3.2", updaterProto: 3 }))));
         const { board } = fakeSetup({ clock, running: v3 });
         const p = await planInstall(new UpdaterClient(board), { kind: "file", files: p3 }, { clock }) as Plan;
         expect(p.refusal).toBeNull();
         const usbWarn = p.warnings.find((w) => w.id === `updater-protocol-${R}`);
         expect(usbWarn?.label).toBe("Older updater in this file (protocol 3)");
         expect(usbWarn?.detail).toMatch(/installs by hand/);
-        const p5 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x4", updaterProto: 5 }))));
+        const p5 = await Promise.all([L, R].map(async (hand) => loadSvup(await buildSvup({ hand, fwVersion: 4000, tag: "x3.2", updaterProto: 5 }))));
         const q = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: p5 }, { clock }) as Plan;
         expect(q.warnings.map((w) => w.label)).toContain("Newer updater in this file (protocol 5)");
-        const same = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [x4.files[L], x4.files[R]] }, { clock }) as Plan;
+        const same = await planInstall(new UpdaterClient(fakeSetup({ clock, running: v3 }).board), { kind: "file", files: [x32.files[L], x32.files[R]] }, { clock }) as Plan;
         expect(same.warnings.some((w) => w.id.startsWith("updater-protocol"))).toBe(false);
     });
 
