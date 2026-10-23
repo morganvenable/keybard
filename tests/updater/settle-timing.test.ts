@@ -31,11 +31,17 @@ const pin = (r: FixtureRelease): FirmwareReleasePin => ({
 });
 
 /** The owner's update on the mule: x4test10 to the pair UF2 x4test11, from a file, one chord. */
-async function update(timing: Partial<FakeTiming> = {}, faults: Fault[] = []) {
-    const { board, host } = fakeSetup({ clock, running: x10, timing: { ...DEFAULT_TIMING, ...timing }, faults });
-    const p = await planInstall(new UpdaterClient(board), { kind: "file", files: [x11.files[HAND_LEFT]] }, { clock, releases: [pin(x11), pin(x10)] });
+async function update(timing: Partial<FakeTiming> = {}, faults: Fault[] = [], o: { running?: FixtureRelease; file?: FixtureRelease; source?: "file" | "release"; onlyHand?: 0 | 1; otherRunning?: FixtureRelease; afterwards?: "restore" | "defaults"; sides?: boolean } = {}) {
+    const { board, host } = fakeSetup({
+        clock, running: o.running ?? x10, timing: { ...DEFAULT_TIMING, ...timing }, faults,
+        otherRunning: o.otherRunning ? { tag: o.otherRunning.tag, fwVersion: o.otherRunning.fwVersion } : undefined,
+        sides: o.sides ? { supported: true } : undefined,
+    });
+    const file = o.file ?? x11;
+    const source = o.source === "release" ? { kind: "release" as const, release: pin(file), files: file.files } : { kind: "file" as const, files: [file.files[HAND_LEFT]] };
+    const p = await planInstall(new UpdaterClient(board), source, { clock, releases: [pin(x11), pin(x10)], onlyHand: o.onlyHand, sides: host.sides });
     if ("id" in p) throw new Error(`plan failed: ${p.id}`);
-    const flow = UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: "restore", backup: { fileName: "Kip-layout.svil", svil: "{}" } });
+    const flow = UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: o.afterwards ?? "restore", backup: { fileName: "Kip-layout.svil", svil: "{}" } });
     const state = await flow.run();
     return { board, host, state };
 }
@@ -76,6 +82,68 @@ describe("after the half with USB takes COMMIT", () => {
         expect(state.failure?.id).toBe("F23");
         expect(failureCopy(state.failure!).title).toBe("Keybard couldn't confirm the update");
         expect(String(failureCopy(state.failure!).body)).not.toMatch(/Nothing was changed/);
+    });
+});
+
+describe("a reinstall of the version the board runs (the mule: x4test12 over x4test12)", () => {
+    const installedTwice = (state: Awaited<ReturnType<typeof update>>["state"], board: Awaited<ReturnType<typeof update>>["board"]) => {
+        expect(state.failure ?? null).toBeNull();
+        expect(state.phase).toBe("result");
+        expect(state.result?.tags).toMatchObject({ [HAND_LEFT]: "x4test11", [HAND_RIGHT]: "x4test11" });
+        expect(board.usbReboots).toBeGreaterThanOrEqual(1);
+    };
+
+    it("from a file: installed, like any install (the owner's exact case)", async () => {
+        const { board, state } = await update({}, [], { running: x11, file: x11 });
+        installedTwice(state, board);
+    });
+
+    it("from a file, the COMMIT reply lost: still installed, never \"nothing was changed\"", async () => {
+        const { board, state } = await update({}, [{ kind: "commit-reply-lost" }], { running: x11, file: x11 });
+        installedTwice(state, board);
+    });
+
+    it("its old firmware still answering the same version after COMMIT: waits for the restart", async () => {
+        const { board, state } = await update({ usbCommitStartMs: 8000 }, [], { running: x11, file: x11 });
+        installedTwice(state, board);
+    });
+
+    it("twice the mule's timing", async () => {
+        const { board, state } = await update(slowTiming(), [], { running: x11, file: x11 });
+        installedTwice(state, board);
+    });
+
+    it("Reinstall from Other versions (a carried release)", async () => {
+        const { board, state } = await update({}, [], { running: x11, file: x11, source: "release" });
+        installedTwice(state, board);
+    });
+
+    it("with the default layout: the same build resets nothing, so Keybard resets it", async () => {
+        const { board, state } = await update({}, [], { running: x11, file: x11, afterwards: "defaults" });
+        installedTwice(state, board);
+        expect(state.result?.layout).toBe("defaults");
+    });
+
+    it("one-image sides known before and after: nothing asked", async () => {
+        const { board, state } = await update({}, [], { running: x11, file: x11, sides: true });
+        installedTwice(state, board);
+    });
+
+    it("Finish update (halves differ): the half with USB already on the version, the other half gets it", async () => {
+        const { board, state } = await update({}, [], { running: x11, otherRunning: x10, file: x11, onlyHand: HAND_LEFT });
+        expect(state.failure ?? null).toBeNull();
+        expect(board.halves[HAND_LEFT].cfg.fwVersion).toBe(11);
+    });
+
+    it("one half only, the half with USB, same version: installed", async () => {
+        const { state } = await update({}, [], { running: x11, file: x11, onlyHand: HAND_RIGHT });
+        expect(state.failure ?? null).toBeNull();
+        expect(state.phase).toBe("result");
+    });
+
+    it("a refusal when it came to write is still F5, the same version or not", async () => {
+        const { state } = await update({}, [{ kind: "commit-refused" }], { running: x11, file: x11 });
+        expect(state.failure?.id).toBe("F5");
     });
 });
 

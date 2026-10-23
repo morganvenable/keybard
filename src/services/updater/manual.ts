@@ -67,7 +67,8 @@ export interface ManualSession {
      * install happened, and forgets it if not.
      */
     dismissed?: boolean;
-    result: { layout: "restored" | "defaults"; trimmed: string[] } | null;
+    /** kept: the default layout chosen, but the install reset nothing (a reinstall of the same build). */
+    result: { layout: "restored" | "defaults" | "kept"; trimmed: string[] } | null;
     error: string | null;
 }
 
@@ -206,14 +207,17 @@ export function manualPending(s: Pick<ManualSession, "only" | "usualHand">, chec
  * the backup back through the import path; the default layout keeps what the firmware
  * started with. Then the reset notice is cleared (0x2A), last, as the in-app update does.
  */
-export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<{ layout: "restored" | "defaults"; trimmed: string[] }> {
+export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<{ layout: "restored" | "defaults" | "kept"; trimmed: string[] }> {
     let trimmed: string[] = [];
     const restore = s.afterwards === "restore" && s.backup?.state === "ok";
     if (restore) trimmed = (await host.restoreLayout((s.backup as Extract<ManualBackup, { state: "ok" }>).svil)).trimmed;
     // Firmware without the reset notice (or GET_INFO) has nothing to clear.
     // Cleared when the board reports the notice now, or reported it on this connection (a read
     // that fails or comes too early must not leave it for the generic reset dialog).
-    const flags = await host.readStorageFlags().catch(() => 0);
-    if ((flags & 0x04) || o.reportedReset?.()) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
-    return { layout: restore ? "restored" : "defaults", trimmed };
+    const flags = await host.readStorageFlags().catch(() => null);
+    const reset = ((flags ?? 0) & 0x04) !== 0 || !!o.reportedReset?.();
+    if (reset) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
+    // The same build installed again resets nothing: say the layout is as it was, not "the default layout".
+    const kept = !restore && flags !== null && !reset;
+    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed };
 }

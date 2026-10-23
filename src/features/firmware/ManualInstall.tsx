@@ -24,7 +24,7 @@ export type ManualBackupView = { state: "pending" } | { state: "ok"; fileName: s
 /** After the check: putting the layout back, done, or the layout not put back. */
 export interface ManualOutcome {
     phase: "steps" | "restoring" | "done" | "failed";
-    result: { layout: "restored" | "defaults"; trimmed: string[] } | null;
+    result: { layout: "restored" | "defaults" | "kept"; trimmed: string[] } | null;
     error: string | null;
 }
 
@@ -137,7 +137,8 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
     }
     if (phase === "done" || phase === "failed") {
         const restored = outcome?.result?.layout === "restored";
-        const sub = phase === "failed" ? undefined : `${restored ? "Your layout is back on the keyboard." : "Your keyboard has the default layout."}${fromNowOn}`;
+        const kept = outcome?.result?.layout === "kept";
+        const sub = phase === "failed" ? undefined : `${restored ? "Your layout is back on the keyboard." : kept ? "Your layout is as it was." : "Your keyboard has the default layout."}${fromNowOn}`;
         return (
             <div className="flex flex-col gap-4" data-testid="manual-install" data-screen="done">
                 <FwTitle sub={sub}>{`${tag} is installed${onHalf}`}</FwTitle>

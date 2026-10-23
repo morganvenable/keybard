@@ -605,7 +605,14 @@ def main() -> int:
         context.close()
 
         # 12. Timing: twice the mule's, and a half that keeps running its old firmware after COMMIT.
-        for query, label in [(f"{BASE}&timing=slow&pick=x4&speed=8", "slow timing from file"), (f"{BASE}&slowcommit=8000&pick=x4&speed=4", "slow commit from file")]:
+        for query, label in [
+            (f"{BASE}&timing=slow&pick=x4&speed=8", "slow timing from file"),
+            (f"{BASE}&slowcommit=8000&pick=x4&speed=4", "slow commit from file"),
+            # A reinstall of the version the board runs (the mule: x4test12 over x4test12).
+            (f"{BASE}&running=x4&pick=x4&speed=4", "reinstall from file"),
+            (f"{BASE}&running=x4&pick=x4&fault=commit-reply-lost&speed=4", "reinstall, COMMIT reply lost"),
+            (f"{BASE}&running=x4&slowcommit=8000&pick=x4&speed=4", "reinstall, slow commit"),
+        ]:
             context, page, errors, dialogs = open_firmware(browser, url, query, "light", DESKTOP)
             sheet = page.get_by_test_id("update-sheet")
             expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
@@ -620,6 +627,22 @@ def main() -> int:
             check(result.count() == 1 and result.get_by_role("heading", name="x4 is installed").count() == 1, f"{label}: x4 is installed")
             check(not errors, f"{label}: no page errors {errors}")
             context.close()
+
+        # Reinstall from Other versions: Reinstall x4 on a board on x4.
+        context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4&speed=4", "light", DESKTOP)
+        section = page.get_by_test_id("firmware-section")
+        expect(section.get_by_text("Your keyboard has the newest firmware.")).to_be_visible(timeout=20000)
+        section.get_by_role("button", name="Other versions and files").click()
+        section.get_by_role("button", name="Reinstall x4").click()
+        sheet = page.get_by_test_id("update-sheet")
+        primary = sheet.locator("[data-primary]")
+        expect(primary).to_be_enabled(timeout=20000)
+        primary.click()
+        result = page.get_by_test_id("update-result")
+        expect(result).to_be_visible(timeout=120000)
+        check(result.get_by_role("heading", name="x4 is installed").count() == 1, "Reinstall x4: x4 is installed")
+        check(page.locator("[data-failure]").count() == 0, "Reinstall x4: no failure")
+        context.close()
 
         browser.close()
 

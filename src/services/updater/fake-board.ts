@@ -52,6 +52,8 @@ export type Fault =
     | { kind: "no-return" }
     /** The half with USB refuses its COMMIT when it comes to write (a DMA channel busy): ERROR, old firmware. */
     | { kind: "commit-refused" }
+    /** The half with USB takes its COMMIT, but the reply never reaches the host. */
+    | { kind: "commit-reply-lost" }
     | { kind: "other-no-return" }
     | { kind: "expire-client"; afterOps: number }
     | { kind: "renew-every"; ms: number };
@@ -416,6 +418,10 @@ export class FakeSvalboard implements UpdaterTransport {
         if (expiry === undefined || this.clock.now() > expiry) throw new ClientRejectedError(1);
         const rsp = await this.handle(op, hand, a, client);
         this.requests.push({ op, hand, at: this.clock.now(), status: rsp[0] });
+        if (op === Op.COMMIT && this.has("commit-reply-lost") && this.session?.state === State.COMMITTING && this.session.hand === this.usbHand) {
+            await this.clock.sleep(1000);
+            throw new ReplyTimeoutError(op);
+        }
         if (this.session && this.session.client === client && ACTIVE.has(this.session.state)) this.session.lastOpAt = this.clock.now();
         this.faultsAfter(op);
         return { status: rsp[0], rsp };

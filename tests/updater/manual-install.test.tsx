@@ -121,12 +121,19 @@ describe("the manual install's state", () => {
         expect(board.storageFlags & 0x04).toBe(0);
     });
 
-    it("the default layout writes nothing; with no reset notice there's nothing to clear", async () => {
+    it("the default layout writes nothing; with no reset notice (the same build again) nothing was reset, so the layout is as it was", async () => {
         const { host } = setup();
         const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
-        expect(await runManualAfterwards(host, s)).toEqual({ layout: "defaults", trimmed: [] });
+        expect(await runManualAfterwards(host, s)).toEqual({ layout: "kept", trimmed: [] });
         expect(host.restores).toBe(0);
         expect(host.clears).toBe(0);
+    });
+
+    it("done after the same build again with the default layout: says the layout is as it was", () => {
+        const outcome = { phase: "done" as const, result: { layout: "kept" as const, trimmed: [] }, error: null };
+        render(<ManualInstall release={release} once backup={null} afterwards="defaults" onAfterwards={() => undefined} outcome={outcome as never} onConnect={() => undefined} onClose={() => undefined} />);
+        expect(screen.getByText(/Your layout is as it was\./)).toBeTruthy();
+        expect(screen.queryByText(/default layout/)).toBeNull();
     });
 
     it("owns the board's reset notice while it is open, so the reset dialog doesn't ask as well", () => {

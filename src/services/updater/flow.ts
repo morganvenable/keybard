@@ -115,6 +115,8 @@ export interface FlowState {
     title: string;
     toTag: string;
     fromTag: string;
+    /** The version the half with USB ran before (absent in states saved before it was kept). */
+    fromFw?: number;
     files: Partial<Record<Hand, FlowFileRef>>;
     afterwards: Afterwards;
     backup: { snapshotId?: string; fileName: string } | null;
@@ -380,6 +382,7 @@ export class UpdateFlow {
             title: plan.title,
             toTag: plan.toTag,
             fromTag: plan.fromTag,
+            fromFw: plan.board.usb.fwVersion,
             files,
             // No backup: the layout can't be kept. A blank board needs none.
             afterwards: input.backup || input.afterwards === "blank" ? input.afterwards : "defaults",
@@ -629,8 +632,9 @@ export class UpdateFlow {
         });
         this.update({ measurements: { ...this.state.measurements, relay_ms: this.now() - t0 } });
 
-        // COMMIT #2: the other half installs. From here it runs the new release.
-        await c.commit(o, arm.nonce, fileO.crcBody & 0xffff);
+        // COMMIT #2: the other half installs. From here it runs the new release. A COMMIT
+        // whose reply went missing may have been taken: it counts as sent, and STATUS says.
+        await this.commitSent(() => c.commit(o, arm.nonce, fileO.crcBody & 0xffff));
         this.update({ committed: [...this.state.committed, o] });
         this.step("other-install");
         this.row(o, { stage: "installing", progress: null });
@@ -689,7 +693,9 @@ export class UpdateFlow {
         // restart says the old firmware is gone.
         const watch = this.watchRestart();
         try {
-            await c.commit(usbHand, arm.nonce, file.crcBody & 0xffff);
+            // The half writes the image 100 ms after its reply, with USB silent: a reply that
+            // doesn't arrive is a COMMIT it may well have taken, never "nothing was changed".
+            await this.commitSent(() => c.commit(usbHand, arm.nonce, file.crcBody & 0xffff));
         } catch (error) {
             watch.stop();
             throw error;
@@ -700,6 +706,19 @@ export class UpdateFlow {
         this.step("self-install");
         this.row(usbHand, { stage: "installing", progress: null });
         this.usbRestartSeen = await this.reconnect(watch);
+    }
+
+    /**
+     * Send a COMMIT. A refusal (a status) throws: the board said no, nothing was installed.
+     * No reply, or the board gone, returns: it may have taken it, and what follows checks.
+     */
+    private async commitSent(send: () => Promise<unknown>): Promise<void> {
+        try {
+            await send();
+        } catch (error) {
+            if (!(error instanceof ReplyTimeoutError || error instanceof DisconnectedError)) throw error;
+            trace("no reply to COMMIT: checking whether the half took it", error);
+        }
     }
 
     /** This page saw the half with USB restart after its COMMIT. */
@@ -743,11 +762,14 @@ export class UpdateFlow {
     }
 
     /**
-     * After the half with USB took COMMIT: wait until it answers with the new version. Old
-     * firmware answering is a failed install only when the board says so: its session
-     * latched an error, or it restarted and came back on the old version. Anything else
-     * (still writing, not back yet, no answer) waits, up to CONFIRM_MS, and then Keybard says
-     * it couldn't confirm the update (F23): never "nothing was changed".
+     * After the half with USB took COMMIT: wait until it has installed the file. Installed
+     * means it answers with the file's version after its restart: the restart was seen, or
+     * its session is back to IDLE (a COMMIT it took leaves it COMMITTING until the restart),
+     * or the version changed. A reinstall of the version it ran is no different: the same
+     * version before the restart proves nothing, the same version after it is success.
+     * "Nothing was changed" (F5) only when the board says it refused: its session latched an
+     * error before any restart. Anything else waits, up to CONFIRM_MS, and then Keybard says
+     * it couldn't confirm the update (F23).
      */
     private async confirmUsbVersion(want: FlowFileRef, restarted: boolean): Promise<void> {
         const deadline = this.now() + CONFIRM_MS;
@@ -762,10 +784,13 @@ export class UpdateFlow {
                 }
                 const c = this.host.transport()?.connected() ? this.connection() : null;
                 const info = c ? await c.info(HAND_SELF).catch(() => null) : null;
-                if (info && info.fwVersion === want.fwVersion) return;
                 if (info && !watch?.seen()) {
-                    trace(`the half with USB answers fw ${info.fwVersion} in state ${info.state} (restart seen: ${restarted})`);
-                    if (info.state === State.ERROR || (restarted && info.state !== State.COMMITTING)) {
+                    const versionChanged = this.state.fromFw !== undefined && want.fwVersion !== this.state.fromFw;
+                    const installed = info.fwVersion === want.fwVersion && (restarted || versionChanged || info.state === State.IDLE);
+                    trace(`the half with USB answers fw ${info.fwVersion} in state ${info.state} (restart seen: ${restarted}, installed: ${installed})`);
+                    if (installed) return;
+                    if (!restarted && info.state === State.ERROR) {
+                        // The board refused the COMMIT when it came to write (or its session ended): it runs what it ran.
                         const tag = await c!.info1().then((p) => p.tag).catch(() => undefined);
                         throw new Stop({ id: "F5", tags: tag ? ({ [this.state.usbHand]: tag } as Partial<Record<Hand, string>>) : this.fromTags() });
                     }
