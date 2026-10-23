@@ -24,7 +24,7 @@ import { loadSvup, type SvupFile } from "./svup";
 import { isUf2, loadFirmwareFile } from "./uf2";
 import { SideSource, SideStatus, type Side, type SideValue } from "../side";
 import {
-    assessSides, currentSides, explainSideStatus, planAfterUpdate, type HalfRole, type KnownSides,
+    assessSides, currentSides, sidesSettling, explainSideStatus, planAfterUpdate, type HalfRole, type KnownSides,
     type SideAssessment, type SideWrite,
 } from "../side-decision";
 import type { SideHost } from "../side-host";
@@ -42,7 +42,7 @@ export type Step =
     | "self-arm" | "self-erase" | "self-send" | "self-verify" | "self-install" | "reconnect" | "sides" | "check-halves"
     | "settings-reset" | "restore" | "done" | "failed";
 
-export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20" | "F21" | "F22";
+export type FailureId = "F2" | "F3" | "F4" | "F5" | "F6" | "F9" | "F10" | "F11" | "F12" | "F14" | "F16" | "F17" | "F18" | "F19" | "F20" | "F21" | "F22" | "F23";
 
 export interface Failure {
     id: FailureId;
@@ -304,7 +304,25 @@ function trace(...args: unknown[]) {
 const POLL_MS = 250;
 const CHORD_WAIT_MS = 35_000;
 const RECONNECT_MS = 30_000;
-const PRESENCE_MS = 10_000;
+/**
+ * The other half answering after its restart, presence MATCH after the half with USB is
+ * back, and a SIDE write's restart. On the mule the other half restarts in about 5 s and
+ * presence matches about 6 s after the reconnect: this is more than twice the worst of those.
+ */
+const PRESENCE_MS = 20_000;
+/**
+ * From the op that restarts the half with USB (COMMIT, SETTINGS_RESET) to its USB going
+ * away. After COMMIT the half writes the image first (its USB stays enumerated, silent,
+ * while it does), so this is longer than the reboot itself.
+ */
+const RESTART_GONE_MS = 20_000;
+/** How long the half with USB may take to answer with the new version after its COMMIT. */
+const CONFIRM_MS = 60_000;
+
+interface RestartWatch {
+    seen(): boolean;
+    stop(): void;
+}
 
 export interface StartInput {
     plan: Plan;
@@ -486,6 +504,8 @@ export class UpdateFlow {
         console.warn("[firmware] update stopped", error);
         const o = otherHand(this.state.usbHand);
         if (this.state.committed.includes(o) && !this.state.committed.includes(this.state.usbHand)) return this.halvesDiffer();
+        // After the half with USB took COMMIT, Keybard can't say nothing was changed.
+        if (this.state.committed.includes(this.state.usbHand)) return { id: "F23" };
         if (error instanceof UpdaterStatusError && (error.status === Status.OTHER_CLIENT || error.status === Status.BUSY)) return { id: "F3" };
         if (error instanceof UpdaterStatusError && error.status === Status.NOT_CONFIRMED) return { id: "F4" };
         if (error instanceof UpdaterStatusError && error.status === Status.UNAVAILABLE && this.state.target === "both") return { id: "F5", tags: this.fromTags(), detail: "The other half stopped answering." };
@@ -665,22 +685,52 @@ export class UpdateFlow {
             await this.waitForChord(c, usbHand);
         }
         await this.transfer(c, usbHand, arm.nonce, file, { erase: "self-erase", send: "self-send", verify: "self-verify" });
-        await c.commit(usbHand, arm.nonce, file.crcBody & 0xffff);
+        // Watch from before COMMIT: the half writes the image, then restarts, and only that
+        // restart says the old firmware is gone.
+        const watch = this.watchRestart();
+        try {
+            await c.commit(usbHand, arm.nonce, file.crcBody & 0xffff);
+        } catch (error) {
+            watch.stop();
+            throw error;
+        }
         c.untrack();
         this.sessionHand = null;
         this.update({ committed: [...this.state.committed, usbHand] });
         this.step("self-install");
         this.row(usbHand, { stage: "installing", progress: null });
-        await this.reconnect();
+        this.usbRestartSeen = await this.reconnect(watch);
     }
 
-    private async reconnect() {
+    /** This page saw the half with USB restart after its COMMIT. */
+    private usbRestartSeen = false;
+
+    /**
+     * Watch for the half with USB going away, from just before the op that restarts it: a
+     * restart is known only when it's seen, never assumed from time passing.
+     */
+    private watchRestart(): RestartWatch {
+        const t = this.host.transport();
+        let gone = !t || !t.connected();
+        const off = t?.onDisconnect(() => { gone = true; }) ?? (() => undefined);
+        return { seen: () => gone || !this.host.transport()?.connected(), stop: off };
+    }
+
+    /**
+     * Wait for the half with USB to restart and come back. With a watch from before the op,
+     * waits for the restart itself (up to RESTART_GONE_MS); returns whether it was seen. A
+     * connection still open then is the old one: the caller checks what it runs.
+     */
+    private async reconnect(watch?: RestartWatch): Promise<boolean> {
         const usbHand = this.state.usbHand;
         this.step("reconnect");
         this.row(usbHand, { stage: "restarting", progress: null });
-        // Give the old connection time to drop (COMMIT to reboot: 1-2 s).
-        const gone = this.now() + 5000;
-        while (this.host.transport()?.connected() && this.now() < gone) await this.host.clock.sleep(POLL_MS);
+        const w = watch ?? this.watchRestart();
+        const gone = this.now() + (watch ? RESTART_GONE_MS : 5000);
+        while (!w.seen() && this.now() < gone) await this.host.clock.sleep(POLL_MS);
+        const restarted = w.seen();
+        w.stop();
+        trace(restarted ? "the keyboard went away" : "the keyboard is still on its old connection");
         const t0 = this.now();
         trace("waiting for the keyboard to come back");
         const t = await this.host.waitForDevice(RECONNECT_MS);
@@ -689,6 +739,43 @@ export class UpdateFlow {
         this.update({ measurements: { ...this.state.measurements, reconnect_ms: this.now() - t0 } });
         this.row(usbHand, { stage: "reconnecting", progress: null });
         this.client = new UpdaterClient(t);
+        return restarted;
+    }
+
+    /**
+     * After the half with USB took COMMIT: wait until it answers with the new version. Old
+     * firmware answering is a failed install only when the board says so: its session
+     * latched an error, or it restarted and came back on the old version. Anything else
+     * (still writing, not back yet, no answer) waits, up to CONFIRM_MS, and then Keybard says
+     * it couldn't confirm the update (F23): never "nothing was changed".
+     */
+    private async confirmUsbVersion(want: FlowFileRef, restarted: boolean): Promise<void> {
+        const deadline = this.now() + CONFIRM_MS;
+        let watch: RestartWatch | null = restarted ? null : this.watchRestart();
+        try {
+            for (;;) {
+                if (watch?.seen()) {
+                    watch.stop();
+                    watch = null;
+                    restarted = true;
+                    await this.reconnect();
+                }
+                const c = this.host.transport()?.connected() ? this.connection() : null;
+                const info = c ? await c.info(HAND_SELF).catch(() => null) : null;
+                if (info && info.fwVersion === want.fwVersion) return;
+                if (info && !watch?.seen()) {
+                    trace(`the half with USB answers fw ${info.fwVersion} in state ${info.state} (restart seen: ${restarted})`);
+                    if (info.state === State.ERROR || (restarted && info.state !== State.COMMITTING)) {
+                        const tag = await c!.info1().then((p) => p.tag).catch(() => undefined);
+                        throw new Stop({ id: "F5", tags: tag ? ({ [this.state.usbHand]: tag } as Partial<Record<Hand, string>>) : this.fromTags() });
+                    }
+                }
+                if (this.now() >= deadline) throw new Stop({ id: "F23" });
+                await this.host.clock.sleep(500);
+            }
+        } finally {
+            watch?.stop();
+        }
     }
 
     /** After a reload: pick up after the restart, or say the update didn't finish. */
@@ -720,12 +807,12 @@ export class UpdateFlow {
         resolve?.(writes);
     }
 
-    /** GET until the other half has reported (up to 3 s after a restart). */
+    /** GET until the other half has reported: the split link is up only a while after a restart. */
     private async readSides(sides: SideHost): Promise<SideAssessment> {
-        const deadline = this.now() + 3000;
+        const deadline = this.now() + PRESENCE_MS;
         for (;;) {
             const a = assessSides(true, await sides.read());
-            if ((a.kind !== "pending" && a.kind !== "unreadable") || this.now() >= deadline) return a;
+            if (!sidesSettling(a) || this.now() >= deadline) return a;
             await this.host.clock.sleep(POLL_MS);
         }
     }
@@ -733,10 +820,18 @@ export class UpdateFlow {
     /** One SET; the half restarts. Returns the status. */
     private async writeSide(sides: SideHost, w: SideWrite): Promise<number> {
         trace(`side: set the ${w.role} half to ${w.side} (${w.why})`);
-        const status = await sides.write(w.role, w.side);
-        if (status !== SideStatus.OK && status !== SideStatus.OTHER_ACCEPTED) return status;
-        if (w.role === "usb") {
-            await this.reconnect();
+        // The half with USB restarts on its SET: watch from before it.
+        const watch = w.role === "usb" ? this.watchRestart() : null;
+        let status: number;
+        try {
+            status = await sides.write(w.role, w.side);
+        } catch (error) {
+            watch?.stop();
+            throw error;
+        }
+        if (status !== SideStatus.OK && status !== SideStatus.OTHER_ACCEPTED) { watch?.stop(); return status; }
+        if (watch) {
+            await this.reconnect(watch);
             this.step("sides");
         } else {
             // The other half saves it from its main loop and restarts: wait for it to report the new side.
@@ -837,6 +932,9 @@ export class UpdateFlow {
 
     /** Both halves' versions and presence, then the Afterwards choice, then 0x2A. */
     private async after() {
+        // First what the half with USB runs: everything after reads the new firmware.
+        const wantFirst = this.state.files[this.state.usbHand];
+        if (wantFirst && this.state.committed.includes(this.state.usbHand)) await this.confirmUsbVersion(wantFirst, this.usbRestartSeen);
         await this.checkSides();
         const { usbHand, target } = this.state;
         const o = otherHand(usbHand);
@@ -849,7 +947,8 @@ export class UpdateFlow {
         const page1 = await c.info1();
         tags[usbHand] = page1.tag;
         const wantUsb = this.state.files[usbHand];
-        if (wantUsb && (info.fwVersion !== wantUsb.fwVersion)) throw new Stop({ id: "F5", tags: { [usbHand]: page1.tag } as Partial<Record<Hand, string>>, detail: "The keyboard still runs its old firmware." });
+        // Confirmed above after this flow's COMMIT: a read that differs now is a half that changed again.
+        if (wantUsb && (info.fwVersion !== wantUsb.fwVersion)) throw new Stop(this.state.committed.includes(usbHand) ? { id: "F23" } : { id: "F5", tags: { [usbHand]: page1.tag } as Partial<Record<Hand, string>> });
         // Presence MATCH within 10 s; the other half's version from its INFO.
         const deadline = this.now() + PRESENCE_MS;
         let presence = (await c.status(usbHand)).presence;
@@ -894,13 +993,15 @@ export class UpdateFlow {
             if (!this.state.settingsResetSent) {
                 this.step("settings-reset");
                 this.row(usbHand, { stage: "restarting", progress: null });
-                const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH, SETTINGS_RESET_BLANK);
+                const watch = this.watchRestart();
+                const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH, SETTINGS_RESET_BLANK).catch((e) => { watch.stop(); throw e; });
                 trace(`SETTINGS_RESET blank: status ${r.status} done 0x${r.done.toString(16)}`);
                 if (r.status !== Status.OK) {
+                    watch.stop();
                     throw new Stop({ id: "F20", detail: `The new firmware is installed, but the keyboard wasn't wiped: ${settingsResetProblem(r.status, r.done, usbHand, "wipe to a blank board")}.` });
                 }
                 this.update({ settingsResetSent: true });
-                await this.reconnect();
+                await this.reconnect(watch);
                 c = this.connection();
                 flags = await this.host.readStorageFlags();
                 trace(`storage flags after the wipe 0x${flags.toString(16)}`);
@@ -916,11 +1017,13 @@ export class UpdateFlow {
             // An identical build kept the old settings, or only one half was installed: reset both (F-N2).
             this.step("settings-reset");
             this.row(usbHand, { stage: "restarting", progress: null });
-            const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH);
+            const watch = this.watchRestart();
+            const r = await c.settingsReset(usbHand, SETTINGS_RESET_BOTH).catch((e) => { watch.stop(); throw e; });
             trace(`SETTINGS_RESET defaults: status ${r.status} done 0x${r.done.toString(16)}`);
-            if (r.status !== Status.OK) throw new Stop({ id: "F21", detail: `The new firmware is installed, but the settings weren't reset to the defaults: ${settingsResetProblem(r.status, r.done, usbHand, "reset its settings")}.` });
+            if (r.status !== Status.OK) watch.stop();
+            if (r.status !== Status.OK) throw new Stop({ id: "F21", detail: `The new firmware is installed, but the layout wasn't reset to the default layout: ${settingsResetProblem(r.status, r.done, usbHand, "reset its layout")}.` });
             this.update({ settingsResetSent: true });
-            await this.reconnect();
+            await this.reconnect(watch);
             c = this.connection();
             flags = await this.host.readStorageFlags();
             if (!(flags & 0x04)) console.warn("[firmware] settings reset, but the reset notice isn't set");

@@ -98,7 +98,8 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         if (!h || !s || s.id !== id || restoring.has(id)) return;
         restoring.add(id);
         patch(id, (x) => ({ ...x, phase: "restoring", error: null }));
-        void runManualAfterwards(h, s).then(
+        // The reset notice this connection's load reported is this install's to clear, whatever a later read says.
+        void runManualAfterwards(h, s, { reportedReset: () => buildResetRef.current }).then(
             (result) => patch(id, (x) => ({ ...x, phase: "done", result })),
             (e) => patch(id, (x) => ({ ...x, phase: "failed", error: e instanceof Error ? e.message : String(e) })),
         ).finally(() => restoring.delete(id));
@@ -111,6 +112,9 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         checking.add(s.id);
         void readRef.current().catch(() => null).then((board) => {
             const result = checkManual(s, board);
+            // A board Keybard couldn't read says nothing about the install: keep it (and its hold
+            // on the reset notice) for the next Connect, never drop it on a missed answer.
+            if (s.dismissed && (!board || board.unread) && !buildResetRef.current) return;
             if (s.dismissed) {
                 // Closed before the keyboard came back: carry on only if the install happened.
                 if (!manualInstalledSince(s, board, buildResetRef.current)) {

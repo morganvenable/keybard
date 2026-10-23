@@ -25,7 +25,7 @@ import { backupFileName, downloadText, useAppFirmwareHost } from "./useAppFirmwa
 import { useFirmwareStatus, type FirmwareStatus } from "./useFirmwareStatus";
 import { useFirmwareUpdate, type FirmwareUiHost } from "./useFirmwareUpdate";
 import { useManualInstall } from "./useManualInstall";
-import { OPEN_BACKUPS_EVENT, OPEN_FIRMWARE_EVENT, useBoardSummary } from "./useHalvesDiffer";
+import { OPEN_BACKUPS_EVENT, OPEN_FIRMWARE_EVENT, useBoardRead } from "./useHalvesDiffer";
 import type { SideWrite } from "@/services/side-decision";
 import { applySideWrites } from "./side-actions";
 
@@ -41,6 +41,10 @@ export interface FirmwareUpdates {
     board: BoardSummary | null;
     /** A keyboard is connected and its firmware is still being read. */
     reading: boolean;
+    /** Read the board again (Check again, opening the card); the summary stays while it runs. */
+    recheck: () => void;
+    /** A read asked for by recheck is running. */
+    checking: boolean;
     releases: FirmwareReleasePin[];
     status: FirmwareStatus;
     install: (pick: FirmwarePick, onlyHand?: Hand) => void;
@@ -93,18 +97,28 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     const fw = useFirmwareUpdate(host, { releases });
     const openSection = useOpenSettingsSection();
 
-    // The board: from the connection, re-read after each update or dialog close.
+    // The board: from the connection, re-read on each new connection, after each update or
+    // dialog close, and on recheck (Check again, opening the card).
     const [refresh, setRefresh] = useState(0);
-    const appBoard = useBoardSummary(refresh);
-    const [injectedBoard, setInjectedBoard] = useState<BoardSummary | null>(null);
+    const app = useBoardRead(refresh);
+    const [injectedRead, setInjected] = useState<{ board: BoardSummary | null; refresh: number } | null>(null);
+    const injectedKey = connection?.key;
     useEffect(() => {
         if (!readBoard) return;
         let cancelled = false;
-        void readBoard().then((b) => { if (!cancelled) setInjectedBoard(b); }).catch(() => undefined);
+        const asked = refresh;
+        void readBoard().then(
+            (b) => { if (!cancelled) setInjected({ board: b, refresh: asked }); },
+            () => { if (!cancelled) setInjected((prev) => ({ board: prev?.board ?? null, refresh: asked })); },
+        );
         return () => { cancelled = true; };
-    }, [readBoard, refresh]);
+    }, [readBoard, refresh, injectedKey]);
     useEffect(() => { if (fw.ui.kind === "idle") setRefresh((n) => n + 1); }, [fw.ui.kind]);
-    const board = readBoard ? injectedBoard : appBoard;
+    const board = readBoard ? injectedRead?.board ?? null : app.board;
+    const checking = readBoard ? !!injectedRead?.board && injectedRead.refresh !== refresh : app.checking;
+    // Not mid-update: the update reads the board itself, and its dialog says what it found.
+    const idle = fw.ui.kind === "idle";
+    const recheck = useCallback(() => { if (idle) setRefresh((n) => n + 1); }, [idle]);
     const status = useFirmwareStatus(board, { releases });
 
     // The manual install: a backup when it opens, the layout put back once the keyboard is.
@@ -118,7 +132,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         [readBoard],
     );
     const manual = useManualInstall(host, {
-        connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater, usualHand: board?.usbHand,
+        connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater && !board.unread, usualHand: board?.usbHand,
         buildReset: !connection && !!kb.keyboard?.storage_build_reset,
     });
     const setManual = manual.open;
@@ -182,14 +196,13 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     // The automatic backup failed: let the user save the layout as a file now.
     const saveManually = useCallback(() => {
         if (!kb.keyboard) return;
-        const from = board?.tag ?? "";
-        downloadText(serializeForBackup(kb.keyboard), backupFileName(backups.board?.name ?? kb.keyboard.name ?? "Svalboard", from));
-    }, [kb.keyboard, board?.tag, backups.board?.name]);
+        downloadText(serializeForBackup(kb.keyboard), backupFileName(backups.board?.name ?? kb.keyboard.name ?? "Svalboard"));
+    }, [kb.keyboard, backups.board?.name]);
 
     const value = useMemo<FirmwareUpdates>(() => ({
-        board, reading: !readBoard && kb.isConnected && !board, releases, status, install, openManual: (r) => setManual(r), connect,
+        board, reading: !readBoard && kb.isConnected && !board, recheck, checking, releases, status, install, openManual: (r) => setManual(r), connect,
         sides: host ? { ...sideState, apply: applySides } : undefined,
-    }), [board, readBoard, releases, status, install, kb.isConnected, setManual, connect, host, sideState, applySides]);
+    }), [board, readBoard, recheck, checking, releases, status, install, kb.isConnected, setManual, connect, host, sideState, applySides]);
     // An install closed before the keyboard came back stays out of sight until it does.
     const session = manual.session?.dismissed ? null : manual.session;
 

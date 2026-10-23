@@ -103,7 +103,7 @@ function Halves({ check, tag }: { check: ManualCheck; tag: string }) {
 /** One line on what the last Connect found, for the instructions screen. */
 function stillLine(check: ManualCheck, pending: Hand[], tag: string, usual: Hand): string {
     const st = (h: Hand) => check.halves[h] as ManualHalfState | undefined;
-    if (pending.every((h) => st(h)?.state === "unknown")) return "Keybard couldn't read the keyboard's firmware. Install the file, then connect again.";
+    if (pending.every((h) => st(h)?.state === "unknown")) return "Keybard couldn't read the keyboard's firmware yet. Connect again to check.";
     if (pending.length === 2 && pending.every((h) => st(h)?.state === "old")) return `Neither half runs ${tag} yet. Install the file, then connect again.`;
     const usbOld = pending.find((h) => st(h)?.state === "old");
     const unknown = pending.find((h) => st(h)?.state === "unknown");
@@ -215,7 +215,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                     ) : (
                         <>
                             <p className="text-sm">
-                                {backup.state === "ok" ? <>Saved to Downloads as <span className="break-all font-mono text-xs">{backup.fileName}</span>. Afterward:</> : "Keybard is saving it to Downloads. Afterward:"}
+                                {backup.state === "ok" ? <>Saved to Downloads just now, before the install, as <span className="break-all font-mono text-xs">{backup.fileName}</span>. Afterward:</> : "Keybard is saving it to Downloads. Afterward:"}
                             </p>
                             {/* No blank keyboard here: clearing every key needs the updater (SETTINGS_RESET), which this install can't ask. */}
                             <LayoutChoice value={afterwards} onChange={onAfterwards} keepDisabled={backup.state !== "ok"} choices={["restore", "defaults"]} label="After the install" />

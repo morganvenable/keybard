@@ -77,11 +77,12 @@ export class FakeSides implements SvalTransport {
     }
 
     private otherConnected(): boolean {
-        return this.board.halves[this.board.otherHandId].alive;
+        return this.board.linkUp();
     }
 
     async sval(cmd: number, args: number[]): Promise<Uint8Array> {
         if (!this.board.connected()) throw new Error("USB device not connected");
+        if (!this.board.answering()) throw new Error("USB Command Timeout");
         if (cmd !== CMD_SVIL_SIDE || !this.supported()) throw new Error("Svil protocol error: code 1");
         this.applyAfter();
         const op = args[0];

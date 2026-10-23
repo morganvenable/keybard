@@ -24,13 +24,23 @@ Run with `npm run test:e2e:firmware`.
   9. One line, at phone width (430 px) and desktop, light and dark: no sideways
      scroll; titles, choices and buttons each on one line; one title per dialog,
      and it names the dialog. Plain words only.
- 10. The reset notice after new firmware: it says which firmware is installed now;
-     Restore my layout leads, Start from defaults beside it, Other backups a link.
-     One row at 1280 px, stacked at 390 px, never wrapped; light and dark.
+ 10. The reset notice after new firmware: "Your layout was reset", a Firmware line (what
+     the halves run now) and a Layout line (the backup, by when and why it was saved,
+     never by a firmware version); Restore my layout leads, Start from the default
+     layout beside it, Other backups a link. One row at 1280 px, stacked at 390 px,
+     never wrapped; light and dark.
+ 11. Reading the board: Check again beside the halves (busy while it reads); a missed
+     INFO is retried (&infofail=1), a board that doesn't answer until Check again says
+     Keybard couldn't read the firmware, and Check again reads it (&infofail=read), one that keeps failing never
+     offers Install by hand (&infofail=always).
+ 12. The mule's timing (the default) and twice it (&timing=slow): updates end on the new
+     release; old firmware still answering after its COMMIT (&slowcommit=8000) is waited
+     out, never reported as "Update stopped".
 
 FW_SHOTS=<folder> also saves a phone-width (light) screenshot of every state there,
-and the reset notice at desktop and phone width (22-reset-dialog-desktop.png,
-23-reset-dialog-phone.png).
+the reset notice at desktop and phone width (22-reset-dialog-desktop.png,
+23-reset-dialog-phone.png), and the card with Check again and the couldn't-read card
+(24-card-check-again.png, 25-card-couldnt-read.png).
 Same server options as combo_editor_e2e.py (E2E_URL, E2E_SKIP_BUILD). E2E_URL must
 be a test-site build (VITE_STORAGE_NAMESPACE=keybard-test), e.g.
 https://morganvenable.github.io/keybard-test/. Exits 1 when a check fails.
@@ -178,7 +188,7 @@ def main() -> int:
             section.get_by_role("button", name="Other versions and files").click()
         section.get_by_role("button", name="Update to x4").click()
         sheet = page.get_by_test_id("update-sheet")
-        expect(sheet.get_by_text("Saved to Downloads as")).to_be_visible(timeout=20000)
+        expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
         check(sheet.get_by_text("Keybard updates both halves through the cable to your computer. It takes about 2 minutes.").count() == 1, f"{label}: one sentence")
         check(sheet.get_by_role("radio", name="Restore my layout").is_checked(), f"{label}: Restore my layout chosen")
         check(page.get_by_test_id("update-confirm").count() == 0, f"{label}: no confirm screen before Update")
@@ -216,7 +226,7 @@ def main() -> int:
         check(section.get_by_text("vNext1").count() == 0, f"{label}: no vNext1 label")
         section.get_by_role("button", name="Update to x4").click()
         dialog = page.get_by_test_id("manual-install")
-        expect(dialog.get_by_text("Kip-x3.1.3-2026-10-15.svil")).to_be_visible(timeout=15000)
+        expect(dialog.get_by_text("Kip-layout-2026-10-15-0626.svil")).to_be_visible(timeout=15000)
         return dialog
 
     def answer_sides(scope, answer: str, label: str, primary=None):
@@ -253,7 +263,7 @@ def main() -> int:
             section.get_by_role("button", name="Install v3").click()
             sheet = page.get_by_test_id("update-sheet")
             expect(sheet.get_by_text("v3 is older than x4.")).to_be_visible(timeout=20000)
-            check(sheet.get_by_text("Settings added since v3 won't come back.").count() == 1, f"{vp_name} warning: says what it means")
+            check(sheet.get_by_text("Parts of your layout added since v3 won't come back.").count() == 1, f"{vp_name} warning: says what it means")
             expect(sheet.get_by_role("button", name="Update anyway")).to_be_enabled(timeout=20000)
             layout(page, f"{vp_name} warning")
             shot(page, "07-update-warning")
@@ -283,7 +293,7 @@ def main() -> int:
             label = f"{theme} from file"
             context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&pick=x4&speed=20", theme, PHONE)
             sheet = page.get_by_test_id("update-sheet")
-            expect(sheet.get_by_text("Saved to Downloads as")).to_be_visible(timeout=20000)
+            expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
             check(page.get_by_role("heading", name="Update to x4").count() == 1, f"{label}: the file is x4, matched to its pin")
             check(sheet.get_by_text("Keybard updates both halves through the cable to your computer. It takes about 2 minutes.").count() == 1, f"{label}: both halves from one file")
             layout(page, label)
@@ -501,13 +511,16 @@ def main() -> int:
                 context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4test9&resetnotice=1", theme, viewport)
                 notice = page.get_by_test_id("reset-notice")
                 expect(notice).to_be_visible(timeout=20000)
-                check(page.get_by_role("heading", name="New firmware reset your settings").count() == 1, f"{label}: the title")
-                installed = notice.get_by_test_id("reset-installed").inner_text().strip()
-                check(installed == "x4test9 is installed on both halves.", f"{label}: says what's installed ({installed!r})")
-                check("Today" in notice.get_by_test_id("reset-backup").inner_text(), f"{label}: the backup")
+                check(page.get_by_role("heading", name="Your layout was reset").count() == 1, f"{label}: the title")
+                firmware = notice.get_by_test_id("reset-firmware").inner_text().strip()
+                check(firmware == "x4test9 on both halves", f"{label}: the Firmware line ({firmware!r})")
+                backup = notice.get_by_test_id("reset-backup").inner_text().strip()
+                check(backup.startswith("Backup saved before the update, today"), f"{label}: the Layout line by when and why ({backup!r})")
+                check(not re.search(r"\bx\d|\bv\d", backup), f"{label}: no firmware version in the Layout line ({backup!r})")
+                check(notice.get_by_text("Firmware", exact=True).count() == 1 and notice.get_by_text("Layout", exact=True).count() == 1, f"{label}: the two parts are labeled")
                 layout(page, label)
                 boxes = page.evaluate(RESET_ACTIONS_JS)
-                primary, defaults, other = boxes["Restore my layout"], boxes["Start from defaults"], boxes["Other backups"]
+                primary, defaults, other = boxes["Restore my layout"], boxes["Start from the default layout"], boxes["Other backups"]
                 if size == "desktop":
                     row = abs(primary["top"] - defaults["top"]) < 2 and abs(primary["top"] - other["top"]) < 2
                     check(row, f"{label}: one row {boxes}")
@@ -523,6 +536,90 @@ def main() -> int:
                     page.locator("[role=dialog]").first.screenshot(path=os.path.join(SHOTS, f"{name}.png"), animations="disabled")
                 check(not errors, f"{label}: no page errors {errors}")
                 context.close()
+
+        # 11. Reading the board: Check again, and a board that doesn't answer at first.
+        def card_shot(page, name: str):
+            if SHOTS:
+                os.makedirs(SHOTS, exist_ok=True)
+                page.get_by_test_id("firmware-section").screenshot(path=os.path.join(SHOTS, f"{name}.png"), animations="disabled")
+
+        for theme in ["light", "dark"]:
+            label = f"{theme} check again"
+            context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4&speed=4", theme, PHONE)
+            section = page.get_by_test_id("firmware-section")
+            expect(section.get_by_test_id("firmware-halves")).to_contain_text("x4", timeout=20000)
+            recheck = section.get_by_test_id("firmware-recheck")
+            expect(recheck).to_have_text("Check again", timeout=20000)
+            check(recheck.get_attribute("title") == "Read the keyboard's firmware again", f"{label}: says what it does on hover")
+            layout(page, label)
+            if theme == "light":
+                card_shot(page, "24-card-check-again")
+            # The read is quick on the mock board: record the busy state as it happens.
+            page.evaluate("""() => { window.__sawChecking = false; const el = document.querySelector('[data-testid=firmware-recheck]');
+                new MutationObserver(() => { if (el.textContent === 'Checking…' && el.disabled) window.__sawChecking = true; }).observe(el, { subtree: true, childList: true, characterData: true, attributes: true }); }""")
+            recheck.click()
+            expect(recheck).to_have_text("Check again", timeout=20000)
+            check(page.evaluate("() => window.__sawChecking"), f"{label}: Checking… while it reads")
+            check(section.get_by_test_id("firmware-halves").inner_text().count("x4") == 2, f"{label}: both halves read again")
+            check(not errors, f"{label}: no page errors {errors}")
+            context.close()
+
+        # The first INFO missed: Keybard tries again and reads the board, no other card.
+        context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4&infofail=1&speed=4", "light", PHONE)
+        section = page.get_by_test_id("firmware-section")
+        expect(section.get_by_test_id("firmware-halves")).to_contain_text("x4", timeout=20000)
+        check(section.get_by_role("button", name="Install by hand").count() == 0, "infofail=1: no Install by hand")
+        check(section.get_by_test_id("firmware-unread").count() == 0, "infofail=1: read on a retry")
+        context.close()
+
+        # The whole first read missed: Keybard couldn't read the firmware; Check again reads it.
+        for theme in ["light", "dark"]:
+            label = f"{theme} couldn't read"
+            context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4&infofail=read&speed=4", theme, PHONE)
+            section = page.get_by_test_id("firmware-section")
+            unread = section.get_by_test_id("firmware-unread")
+            expect(unread).to_be_visible(timeout=20000)
+            check(unread.get_by_text("Keybard couldn't read the firmware.").count() == 1, f"{label}: says so")
+            check(section.get_by_role("button", name="Install by hand").count() == 0, f"{label}: no Install by hand")
+            check(section.get_by_role("button", name=re.compile(r"^Update")).count() == 0, f"{label}: no update offered on a guess")
+            # Opening the card reads it once more: wait for that read to end too.
+            expect(section.get_by_test_id("firmware-unread-recheck")).to_have_text("Check again", timeout=20000)
+            layout(page, label)
+            if theme == "light":
+                card_shot(page, "25-card-couldnt-read")
+            section.get_by_role("button", name="Check again").click()
+            expect(section.get_by_test_id("firmware-halves")).to_contain_text("x4", timeout=20000)
+            check(unread.count() == 0, f"{label}: Check again reads the board")
+            check(not errors, f"{label}: no page errors {errors}")
+            context.close()
+
+        # A board that keeps not answering: still never Install by hand.
+        context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4&infofail=always&speed=4", "light", PHONE)
+        section = page.get_by_test_id("firmware-section")
+        expect(section.get_by_test_id("firmware-unread")).to_be_visible(timeout=20000)
+        section.get_by_role("button", name="Check again").click()
+        page.wait_for_timeout(500)
+        expect(section.get_by_role("button", name="Check again")).to_be_enabled(timeout=20000)
+        check(section.get_by_test_id("firmware-unread").count() == 1, "infofail=always: still couldn't read")
+        check(section.get_by_role("button", name="Install by hand").count() == 0, "infofail=always: no Install by hand")
+        context.close()
+
+        # 12. Timing: twice the mule's, and a half that keeps running its old firmware after COMMIT.
+        for query, label in [(f"{BASE}&timing=slow&pick=x4&speed=8", "slow timing from file"), (f"{BASE}&slowcommit=8000&pick=x4&speed=4", "slow commit from file")]:
+            context, page, errors, dialogs = open_firmware(browser, url, query, "light", DESKTOP)
+            sheet = page.get_by_test_id("update-sheet")
+            expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
+            sheet.get_by_role("button", name="Update", exact=True).click()
+            result = page.get_by_test_id("update-result")
+            failed = page.locator("[data-failure]")
+            for _ in range(480):
+                if result.count() or failed.count():
+                    break
+                page.wait_for_timeout(500)
+            check(failed.count() == 0, f"{label}: no failure ({failed.first.get_attribute('data-failure') if failed.count() else ''})")
+            check(result.count() == 1 and result.get_by_role("heading", name="x4 is installed").count() == 1, f"{label}: x4 is installed")
+            check(not errors, f"{label}: no page errors {errors}")
+            context.close()
 
         browser.close()
 

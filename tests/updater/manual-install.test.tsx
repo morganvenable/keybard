@@ -20,7 +20,8 @@ import {
     MANUAL_KEY, checkManual, manualInstalledSince, manualOwnsResetNotice, manualPending, manualShouldCheck, memoryManualStore, newManualSession, runManualAfterwards, sessionManualStore,
     type ManualStore,
 } from "@/services/updater/manual";
-import { VirtualClock } from "@/services/updater/transport";
+import { ReplyTimeoutError, VirtualClock } from "@/services/updater/transport";
+import { Op } from "@/services/updater/protocol";
 
 vi.mock("@/lib/paranoid", () => ({ PARANOID: false, userIsLooking: () => true }));
 
@@ -52,7 +53,7 @@ const flash = (board: FakeSvalboard, hand: 0 | 1) => board.flashByHand(hand, { f
 
 /** The editor's part: the controller and the dialog, remounted on every reconnect like the app. */
 function Editor({ host, store, connectionKey, buildReset }: { host: Host; store: ManualStore; connectionKey: string | null; buildReset?: boolean }) {
-    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides), fromTag: "x3.1.3", fromFw: 2301, once: true, store, buildReset });
+    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides, { clock: host.clock }), fromTag: "x3.1.3", fromFw: 2301, once: true, store, buildReset });
     const s = m.session;
     // Closed before the keyboard came back: out of sight, as the app shows it.
     if (!s || s.dismissed) return <button onClick={() => m.open(release)}>Update to x4</button>;
@@ -171,6 +172,39 @@ describe("an install by hand closed before the keyboard came back (reconnected w
         expect(host.restores).toBe(1);
         expect(screen.getByText(/Your layout is back on the keyboard\./)).toBeTruthy();
         sessionStorage.clear();
+    });
+
+    it("a reconnect Keybard couldn't read keeps the install (and its hold on the reset notice) for the next one", async () => {
+        const store = sessionManualStore(sessionStorage);
+        const { board, host, reconnect } = await opened({}, store);
+        fireEvent.click(screen.getByRole("button", { name: "Close the dialog" }));
+        flash(board, 0);
+        flash(board, 1);
+        const request = board.request.bind(board);
+        board.request = async (op, hand, args) => {
+            if (op === Op.INFO) { await host.clock.sleep(1000); throw new ReplyTimeoutError(op); }
+            return request(op, hand, args);
+        };
+        await reconnect("p:2");
+        await act(async () => { await host.clock.sleep(10); });
+        await waitFor(() => expect(store.load()?.checkedKey ?? null).toBeNull());
+        expect(store.load()?.dismissed).toBe(true);
+        expect(manualOwnsResetNotice()).toBe(true);
+        board.request = request;
+        await reconnect("p:3");
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
+        expect(host.restores).toBe(1);
+        sessionStorage.clear();
+    });
+
+    it("clears the reset notice the connection reported, even when a later read says nothing", async () => {
+        const { host } = setup();
+        host.readStorageFlags = async () => 0;
+        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards: "defaults" as const };
+        await runManualAfterwards(host, s, { reportedReset: () => true });
+        expect(host.clears).toBe(1);
+        await runManualAfterwards(host, s);
+        expect(host.clears).toBe(1);
     });
 
     it("across the editor's remount on reconnect too", async () => {

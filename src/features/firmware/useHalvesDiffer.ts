@@ -18,6 +18,14 @@ export const OPEN_BACKUPS_EVENT = "keybard:open-backups";
 
 /** What the connected board runs, read once per connection, and again when `refresh` changes. */
 export function useBoardSummary(refresh = 0): BoardSummary | null {
+    return useBoardRead(refresh).board;
+}
+
+/**
+ * The board summary, and whether a read asked for by `refresh` is still running (the
+ * summary from the read before stays meanwhile, so the card doesn't flash empty).
+ */
+export function useBoardRead(refresh = 0): { board: BoardSummary | null; checking: boolean } {
     const { isConnected, keyboard, connectionSessionId } = useKeyboard();
     const [summary, setSummary] = useState<{ session: number; refresh: number; board: BoardSummary } | null>(null);
     const loaded = isConnected && !!keyboard;
@@ -27,10 +35,12 @@ export function useBoardSummary(refresh = 0): BoardSummary | null {
         const session = connectionSessionId;
         void readBoardSummary(new WebHidUpdaterTransport(usbInstance), keyboard, usbSideHost(usbInstance))
             .then((board) => { if (!cancelled) setSummary({ session, refresh, board }); })
-            .catch(() => undefined);
+            // A read that throws keeps what was read before, and stops checking.
+            .catch(() => { if (!cancelled) setSummary((prev) => (prev?.session === session ? { ...prev, refresh } : prev)); });
         return () => { cancelled = true; };
         // Once per connection (and per refresh), after the load.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loaded, connectionSessionId, refresh]);
-    return loaded && summary?.session === connectionSessionId ? summary.board : null;
+    const board = loaded && summary?.session === connectionSessionId ? summary.board : null;
+    return { board, checking: !!board && summary!.refresh !== refresh && !updateInFlight() };
 }

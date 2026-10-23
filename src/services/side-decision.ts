@@ -62,6 +62,13 @@ export function assessSides(supported: boolean, r: SideReport | null): SideAsses
     return { kind: "ok", usb: r.side, other: r.otherSide, migrated: r.source === 3 };
 }
 
+/**
+ * The other half hasn't reported over the split link yet (just after a restart it comes up
+ * a few seconds later): a read to wait out, not one to conclude anything from.
+ */
+export const sidesSettling = (a: SideAssessment): boolean =>
+    a.kind === "pending" || a.kind === "unreadable" || a.kind === "alone" || (a.kind === "unknown" && a.other === null);
+
 /** A half has no side, or both claim the same one: Keybard asks which half is which (neither half types). */
 export const sidesNeedAnswer = (a: SideAssessment): boolean => a.kind === "same" || a.kind === "unknown" || (a.kind === "alone" && a.usb === "unknown");
 

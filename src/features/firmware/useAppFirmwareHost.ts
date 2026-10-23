@@ -21,10 +21,11 @@ import { restoreLayoutToBoard } from "./restore";
 import type { FirmwareUiHost, UpdateBackup } from "./useFirmwareUpdate";
 
 /** <board name>-<installed release>-<date>.svil */
-export function backupFileName(boardName: string, fromTag: string, now = new Date()): string {
+export function backupFileName(boardName: string, now = new Date()): string {
     const safe = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "Svalboard";
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${safe(boardName)}-${safe(fromTag || "firmware")}-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.svil`;
+    // Named by board and when it was saved: a layout file, not a firmware version.
+    return `${safe(boardName)}-layout-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.svil`;
 }
 
 /** Save text to Downloads with no file picker: the sheet says where it went. */
@@ -136,11 +137,15 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             return info[17] ?? 0;
         },
         async clearStorageReset() {
-            await usbInstance.sendSvil(SvilUSB.CMD_SVIL_STORAGE_RESET_CLEAR, [], {});
-            // The layout loaded on the reconnect still carries the notice: the board has
-            // cleared it now, so the reset dialog must not offer a restore for it.
-            // (Not by editing the layout: that would count as an unsaved change.)
-            noteResetNoticeCleared(ref.current.kb.connectionSessionId);
+            try {
+                await usbInstance.sendSvil(SvilUSB.CMD_SVIL_STORAGE_RESET_CLEAR, [], {});
+            } finally {
+                // The layout loaded on the reconnect still carries the notice: the update has
+                // acted on it, so the reset dialog must not ask again on this connection, even
+                // if 0x2A didn't get through (the board then asks on the next one).
+                // (Not by editing the layout: that would count as an unsaved change.)
+                noteResetNoticeCleared(ref.current.kb.connectionSessionId);
+            }
         },
         async restoreLayout(svil) {
             // Wait for the reconnect's load, so the restore writes onto what the board holds now.
@@ -167,7 +172,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             // Parse it back before Start is enabled.
             await fileService.loadFile(new File([svil], "check.svil", { type: "application/json" }));
             const boardName = b.board?.name ?? k.keyboard.name ?? "Svalboard";
-            const fileName = backupFileName(boardName, fromTag);
+            const fileName = backupFileName(boardName);
             let snapshotId: string | undefined;
             // Before the board is identified, keep it under its keyboard UID: the reset dialog
             // finds a fresh pre-update backup under any key, and the board may come back

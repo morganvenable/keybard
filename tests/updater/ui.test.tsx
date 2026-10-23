@@ -129,7 +129,7 @@ describe("the running screens (5.1)", () => {
         expect(failureCopy({ id: "F9", tags: { 0: "x4", 1: "v3" } })).toMatchObject({ title: "Halves differ", body: "Left half x4 · Right half v3" });
         render(<>{failureCopy({ id: "F5", detail: "The keyboard's copy doesn't match the file." }, { fromTag: "v3" }).body}</>);
         expect(screen.getByText("The keyboard's copy doesn't match the file.")).toBeTruthy();
-        expect(screen.getByText("Nothing was changed. Your keyboard still runs v3.")).toBeTruthy();
+        expect(screen.getByText("Nothing was changed: your keyboard still runs v3.")).toBeTruthy();
         expect(failureCopy({ id: "F11", hand: 0 }).title).toBe("Left half needs its firmware installed by hand");
         expect(failureCopy({ id: "F4" }).title).toBe("The keys weren't pressed in time");
     });
@@ -254,7 +254,7 @@ describe("the sheet (B1) and the dialog against the mock board", () => {
 
     it("passed checks say nothing; a warning is a sentence with what to do, and the button reads Update anyway", async () => {
         const { host } = await setup();
-        await waitFor(() => expect(screen.getByText(/Saved to Downloads as/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/Saved to Downloads/)).toBeTruthy());
         expect(host.backups).toBe(1);
         expect(screen.queryByText(/Both halves connected|Firmware files verified|Layout saved/)).toBeNull();
         expect(screen.getByText("Keybard can't check where this file came from.")).toBeTruthy();

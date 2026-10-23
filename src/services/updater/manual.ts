@@ -142,6 +142,8 @@ export function manualShouldCheck(s: ManualSession, key: string | null): boolean
 /** What the board answered on Connect, as far as the check needs it (BoardSummary fits). */
 export interface ManualBoardRead {
     updater: boolean;
+    /** The board didn't answer: what it runs is unknown. */
+    unread?: boolean;
     legacyLabel: string | null;
     usbHand: Hand;
     tag: string;
@@ -157,7 +159,7 @@ export interface ManualBoardRead {
 export function checkManual(s: Pick<ManualSession, "releaseFw" | "fromTag" | "fromFw">, board: ManualBoardRead | null): ManualCheck {
     const halves: Partial<Record<Hand, ManualHalfState>> = {};
     const name = (fw: number, tag: string) => (s.fromFw !== null && fw === s.fromFw && s.fromTag ? s.fromTag : tag && !tag.startsWith("build ") && !tag.startsWith("fw version") ? tag : undefined);
-    if (!board) return { halves: { 0: { state: "unknown" }, 1: { state: "unknown" } } };
+    if (!board || board.unread) return { halves: { 0: { state: "unknown" }, 1: { state: "unknown" } } };
     // One-image firmware that needs its sides set: ask that first (a half without a side
     // answers as neither half, so its version waits until it has one).
     if (board.updater && board.sides && sidesNeedAnswer(board.sides)) {
@@ -189,7 +191,7 @@ export function manualKeepsOnClose(s: ManualSession): boolean {
  */
 export function manualInstalledSince(s: Pick<ManualSession, "fromFw" | "fromTag" | "releaseFw">, board: ManualBoardRead | null, buildReset: boolean): boolean {
     if (buildReset) return true;
-    if (!board) return false;
+    if (!board || board.unread) return false;
     if (!board.updater) return s.fromFw !== null ? board.fwVersion !== s.fromFw : !!s.fromTag && (board.legacyLabel ?? board.tag) !== s.fromTag;
     return board.halves.some((h) => h.answered && (s.fromFw !== null ? h.fwVersion !== s.fromFw : s.releaseFw !== null && h.fwVersion === s.releaseFw));
 }
@@ -204,12 +206,14 @@ export function manualPending(s: Pick<ManualSession, "only" | "usualHand">, chec
  * the backup back through the import path; the default layout keeps what the firmware
  * started with. Then the reset notice is cleared (0x2A), last, as the in-app update does.
  */
-export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession): Promise<{ layout: "restored" | "defaults"; trimmed: string[] }> {
+export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<{ layout: "restored" | "defaults"; trimmed: string[] }> {
     let trimmed: string[] = [];
     const restore = s.afterwards === "restore" && s.backup?.state === "ok";
     if (restore) trimmed = (await host.restoreLayout((s.backup as Extract<ManualBackup, { state: "ok" }>).svil)).trimmed;
     // Firmware without the reset notice (or GET_INFO) has nothing to clear.
+    // Cleared when the board reports the notice now, or reported it on this connection (a read
+    // that fails or comes too early must not leave it for the generic reset dialog).
     const flags = await host.readStorageFlags().catch(() => 0);
-    if (flags & 0x04) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
+    if ((flags & 0x04) || o.reportedReset?.()) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
     return { layout: restore ? "restored" : "defaults", trimmed };
 }

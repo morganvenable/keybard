@@ -139,7 +139,7 @@ function FakeHarness() {
     }, []);
     const files = useCallback(async (pin: FirmwareReleasePin) => ready!.byTag[pin.tag].files, [ready]);
     const { fw, install, dialog, manual, setManual } = useDialogWiring(ready?.host ?? null, ready?.releases ?? [], files);
-    const refresh = useCallback(() => { if (ready) void readBoardSummary(ready.host.board, null, ready.host.sides).then(setBoard).catch(() => setBoard(null)); }, [ready]);
+    const refresh = useCallback(() => { if (ready) void readBoardSummary(ready.host.board, null, ready.host.sides, { clock: ready.host.clock }).then(setBoard).catch(() => setBoard(null)); }, [ready]);
     useEffect(() => { refresh(); }, [refresh, fw.ui.kind]);
     const [side, setSide] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
     const applySides = useCallback((writes: SideWrite[]) => {

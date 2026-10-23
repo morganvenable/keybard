@@ -17,15 +17,26 @@
 //   &pick=x4|x3.1.3     choose a file in Install a firmware file…, as the file chooser would: the
 //                       carried x4 pair UF2, or a per-side x3.1.3 file (refused)
 //   &go=1               then press Update (or Connect keyboard) once it's enabled
-//   &resetnotice=1      the "New firmware reset your settings" notice, for what the mock board runs
+//   &resetnotice=1      the reset notice, for what the mock board runs
+// The board's answers (Firmware card, Check again):
+//   &infofail=1|read|always  INFO goes unanswered: the first request (Keybard's retry reads the
+//                            board), every one until the person presses Check again (the card
+//                            says Keybard couldn't read the firmware first), or every one
+// Timing: the mule's by default (fake-board.ts DEFAULT_TIMING).
+//   &timing=slow          every wait twice the mule's (the worst case)
+//   &slowcommit=<ms>      after its COMMIT, the half with USB keeps running its old firmware
+//                         this long before it writes the image (the mule's false "nothing was
+//                         changed": Keybard read the old version before the restart)
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { installedLine, RESET_DIALOG_CLASS, ResetNoticeView } from "@/components/StorageResetDialog";
+import { firmwareLine, RESET_DIALOG_CLASS, ResetNoticeView } from "@/components/StorageResetDialog";
+import { backupWhen } from "@/services/backup/describe";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
-import { imageIdOf, type Fault } from "@/services/updater/fake-board";
-import { FakeHost, fakeSetup, fixtureOneImage, fixturePerSideUf2, type FixtureRelease } from "@/services/updater/fake-host";
+import { DEFAULT_TIMING, imageIdOf, slowTiming, type Fault, type FakeTiming } from "@/services/updater/fake-board";
+import { FakeHost, fakeSetup, FlakyInfoTransport, fixtureOneImage, fixturePerSideUf2, type FixtureRelease } from "@/services/updater/fake-host";
+import type { UpdaterTransport } from "@/services/updater/transport";
 import { sidesScenario } from "@/services/updater/fake-sides-scenarios";
 import { HAND_LEFT, HAND_RIGHT, otherHand, type Hand } from "@/services/updater/protocol";
 import { readBoardSummary, type BoardSummary } from "../board-summary";
@@ -34,9 +45,9 @@ import type { FirmwareUiHost, UpdateBackup } from "../useFirmwareUpdate";
 import { pinOf, ScaledClock } from "./HarnessApp";
 
 class DevFakeHost extends FakeHost implements FirmwareUiHost {
-    async makeBackup({ fromTag }: { fromTag: string }): Promise<UpdateBackup> {
+    async makeBackup(): Promise<UpdateBackup> {
         await this.clock.sleep(400);
-        return { fileName: `Kip-${fromTag}-2026-10-15.svil`, svil: "{}" };
+        return { fileName: "Kip-layout-2026-10-15-0626.svil", svil: "{}" };
     }
     async prepareRows() { return []; }
     boardName() { return "Kip"; }
@@ -45,6 +56,8 @@ class DevFakeHost extends FakeHost implements FirmwareUiHost {
 
 interface Ready {
     host: DevFakeHost;
+    /** What the Firmware card reads through (&infofail). */
+    cardTransport: UpdaterTransport;
     releases: FirmwareReleasePin[];
     byTag: Record<string, FixtureRelease>;
     newest: FixtureRelease;
@@ -97,6 +110,7 @@ function AutoOpen() {
         const release = (open === "update" ? updates.releases[0] : updates.releases.find((r) => r.tag === open)) ?? null;
         if (!release) return;
         opened.current = true;
+        if (updates.board.unread) return;
         if (updates.board.updater) updates.install({ kind: "release", release });
         else updates.openManual(release);
     }, [open, updates]);
@@ -126,11 +140,10 @@ function ResetNoticeDemo() {
     const close = () => setOpen(false);
     const at = new Date();
     at.setHours(6, 26, 0, 0);
-    const time = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     return (
         <Dialog open onOpenChange={(next) => !next && close()}>
             <DialogContent className={RESET_DIALOG_CLASS}>
-                <ResetNoticeView firmware installed={installedLine(updates.board, null)} backupLine={`Kip · x3.1.3 · Today ${time}`} onDefaults={close} onOtherBackups={close} onPutBack={close} />
+                <ResetNoticeView firmware firmwareNow={firmwareLine(updates.board, null)} backupLine={`Backup saved before the update, ${backupWhen(at.getTime())}`} onDefaults={close} onOtherBackups={close} onPutBack={close} />
             </DialogContent>
         </Dialog>
     );
@@ -153,7 +166,10 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
             const f = p.get("fault");
             const faults: Fault[] = !f ? [] : f.startsWith("unplug-") ? [{ kind: "unplug", at: f.slice(7) as "other-send" }] : [{ kind: f } as Fault];
             const chord = p.get("chord");
+            const timing: Partial<FakeTiming> = p.get("timing") === "slow" ? slowTiming() : { ...DEFAULT_TIMING };
+            if (p.get("slowcommit")) timing.usbCommitStartMs = Number(p.get("slowcommit")) || 8000;
             const { board, sides: fakeSides } = fakeSetup({
+                timing,
                 sides, clock, running, noChord: p.has("nochord"), faults, usbHand: p.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
                 chordAfterMs: chord === "never" ? "never" : chord ? Number(chord) : 3000,
                 otherRunning: p.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
@@ -161,10 +177,18 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
             });
             const host = new DevFakeHost(board, clock);
             host.sides = fakeSides?.host;
-            setReady({ host, releases: [pinOf(x4), pinOf(v3)], byTag: { v2, v3, [x4.tag]: x4 }, newest: x4 });
+            const fail = p.get("infofail");
+            const cardTransport = fail ? new FlakyInfoTransport(board, clock, fail === "always" || fail === "read" ? fail : Number(fail) || 1) : board;
+            if (cardTransport instanceof FlakyInfoTransport && fail === "read") {
+                // Check again, pressed by the person: the board answers from then on.
+                document.addEventListener("click", (e) => {
+                    if ((e.target as Element | null)?.closest?.("[data-testid=firmware-unread-recheck],[data-testid=firmware-recheck]")) cardTransport.answer();
+                }, true);
+            }
+            setReady({ host, cardTransport, releases: [pinOf(x4), pinOf(v3)], byTag: { v2, v3, [x4.tag]: x4 }, newest: x4 });
         })();
     }, []);
-    const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.host.board, null, ready.host.sides) : null), [ready]);
+    const readBoard = useCallback(async (): Promise<BoardSummary | null> => (ready ? readBoardSummary(ready.cardTransport, null, ready.host.sides, { clock: ready.host.clock }) : null), [ready]);
     // &badfile=1: hand back another release's files, which miss the pins.
     const files = useCallback(async (pin: FirmwareReleasePin) => (params().has("badfile") ? ready!.byTag.v2.files : ready!.byTag[pin.tag].files), [ready]);
     // The mock board is always plugged in; Connect stands for plugging it back in after an install by hand.

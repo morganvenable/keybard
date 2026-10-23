@@ -21,17 +21,17 @@ beforeEach(async () => {
 describe("board summary", () => {
     it("a per-hand board has no sides", async () => {
         const { board, host } = fakeSetup({ clock, running: v3 });
-        expect((await readBoardSummary(board, null, host.sides)).sides ?? null).toBeNull();
+        expect((await readBoardSummary(board, null, host.sides, { clock: host.clock })).sides ?? null).toBeNull();
     });
     it("same side on a one-image board: a side to set, not halves that differ", async () => {
         const { board, host } = fakeSetup({ clock, running: v3, sides: { supported: true, usb: { side: "right" }, other: { side: "right" } } });
-        const s = await readBoardSummary(board, null, host.sides);
+        const s = await readBoardSummary(board, null, host.sides, { clock: host.clock });
         expect(s.sides).toEqual({ kind: "same", side: "right" });
         expect(s.differ).toBe(false);
     });
     it("one-image board, both sides known", async () => {
         const { board, host } = fakeSetup({ clock, running: v3, sides: { supported: true } });
-        expect((await readBoardSummary(board, null, host.sides)).sides).toMatchObject({ kind: "ok", usb: "right", other: "left" });
+        expect((await readBoardSummary(board, null, host.sides, { clock: host.clock })).sides).toMatchObject({ kind: "ok", usb: "right", other: "left" });
     });
 });
 

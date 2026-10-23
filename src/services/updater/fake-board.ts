@@ -17,7 +17,7 @@ import {
     u32, type Hand, type UpdaterReply,
 } from "./protocol";
 import { findBuildInfo, imageCrc, parseManifest, sha512, type SvupManifest } from "./svup";
-import { ClientRejectedError, DisconnectedError, type Clock, type UpdaterTransport } from "./transport";
+import { ClientRejectedError, DisconnectedError, ReplyTimeoutError, type Clock, type UpdaterTransport } from "./transport";
 
 export interface FakeHalfConfig {
     fwVersion: number;
@@ -50,6 +50,8 @@ export type Fault =
     | { kind: "relay-fail" }
     | { kind: "latched-error" }
     | { kind: "no-return" }
+    /** The half with USB refuses its COMMIT when it comes to write (a DMA channel busy): ERROR, old firmware. */
+    | { kind: "commit-refused" }
     | { kind: "other-no-return" }
     | { kind: "expire-client"; afterOps: number }
     | { kind: "renew-every"; ms: number };
@@ -62,8 +64,19 @@ export interface FakeTiming {
     relayVerifyMs: number;
     subsideHoldMs: number;
     commitDelayMs: number;
+    /**
+     * After the half with USB took COMMIT: how long its old firmware keeps running (and
+     * answering) before it starts writing the image. The firmware's own delay is 100 ms.
+     */
+    usbCommitStartMs: number;
+    /** Writing the image: the half with USB stays enumerated but answers nothing. */
     commitCopyMs: number;
+    /** From the half with USB going away to its USB being back. */
     rebootMs: number;
+    /** Enumerated after a boot, but INFO and the rest don't answer yet. */
+    bootQuietMs: number;
+    /** After the half with USB boots, the split link reports no other half (presence NONE) this long. */
+    linkAfterBootMs: number;
     otherRebootMs: number;
     sessionTimeoutMs: number;
     chordWindowMs: number;
@@ -73,17 +86,25 @@ export interface FakeTiming {
     clientTtlMs: number;
 }
 
+/**
+ * Timing as measured on the mule (protocol 4, x4): the relay of a 120 KB image about 15 s,
+ * the other half back about 5 s after its COMMIT, the half with USB back about 4 s after
+ * it goes away, and presence MATCH about 6 s after that. slowTiming doubles every wait.
+ */
 export const DEFAULT_TIMING: FakeTiming = {
     eraseMsPerSector: 50,
     verifyMs: 485,
     relayEraseMs: 1600,
-    relayBytesPerMs: 11,
+    relayBytesPerMs: 9,
     relayVerifyMs: 500,
     subsideHoldMs: 4500,
     commitDelayMs: 100,
-    commitCopyMs: 1500,
-    rebootMs: 2500,
-    otherRebootMs: 3000,
+    usbCommitStartMs: 100,
+    commitCopyMs: 2000,
+    rebootMs: 4000,
+    bootQuietMs: 1500,
+    linkAfterBootMs: 6000,
+    otherRebootMs: 5000,
     sessionTimeoutMs: 30_000,
     chordWindowMs: 30_000,
     heldWindowMs: 120_000,
@@ -91,6 +112,17 @@ export const DEFAULT_TIMING: FakeTiming = {
     clientRenewMs: 50_000,
     clientTtlMs: 120_000,
 };
+
+/** The worst case: every wait of the mule's timing twice as long. */
+export function slowTiming(base: FakeTiming = DEFAULT_TIMING): FakeTiming {
+    const slow = { ...base };
+    for (const k of ["verifyMs", "relayEraseMs", "relayVerifyMs", "commitCopyMs", "rebootMs", "bootQuietMs", "linkAfterBootMs", "otherRebootMs"] as const) slow[k] = base[k] * 2;
+    slow.relayBytesPerMs = base.relayBytesPerMs / 2;
+    return slow;
+}
+
+/** The board as it was before the mule's timing: quick restarts, no quiet time. Only for tests that need it. */
+export const FAST_TIMING: Partial<FakeTiming> = { relayBytesPerMs: 11, commitCopyMs: 1500, rebootMs: 2500, bootQuietMs: 0, linkAfterBootMs: 0, otherRebootMs: 3000 };
 
 export interface FakeBoardOptions {
     usbHand: Hand;
@@ -191,6 +223,8 @@ export class FakeSvalboard implements UpdaterTransport {
     readonly boardName: string;
 
     private isConnected = true;
+    /** When the half with USB last booted (its quiet time and the link wait start there). */
+    private usbBootAt = Number.NEGATIVE_INFINITY;
     private session: Session | null = null;
     private latched: { error: number } | null = null;
     private lastError = 0;
@@ -345,9 +379,34 @@ export class FakeSvalboard implements UpdaterTransport {
         this.halves[hand].backAt = null;
     }
 
+    /** The other half is up and the split link reports it (a while after the half with USB boots). */
+    linkUp(): boolean {
+        return this.other().alive && this.clock.now() >= this.usbBootAt + this.timing.linkAfterBootMs;
+    }
+
+    /** Connected and answering: not writing its image, not just booted. */
+    answering(): boolean {
+        return this.connected() && !this.silent();
+    }
+
+    /** The half with USB is writing its image, or just booted: enumerated, silent. */
+    private silent(): boolean {
+        const now = this.clock.now();
+        const s = this.session;
+        if (s && s.state === State.COMMITTING && s.hand === this.usbHand && now >= s.commitAt + this.timing.usbCommitStartMs) return true;
+        return now < this.usbBootAt + this.timing.bootQuietMs;
+    }
+
     async request(op: number, hand: number, args: ArrayLike<number> = []): Promise<UpdaterReply> {
         this.tick();
         if (!this.isConnected) throw new DisconnectedError();
+        if (this.silent()) {
+            // No reply: the transport gives up after its timeout.
+            await this.clock.sleep(1000);
+            this.tick();
+            if (!this.isConnected) throw new DisconnectedError();
+            throw new ReplyTimeoutError(op);
+        }
         const a = Uint8Array.from(args);
         this.opCount++;
         const expire = this.fault("expire-client");
@@ -433,8 +492,12 @@ export class FakeSvalboard implements UpdaterTransport {
                 if (this.has("held-lapse")) this.held = null;
             }
         }
-        if (s.state === State.COMMITTING && s.hand === this.usbHand && now >= s.commitAt + this.timing.commitDelayMs) {
+        if (s.state === State.COMMITTING && s.hand === this.usbHand && now >= s.commitAt + this.timing.usbCommitStartMs) {
             const usb = this.usb();
+            if (this.has("commit-refused")) {
+                this.fail(Status.BUSY);
+                return;
+            }
             if (this.fault("unplug")?.at === "self-commit" || this.has("no-return")) {
                 // Power lost mid-copy: BOOTSEL, never comes back as a keyboard.
                 this.session = null;
@@ -444,9 +507,9 @@ export class FakeSvalboard implements UpdaterTransport {
                 this.disconnect();
                 return;
             }
-            if (now >= s.commitAt + this.timing.commitDelayMs + this.timing.commitCopyMs) {
+            if (now >= s.commitAt + this.timing.usbCommitStartMs + this.timing.commitCopyMs) {
                 usb.cfg = { ...usb.cfg, fwVersion: s.m!.fwVersion, tag: s.m!.tag, imageId: imageIdOf(s.manifest), protocol: s.m!.updaterProto, noChord: s.noChordImage };
-                this.restartUsb(s.commitAt + this.timing.commitDelayMs + this.timing.commitCopyMs);
+                this.restartUsb(s.commitAt + this.timing.usbCommitStartMs + this.timing.commitCopyMs);
                 this.boots(now);
             }
         }
@@ -488,6 +551,7 @@ export class FakeSvalboard implements UpdaterTransport {
 
     /** First boot of a half: D39 resets every stored setting when the record is invalid. */
     private boot(h: Half) {
+        if (h === this.usb()) this.usbBootAt = h.backAt ?? this.clock.now();
         h.alive = true;
         h.backAt = null;
         if (h.forceReset || h.bootedImage !== h.cfg.imageId) {
@@ -519,6 +583,8 @@ export class FakeSvalboard implements UpdaterTransport {
         const usb = this.usb();
         const other = this.other();
         if (!other.alive) return Presence.NONE;
+        // The split link comes up a while after the half with USB boots.
+        if (this.clock.now() < this.usbBootAt + this.timing.linkAfterBootMs) return Presence.NONE;
         if (this.session && (this.session.state === State.RELAYING || this.session.state === State.SUBSIDE_COMMITTING)) return Presence.NONE;
         return usb.cfg.fwVersion === other.cfg.fwVersion && usb.cfg.tag === other.cfg.tag && usb.cfg.protocol === other.cfg.protocol ? Presence.MATCH : Presence.VERSION;
     }

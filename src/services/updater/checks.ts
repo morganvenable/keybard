@@ -10,9 +10,15 @@ import {
     statusName, type Hand, type Info0, type Info1, type StatusReply,
 } from "./protocol";
 import type { SvupFile } from "./svup";
-import type { Clock } from "./transport";
+import { ReplyTimeoutError, type Clock } from "./transport";
 import type { SideHost } from "../side-host";
-import { assessSides, knownSidesFrom, sidesSound, type KnownSides, type SideAssessment } from "../side-decision";
+import { assessSides, knownSidesFrom, sidesSettling, sidesSound, type KnownSides, type SideAssessment } from "../side-decision";
+
+/**
+ * How long a read waits for the other half after the half with USB answers: the split link
+ * comes up about 6 s after a boot on the mule, and twice that is the worst case.
+ */
+export const OTHER_HALF_WAIT_MS = 12_000;
 
 export type CheckState = "pending" | "ok" | "warn" | "refuse";
 
@@ -88,7 +94,19 @@ const sentence = (why: string) => `${why[0].toUpperCase()}${why.slice(1)}.`;
 
 /** Read what the board runs: INFO of both halves, the tag, presence. ABORTs a latched error first. */
 export async function readBoard(client: UpdaterClient, clock: Clock): Promise<BoardState | PreFailure> {
-    let usb = await client.info(HAND_SELF);
+    // A board just connected or restarted may not answer yet: a few tries before giving up.
+    const info = async () => {
+        for (const wait of [500, 1000]) {
+            try {
+                return await client.info(HAND_SELF);
+            } catch (error) {
+                if (!(error instanceof ReplyTimeoutError)) throw error;
+                await clock.sleep(wait);
+            }
+        }
+        return client.info(HAND_SELF);
+    };
+    let usb = await info();
     if (usb.protocol !== UPDATER_PROTOCOL) return { id: "unsupported", detail: `updater protocol ${usb.protocol}` };
     if (!usb.flash16MiB) return { id: "F18" };
     if (usb.writesFailing) return { id: "F17" };
@@ -97,11 +115,17 @@ export async function readBoard(client: UpdaterClient, clock: Clock): Promise<Bo
         await client.abort(usb.hand);
         usb = await client.info(HAND_SELF);
     }
+    // Busy for a moment (a session another tab is ending): wait it out before saying so.
+    for (const busyUntil = clock.now() + 3000; usb.state !== State.IDLE && clock.now() < busyUntil;) {
+        await clock.sleep(500);
+        usb = await info();
+    }
     if (usb.state !== State.IDLE) return { id: "F3", detail: `the updater is busy (${usb.state})` };
     const page1: Info1 = await client.info1();
     const hand = usb.hand as Hand;
     let status = await client.status(hand);
-    const deadline = clock.now() + 5000;
+    // The split link comes up a while after a boot: wait for it before calling the other half silent.
+    const deadline = clock.now() + OTHER_HALF_WAIT_MS;
     while (status.presence === Presence.NONE && clock.now() < deadline) {
         await clock.sleep(250);
         status = await client.status(hand);
@@ -124,7 +148,7 @@ export function refusalFor(file: SvupFile, half: Info0, isOther: boolean): strin
     // without DIAGNOSTIC: a release half refuses its image with BAD_IMAGE after the chord.
     if (half.releaseBuild && (m.diagnostic || file.noChord || file.keepSettings)) return "it's a developer file and this keyboard runs a release";
     if (m.securityEpoch < half.securityEpoch) return "it's older than this keyboard allows";
-    if (m.storageFormat < half.storageFormat) return "its settings format is older than this keyboard's";
+    if (m.storageFormat < half.storageFormat) return "its layout format is older than this keyboard's";
     if (m.imageLen > half.maxImage) return "it's too large for this keyboard";
     if (!file.imageHashOk) return "the file is damaged";
     return null;
@@ -170,10 +194,10 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     // half without one), and Keybard notes them to compare after the install.
     let sideRead: SideAssessment = { kind: "unsupported" };
     if (o.sides && (await o.sides.supported())) {
-        const deadline = o.clock.now() + 2000;
+        const deadline = o.clock.now() + OTHER_HALF_WAIT_MS;
         for (;;) {
             sideRead = assessSides(true, await o.sides.read());
-            if ((sideRead.kind !== "pending" && sideRead.kind !== "unreadable") || o.clock.now() >= deadline) break;
+            if (!sidesSettling(sideRead) || o.clock.now() >= deadline) break;
             await o.clock.sleep(250);
         }
         if (sideRead.kind === "unknown" || sideRead.kind === "same" || (sideRead.kind === "alone" && sideRead.usb === "unknown")) {
@@ -266,7 +290,7 @@ export async function planInstall(client: UpdaterClient, source: InstallSource, 
     }
     const lead = files[target === "both" ? usbHand : target]!;
     if (lead && lead.manifest.fwVersion < board.usb.fwVersion) {
-        warnings.push({ id: "older", label: `${lead.manifest.tag || "This file"} is older than ${board.usbTag || "what's installed"}.`, state: "warn", detail: `Settings added since ${lead.manifest.tag || "it"} won't come back.` });
+        warnings.push({ id: "older", label: `${lead.manifest.tag || "This file"} is older than ${board.usbTag || "what's installed"}.`, state: "warn", detail: `Parts of your layout added since ${lead.manifest.tag || "it"} won't come back.` });
     }
     if (source.kind === "release" && o.maxSvalProtocol !== undefined && (source.release.svalProtocol ?? 0) > o.maxSvalProtocol) {
         warnings.push({ id: "sval-protocol", label: "This Keybard may not be able to edit this firmware.", state: "warn", detail: "You can still install it. Reload Keybard afterward to get a newer one." });

@@ -80,7 +80,7 @@ export function UpdateSheet({ ui, onAfterwards, onStart, onCancel, onSaveManuall
                 <section className="flex flex-col gap-2" aria-label="Your layout">
                     <SectionLabel>Your layout</SectionLabel>
                     <p className="text-sm">
-                        {backup.state === "ok" ? <>Saved to Downloads as <span className="break-all font-mono text-xs">{backup.fileName}</span>. Afterward:</>
+                        {backup.state === "ok" ? <>Saved to Downloads just now, before the update, as <span className="break-all font-mono text-xs">{backup.fileName}</span>. Afterward:</>
                             : backupFailed ? "Afterward:" : "Keybard saves it to Downloads before it starts. Afterward:"}
                     </p>
                     <LayoutChoice value={afterwards} onChange={onAfterwards} keepDisabled={backup.state !== "ok"} />

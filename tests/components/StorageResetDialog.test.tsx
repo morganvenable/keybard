@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { act } from 'react';
-import { StorageResetDialog, OPEN_BACKUPS_EVENT, installedLine, pickResetBackup } from '../../src/components/StorageResetDialog';
+import { StorageResetDialog, OPEN_BACKUPS_EVENT, firmwareLine, pickResetBackup } from '../../src/components/StorageResetDialog';
 import { fingerprintSvil } from '../../src/services/backup/codec';
 import type { SnapshotMeta } from '../../src/services/backup/backup.service';
 import { noteResetNoticeCleared, sessionFlowStore } from '../../src/services/updater/flow';
@@ -38,21 +38,21 @@ describe('StorageResetDialog', () => {
 
     it('tells the user to reload their layout file when there is no backup, and clears the board notice on OK', async () => {
         render(<StorageResetDialog />);
-        expect(await screen.findByText("Your keyboard's settings were reset")).toBeTruthy();
+        expect(await screen.findByText("Your layout was reset")).toBeTruthy();
         expect(screen.getByText(/Load your layout file/)).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'OK' }));
         await waitFor(() => expect(svc.clearStorageReset).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull());
+        await waitFor(() => expect(screen.queryByText("Your layout was reset")).toBeNull());
     });
 
     it('stays hidden when the board reports no reset or is disconnected', () => {
         keyboardContext.keyboard = { kbid: 'abc', storage_reset: false };
         const { rerender } = render(<StorageResetDialog />);
-        expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull();
+        expect(screen.queryByText("Your layout was reset")).toBeNull();
         keyboardContext.keyboard = { kbid: 'abc', storage_reset: true };
         keyboardContext.isConnected = false;
         rerender(<StorageResetDialog />);
-        expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull();
+        expect(screen.queryByText("Your layout was reset")).toBeNull();
         expect(svc.clearStorageReset).not.toHaveBeenCalled();
     });
 
@@ -70,9 +70,9 @@ describe('StorageResetDialog', () => {
         keyboardContext.keyboard = { kbid: 'abc', storage_reset: true, storage_write_failed: true };
         render(<StorageResetDialog />);
         expect(screen.getByText("Your keyboard can't save changes")).toBeTruthy();
-        expect(screen.queryByText("Your keyboard's settings were reset")).toBeNull();
+        expect(screen.queryByText("Your layout was reset")).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'OK' }));
-        await waitFor(() => expect(screen.getByText("Your keyboard's settings were reset")).toBeTruthy());
+        await waitFor(() => expect(screen.getByText("Your layout was reset")).toBeTruthy());
         fireEvent.click(screen.getByRole('button', { name: 'OK' }));
         await waitFor(() => expect(svc.clearStorageReset).toHaveBeenCalledTimes(1));
     });
@@ -84,8 +84,10 @@ describe('StorageResetDialog', () => {
             keyboardContext.keyboard = { kbid: 'abc', storage_build_reset: true };
             backups.snapshots = [snap('old', 1000), snap('new', 2000), { ...snap('other', 3000), boardKey: 'sval:2' }];
             render(<StorageResetDialog />);
-            expect(await screen.findByText('New firmware reset your settings')).toBeTruthy();
-            expect(screen.getByText(/Kip · v3 ·/)).toBeTruthy();
+            expect(await screen.findByText('Your layout was reset')).toBeTruthy();
+            // The layout line names the backup by when and why, never by a firmware version.
+            expect(screen.getByTestId('reset-backup').textContent).toMatch(/^Backup saved before the update, (today|yesterday|\w)/);
+            expect(screen.getByTestId('reset-backup').textContent).not.toMatch(/v3/);
             fireEvent.click(screen.getByRole('button', { name: 'Restore my layout' }));
             await waitFor(() => expect(restore.restoreLayoutToBoard).toHaveBeenCalledTimes(1));
             expect(backupService.getSvil).toHaveBeenCalledWith('new');
@@ -93,11 +95,11 @@ describe('StorageResetDialog', () => {
             await waitFor(() => expect(svc.clearStorageReset).toHaveBeenCalledTimes(1));
         });
 
-        it('Start from defaults clears the notice without writing anything', async () => {
+        it('Start from the default layout clears the notice without writing anything', async () => {
             keyboardContext.keyboard = { kbid: 'abc', storage_build_reset: true };
             backups.snapshots = [snap('new', 2000)];
             render(<StorageResetDialog />);
-            fireEvent.click(await screen.findByRole('button', { name: 'Start from defaults' }));
+            fireEvent.click(await screen.findByRole('button', { name: 'Start from the default layout' }));
             await waitFor(() => expect(svc.clearStorageReset).toHaveBeenCalledTimes(1));
             expect(restore.restoreLayoutToBoard).not.toHaveBeenCalled();
         });
@@ -117,7 +119,7 @@ describe('StorageResetDialog', () => {
             keyboardContext.keyboard = { kbid: 'abc', storage_build_reset: true };
             sessionStorage.setItem('keybard:firmware-update', JSON.stringify({ phase: 'running' }));
             render(<StorageResetDialog />);
-            expect(screen.queryByText('New firmware reset your settings')).toBeNull();
+            expect(screen.queryByText('Your layout was reset')).toBeNull();
         });
 
         it("stays out of the way while the update's dialog shows its result or a failure", () => {
@@ -126,7 +128,7 @@ describe('StorageResetDialog', () => {
             for (const phase of ['result', 'failed']) {
                 sessionStorage.setItem('keybard:firmware-update', JSON.stringify({ phase }));
                 const { unmount } = render(<StorageResetDialog />);
-                expect(screen.queryByText('New firmware reset your settings')).toBeNull();
+                expect(screen.queryByText('Your layout was reset')).toBeNull();
                 unmount();
             }
         });
@@ -140,7 +142,7 @@ describe('StorageResetDialog', () => {
             act(() => noteResetNoticeCleared(7));
             // Done closes the update's dialog.
             act(() => sessionFlowStore().clear());
-            expect(screen.queryByText('New firmware reset your settings')).toBeNull();
+            expect(screen.queryByText('Your layout was reset')).toBeNull();
             expect(svc.clearStorageReset).not.toHaveBeenCalled();
         });
 
@@ -149,9 +151,9 @@ describe('StorageResetDialog', () => {
             backups.snapshots = [snap('new', 2000)];
             sessionStorage.setItem('keybard:firmware-update', JSON.stringify({ phase: 'failed' }));
             render(<StorageResetDialog />);
-            expect(screen.queryByText('New firmware reset your settings')).toBeNull();
+            expect(screen.queryByText('Your layout was reset')).toBeNull();
             act(() => sessionFlowStore().clear());
-            await waitFor(() => expect(screen.getByText('New firmware reset your settings')).toBeTruthy());
+            await waitFor(() => expect(screen.getByText('Your layout was reset')).toBeTruthy());
         });
 
         it('a reset on a later connection asks again', async () => {
@@ -159,13 +161,13 @@ describe('StorageResetDialog', () => {
             keyboardContext.connectionSessionId = 8;
             noteResetNoticeCleared(7);
             render(<StorageResetDialog />);
-            expect(await screen.findByText('New firmware reset your settings')).toBeTruthy();
+            expect(await screen.findByText('Your layout was reset')).toBeTruthy();
         });
 
         it('bit 0 keeps its own dialog and gains the same button', async () => {
             backups.snapshots = [snap('new', 2000)];
             render(<StorageResetDialog />);
-            expect(await screen.findByText("Your keyboard's settings were reset")).toBeTruthy();
+            expect(await screen.findByText("Your layout was reset")).toBeTruthy();
             expect(screen.getByRole('button', { name: 'Restore my layout' })).toBeTruthy();
         });
     });
@@ -186,7 +188,7 @@ describe('StorageResetDialog', () => {
                 meta('this-morning', 'sval:OTHER-HALF', 20 * 60 * 1000, 'pre-update', { fromTag: 'x3.1.3', toTag: '' }),
             ];
             render(<StorageResetDialog />);
-            expect(await screen.findByText(/Kip · x3\.1\.3 · /)).toBeTruthy();
+            expect(await screen.findByText(/^Backup( of Kip)? saved before the update, today/)).toBeTruthy();
             fireEvent.click(screen.getByRole('button', { name: 'Restore my layout' }));
             await waitFor(() => expect(backupService.getSvil).toHaveBeenCalledWith('this-morning'));
         });
@@ -225,14 +227,14 @@ describe('StorageResetDialog', () => {
             backups.snapshots = [meta('mine', 'sval:1', HOUR, 'pre-update')];
             firmwareUpdates.value = { board: board([half(0, 'x4test9', 9, false), half(1, 'x4test9', 9, true)]) };
             render(<StorageResetDialog />);
-            expect(await screen.findByText('x4test9 is installed on both halves.')).toBeTruthy();
+            expect(await screen.findByText('x4test9 on both halves')).toBeTruthy();
         });
 
         it('names each half when they differ, and a half that did not answer', () => {
-            expect(installedLine(board([half(0, 'build 8', 8, false), half(1, 'x4test9', 9, true)]) as never, null)).toBe('The left half has build 8. The right half has x4test9.');
-            expect(installedLine(board([half(0, '', 0, false, false), half(1, 'x4', 9, true)]) as never, null)).toBe("x4 is installed on the right half. The left half didn't answer.");
-            expect(installedLine(null, 'Svalboard QMK v3')).toBe('Svalboard QMK v3 is installed.');
-            expect(installedLine(null, null)).toBeNull();
+            expect(firmwareLine(board([half(0, 'build 8', 8, false), half(1, 'x4test9', 9, true)]) as never, null)).toBe('build 8 on the left half, x4test9 on the right half');
+            expect(firmwareLine(board([half(0, '', 0, false, false), half(1, 'x4', 9, true)]) as never, null)).toBe("x4 on the right half (the left half didn't answer)");
+            expect(firmwareLine(null, 'Svalboard QMK v3')).toBe('Svalboard QMK v3');
+            expect(firmwareLine(null, null)).toBeNull();
         });
     });
 });

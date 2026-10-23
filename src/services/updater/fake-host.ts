@@ -1,14 +1,14 @@
 // The flow's host over FakeSvalboard: the mock board's restarts, its storage flags,
 // and a stand-in for putting the layout back. Used by the tests and the harness.
 
-import { FakeSvalboard, type Fault, type FakeHalfConfig } from "./fake-board";
+import { FakeSvalboard, type Fault, type FakeHalfConfig, type FakeTiming } from "./fake-board";
 import { FakeSides, type FakeSidesOptions } from "./fake-sides";
 import type { SideHost } from "../side-host";
 import type { FlowHost } from "./flow";
-import { HAND_EITHER, HAND_LEFT, HAND_RIGHT, MANIFEST_BYTES, type Hand } from "./protocol";
+import { HAND_EITHER, HAND_LEFT, HAND_RIGHT, MANIFEST_BYTES, Op, type Hand } from "./protocol";
 import { buildSvup, loadSvup, type SvupFile } from "./svup";
 import { buildPairUf2, buildPlainUf2, loadFirmwareFile } from "./uf2";
-import type { Clock, UpdaterTransport } from "./transport";
+import { ReplyTimeoutError, type Clock, type UpdaterTransport } from "./transport";
 
 export interface FakeHostOptions {
     restoreFails?: boolean;
@@ -112,6 +112,8 @@ export interface FakeSetupOptions {
     half?: Partial<FakeHalfConfig>;
     /** SIDE on the mock board (fake-sides.ts). Absent: the board has none, as a per-hand build. */
     sides?: FakeSidesOptions;
+    /** The mule's timing (fake-board.ts DEFAULT_TIMING) with these changes. */
+    timing?: Partial<FakeTiming>;
 }
 
 /** A mock board running `running` on both halves, and its host. */
@@ -124,10 +126,38 @@ export function fakeSetup(o: FakeSetupOptions): { board: FakeSvalboard; host: Fa
         return { fwVersion: r.fwVersion, tag: r.tag, imageId: imageId(hand, r), noChord: o.noChord, release: o.release, ...o.half };
     };
     const board = new FakeSvalboard({
-        usbHand, clock: o.clock, left: cfg(HAND_LEFT), right: cfg(HAND_RIGHT), chordAfterMs: o.chordAfterMs, faults: o.faults,
+        usbHand, clock: o.clock, left: cfg(HAND_LEFT), right: cfg(HAND_RIGHT), chordAfterMs: o.chordAfterMs, faults: o.faults, timing: o.timing,
     });
     const host = new FakeHost(board, o.clock, o.host);
     const sides = o.sides ? new FakeSides(board, o.sides) : null;
     if (sides) host.sides = sides.host;
     return { board, host, sides };
+}
+
+/**
+ * A board whose INFO goes unanswered, for the harness and tests (?infofail): the first
+ * `fails` INFO requests time out (as on a board still starting, or busy with another
+ * app), every one ("always"), or every one until answer() ("read"). Everything else goes through.
+ */
+export class FlakyInfoTransport implements UpdaterTransport {
+    private left: number;
+    constructor(private readonly inner: UpdaterTransport, private readonly clock: Clock, fails: number | "always" | "read") {
+        this.left = typeof fails === "number" ? fails : Number.POSITIVE_INFINITY;
+    }
+    /** From now on INFO is answered. */
+    answer() { this.left = 0; }
+    async request(op: number, hand: number, args?: ArrayLike<number>) {
+        if (op === Op.INFO && this.left > 0) {
+            this.left--;
+            await this.clock.sleep(1000);
+            throw new ReplyTimeoutError(op);
+        }
+        return this.inner.request(op, hand, args);
+    }
+    clientId() { return this.inner.clientId(); }
+    ensureClient() { return this.inner.ensureClient(); }
+    renewClient() { return this.inner.renewClient(); }
+    onClientRenewed(l: (id: number, old: number) => void) { return this.inner.onClientRenewed(l); }
+    onDisconnect(l: () => void) { return this.inner.onDisconnect(l); }
+    connected() { return this.inner.connected(); }
 }
