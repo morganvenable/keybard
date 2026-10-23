@@ -61,6 +61,12 @@ export interface ManualSession {
     /** The last check, null until the first Connect. */
     check: ManualCheck | null;
     phase: "steps" | "restoring" | "done" | "failed";
+    /**
+     * Closed before the keyboard came back (the person reconnects with the app's own
+     * Connect). Kept out of sight with its backup: the next connection carries on if the
+     * install happened, and forgets it if not.
+     */
+    dismissed?: boolean;
     result: { layout: "restored" | "defaults"; trimmed: string[] } | null;
     error: string | null;
 }
@@ -169,6 +175,23 @@ export function checkManual(s: Pick<ManualSession, "releaseFw" | "fromTag" | "fr
         else halves[h.hand] = { state: "old", tag: name(h.fwVersion, h.tag) };
     }
     return { halves };
+}
+
+/** Closing now keeps the install, out of sight: it's still waiting for the keyboard to come back with a layout to restore. */
+export function manualKeepsOnClose(s: ManualSession): boolean {
+    return s.phase === "steps" && !s.dismissed && s.backup !== null;
+}
+
+/**
+ * For an install closed before the keyboard came back: whether this connection shows it
+ * happened. New firmware reset the settings, or a half runs other firmware than the board
+ * ran when the install opened (or the release, when that's what Keybard knows).
+ */
+export function manualInstalledSince(s: Pick<ManualSession, "fromFw" | "fromTag" | "releaseFw">, board: ManualBoardRead | null, buildReset: boolean): boolean {
+    if (buildReset) return true;
+    if (!board) return false;
+    if (!board.updater) return s.fromFw !== null ? board.fwVersion !== s.fromFw : !!s.fromTag && (board.legacyLabel ?? board.tag) !== s.fromTag;
+    return board.halves.some((h) => h.answered && (s.fromFw !== null ? h.fwVersion !== s.fromFw : s.releaseFw !== null && h.fwVersion === s.releaseFw));
 }
 
 /** The halves of the install that don't run the release yet, in the install's order. */

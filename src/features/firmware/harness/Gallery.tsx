@@ -114,7 +114,7 @@ export function Gallery() {
                 {show("C") && <Card id="C" title="Confirm on your keyboard"><ConfirmView state={CONFIRM} legends={legends(1)} now={NOW} /></Card>}
                 {STAGES.map(([title, s], i) => show(`P${i}`) && <Card key={i} id={`P${i}`} title={title}><ProgressView state={s} now={NOW} /></Card>)}
                 {show("A1") && <Card id="A1" title="Done"><ResultView state={RESULT} onDone={noop} /></Card>}
-                {show("A4") && <Card id="A4" title="Settings reset outside an update"><div className="flex flex-col gap-4"><DialogShell><ResetNoticeView firmware backupLine="Kip · v3 · Today 10:42" onDefaults={noop} onOtherBackups={noop} onPutBack={noop} /></DialogShell></div></Card>}
+                {show("A4") && <Card id="A4" title="Settings reset outside an update"><div className="flex flex-col gap-4"><DialogShell><ResetNoticeView firmware installed="x4 is installed on both halves." backupLine="Kip · v3 · Today 10:42" onDefaults={noop} onOtherBackups={noop} onPutBack={noop} /></DialogShell></div></Card>}
                 {show("F9") && <Card id="F9" title="Halves differ"><FailureView failure={{ id: "F9", tags: { 0: "x4", 1: "v3" } }} onAction={noop} /></Card>}
                 {show("F9b") && <Card id="F9" title="Banner on connect"><HalvesDifferView board={DIFFER} onFinish={noop} /></Card>}
                 {show("F5") && <Card id="F5" title="Update stopped"><FailureView failure={{ id: "F5", tags: { 0: "v3", 1: "v3" } }} fromTag="v3" onAction={noop} /></Card>}

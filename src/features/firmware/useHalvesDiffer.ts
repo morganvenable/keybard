@@ -13,6 +13,9 @@ import { readBoardSummary, type BoardSummary } from "./board-summary";
 /** Ask the app to open Settings > Firmware (FirmwareUpdateProvider listens). */
 export const OPEN_FIRMWARE_EVENT = "keybard:open-firmware";
 
+/** Ask the app to show Backups (FirmwareUpdateProvider listens). */
+export const OPEN_BACKUPS_EVENT = "keybard:open-backups";
+
 /** What the connected board runs, read once per connection, and again when `refresh` changes. */
 export function useBoardSummary(refresh = 0): BoardSummary | null {
     const { isConnected, keyboard, connectionSessionId } = useKeyboard();

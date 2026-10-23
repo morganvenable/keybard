@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { announceFlowState, type FlowHost } from "@/services/updater/flow";
 import {
-    checkManual, manualPending, manualShouldCheck, newManualSession, runManualAfterwards, sessionManualStore,
+    checkManual, manualInstalledSince, manualKeepsOnClose, manualPending, manualShouldCheck, newManualSession, runManualAfterwards, sessionManualStore,
     type ManualAfterwards, type ManualBoardRead, type ManualSession, type ManualStore,
 } from "@/services/updater/manual";
 import type { Hand } from "@/services/updater/protocol";
@@ -37,6 +37,8 @@ export interface UseManualInstallOptions {
     /** The board has no updater Keybard installs through. */
     once?: boolean;
     usualHand?: Hand;
+    /** The board on this connection says new firmware reset its settings. */
+    buildReset?: boolean;
     store?: ManualStore;
 }
 
@@ -47,6 +49,8 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
     hostRef.current = host;
     const readRef = useRef(o.readBoard);
     readRef.current = o.readBoard;
+    const buildResetRef = useRef(!!o.buildReset);
+    buildResetRef.current = !!o.buildReset;
 
     /** Change the saved session, only while it is still the open one. */
     const patch = useCallback((id: string, change: (s: ManualSession) => ManualSession) => {
@@ -107,7 +111,14 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         checking.add(s.id);
         void readRef.current().catch(() => null).then((board) => {
             const result = checkManual(s, board);
-            patch(s.id, (x) => ({ ...x, check: result, checkedKey: key }));
+            if (s.dismissed) {
+                // Closed before the keyboard came back: carry on only if the install happened.
+                if (!manualInstalledSince(s, board, buildResetRef.current)) {
+                    if (storeRef.current.load()?.id === s.id) { storeRef.current.clear(); setSession(null); }
+                    return;
+                }
+            }
+            patch(s.id, (x) => ({ ...x, dismissed: false, check: result, checkedKey: key }));
             if (!result.sides && !manualPending(s, result).length) finish(s.id);
         }).finally(() => checking.delete(s.id));
     }, [patch, finish]);
@@ -128,10 +139,25 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
     /** Connect while already connected: check the connection open now. */
     const checkNow = useCallback(() => check(o.connectionKey), [check, o.connectionKey]);
 
+    // Closed while the keyboard is away (or not reconnected yet): keep the backup and the
+    // layout choice, so however the person reconnects, the layout goes back.
     const close = useCallback(() => {
+        const s = storeRef.current.load();
+        if (s && manualKeepsOnClose(s)) {
+            const next = { ...s, dismissed: true };
+            storeRef.current.save(next);
+            setSession(next);
+            return;
+        }
         storeRef.current.clear();
         setSession(null);
     }, []);
 
-    return { session, open, setAfterwards, checkNow, close };
+    /** Forget the install altogether (Open Backups). */
+    const forget = useCallback(() => {
+        storeRef.current.clear();
+        setSession(null);
+    }, []);
+
+    return { session, open, setAfterwards, checkNow, close, forget };
 }

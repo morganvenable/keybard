@@ -17,9 +17,12 @@
 //   &pick=x4|x3.1.3     choose a file in Install a firmware file…, as the file chooser would: the
 //                       carried x4 pair UF2, or a per-side x3.1.3 file (refused)
 //   &go=1               then press Update (or Connect keyboard) once it's enabled
+//   &resetnotice=1      the "New firmware reset your settings" notice, for what the mock board runs
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { installedLine, RESET_DIALOG_CLASS, ResetNoticeView } from "@/components/StorageResetDialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { imageIdOf, type Fault } from "@/services/updater/fake-board";
 import { FakeHost, fakeSetup, fixtureOneImage, fixturePerSideUf2, type FixtureRelease } from "@/services/updater/fake-host";
@@ -115,6 +118,24 @@ function AutoOpen() {
     return null;
 }
 
+/** &resetnotice=1: the reset notice as a connected board shows it, with a backup saved this morning. */
+function ResetNoticeDemo() {
+    const updates = useFirmwareUpdates();
+    const [open, setOpen] = useState(() => params().has("resetnotice"));
+    if (!open || !updates?.board) return null;
+    const close = () => setOpen(false);
+    const at = new Date();
+    at.setHours(6, 26, 0, 0);
+    const time = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return (
+        <Dialog open onOpenChange={(next) => !next && close()}>
+            <DialogContent className={RESET_DIALOG_CLASS}>
+                <ResetNoticeView firmware installed={installedLine(updates.board, null)} backupLine={`Kip · x3.1.3 · Today ${time}`} onDefaults={close} onOtherBackups={close} onPutBack={close} />
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function DevFakeFirmware({ children }: { children: ReactNode }) {
     const [ready, setReady] = useState<Ready | null>(null);
     useEffect(() => {
@@ -168,6 +189,7 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
         <FirmwareUpdateProvider host={ready.host} readBoard={readBoard} releases={ready.releases} files={files} connection={connection}>
             <AutoOpen />
             <AutoPick ready={ready} />
+            <ResetNoticeDemo />
             {children}
         </FirmwareUpdateProvider>
     );

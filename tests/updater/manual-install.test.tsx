@@ -17,7 +17,7 @@ import { applySideWrites } from "@/features/firmware/side-actions";
 import type { FakeSvalboard } from "@/services/updater/fake-board";
 import { updateOwnsResetNotice } from "@/services/updater/flow";
 import {
-    MANUAL_KEY, checkManual, manualOwnsResetNotice, manualPending, manualShouldCheck, memoryManualStore, newManualSession, runManualAfterwards, sessionManualStore,
+    MANUAL_KEY, checkManual, manualInstalledSince, manualOwnsResetNotice, manualPending, manualShouldCheck, memoryManualStore, newManualSession, runManualAfterwards, sessionManualStore,
     type ManualStore,
 } from "@/services/updater/manual";
 import { VirtualClock } from "@/services/updater/transport";
@@ -51,17 +51,21 @@ function setup(o: { restoreFails?: boolean; trimmed?: string[]; sides?: FakeSide
 const flash = (board: FakeSvalboard, hand: 0 | 1) => board.flashByHand(hand, { fwVersion: release.fwVersion, tag: release.tag });
 
 /** The editor's part: the controller and the dialog, remounted on every reconnect like the app. */
-function Editor({ host, store, connectionKey }: { host: Host; store: ManualStore; connectionKey: string | null }) {
-    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides), fromTag: "x3.1.3", fromFw: 2301, once: true, store });
+function Editor({ host, store, connectionKey, buildReset }: { host: Host; store: ManualStore; connectionKey: string | null; buildReset?: boolean }) {
+    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides), fromTag: "x3.1.3", fromFw: 2301, once: true, store, buildReset });
     const s = m.session;
-    if (!s) return <button onClick={() => m.open(release)}>Update to x4</button>;
+    // Closed before the keyboard came back: out of sight, as the app shows it.
+    if (!s || s.dismissed) return <button onClick={() => m.open(release)}>Update to x4</button>;
     return (
+        <>
+        <button onClick={m.close}>Close the dialog</button>
         <ManualInstall
             release={release} usualHand={s.usualHand} once={s.once} backup={s.backup} afterwards={s.afterwards}
             onAfterwards={(a) => { if (a !== "blank") m.setAfterwards(a); }}
             check={s.check} outcome={s} onConnect={m.checkNow} onClose={m.close}
             onSides={(w) => void applySideWrites({ sides: host.sides, clock: host.clock, waitForDevice: (ms) => host.waitForDevice(ms) }, w).then(() => m.checkNow())}
         />
+        </>
     );
 }
 
@@ -72,7 +76,7 @@ async function opened(o: Parameters<typeof setup>[0] = {}, store: ManualStore = 
     const view = render(<Editor host={s.host} store={store} connectionKey="p:1" />);
     fireEvent.click(screen.getByRole("button", { name: "Update to x4" }));
     await waitFor(() => expect(screen.getByText("Kip-x3.1.3-2026-10-21.svil")).toBeTruthy());
-    const reconnect = async (key: string) => { await act(async () => { view.rerender(<Editor host={s.host} store={store} connectionKey={key} />); }); };
+    const reconnect = async (key: string, buildReset = false) => { await act(async () => { view.rerender(<Editor host={s.host} store={store} connectionKey={key} buildReset={buildReset} />); }); };
     return { ...s, view, store, reconnect };
 }
 
@@ -134,6 +138,80 @@ describe("the manual install's state", () => {
         expect(updateOwnsResetNotice()).toBe(true);
         store.clear();
         expect(updateOwnsResetNotice()).toBe(false);
+    });
+});
+
+describe("an install by hand closed before the keyboard came back (reconnected with the app's own Connect)", () => {
+    it("tells from the board whether the install happened", () => {
+        const s = { fromTag: "x3.1.3", fromFw: 2301, releaseFw: null };
+        const half = (hand: 0 | 1, fwVersion: number, answered = true) => ({ hand, answered, fwVersion, tag: `build ${fwVersion}` });
+        const board = (halves: ReturnType<typeof half>[]) => ({ updater: true, legacyLabel: null, usbHand: 1 as const, tag: "x", fwVersion: 9, halves });
+        expect(manualInstalledSince(s, board([half(0, 9), half(1, 9)]), false)).toBe(true);
+        expect(manualInstalledSince(s, board([half(0, 2301), half(1, 2301)]), false)).toBe(false);
+        expect(manualInstalledSince(s, board([half(0, 2301), half(1, 9)]), false)).toBe(true);
+        expect(manualInstalledSince(s, null, false)).toBe(false);
+        // New firmware reset the settings: that's the install, whatever Keybard could read.
+        expect(manualInstalledSince(s, null, true)).toBe(true);
+        expect(manualInstalledSince(s, { updater: false, legacyLabel: "x3.1.3", usbHand: 1, tag: "x3.1.3", fwVersion: 2301, halves: [] }, false)).toBe(false);
+    });
+
+    it("keeps the backup out of sight, still owning the reset notice, and puts the layout back on the next connection", async () => {
+        const store = sessionManualStore(sessionStorage);
+        const { board, host, reconnect } = await opened({}, store);
+        fireEvent.click(screen.getByRole("button", { name: "Close the dialog" }));
+        expect(screen.queryByTestId("manual-install")).toBeNull();
+        expect(store.load()?.dismissed).toBe(true);
+        expect(store.load()?.backup).toMatchObject({ state: "ok", svil: '{"layout":"mine"}' });
+        // The generic reset dialog stays out of the way: this install acts on the notice.
+        expect(manualOwnsResetNotice()).toBe(true);
+        flash(board, 0);
+        flash(board, 1);
+        await reconnect("p:2", true);
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
+        expect(host.restores).toBe(1);
+        expect(screen.getByText(/Your layout is back on the keyboard\./)).toBeTruthy();
+        sessionStorage.clear();
+    });
+
+    it("across the editor's remount on reconnect too", async () => {
+        const store = sessionManualStore(sessionStorage);
+        const { board, host, view } = await opened({}, store);
+        fireEvent.click(screen.getByRole("button", { name: "Close the dialog" }));
+        flash(board, 0);
+        flash(board, 1);
+        view.unmount();
+        render(<Editor host={host} store={store} connectionKey="p:2" />);
+        await waitFor(() => expect(screen.getByRole("heading", { name: "x4 is installed" })).toBeTruthy());
+        expect(host.restores).toBe(1);
+        sessionStorage.clear();
+    });
+
+    it("one half done: shows that half's steps again", async () => {
+        const { board, host, reconnect } = await opened();
+        fireEvent.click(screen.getByRole("button", { name: "Close the dialog" }));
+        flash(board, 1);
+        await reconnect("p:2");
+        await waitFor(() => expect(screen.getByRole("heading", { name: "The left half still runs x3.1.3" })).toBeTruthy());
+        expect(host.restores).toBe(0);
+    });
+
+    it("nothing installed: forgotten quietly, nothing written", async () => {
+        const { host, store, reconnect } = await opened();
+        fireEvent.click(screen.getByRole("button", { name: "Close the dialog" }));
+        await reconnect("p:2");
+        await waitFor(() => expect(store.load()).toBeNull());
+        expect(screen.queryByTestId("manual-install")).toBeNull();
+        expect(host.restores).toBe(0);
+    });
+
+    it("closed after it finished: gone", async () => {
+        const { board, store, reconnect } = await opened();
+        flash(board, 0);
+        flash(board, 1);
+        await reconnect("p:2");
+        await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeTruthy());
+        fireEvent.click(screen.getByRole("button", { name: "Done" }));
+        expect(store.load()).toBeNull();
     });
 });
 

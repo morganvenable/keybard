@@ -16,11 +16,16 @@ import { restoreLayoutToBoard } from "@/features/firmware/restore";
 import { fingerprintSvil } from "@/services/backup/codec";
 import { getBackupService, type SnapshotMeta } from "@/services/backup/backup.service";
 import { keyboardService } from "@/services/keyboard.service";
+import { describeFirmware } from "@/constants/firmware";
+import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
+import type { BoardSummary } from "@/features/firmware/board-summary";
 import { FLOW_STATE_EVENT, resetNoticeClearedOn, updateOwnsResetNotice } from "@/services/updater/flow";
+import { handName, otherHand } from "@/services/updater/protocol";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 
-/** Ask the app to show Backups (Settings wires the listener). */
-export const OPEN_BACKUPS_EVENT = "keybard:open-backups";
+/** Ask the app to show Backups (FirmwareUpdateProvider listens). */
+export { OPEN_BACKUPS_EVENT } from "@/features/firmware/useHalvesDiffer";
+import { OPEN_BACKUPS_EVENT } from "@/features/firmware/useHalvesDiffer";
 
 function describeSnapshot(snap: SnapshotMeta, now = new Date()): string {
     const d = new Date(snap.savedAt);
@@ -30,10 +35,60 @@ function describeSnapshot(snap: SnapshotMeta, now = new Date()): string {
     return [snap.boardName, snap.fromTag, when].filter(Boolean).join(" · ");
 }
 
+/** How long a backup taken before an update counts as the one for the install that just reset the board. */
+export const INSTALL_BACKUP_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The backup "Restore my layout" puts back: the newest of this board's, leaving out the
+ * snapshot of what the board holds now (the defaults). After new firmware reset the board,
+ * a backup taken before an update in the last day wins over anything older: the board can
+ * come back under another key (the USB cable moved to the other half, which has its own
+ * serial, or the serial couldn't be read on that connection), and then this board's newest
+ * would be an old one. Its own fresh pre-update backup always comes first.
+ * Undefined while the current layout's fingerprint is still being worked out.
+ */
+export function pickResetBackup(snapshots: SnapshotMeta[], boardKey: string, currentFingerprint: string | null | undefined, o: { firmware: boolean; now: number }): SnapshotMeta | null | undefined {
+    if (currentFingerprint === undefined) return undefined;
+    const usable = snapshots.filter((s) => s.fingerprint !== currentFingerprint).sort((a, b) => b.savedAt - a.savedAt);
+    const own = usable.find((s) => s.boardKey === boardKey) ?? null;
+    if (!o.firmware) return own;
+    const recentPre = (s: SnapshotMeta) => s.kind === "pre-update" && o.now - s.savedAt < INSTALL_BACKUP_MS;
+    if (usable.some((s) => s.boardKey === boardKey && recentPre(s))) return own;
+    const install = usable.find(recentPre) ?? null;
+    return install && (!own || install.savedAt > own.savedAt) ? install : own;
+}
+
+/**
+ * Which firmware the board runs now, in one sentence: "x4 is installed on both halves.",
+ * each half's when they differ, or what the half with USB says when that's all Keybard can read.
+ */
+export function installedLine(board: BoardSummary | null | undefined, fallback: string | null): string | null {
+    if (board?.updater && board.halves.length) {
+        const answered = board.halves.filter((h) => h.answered);
+        const usb = board.halves.find((h) => h.usb) ?? answered[0];
+        if (answered.length === 2) {
+            if (answered[0].fwVersion === answered[1].fwVersion) return `${usb?.tag || board.tag} is installed on both halves.`;
+            const [left, right] = [0, 1].map((h) => answered.find((x) => x.hand === h)!);
+            return `The left half has ${left.tag}. The right half has ${right.tag}.`;
+        }
+        if (answered.length === 1) {
+            const h = answered[0];
+            return `${h.tag} is installed on the ${handName(h.hand)} half. The ${handName(otherHand(h.hand))} half didn't answer.`;
+        }
+    }
+    const label = board?.tag || board?.legacyLabel || fallback;
+    return label ? `${label} is installed.` : null;
+}
+
+/** The reset notice's width: its three answers fit one row on a desktop. */
+export const RESET_DIALOG_CLASS = "sm:max-w-[520px]";
+
 export interface ResetNoticeViewProps {
     /** A new firmware build reset the settings (bit 2), rather than unreadable storage (bit 0). */
     firmware: boolean;
-    /** The newest backup of this board, e.g. "Kip · v3 · Today 10:42"; null when there's none. */
+    /** What the board runs now, e.g. "x4 is installed on both halves."; null when Keybard can't tell. */
+    installed?: string | null;
+    /** The backup to put back, e.g. "Kip · v3 · Today 10:42"; null when there's none. */
     backupLine: string | null;
     busy?: boolean;
     error?: string | null;
@@ -42,29 +97,41 @@ export interface ResetNoticeViewProps {
     onPutBack: () => void;
 }
 
-/** A4 and the bit-0 notice: the title, the newest backup, and Restore my layout. */
-export function ResetNoticeView({ firmware, backupLine, busy, error, onDefaults, onOtherBackups, onPutBack }: ResetNoticeViewProps) {
+/**
+ * A4 and the bit-0 notice: the title, what's installed now, the backup, and Restore my layout.
+ * Restore my layout leads; Start from defaults is the other answer; Other backups is a link.
+ * One row on a desktop, stacked full width on a phone: never wrapped.
+ */
+export function ResetNoticeView({ firmware, installed, backupLine, busy, error, onDefaults, onOtherBackups, onPutBack }: ResetNoticeViewProps) {
+    const lines = firmware
+        ? [installed, backupLine ? null : "No backup of this keyboard in this browser."]
+        : ["Your keyboard couldn't read its saved settings, so it started again from its defaults.", backupLine ? null : "Load your layout file to restore your setup."];
+    const description = lines.filter(Boolean).join(" ");
     return (
-        <>
+        <div className="flex flex-col gap-4" data-testid="reset-notice">
             <DialogHeader>
                 <DialogTitle>{firmware ? "New firmware reset your settings" : "Your keyboard's settings were reset"}</DialogTitle>
-                <DialogDescription>
-                    {backupLine ?? (firmware ? "No backup of this keyboard in this browser." : "Your keyboard couldn't read its saved settings, so it started again from its defaults. Load your layout file to restore your setup.")}
-                </DialogDescription>
+                {description && <DialogDescription data-testid="reset-installed">{description}</DialogDescription>}
             </DialogHeader>
+            {backupLine && (
+                <div className="flex flex-col gap-0.5 rounded-md border border-kb-gray-border px-3 py-2.5" data-testid="reset-backup">
+                    <span className="text-xs font-medium text-muted-foreground">Your layout</span>
+                    <span className="text-sm text-kb-ink">{backupLine}</span>
+                </div>
+            )}
             {error && <p role="alert" className="text-sm text-kb-red">{error}</p>}
-            <DialogFooter className="flex-wrap gap-2">
-                {backupLine ? (
-                    <>
-                        <Button variant="outline" disabled={busy} onClick={onDefaults}>Start from defaults</Button>
-                        <Button variant="outline" disabled={busy} onClick={onOtherBackups}>Other backups</Button>
-                        <Button variant="kb-primary" disabled={busy} onClick={onPutBack}>{busy ? "Restoring…" : "Restore my layout"}</Button>
-                    </>
-                ) : (
+            {backupLine ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center" data-testid="reset-actions">
+                    <Button variant="kb-primary" className="w-full sm:order-3 sm:w-auto" disabled={busy} onClick={onPutBack} data-primary>{busy ? "Restoring…" : "Restore my layout"}</Button>
+                    <Button variant="outline" className="w-full sm:order-2 sm:w-auto" disabled={busy} onClick={onDefaults}>Start from defaults</Button>
+                    <button type="button" className="whitespace-nowrap rounded-md px-1 py-2 text-sm font-medium text-kb-primary underline-offset-4 hover:underline disabled:opacity-50 sm:order-1 sm:mr-auto" disabled={busy} onClick={onOtherBackups}>Other backups</button>
+                </div>
+            ) : (
+                <DialogFooter>
                     <Button onClick={onDefaults}>OK</Button>
-                )}
-            </DialogFooter>
-        </>
+                </DialogFooter>
+            )}
+        </div>
     );
 }
 
@@ -141,18 +208,32 @@ function ResetDialog({ keyboard, firmware, onAcknowledged }: { keyboard: Keyboar
     const { snapshots, board } = useBackups();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [currentFingerprint, setCurrentFingerprint] = useState<string | null>(null);
+    const updates = useFirmwareUpdates();
+    // undefined until known; null when it can't be worked out.
+    const [currentFingerprint, setCurrentFingerprint] = useState<string | null | undefined>(undefined);
 
-    // The "connected" snapshot taken just now holds the defaults: leave it out.
+    // The "connected" snapshot taken just now holds the defaults: leave it out. Wait for it,
+    // so the defaults are never offered as the layout for a moment.
     useEffect(() => {
         let cancelled = false;
-        void fingerprintSvil(serializeForBackup(keyboard)).then((f) => { if (!cancelled) setCurrentFingerprint(f); }).catch(() => undefined);
+        void fingerprintSvil(serializeForBackup(keyboard)).then(
+            (f) => { if (!cancelled) setCurrentFingerprint(f); },
+            () => { if (!cancelled) setCurrentFingerprint(null); },
+        );
         return () => { cancelled = true; };
     }, [keyboard]);
-    const newest = useMemo(() => {
-        if (!board) return null;
-        return snapshots.filter((s) => s.boardKey === board.key && s.fingerprint !== currentFingerprint).sort((a, b) => b.savedAt - a.savedAt)[0] ?? null;
-    }, [snapshots, board, currentFingerprint]);
+    const newest = useMemo(
+        () => (board ? pickResetBackup(snapshots, board.key, currentFingerprint, { firmware, now: Date.now() }) ?? null : null),
+        [snapshots, board, currentFingerprint, firmware],
+    );
+    const installed = firmware ? installedLine(updates?.board, describeFirmware(keyboard)) : null;
+    // Ask once the backups can be told apart: an OK pressed before then would skip the restore.
+    const [waited, setWaited] = useState(false);
+    useEffect(() => {
+        const t = window.setTimeout(() => setWaited(true), 2000);
+        return () => window.clearTimeout(t);
+    }, []);
+    const ready = currentFingerprint !== undefined && (!!board || waited);
 
     const acknowledgeReset = async () => {
         onAcknowledged();
@@ -186,10 +267,11 @@ function ResetDialog({ keyboard, firmware, onAcknowledged }: { keyboard: Keyboar
         window.dispatchEvent(new CustomEvent(OPEN_BACKUPS_EVENT));
     };
 
+    if (!ready) return null;
     return (
         <Dialog open onOpenChange={(next) => !next && !busy && acknowledgeReset()}>
-            <DialogContent className="sm:max-w-[480px]">
-                <ResetNoticeView firmware={firmware} backupLine={newest ? describeSnapshot(newest) : null} busy={busy} error={error} onDefaults={acknowledgeReset} onOtherBackups={otherBackups} onPutBack={putBack} />
+            <DialogContent className={RESET_DIALOG_CLASS}>
+                <ResetNoticeView firmware={firmware} installed={installed} backupLine={newest ? describeSnapshot(newest) : null} busy={busy} error={error} onDefaults={acknowledgeReset} onOtherBackups={otherBackups} onPutBack={putBack} />
             </DialogContent>
         </Dialog>
     );

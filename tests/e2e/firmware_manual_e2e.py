@@ -24,8 +24,13 @@ Run with `npm run test:e2e:firmware`.
   9. One line, at phone width (430 px) and desktop, light and dark: no sideways
      scroll; titles, choices and buttons each on one line; one title per dialog,
      and it names the dialog. Plain words only.
+ 10. The reset notice after new firmware: it says which firmware is installed now;
+     Restore my layout leads, Start from defaults beside it, Other backups a link.
+     One row at 1280 px, stacked at 390 px, never wrapped; light and dark.
 
-FW_SHOTS=<folder> also saves a phone-width (light) screenshot of every state there.
+FW_SHOTS=<folder> also saves a phone-width (light) screenshot of every state there,
+and the reset notice at desktop and phone width (22-reset-dialog-desktop.png,
+23-reset-dialog-phone.png).
 Same server options as combo_editor_e2e.py (E2E_URL, E2E_SKIP_BUILD). E2E_URL must
 be a test-site build (VITE_STORAGE_NAMESPACE=keybard-test), e.g.
 https://morganvenable.github.io/keybard-test/. Exits 1 when a check fails.
@@ -50,6 +55,8 @@ PROTO3 = f"{BASE}&proto=3&running=x3.1.3&speed=20"
 SHOTS = os.environ.get("FW_SHOTS")
 PHONE = {"width": 430, "height": 932}
 DESKTOP = {"width": 1440, "height": 900}
+DESKTOP_1280 = {"width": 1280, "height": 800}
+PHONE_390 = {"width": 390, "height": 844}
 WORDS = re.compile(r"\b(hold|approv\w*|chord\w*|TRRS|Viable|Keybard Host|keybard-ng|svup)\b", re.I)
 FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "firmware")
 
@@ -97,6 +104,16 @@ TITLES_JS = """() => {
     const label = by ? document.getElementById(by)?.textContent.trim() : d.getAttribute('aria-label');
     const hidden = [...d.querySelectorAll('.sr-only')].map((e) => e.textContent.trim()).filter((t) => t && t !== 'Close');
     return { heads: heads.map((h) => h.textContent.trim()), label, hidden };
+}"""
+
+
+RESET_ACTIONS_JS = """() => {
+    const box = document.querySelector('[data-testid=reset-actions]');
+    const out = { actions: box.getBoundingClientRect().toJSON() };
+    for (const b of box.querySelectorAll('button')) out[b.textContent.trim()] = b.getBoundingClientRect().toJSON();
+    const link = [...box.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Other backups');
+    out.link_border = parseFloat(getComputedStyle(link).borderTopWidth) > 0;
+    return out;
 }"""
 
 
@@ -476,6 +493,36 @@ def main() -> int:
         check(dialog.get_by_text("Your layout is back on the keyboard. From now on, updates install from Keybard.").count() == 1, "by hand sides: layout back")
         check(not errors, f"by hand sides: no page errors {errors}")
         context.close()
+
+        # The reset notice after new firmware: what's installed, and three answers that never wrap.
+        for theme in ["light", "dark"]:
+            for viewport, size in [(DESKTOP_1280, "desktop"), (PHONE_390, "phone")]:
+                label = f"{theme} {size} reset notice"
+                context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&running=x4test9&resetnotice=1", theme, viewport)
+                notice = page.get_by_test_id("reset-notice")
+                expect(notice).to_be_visible(timeout=20000)
+                check(page.get_by_role("heading", name="New firmware reset your settings").count() == 1, f"{label}: the title")
+                installed = notice.get_by_test_id("reset-installed").inner_text().strip()
+                check(installed == "x4test9 is installed on both halves.", f"{label}: says what's installed ({installed!r})")
+                check("Today" in notice.get_by_test_id("reset-backup").inner_text(), f"{label}: the backup")
+                layout(page, label)
+                boxes = page.evaluate(RESET_ACTIONS_JS)
+                primary, defaults, other = boxes["Restore my layout"], boxes["Start from defaults"], boxes["Other backups"]
+                if size == "desktop":
+                    row = abs(primary["top"] - defaults["top"]) < 2 and abs(primary["top"] - other["top"]) < 2
+                    check(row, f"{label}: one row {boxes}")
+                    check(other["left"] < defaults["left"] < primary["left"], f"{label}: Other backups left, Restore my layout right {boxes}")
+                else:
+                    check(primary["top"] < defaults["top"] < other["top"], f"{label}: Restore my layout first, stacked {boxes}")
+                    full = abs(primary["width"] - defaults["width"]) < 2 and primary["width"] > boxes["actions"]["width"] - 2
+                    check(full, f"{label}: full-width buttons {boxes}")
+                check(not boxes["link_border"], f"{label}: Other backups is a link, not a button {boxes}")
+                if SHOTS and theme == "light":
+                    os.makedirs(SHOTS, exist_ok=True)
+                    name = "22-reset-dialog-desktop" if size == "desktop" else "23-reset-dialog-phone"
+                    page.locator("[role=dialog]").first.screenshot(path=os.path.join(SHOTS, f"{name}.png"), animations="disabled")
+                check(not errors, f"{label}: no page errors {errors}")
+                context.close()
 
         browser.close()
 

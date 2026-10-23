@@ -5,7 +5,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { OPEN_BACKUPS_EVENT } from "@/components/StorageResetDialog";
 import { currentSite, releasesForSite, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { serializeForBackup, useBackups } from "@/contexts/BackupContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
@@ -26,7 +25,7 @@ import { backupFileName, downloadText, useAppFirmwareHost } from "./useAppFirmwa
 import { useFirmwareStatus, type FirmwareStatus } from "./useFirmwareStatus";
 import { useFirmwareUpdate, type FirmwareUiHost } from "./useFirmwareUpdate";
 import { useManualInstall } from "./useManualInstall";
-import { OPEN_FIRMWARE_EVENT, useBoardSummary } from "./useHalvesDiffer";
+import { OPEN_BACKUPS_EVENT, OPEN_FIRMWARE_EVENT, useBoardSummary } from "./useHalvesDiffer";
 import type { SideWrite } from "@/services/side-decision";
 import { applySideWrites } from "./side-actions";
 
@@ -120,6 +119,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
     );
     const manual = useManualInstall(host, {
         connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater, usualHand: board?.usbHand,
+        buildReset: !connection && !!kb.keyboard?.storage_build_reset,
     });
     const setManual = manual.open;
     // Connect in the manual install: plug in again, or, already connected, check this connection.
@@ -129,7 +129,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         else void kb.connect();
     }, [connection, kb, manual]);
     // The card reads the board again once the manual install closes or finishes.
-    const manualPhase = manual.session?.phase ?? "closed";
+    const manualPhase = manual.session && !manual.session.dismissed ? manual.session.phase : "closed";
     useEffect(() => { if (manualPhase === "done" || manualPhase === "closed") setRefresh((n) => n + 1); }, [manualPhase]);
 
     const install = useCallback((pick: FirmwarePick, onlyHand?: Hand) => {
@@ -190,7 +190,8 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         board, reading: !readBoard && kb.isConnected && !board, releases, status, install, openManual: (r) => setManual(r), connect,
         sides: host ? { ...sideState, apply: applySides } : undefined,
     }), [board, readBoard, releases, status, install, kb.isConnected, setManual, connect, host, sideState, applySides]);
-    const session = manual.session;
+    // An install closed before the keyboard came back stays out of sight until it does.
+    const session = manual.session?.dismissed ? null : manual.session;
 
     return (
         <FirmwareUpdatesContext.Provider value={value}>
@@ -227,7 +228,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                                 outcome={session}
                                 onConnect={manualConnect}
                                 onClose={manual.close}
-                                onOpenBackups={() => { manual.close(); openSection("backups"); }}
+                                onOpenBackups={() => { manual.forget(); openSection("backups"); }}
                                 onSides={(w) => applySides(w, manual.checkNow)}
                                 sidesBusy={sideState.busy}
                                 sidesNote={sideState.note}

@@ -169,8 +169,12 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             const boardName = b.board?.name ?? k.keyboard.name ?? "Svalboard";
             const fileName = backupFileName(boardName, fromTag);
             let snapshotId: string | undefined;
-            if (b.board) {
-                const meta = await getBackupService()?.saveSnapshot({ boardKey: b.board.key, boardName, svil, kind: "pre-update", pendingCount: 0, fromTag, toTag });
+            // Before the board is identified, keep it under its keyboard UID: the reset dialog
+            // finds a fresh pre-update backup under any key, and the board may come back
+            // under another one anyway.
+            const boardKey = b.board?.key ?? (k.keyboard.kbid ? `uid:${k.keyboard.kbid.toUpperCase()}` : null);
+            if (boardKey) {
+                const meta = await getBackupService()?.saveSnapshot({ boardKey, boardName, svil, kind: "pre-update", pendingCount: 0, fromTag, toTag });
                 snapshotId = meta?.id;
             }
             downloadText(svil, fileName);
