@@ -141,6 +141,17 @@ describe("a reinstall of the version the board runs (the mule: x4test12 over x4t
         expect(state.phase).toBe("result");
     });
 
+    it("the version name's late reply taken as the version number, just after the restart: installed (the mule's x4test12 reinstall)", async () => {
+        const { board, state } = await update({}, [{ kind: "info-crossed" }], { running: x11, file: x11 });
+        expect(state.phase).toBe("result");
+        expect(board.halves[HAND_RIGHT].cfg.fwVersion).toBe(11);
+    });
+
+    it("the same crossed replies on an update to a newer version: installed", async () => {
+        const { state } = await update({}, [{ kind: "info-crossed" }]);
+        expect(state.phase).toBe("result");
+    });
+
     it("a refusal when it came to write is still F5, the same version or not", async () => {
         const { state } = await update({}, [{ kind: "commit-refused" }], { running: x11, file: x11 });
         expect(state.failure?.id).toBe("F5");
@@ -153,6 +164,13 @@ describe("the Firmware card's read", () => {
         const s = await readBoardSummary(new FlakyInfoTransport(board, clock, 1), null, undefined, { clock });
         expect(s.updater).toBe(true);
         expect(s.unread).toBeUndefined();
+        expect(s.halves.map((h) => h.tag)).toEqual(["x4test10", "x4test10"]);
+    });
+
+    it("the version name's reply taken as the version number is read again, not legacy (the mule's Install by hand card)", async () => {
+        const { board } = fakeSetup({ clock, running: x10, faults: [{ kind: "info-crossed" }] });
+        const s = await readBoardSummary(board, null, undefined, { clock });
+        expect(s.updater).toBe(true);
         expect(s.halves.map((h) => h.tag)).toEqual(["x4test10", "x4test10"]);
     });
 

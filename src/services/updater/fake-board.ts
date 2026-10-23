@@ -54,6 +54,11 @@ export type Fault =
     | { kind: "commit-refused" }
     /** The half with USB takes its COMMIT, but the reply never reaches the host. */
     | { kind: "commit-reply-lost" }
+    /**
+     * After the half with USB boots (and when the mock starts), its two INFO pages answer each other's request
+     * (a late reply to a timed-out request, taken by the next one): twice, page 1 for page 0.
+     */
+    | { kind: "info-crossed" }
     | { kind: "other-no-return" }
     | { kind: "expire-client"; afterOps: number }
     | { kind: "renew-every"; ms: number };
@@ -227,6 +232,7 @@ export class FakeSvalboard implements UpdaterTransport {
     private isConnected = true;
     /** When the half with USB last booted (its quiet time and the link wait start there). */
     private usbBootAt = Number.NEGATIVE_INFINITY;
+    private crossed = 0;
     private session: Session | null = null;
     private latched: { error: number } | null = null;
     private lastError = 0;
@@ -416,7 +422,11 @@ export class FakeSvalboard implements UpdaterTransport {
         const client = this.ourClient;
         const expiry = this.liveClients.get(client);
         if (expiry === undefined || this.clock.now() > expiry) throw new ClientRejectedError(1);
-        const rsp = await this.handle(op, hand, a, client);
+        let rsp = await this.handle(op, hand, a, client);
+        if (op === Op.INFO && hand === HAND_SELF && a[0] === 0 && this.has("info-crossed") && this.crossed < 2) {
+            this.crossed++;
+            rsp = await this.handle(op, hand, Uint8Array.of(1), client);
+        }
         this.requests.push({ op, hand, at: this.clock.now(), status: rsp[0] });
         if (op === Op.COMMIT && this.has("commit-reply-lost") && this.session?.state === State.COMMITTING && this.session.hand === this.usbHand) {
             await this.clock.sleep(1000);
@@ -557,7 +567,10 @@ export class FakeSvalboard implements UpdaterTransport {
 
     /** First boot of a half: D39 resets every stored setting when the record is invalid. */
     private boot(h: Half) {
-        if (h === this.usb()) this.usbBootAt = h.backAt ?? this.clock.now();
+        if (h === this.usb()) {
+            this.usbBootAt = h.backAt ?? this.clock.now();
+            this.crossed = 0;
+        }
         h.alive = true;
         h.backAt = null;
         if (h.forceReset || h.bootedImage !== h.cfg.imageId) {
