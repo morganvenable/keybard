@@ -276,17 +276,17 @@ describe("the sheet (B1) and the dialog against the mock board", () => {
     it("a failed backup says so and switches to the default layout", async () => {
         await setup({ failBackup: true });
         await waitFor(() => expect(screen.getByText("Keybard couldn't save your layout.")).toBeTruthy());
-        expect(screen.getByRole("radio", { name: "Put my layout back" })).toBeDisabled();
+        expect(screen.getByRole("radio", { name: "Restore my layout" })).toBeDisabled();
         expect(screen.getByRole("radio", { name: "Start from the default layout" })).toBeChecked();
         expect(screen.getByRole("radio", { name: "Start from a blank keyboard" })).not.toBeDisabled();
     });
 
-    it("P4-31 the layout choice: three options, Put my layout back first and chosen", async () => {
+    it("P4-31 the layout choice: three options, Restore my layout first and chosen", async () => {
         await setup();
-        await waitFor(() => expect(screen.getByRole("radio", { name: "Put my layout back" })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("radio", { name: "Restore my layout" })).not.toBeDisabled());
         const radios = within(screen.getByRole("radiogroup", { name: "After the update" })).getAllByRole("radio");
         expect(radios.map((r) => r.getAttribute("value"))).toEqual(["restore", "defaults", "blank"]);
-        expect(screen.getByRole("radio", { name: "Put my layout back" })).toBeChecked();
+        expect(screen.getByRole("radio", { name: "Restore my layout" })).toBeChecked();
         fireEvent.click(screen.getByRole("radio", { name: "Start from a blank keyboard" }));
         expect(screen.getByRole("radio", { name: "Start from a blank keyboard" })).toBeChecked();
     });

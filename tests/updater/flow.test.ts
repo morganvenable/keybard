@@ -335,7 +335,7 @@ describe("afterwards", () => {
         expect(state.result?.layout).toBe("defaults");
     });
 
-    it("put my layout back writes the backup even when the firmware kept the settings", async () => {
+    it("restore my layout writes the backup even when the firmware kept the settings", async () => {
         const { host, state } = await run({ release: v3, afterwards: "restore" });
         expect(host.restores).toBe(1);
         expect(state.result?.layout).toBe("restored");

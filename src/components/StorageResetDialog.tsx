@@ -42,7 +42,7 @@ export interface ResetNoticeViewProps {
     onPutBack: () => void;
 }
 
-/** A4 and the bit-0 notice: the title, the newest backup, and Put my layout back. */
+/** A4 and the bit-0 notice: the title, the newest backup, and Restore my layout. */
 export function ResetNoticeView({ firmware, backupLine, busy, error, onDefaults, onOtherBackups, onPutBack }: ResetNoticeViewProps) {
     return (
         <>
@@ -58,7 +58,7 @@ export function ResetNoticeView({ firmware, backupLine, busy, error, onDefaults,
                     <>
                         <Button variant="outline" disabled={busy} onClick={onDefaults}>Start from defaults</Button>
                         <Button variant="outline" disabled={busy} onClick={onOtherBackups}>Other backups</Button>
-                        <Button variant="kb-primary" disabled={busy} onClick={onPutBack}>{busy ? "Putting it back…" : "Put my layout back"}</Button>
+                        <Button variant="kb-primary" disabled={busy} onClick={onPutBack}>{busy ? "Restoring…" : "Restore my layout"}</Button>
                     </>
                 ) : (
                     <Button onClick={onDefaults}>OK</Button>
@@ -75,7 +75,7 @@ export function ResetNoticeView({ firmware, backupLine, busy, error, onDefaults,
  *   .uf2 installed by hand, or a tab closed mid-update. The one place a restore is asked
  *   afterwards. An update's own reset never asks: the update acts on it and clears it;
  * - it reset its settings because its storage could not be read (bit 0).
- * Both resets offer "Put my layout back" from the newest backup of this board.
+ * Both resets offer "Restore my layout" from the newest backup of this board.
  * Acknowledging a reset clears the board's flag (0x2A), after the restore when there is one.
  */
 /** The update's hold on the reset notice, kept current as the update starts, ends and is closed. */

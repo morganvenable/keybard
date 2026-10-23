@@ -7,7 +7,7 @@ import { useId } from "react";
 import type { Afterwards } from "@/services/updater/flow";
 
 export const LAYOUT_CHOICES: Array<{ value: Afterwards; label: string }> = [
-    { value: "restore", label: "Put my layout back" },
+    { value: "restore", label: "Restore my layout" },
     { value: "defaults", label: "Start from the default layout" },
     { value: "blank", label: "Start from a blank keyboard" },
 ];
@@ -15,7 +15,7 @@ export const LAYOUT_CHOICES: Array<{ value: Afterwards; label: string }> = [
 export interface LayoutChoiceProps {
     value: Afterwards;
     onChange: (value: Afterwards) => void;
-    /** Put my layout back needs a backup: off until it's saved, and after it failed. */
+    /** Restore my layout needs a backup: off until it's saved, and after it failed. */
     keepDisabled: boolean;
     /** The choices offered (an install by hand can't clear the keyboard: it has no updater to ask). */
     choices?: Afterwards[];

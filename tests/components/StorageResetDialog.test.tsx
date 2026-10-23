@@ -81,7 +81,7 @@ describe('StorageResetDialog', () => {
             render(<StorageResetDialog />);
             expect(screen.getByText('New firmware reset your settings')).toBeTruthy();
             expect(screen.getByText(/Kip · v3 ·/)).toBeTruthy();
-            fireEvent.click(screen.getByRole('button', { name: 'Put my layout back' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Restore my layout' }));
             await waitFor(() => expect(restore.restoreLayoutToBoard).toHaveBeenCalledTimes(1));
             expect(backupService.getSvil).toHaveBeenCalledWith('new');
             expect(restore.restoreLayoutToBoard.mock.calls[0][0]).toBe('{"backup":true}');
@@ -161,7 +161,7 @@ describe('StorageResetDialog', () => {
             backups.snapshots = [snap('new', 2000)];
             render(<StorageResetDialog />);
             expect(screen.getByText("Your keyboard's settings were reset")).toBeTruthy();
-            expect(screen.getByRole('button', { name: 'Put my layout back' })).toBeTruthy();
+            expect(screen.getByRole('button', { name: 'Restore my layout' })).toBeTruthy();
         });
     });
 });

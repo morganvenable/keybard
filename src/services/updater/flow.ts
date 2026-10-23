@@ -876,7 +876,7 @@ export class UpdateFlow {
         trace(`storage flags 0x${flags.toString(16)}`, { tags });
         if (flags & 0x02) throw new Stop({ id: "F17" });
         let trimmed: string[] = [];
-        // "Put my layout back" with the backup lost (a reload with storage full): never reset
+        // "Restore my layout" with the backup lost (a reload with storage full): never reset
         // instead. The pre-update snapshot and the downloaded file still hold the layout.
         if (this.state.afterwards === "restore" && !this.backupSvil) {
             throw new Stop({ id: "F16", detail: `This tab lost its copy of the backup. Restore ${this.state.backup?.fileName ?? "the pre-update backup"} from Backups.` });

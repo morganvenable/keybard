@@ -117,7 +117,7 @@ export function newManualSession(o: {
         version: 2, id: Math.random().toString(36).slice(2, 10), releaseTag: o.releaseTag, releaseFw: o.releaseFw ?? null,
         fromTag: o.fromTag ?? "", fromFw: o.fromFw ?? null, once: !!o.once, only: o.only, usualHand: o.usualHand ?? 1,
         backup: o.connected ? { state: "pending" } : null,
-        // Put my layout back once the backup is saved; with no keyboard there is nothing to keep.
+        // Restore my layout once the backup is saved; with no keyboard there is nothing to keep.
         afterwards: o.connected ? "restore" : "defaults",
         openKey: o.openKey, checkedKey: null, check: null, phase: "steps", result: null, error: null,
     };

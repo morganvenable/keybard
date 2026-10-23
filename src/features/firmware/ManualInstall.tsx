@@ -143,7 +143,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                 <FwTitle sub={sub}>{`${tag} is installed${onHalf}`}</FwTitle>
                 {phase === "failed" && (
                     <div role="alert">
-                        <Problem title="Keybard couldn't put your layout back.">
+                        <Problem title="Keybard couldn't restore your layout.">
                             {outcome?.error} Restore {backup?.state === "ok" ? <span className="break-all font-mono text-xs">{backup.fileName}</span> : "your backup"} from Backups.
                         </Problem>
                     </div>

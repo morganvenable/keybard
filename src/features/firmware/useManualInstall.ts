@@ -70,7 +70,7 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         backingUp.add(s.id);
         void h!.makeBackup({ fromTag: o.fromTag, toTag: release?.tag ?? "" }).then(
             (b) => patch(s.id, (x) => ({ ...x, backup: { state: "ok", fileName: b.fileName, snapshotId: b.snapshotId, svil: b.svil } })),
-            // Gentle, as on the sheet: warn, and switch Put my layout back to the default layout.
+            // Gentle, as on the sheet: warn, and switch Restore my layout to the default layout.
             (e) => patch(s.id, (x) => ({ ...x, backup: { state: "failed", error: e instanceof Error ? e.message : String(e) }, afterwards: "defaults" })),
         ).finally(() => backingUp.delete(s.id));
     }, [o.connectionKey, o.fromTag, o.fromFw, o.once, o.usualHand, patch]);

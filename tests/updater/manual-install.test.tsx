@@ -107,7 +107,7 @@ describe("the manual install's state", () => {
         expect(manualPending({ only: 0, usualHand: 1 }, { halves: { 0: { state: "new" }, 1: { state: "old" } } })).toEqual([]);
     });
 
-    it("Put my layout back puts the backup back, then clears the reset notice last", async () => {
+    it("Restore my layout puts the backup back, then clears the reset notice last", async () => {
         const { board, host } = setup();
         board.storageFlags = 0x04;
         const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
@@ -145,8 +145,8 @@ describe("Install by hand from Settings > Firmware", () => {
         const dialog = screen.getByTestId("manual-install");
         expect(screen.getByRole("heading", { name: "Install x4 by hand" })).toBeTruthy();
         expect(screen.getByText("Your keyboard needs this once. After that, Keybard installs updates for you. It takes a few minutes.")).toBeTruthy();
-        expect(radio("Put my layout back").checked).toBe(true);
-        expect(radio("Put my layout back").disabled).toBe(false);
+        expect(radio("Restore my layout").checked).toBe(true);
+        expect(radio("Restore my layout").disabled).toBe(false);
         expect(radio("Start from the default layout")).toBeTruthy();
         expect(screen.queryByRole("radio", { name: "Start from a blank keyboard" })).toBeNull();
         const files = dialog.querySelectorAll("[data-file]");
@@ -249,7 +249,7 @@ describe("Install by hand from Settings > Firmware", () => {
         fireEvent.click(screen.getByRole("button", { name: "Update to x4" }));
         await waitFor(() => expect(screen.getByText("Keybard couldn't save your layout.")).toBeTruthy());
         expect(screen.getByText(/Disk full\. Afterward the keyboard starts from the default layout\./)).toBeTruthy();
-        expect(screen.queryByRole("radio", { name: "Put my layout back" })).toBeNull();
+        expect(screen.queryByRole("radio", { name: "Restore my layout" })).toBeNull();
     });
 
     it("a failed restore says where the layout still is", async () => {
@@ -257,7 +257,7 @@ describe("Install by hand from Settings > Firmware", () => {
         flash(board, 0);
         flash(board, 1);
         await reconnect("p:2");
-        await waitFor(() => expect(screen.getByText("Keybard couldn't put your layout back.")).toBeTruthy());
+        await waitFor(() => expect(screen.getByText("Keybard couldn't restore your layout.")).toBeTruthy());
         expect(screen.getByRole("alert").textContent).toMatch(/stopped answering.*Restore Kip-x3\.1\.3-2026-10-21\.svil from Backups/);
     });
 
