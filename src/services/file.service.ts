@@ -638,6 +638,14 @@ export class FileService {
         kbinfo.svil_proto = svil.sval_protocol || svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
         kbinfo.via_proto = svil.via_protocol || 12;
 
+        // A Svalboard layout names Svalboard's own keys (SV_SNIPER_3). A connected
+        // Svalboard registers them from its definition; with none, take them from
+        // the built-in list, which keeps the firmware's positions (QK_USER_0 on).
+        // JSON parsing rounds the 64-bit UID, so compare it at that precision.
+        if (Number(svil.uid) === Number(SVALBOARD_VIAL_UID)) {
+            keyService.registerKnownCustomKeycodes(SVALBOARD_VIAL_CUSTOM_KEYCODES);
+        }
+
         // Update counts from data
         kbinfo.key_override_count = svil.key_override?.length || 0;
         kbinfo.combo_count = svil.combo?.length || 0;
