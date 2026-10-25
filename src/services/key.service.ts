@@ -3,7 +3,7 @@ import { CODEMAP, KEYMAP, KEYALIASES } from '../constants/keygen';
 // Numbers the tables above for the newest known QMK keycode version on import.
 import '../constants/keycode-numbering';
 import type { KeyString, KeyMapEntry } from '../types/keymap';
-import type { KeyboardInfo } from '../types/keyboard.types';
+import type { CustomKeycode, KeyboardInfo } from '../types/keyboard.types';
 import { customKeycodeShortName } from '../constants/custom-keycode-labels';
 
 interface KeyParseDesc {
@@ -48,26 +48,8 @@ export class KeyService {
     // Also populate QK_USER...QK_USER_31 keys (QMK range: 0x7e40+)
     // These are the keycodes that Svil/QMK firmware actually uses
     for (let i = 0; i < 32; i++) {
-      const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
-      const code = 0x7e40 + i; // QK_USER base is 0x7e40
       if (kbinfo.custom_keycodes && kbinfo.custom_keycodes[i]) {
-        const custom = kbinfo.custom_keycodes[i];
-        KEYMAP[qkUserKey] = {
-          code,
-          qmkid: custom.name,
-          str: customKeycodeShortName(custom),
-          title: custom.title,
-        };
-        // Also register by custom name
-        KEYMAP[custom.name] = {
-          code,
-          qmkid: custom.name,
-          str: customKeycodeShortName(custom),
-          title: custom.title,
-        };
-        KEYALIASES[custom.name] = qkUserKey;
-        // Update CODEMAP so stringify() returns the custom name
-        CODEMAP[code] = custom.name;
+        this.registerQkUserKeycode(i, kbinfo.custom_keycodes[i]);
       }
     }
 
@@ -99,6 +81,36 @@ export class KeyService {
       KEYMAP[key].type = 'tapdance';
       KEYMAP[key].idx = i;
     }
+  }
+
+  /**
+   * Name QK_USER_<i> after a custom keycode, as a board's definition does.
+   */
+  private registerQkUserKeycode(i: number, custom: CustomKeycode): void {
+    const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
+    const code = 0x7e40 + i; // QK_USER base is 0x7e40
+    const entry = { code, qmkid: custom.name, str: customKeycodeShortName(custom), title: custom.title };
+    KEYMAP[qkUserKey] = { ...entry };
+    // Also register by custom name
+    KEYMAP[custom.name] = { ...entry };
+    KEYALIASES[custom.name] = qkUserKey;
+    // Update CODEMAP so stringify() returns the custom name
+    CODEMAP[code] = custom.name;
+  }
+
+  /**
+   * Name custom keycodes from a known list (position i = QK_USER_<i>) where no
+   * connected board has: a name already known, or a position a board already
+   * named, is left as it is. Lets a layout that names a board's own keys load
+   * with no board connected, in the numbering that board uses.
+   */
+  registerKnownCustomKeycodes(list: readonly CustomKeycode[]): void {
+    list.forEach((custom, i) => {
+      if (i >= 32 || custom.name in KEYMAP) return;
+      const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
+      if (CODEMAP[0x7e40 + i] !== qkUserKey) return;
+      this.registerQkUserKeycode(i, custom);
+    });
   }
 
   /**
