@@ -35,8 +35,21 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
         const keys = (file.keymap ?? []).flat(2).filter(isPointCode).length;
         if (!valid) warnings.push('The pointing tool settings in this file are damaged, so they are skipped. The rest of the layout imports normally.');
         else if (!supportsPointControls(current)) warnings.push(`This keyboard's firmware has no pointing tools, so the file's pointing tool settings are skipped.${keys ? ` Its ${keys} pointing tool key${keys === 1 ? '' : 's'} will do nothing until you install firmware with pointing tools.` : ''}`);
+        // Device gains (version 6) on firmware without them: the rest of the tool settings
+        // still import; the gains are left out.
+        else if (current.pointing_controls?.version === 5 && file.pointing_controls.version === 6) {
+            next.pointing_controls = upgradePointControls(file.pointing_controls, 5);
+            summary.push('Pointing tool settings');
+            warnings.push("This keyboard's firmware has no touchpad or TrackPoint gains, so the file's gains are skipped. The other pointing tool settings import.");
+        }
         else if (!current.pointing_controls || file.pointing_controls.version > current.pointing_controls.version) warnings.push('The keyboard did not report pointing tool settings this file can update, so they are skipped. Reconnect the keyboard, or update its firmware, and import again to bring them over.');
-        else { next.pointing_controls = current.pointing_controls.version >= 3 ? upgradePointControls(file.pointing_controls, current.pointing_controls.version as 3|4|5) : structuredClone(file.pointing_controls); summary.push('Pointing tool settings'); }
+        else {
+            const target = current.pointing_controls.version;
+            // A file from before the gains keeps the board's own gains.
+            const source = target === 6 && file.pointing_controls.version < 6 ? {...file.pointing_controls, gains: current.pointing_controls.gains} : file.pointing_controls;
+            next.pointing_controls = target >= 3 ? upgradePointControls(source, target as 3|4|5|6) : structuredClone(file.pointing_controls);
+            summary.push(target === 6 && file.pointing_controls.version === 6 ? 'Pointing tool settings, with touchpad and TrackPoint gains' : 'Pointing tool settings');
+        }
     }
     if (file.retired_point_key_count) warnings.push(`${file.retired_point_key_count} Finer / Coarser key${file.retired_point_key_count === 1 ? ' is' : 's are'} no longer available and will be set to KC_NO. Set the travel per step with the Tool speeds sliders instead.`);
     const retiredCodes = (file.keymap ?? []).flat(2).filter(code => pointKey(code)?.name.startsWith('SV_POINT_RETIRED_')).length;

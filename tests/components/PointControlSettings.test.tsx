@@ -174,3 +174,29 @@ describe('save model: the same as every other setting',()=>{
         expect(state.queue).not.toHaveBeenCalled();expect(state.setKeyboard).not.toHaveBeenCalled();
     });
 });
+
+describe('device gains: a temporary control until the UX study picks the design', () => {
+    it('is absent on firmware without gains (version 5)', () => {
+        render(<PointControlSettings/>);
+        expect(screen.queryByTestId('temporary-device-gains')).toBeNull();
+    });
+    it('shows both gains on a version 6 board, marked temporary, and queues an edit like any setting', async () => {
+        state.keyboard = {...state.keyboard, pointing_controls: upgradePointControls(state.keyboard.pointing_controls, 6)};
+        render(<PointControlSettings/>);
+        expect(screen.getByText('Device gains (temporary control)')).toBeTruthy();
+        expect(screen.getByLabelText('Touchpad gain')).toHaveValue(2);
+        expect(screen.getByLabelText('TrackPoint gain')).toHaveValue(2);
+        fireEvent.change(screen.getByLabelText('Touchpad gain'), {target: {value: '3'}});
+        const value = await save();
+        expect(value.version).toBe(6);
+        expect(value.gains).toEqual({touchpad: 48, trackpoint: 32});
+        await state.queue.mock.calls.at(-1)![1]();
+        expect(state.save).toHaveBeenCalledWith(value);
+    });
+    it('keeps a gain inside 1/16 to almost 16', async () => {
+        state.keyboard = {...state.keyboard, pointing_controls: upgradePointControls(state.keyboard.pointing_controls, 6)};
+        render(<PointControlSettings/>);
+        fireEvent.change(screen.getByLabelText('TrackPoint gain'), {target: {value: '40'}});
+        expect((await save()).gains.trackpoint).toBe(255);
+    });
+});

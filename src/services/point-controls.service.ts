@@ -1,15 +1,17 @@
 import { SvilUSB, usbInstance } from './usb.service';
 import { type PointControls, validatePointControls, encodePointControls, decodePointControls } from '@/constants/point-controls';
 
-// STATUS format 1. Every pointer follows one set of tool keys, so left and right report the same slot.
-// Byte 6 (the old Finer / Coarser shift) is retired and not read.
-export interface PointStatus { left: number; right: number; axes: number; locked: boolean; session: boolean; recognized: number; admitted: number; dropped: number }
+// STATUS format 1 or 2. Every pointer follows one set of tool keys, so left and right report the
+// same slot. Byte 6 (the old Finer / Coarser shift) is retired and not read. Format 2 adds each
+// hand's device type as the tools last read it (POINT_DEVICES index) and whether a touchpad is
+// read from its contacts (the native touchpad); format 1 firmware leaves them undefined.
+export interface PointStatus { left: number; right: number; axes: number; locked: boolean; session: boolean; recognized: number; admitted: number; dropped: number; devices?: [number, number]; contacts?: [boolean, boolean] }
 export class PointControlsService {
     private generation: number | null = null;
     private version = 1;
     constructor(private usb: SvilUSB) {}
     private decode(reply: Uint8Array, command: number): PointControls {
-        if (reply.length < 21 || reply[0] !== command || ![1,2,3,4,5].includes(reply[2])) throw new Error('Pointing tools need matching keyboard firmware.');
+        if (reply.length < 21 || reply[0] !== command || ![1,2,3,4,5,6].includes(reply[2]) || (reply[2] === 6 && reply.length < 26)) throw new Error('Pointing tools need matching keyboard firmware.');
         const errors: Record<number, string> = {
             1: 'Stop active pointing tools before saving their settings.',
             2: 'Pointing settings changed in another window. Reload the keyboard before trying again.',
@@ -17,7 +19,7 @@ export class PointControlsService {
             4: 'The keyboard could not save the pointing settings. Reconnect and try again.',
         };
         if (reply[1]) throw new Error(errors[reply[1]] ?? 'Could not save pointing tools.');
-        const value: PointControls = reply[2] !== 1 ? decodePointControls(reply.slice(5,reply[2]>=4?24:21),reply[2] as 2|3|4|5) : { version: 1, profiles: Array.from({length: 4}, (_, i) => ({
+        const value: PointControls = reply[2] !== 1 ? decodePointControls(reply.slice(5,reply[2]>=6?26:reply[2]>=4?24:21),reply[2] as 2|3|4|5|6) : { version: 1, profiles: Array.from({length: 4}, (_, i) => ({
             distance: reply[5+i*4] | reply[6+i*4] << 8, interval: reply[7+i*4], reversal: reply[8+i*4],
         })) };
         validatePointControls(value);
@@ -45,9 +47,11 @@ export class PointControlsService {
     }
     async status(): Promise<PointStatus> {
         const r = await this.usb.sendSvil(SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS, [], {uint8: true});
-        if (r.length < 20 || r[0] !== SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS || r[1] !== 1) throw new Error('Pointing status is unavailable.');
+        if (r.length < 20 || r[0] !== SvilUSB.CMD_SVIL_POINT_TOOLS_STATUS || (r[1] !== 1 && r[1] !== 2) || (r[1] === 2 && r.length < 23)) throw new Error('Pointing status is unavailable.');
         const u32 = (n: number) => (r[n] | r[n+1]<<8 | r[n+2]<<16 | r[n+3]<<24) >>> 0;
-        return { left:r[2], right:r[3], axes:r[4], locked:!!r[5], session:!!r[6], recognized:u32(8), admitted:u32(12), dropped:u32(16) };
+        const status: PointStatus = { left:r[2], right:r[3], axes:r[4], locked:!!r[5], session:!!r[6], recognized:u32(8), admitted:u32(12), dropped:u32(16) };
+        if (r[1] === 2) { status.devices = [r[20], r[21]]; status.contacts = [!!(r[22] & 1), !!(r[22] & 2)]; }
+        return status;
     }
 }
 export const pointControlsService = new PointControlsService(usbInstance);

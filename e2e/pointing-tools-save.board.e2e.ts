@@ -112,3 +112,20 @@ test.describe("pointing tools save model", () => {
         await expect(tuning.getByText("2.00×").first()).toBeVisible();
     });
 });
+
+// Device gains (temporary control until the UX study's design): an edit reaches the board
+// like any other setting and survives a power cycle.
+test("touchpad and TrackPoint gains save to the board and come back after a power cycle", async ({ page }) => {
+    const board = new MockBoard();
+    await bootBoard(page, board);
+    await setLiveUpdating(page, true);
+    const tuning = await openPointingTools(page);
+    const gains = tuning.getByRole("region", { name: "Device gains (temporary)" });
+    await expect(gains.getByText("Device gains (temporary control)")).toBeVisible();
+    await expect(gains.getByLabel("Touchpad gain")).toHaveValue("2");
+    await gains.getByLabel("Touchpad gain").fill("3");
+    await expect.poll(() => board.lastGains).toEqual([48, 32]);
+    const again = await powerCycle(page, board);
+    await expect(again.getByRole("region", { name: "Device gains (temporary)" }).getByLabel("Touchpad gain")).toHaveValue("3");
+    await expect(again.getByRole("region", { name: "Device gains (temporary)" }).getByLabel("TrackPoint gain")).toHaveValue("2");
+});

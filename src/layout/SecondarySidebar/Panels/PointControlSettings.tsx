@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useId } from 'react';
 import { useKeyboard } from '@/contexts/KeyboardContext';
 import { useChanges } from '@/contexts/ChangesContext';
-import { POINT_PRESETS, POINT_ACTIONS, POINT_ACTION_DEFAULTS, PROPORTIONAL_ACTION, describeActionDefaults, formatPace, formatTravel, actionStepCounts, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls } from '@/constants/point-controls';
+import { POINT_PRESETS, POINT_ACTIONS, POINT_ACTION_DEFAULTS, PROPORTIONAL_ACTION, describeActionDefaults, formatPace, formatTravel, actionStepCounts, pointAction, pointSlotName, type PointControls, type PointSpeed, POINT_DEFAULTS, effectiveSpeed, upgradePointControls, speedDistance, validatePointControls, supportsPointControls, POINT_GAIN_ONE, POINT_GAIN_MIN, POINT_GAIN_MAX, POINT_GAIN_DEFAULTS, type PointGains } from '@/constants/point-controls';
 import { pointControlsService, type PointStatus } from '@/services/point-controls.service';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
@@ -71,7 +71,7 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         catch (e) { if (session.current === targetSession) setError((e as Error).message); }
         finally { if (session.current === targetSession) setStopping(false); }
     };
-    const needsUpdate = isConnected && keyboard.pointing_controls.version !== 5;
+    const needsUpdate = isConnected && keyboard.pointing_controls.version < 5;
     const toolName = (i:number) => pointSlotName(draft,i);
     const current = index < 0 ? draft.defaults! : effectiveSpeed(draft,index);
     const inherited = index >= 0 && (draft.universal || draft.profiles[index].useDefaults);
@@ -176,11 +176,32 @@ export default function PointControlSettings({ compact }: { compact?: boolean })
         <div className="flex flex-wrap items-center gap-2"><Button variant="secondary" size="sm" disabled={needsUpdate} onClick={resetAll}><RotateCcw size={14}/>Revert all tools to defaults</Button><span className="text-xs text-muted-foreground">{overrideCount ? `${overrideCount} tools differ` : 'All tools match defaults'}</span></div>
         <p className="text-xs text-muted-foreground">Revert restores the original actions and directions while keeping shared speeds. Both pointers share these tools and speeds. Changes save like every other setting, on the USB-connected half and in layout exports. Stop active tools before changing them.</p>
 
+        {draft.version === 6 && draft.gains && <TemporaryGains gains={draft.gains} disabled={needsUpdate} onChange={(device, x16) => change(next => { next.gains![device] = x16; })}/>}
+
         {status && <div className="text-xs text-muted-foreground" role="status">
             <p>Active tool: {status.left||status.right?pointSlotName(upgradePointControls(keyboard.pointing_controls),(status.left||status.right)-1):'None'}</p>
             <p>{status.locked ? `Axis lock: ${status.axes === 2 ? 'vertical' : 'horizontal'}` : 'Free scrolling'}{status.session ? ' · Task switcher open' : ''}</p>
             <p>{status.recognized} steps recognized · {status.admitted} actions admitted · {status.dropped} coalesced/dropped</p>
         </div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    </section>;
+}
+
+/**
+ * TEMPORARY. A plain stand-in so test builds can set the touchpad and TrackPoint gains
+ * until the device-gain controls from the pointing UX study replace it. Not a design.
+ */
+function TemporaryGains({ gains, disabled, onChange }: { gains: PointGains; disabled?: boolean; onChange: (device: keyof PointGains, x16: number) => void }) {
+    const field = (device: keyof PointGains, label: string) => <label className="flex items-center justify-between gap-2 text-sm">
+        <span>{label}</span>
+        <Input className="w-24" type="number" aria-label={`${label} gain`} min={POINT_GAIN_MIN / POINT_GAIN_ONE} max={POINT_GAIN_MAX / POINT_GAIN_ONE} step={0.25} disabled={disabled}
+            value={gains[device] / POINT_GAIN_ONE}
+            onChange={e => { const n = Math.round(Number(e.target.value) * POINT_GAIN_ONE); if (Number.isFinite(n)) onChange(device, Math.min(POINT_GAIN_MAX, Math.max(POINT_GAIN_MIN, n))); }}/>
+    </label>;
+    return <section aria-label="Device gains (temporary)" className="flex flex-col gap-2 rounded border border-dashed p-2" data-testid="temporary-device-gains">
+        <h4 className="font-semibold text-sm">Device gains (temporary control)</h4>
+        {field('touchpad', 'Touchpad')}
+        {field('trackpoint', 'TrackPoint')}
+        <p className="text-xs text-muted-foreground">How far a touchpad or TrackPoint moves for the same tool speed, as a multiple of a trackball's travel. Defaults {POINT_GAIN_DEFAULTS.touchpad / POINT_GAIN_ONE}× and {POINT_GAIN_DEFAULTS.trackpoint / POINT_GAIN_ONE}×. A trackball has no gain: its CPI sets it.</p>
     </section>;
 }

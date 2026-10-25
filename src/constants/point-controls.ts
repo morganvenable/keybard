@@ -3,7 +3,24 @@ import type { KeyboardInfo } from '@/types/keyboard.types';
 export interface PointSpeed { horizontal: number; vertical: number; linked: boolean }
 // v5 proportional scrolling uses reversal as dead-zone counts + 1; other tools retain reversal tolerance.
 export interface PointProfile { distance: number; interval: number; reversal: number; speed?: PointSpeed; useDefaults?: boolean; action?: number; invertHorizontal?: boolean; invertVertical?: boolean }
-export interface PointControls { version: 1 | 2 | 3 | 4 | 5; profiles: PointProfile[]; defaults?: PointSpeed; universal?: boolean }
+/**
+ * Device gains (table version 6): how the firmware turns a touchpad's and a TrackPoint's
+ * counts into the tools' unit (trackball counts at 800 CPI), so the tool speeds mean the same
+ * on any module. Sixteenths: 16 is 1.0, 1-255. A trackball has none (its CPI is the whole
+ * conversion). Per device type, not per hand. Firmware: pointing/point_device.c.
+ */
+export interface PointGains { touchpad: number; trackpoint: number }
+export interface PointControls { version: 1 | 2 | 3 | 4 | 5 | 6; profiles: PointProfile[]; defaults?: PointSpeed; universal?: boolean; gains?: PointGains }
+/** The newest settings table version this Keybard writes. */
+export const POINT_TABLE_VERSION = 6;
+export const POINT_GAIN_ONE = 16;
+export const POINT_GAIN_MIN = 1, POINT_GAIN_MAX = 255;
+/** The firmware's defaults: 2.0 for both (docs/pointing-tools.md, "Devices"). */
+export const POINT_GAIN_DEFAULTS: Readonly<PointGains> = { touchpad: 32, trackpoint: 32 };
+/** A gain in words: 32 -> "2.0x". */
+export const formatGain = (x16: number) => `${(x16 / POINT_GAIN_ONE).toFixed(x16 % 8 ? 2 : 1)}x`;
+/** STATUS format 2: each hand's device type as the tools last read it. */
+export const POINT_DEVICES = ['none', 'trackball', 'touchpad', 'TrackPoint'] as const;
 // GET_INFO feature_flags2 bit 7 (sval_flag2_pointing_tools). Bits 0-6 belong to other features
 // (bit 5 is POINTING_CONTACTS, bit 6 the one-image side command).
 export const POINT_CONTROL_FLAG = 0x80;
@@ -118,12 +135,16 @@ export function pointKey(value: string | number) {
 }
 export function validatePointControls(value: unknown): asserts value is PointControls {
     const v = value as PointControls;
-    if ((v?.version === 4 || v?.version === 5) && (!Array.isArray(v.profiles) || v.profiles.some(p => !p || !Number.isInteger(p.action) || p.action! < 0 || p.action! >= (v.version===4?7:POINT_ACTIONS.length) || typeof p.invertHorizontal !== 'boolean' || typeof p.invertVertical !== 'boolean'))) throw new Error('Invalid pointing tool preset or direction settings.');
-    if (v?.version === 2 || v?.version === 3 || v?.version === 4 || v?.version === 5) {
+    if ((v?.version === 4 || v?.version === 5 || v?.version === 6) && (!Array.isArray(v.profiles) || v.profiles.some(p => !p || !Number.isInteger(p.action) || p.action! < 0 || p.action! >= (v.version===4?7:POINT_ACTIONS.length) || typeof p.invertHorizontal !== 'boolean' || typeof p.invertVertical !== 'boolean'))) throw new Error('Invalid pointing tool preset or direction settings.');
+    if (v?.version === 6) {
+        const gain = (n: unknown) => Number.isInteger(n) && (n as number) >= POINT_GAIN_MIN && (n as number) <= POINT_GAIN_MAX;
+        if (!v.gains || !gain(v.gains.touchpad) || !gain(v.gains.trackpoint)) throw new Error('Invalid touchpad or TrackPoint gain.');
+    } else if (v && v.gains !== undefined) throw new Error('Device gains need pointing tools settings version 6.');
+    if (v?.version === 2 || v?.version === 3 || v?.version === 4 || v?.version === 5 || v?.version === 6) {
         const validSpeed = (s?: PointSpeed) => s && [s.horizontal,s.vertical].every(n=>Number.isInteger(n)&&n>=0&&n<=63) && typeof s.linked==='boolean' && (!s.linked || s.horizontal===s.vertical);
         if (!validSpeed(v.defaults) || typeof v.universal!=='boolean' || !Array.isArray(v.profiles) || v.profiles.some(p=>!validSpeed(p?.speed)||typeof p?.useDefaults!=='boolean')) throw new Error('Invalid pointing speed settings.');
     }
-    if (!v || ![1, 2, 3, 4, 5].includes(v.version) || !Array.isArray(v.profiles) || v.profiles.length !== 4 || v.profiles.some(p =>
+    if (!v || ![1, 2, 3, 4, 5, 6].includes(v.version) || !Array.isArray(v.profiles) || v.profiles.length !== 4 || v.profiles.some(p =>
         !p || !Number.isInteger(p.distance) || p.distance < 8 || p.distance > 1024 ||
         !Number.isInteger(p.interval) || (v.version >= 3 ? p.interval !== 0 && p.interval < 4 : p.interval < 40) || p.interval > 250 ||
         !Number.isInteger(p.reversal) || p.reversal < 1 || p.reversal > 64 || (v.version === 1 && p.reversal > p.distance))) {
@@ -138,12 +159,20 @@ export const nearestSpeed = (distance: number) => POINT_DISTANCES.reduce((best, 
 export function effectiveSpeed(value: PointControls, index: number): PointSpeed {
     return value.universal || value.profiles[index].useDefaults ? value.defaults! : value.profiles[index].speed!;
 }
-export function upgradePointControls(value: PointControls, target: 3 | 4 | 5 = 5): PointControls {
+/**
+ * The settings at a table version: 6 adds the device gains (the defaults, unless the value
+ * has them), 5 and below have none. The default target keeps a version 6 value at 6.
+ */
+export function upgradePointControls(value: PointControls, target: 3 | 4 | 5 | 6 = value.version >= 6 ? 6 : 5): PointControls {
+    if (target === 6) {
+        const next = upgradePointControls(value, 5);
+        return {...next, version: 6, gains: {...(value.gains ?? POINT_GAIN_DEFAULTS)}};
+    }
     if (target>=4) {
         const next=upgradePointControls(value,3);
         return {...next,version:target,profiles:next.profiles.map((p,i)=>({...p,action:p.action??i,invertHorizontal:p.invertHorizontal??false,invertVertical:p.invertVertical??false}))};
     }
-    if (value.version !== 1) return {...structuredClone(value),version:3};
+    if (value.version !== 1) { const next: PointControls = {...structuredClone(value),version:3}; delete next.gains; return next; }
     const defaults = {horizontal:36, vertical:36, linked:true};
     return {version:3, defaults, universal:false, profiles:value.profiles.map(p => {
         const speed = nearestSpeed(p.distance);
@@ -161,10 +190,11 @@ export function encodePointControls(value: PointControls): number[] {
         let options=0;value.profiles.forEach((p,i)=>options|=(p.action! | +p.invertHorizontal!<<3 | +p.invertVertical!<<4)<<(i*5));
         bytes.push(options&255,(options>>8)&255,(options>>16)&255);
     }
+    if(value.version>=6) bytes.push(value.gains!.touchpad, value.gains!.trackpoint);
     return bytes;
 }
-export function decodePointControls(bytes: ArrayLike<number>, version: 2 | 3 | 4 | 5 = 3): PointControls {
-    if(bytes.length < (version>=4?19:16))throw new Error('Incomplete pointing settings.');
+export function decodePointControls(bytes: ArrayLike<number>, version: 2 | 3 | 4 | 5 | 6 = 3): PointControls {
+    if(bytes.length < (version>=6?21:version>=4?19:16))throw new Error('Incomplete pointing settings.');
     if(bytes[15]&0xC0 || version>=4 && bytes[18]&0xF0)throw new Error('Invalid reserved pointing bits.');
     let bit=0; const get=(width:number) => { let v=0;for(let i=0;i<width;i++,bit++)v|=((bytes[bit>>3]>>(bit&7))&1)<<i;return v; };
     const speed=():PointSpeed=>({horizontal:get(6),vertical:get(6),linked:!!get(1)});
@@ -172,5 +202,6 @@ export function decodePointControls(bytes: ArrayLike<number>, version: 2 | 3 | 4
     const profiles=Array.from({length:4},()=>{const s=speed(),useDefaults=!!get(1),interval=get(8),reversal=get(6)+1;return {distance:speedDistance(s.horizontal),speed:s,useDefaults,interval,reversal};});
     const value:PointControls={version,defaults,universal,profiles};
     if(version>=4){const options=bytes[16]|bytes[17]<<8|bytes[18]<<16;value.profiles.forEach((p,i)=>{p.action=(options>>(i*5))&7;p.invertHorizontal=!!(options&(1<<(i*5+3)));p.invertVertical=!!(options&(1<<(i*5+4)));});}
+    if(version>=6) value.gains={touchpad:bytes[19],trackpoint:bytes[20]};
     validatePointControls(value);return value;
 }

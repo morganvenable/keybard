@@ -13,30 +13,33 @@ const POINT_TOOLS_FLAG = 0x80; // GET_INFO feature_flags2 bit 7
 
 /** What the board keeps across power cycles, plus a log of the writes it took. */
 export class MockBoard {
-    /** Pointing tools settings as stored on the board (v5 payload, 19 bytes). */
+    /** Pointing tools settings as stored on the board (table version 6: 19 bytes, then the touchpad and TrackPoint gains). */
     pointTools: number[] | null = null;
     generation = 7;
     /** Every pointing tools SET the board accepted. */
     sets: number[][] = [];
     /** The shared horizontal speed (slider position) in the last accepted SET: the payload's first 6 bits. */
     get lastSharedSpeed(): number | undefined { const last = this.sets.at(-1); return last && last[0] & 63; }
+    /** The touchpad and TrackPoint gains (sixteenths) in the last accepted SET. */
+    get lastGains(): number[] | undefined { return this.sets.at(-1)?.slice(19, 21); }
     /** SET calls refused because the generation was stale. */
     staleSets = 0;
 
     handle(cmd: number, args: number[]): number[] {
         // Every reply carries the board's current settings and generation.
-        const reply = (err: number) => [cmd, err, 5, this.generation & 255, this.generation >> 8, ...this.pointTools!];
+        const reply = (err: number) => [cmd, err, 6, this.generation & 255, this.generation >> 8, ...this.pointTools!];
         if (cmd === POINT_GET) return reply(0);
         if (cmd === POINT_SET) {
             const [version, lo, hi, ...bytes] = args;
-            if (version !== 5) return reply(3);
+            // Version 6 carries the gains; version 5 leaves them as they are.
+            if (version !== 5 && version !== 6) return reply(3);
             if ((lo | (hi << 8)) !== this.generation) { this.staleSets++; return reply(2); }
-            this.pointTools = bytes.slice(0, 19);
+            this.pointTools = version === 6 ? bytes.slice(0, 21) : [...bytes.slice(0, 19), ...this.pointTools!.slice(19, 21)];
             this.generation = (this.generation + 1) & 0xffff;
             this.sets.push(this.pointTools);
             return reply(0);
         }
-        if (cmd === POINT_STATUS) return [POINT_STATUS, 1, ...new Array(18).fill(0)];
+        if (cmd === POINT_STATUS) return [POINT_STATUS, 2, ...new Array(21).fill(0)];
         if (cmd === POINT_STOP) return [POINT_STOP, 0, 1];
         throw new Error(`Unmocked board command 0x${cmd.toString(16)}`);
     }
@@ -104,11 +107,11 @@ async function hasBinding(page: Page) {
     return page.evaluate(() => typeof (window as unknown as { __mockBoard?: unknown }).__mockBoard === "function").catch(() => false);
 }
 
-/** Factory-fresh pointing tools settings: every tool on the shared 1.00x speed, uncapped. */
+/** Factory-fresh pointing tools settings: every tool on the shared 1.00x speed, uncapped, default gains. */
 export async function freshPointTools(page: Page): Promise<number[]> {
     return page.evaluate(async (root) => {
         const { upgradePointControls, encodePointControls, POINT_DEFAULTS } = await import(/* @vite-ignore */ root + "constants/point-controls.ts");
-        const value = upgradePointControls({ version: 1, profiles: structuredClone(POINT_DEFAULTS) });
+        const value = upgradePointControls({ version: 1, profiles: structuredClone(POINT_DEFAULTS) }, 6);
         value.universal = true;
         value.profiles.forEach((p: { useDefaults: boolean; interval: number }) => { p.useDefaults = true; p.interval = 0; });
         return encodePointControls(value);
