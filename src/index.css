@@ -170,6 +170,19 @@
     --kb-combo-chip: #f1f2f2;
     --kb-combo-chip-border: #d9dadb;
 
+    /* App Taps prototype (?proto=app-aware): hold legends, warnings, pretend Overlay. */
+    --kb-hold-band: rgb(0 0 0 / 0.28);
+    --kb-hold-own-band: rgb(0 0 0 / 0.66);
+    --kb-hold-band-fg: #ffffff;
+    --kb-hold-tag-own-bg: #ffffff;
+    --kb-hold-tag-own-fg: #111214;
+    --kb-hold-tag-own-ring: rgb(0 0 0 / 0.35);
+    --kb-warn-bg: #fff4dc;
+    --kb-warn-fg: #6b4500;
+    --kb-warn-border: #f1c76b;
+    --kb-overlay-mock-bg: rgb(24 25 28 / 0.92);
+    --kb-overlay-mock-fg: #f1f2f2;
+
     --radius: 0.625rem;
     --background: oklch(1 0 0);
     --foreground: oklch(0.129 0.042 264.695);
@@ -239,6 +252,18 @@
     --kb-combo-row-lit: rgb(255 255 255 / 0.06);
     --kb-combo-chip: #2a2c30;
     --kb-combo-chip-border: #3a3d42;
+
+    --kb-hold-band: rgb(0 0 0 / 0.32);
+    --kb-hold-own-band: rgb(0 0 0 / 0.72);
+    --kb-hold-band-fg: #ffffff;
+    --kb-hold-tag-own-bg: #f1f2f2;
+    --kb-hold-tag-own-fg: #111214;
+    --kb-hold-tag-own-ring: rgb(0 0 0 / 0.5);
+    --kb-warn-bg: #3a2f17;
+    --kb-warn-fg: #ffd98a;
+    --kb-warn-border: #7a5a1c;
+    --kb-overlay-mock-bg: rgb(10 10 12 / 0.92);
+    --kb-overlay-mock-fg: #f1f2f2;
 
     --background: #1d1e21;
     --foreground: #f1f2f2;

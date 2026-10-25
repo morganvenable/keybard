@@ -45,6 +45,7 @@ import { MatrixTester } from "@/components/MatrixTester";
 import { EditorControls } from "./EditorControls";
 import BindingSpotlight, { useBindingSpotlight } from "./BindingSpotlight";
 import DeepLinkEditor from "./DeepLinkEditor";
+import AppAwareRoot from "@/features/app-aware/AppAwareRoot";
 import PointingDeepLink from "./PointingDeepLink";
 import PickerTray from "./PickerTray";
 import { PickerTrayProvider, type PickerTrayValue } from "@/contexts/PickerTrayContext";
@@ -1350,6 +1351,7 @@ const EditorLayoutInner = () => {
             <AppSidebar />
             <BindingSpotlight />
             <DeepLinkEditor />
+            <AppAwareRoot />
             <PointingDeepLink />
             <div className="contents">
             {/* Keep the panel mounted when its placement changes. */}

@@ -1,4 +1,5 @@
 import React from "react";
+import { TapDanceAppHolds } from "@/features/app-aware/TapDanceAppHolds";
 import { Plus } from "lucide-react";
 import { Key } from "@/components/Key";
 
@@ -159,7 +160,7 @@ const TapdancePanel: React.FC<Props> = ({ isPicker = false }) => {
                                     return (
                                         <div key={idx} className="flex flex-col items-center">
                                             <span className="text-[8px] text-gray-400 dark:text-neutral-400 mb-0.5">{states[idx].label}</span>
-                                            {renderSmallKey(content, idx, i, slotName)}
+                                            <div className="relative">{renderSmallKey(content, idx, i, slotName)}{idx === 1 && <TapDanceAppHolds index={i} />}</div>
                                         </div>
                                     );
                                 })}
@@ -237,6 +238,7 @@ const TapdancePanel: React.FC<Props> = ({ isPicker = false }) => {
                         <div className="grid grid-cols-4 justify-items-center w-full max-w-[272px] ml-6">
                             {stateContents.map((content, idx) => {
                                 const slotName = idx === 0 ? "tap" : idx === 1 ? "hold" : idx === 2 ? "taphold" : "doubletap";
+                                if (idx === 1) return <div key={idx} className="relative">{renderSmallKey(content, idx, i, slotName)}<TapDanceAppHolds index={i} /></div>;
                                 return renderSmallKey(content, idx, i, slotName);
                             })}
                         </div>

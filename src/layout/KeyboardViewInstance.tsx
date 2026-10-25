@@ -21,6 +21,11 @@ import { LayerReorderDialog } from "@/components/LayerReorderDialog";
 import { useLayerReorder, type LayerMoveConstraints } from "@/hooks/useLayerReorder";
 import { allowedLayerMoves, layerGapTarget, pinnedLayer } from "@/utils/layer-permute";
 import { LEGACY_FORWARD_ENTRY_MS, type LayerScenePose } from "./layer-scene";
+import { useAppAware } from "@/features/app-aware/store";
+import { protoParams } from "@/features/app-aware/proto";
+import { AppSelectorButton, AppSelectorChips } from "@/features/app-aware/AppMenu";
+import { BoardStatus, TestAsSwitch } from "@/features/app-aware/BoardStatus";
+import { LayerAppBadge } from "@/features/app-aware/LayerAppBadge";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -421,6 +426,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         if (to !== null) reorder.prepare(from, to, constraints);
     };
 
+    // App Taps prototype (?proto=app-aware): app selector, layer badges, board status.
+    const appAware = useAppAware();
+    const appAwareOn = appAware.on && appAware.supported;
+    const appSelector = appAwareOn && isPrimary ? (protoParams()?.selector ?? "a") : null;
+
     const renderLayerTab = (i: number) => {
         if (!shouldRenderLayerTab(i)) return null;
 
@@ -483,6 +493,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         <span className={cn("select-none inline-flex items-center gap-1", isActive && "underline underline-offset-2")}>
                             {isDefault && <House aria-hidden className="h-3.5 w-3.5 shrink-0" />}
                             {layerShortName}
+                            {appAwareOn && <LayerAppBadge layer={i} />}
                         </span>
                     </button>
                 </ContextMenuTrigger>
@@ -664,6 +675,12 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     className={cn("flex items-center gap-2 pl-5 whitespace-nowrap pointer-events-auto overflow-x-auto overscroll-x-contain [&>*]:shrink-0", !compact && "pb-2")}
                     style={isPrimary && multiLayerHeaderOffset > 0 ? { marginTop: -multiLayerHeaderOffset } : undefined}
                 >
+                    {appSelector === "a" && (
+                        <div className="flex items-center gap-2" data-spotlight-cover="">
+                            <AppSelectorButton />
+                            <div className="h-4 w-px bg-kb-combo-chip-border" aria-hidden="true" />
+                        </div>
+                    )}
                     <div className="flex items-center gap-1">
                         <Tooltip delayDuration={500}>
                             <TooltipTrigger asChild>
@@ -835,6 +852,13 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             )}
                         />
                     </div>
+                    {appSelector && (
+                        <div className="flex items-center gap-2 min-w-0 flex-1" data-spotlight-cover="">
+                            {appSelector === "b" && <AppSelectorChips />}
+                            <TestAsSwitch />
+                            <div className="ml-auto pr-5 min-w-0"><BoardStatus /></div>
+                        </div>
+                    )}
                 </div>
                 {/* Keyboard */}
                 <div

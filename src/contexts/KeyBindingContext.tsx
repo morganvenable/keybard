@@ -12,6 +12,7 @@ import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { DEFAULT_TAPDANCE_TERM_MS } from "@/utils/tapdance-term";
 import { useKeyboard } from "./KeyboardContext";
+import { appAwareAssign } from "@/features/app-aware/assign";
 
 interface BindingTarget {
     type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders";
@@ -204,6 +205,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const assignKeycodeTo = useCallback(
         (target: BindingTarget, keycode: number | string, options?: { skipAdvance?: boolean }) => {
             if (!target || !keyboard) return;
+            // App Taps prototype (?proto=app-aware): Hold writes the selected app's hold. Inert without the flag.
+            if (target.type === "keyboard" && appAwareAssign(keyboard, target, keycode)) return;
             const updatedKeyboard = structuredClone(keyboard) as typeof keyboard & Record<string, any>;
             console.log("assignKeycodeTo called with", keycode, "for target", target);
             // Convert keycode string to number using keyService

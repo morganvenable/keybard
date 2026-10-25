@@ -11,6 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
+import { HoldLegend, type KeyAppHold } from "@/features/app-aware/HoldLegend";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -81,6 +82,10 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     style?: React.CSSProperties;
     unitSize?: number;
     combo?: KeyComboProps;
+    /** App Taps prototype (?proto=app-aware): the hold legend to draw. */
+    appHold?: KeyAppHold;
+    /** App Taps prototype: a placed Type or Pause key. */
+    appKey?: "type" | "pause";
 }
 
 /** Focus that came from the keyboard (Tab, arrows), not from a click. */
@@ -98,7 +103,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
-        style, unitSize, combo,
+        style, unitSize, combo, appHold, appKey,
         ...rest
     } = props;
 
@@ -316,6 +321,10 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         );
     }
 
+    // App Taps prototype: the hold legend stands in for a mod-tap or layer-tap header.
+    const hideTop = !!appKey || (!!appHold && (keyContents?.type === "modtap" || keyContents?.type === "layerhold"));
+    const centerContent = appKey ? (appKey === "type" ? "Type" : "Pause") : keyData.centerContent;
+
     // --- Regular key render ---
     return (
         <div
@@ -333,7 +342,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             {...comboAttrs}
             {...rest}
         >
-            {keyData.topLabel && (
+            {keyData.topLabel && !hideTop && (
                 <span className={cn(headerClass)} style={headerStyle}>
                     {keyData.topLabel}
                 </span>
@@ -345,7 +354,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                 className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
                 style={styles.textStyle}
             >
-                {keyData.centerContent}
+                {centerContent}
             </div>
 
             {keyData.bottomStr !== "" && (
@@ -353,6 +362,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                     {keyData.bottomStr}
                 </span>
             )}
+            {appHold && <HoldLegend hold={appHold} variant={variant} />}
             {comboFold}
         </div>
     );

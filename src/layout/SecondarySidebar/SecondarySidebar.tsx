@@ -1,4 +1,5 @@
 import "./SecondarySidebar.css";
+import { PickTargetSwitch } from "@/features/app-aware/KeyHoldSection";
 
 import * as React from "react";
 import { ArrowLeft, Pin, X } from "lucide-react";
@@ -493,6 +494,7 @@ const SecondarySidebar = ({ bottom = false, leftOffset, height = 230, comboPlace
                             <h2 className="text-[22px] font-semibold leading-none text-kb-ink">
                                 {getPanelTitle(activePanel, keyboard?.menus)}
                             </h2>
+                            <PickTargetSwitch className="mt-2.5" />
                         </div>
                         <Button
                             type="button"

@@ -40,6 +40,8 @@ import type { KeyComboProps } from "./Key";
 import { dark3DLabelColor, needsDarkIndicatorOutline, screenedBackdropHex } from "./layer3DColors";
 import { PointingLayer } from "./pointing-viz/PointingLayer";
 import { placedKeyRects } from "@/utils/pointing-geometry";
+import { useAppAware } from "@/features/app-aware/store";
+import { keyAppView } from "@/features/app-aware/keyView";
 
 const NO_MEMBERSHIPS: ComboMembership[] = [];
 
@@ -106,6 +108,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const openComboEditor = useCallback((index: number) => openBindingEditor("combos", index), [openBindingEditor]);
     const foldOpens = isBindingEditorOpen(activePanel, itemToEdit) ? undefined : openComboEditor;
     const { hasPendingChangeForKey } = useChanges();
+    // App Taps prototype (?proto=app-aware): hold legends per app. Inert without the flag.
+    const appAware = useAppAware();
     const layerColorNames = usePreviewedLayerColors(keyboard.cosmetic?.layer_colors);
 
     // Combo folded corners and preview (one setting owns whether they show; see ComboPreviewContext).
@@ -853,13 +857,15 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                         },
                     };
                     const keyName = keyLabel(keyboard, comboCode > KC_TRNS ? comboCode : Number(keycode), internationalLayout);
+                    const appView = keyAppView(appAware, keyboard, selectedLayer, row, col, keycodeName);
                     const combo: KeyComboProps = {
                         memberships: comboPreview.enabled ? memberships : NO_MEMBERSHIPS,
                         hues: comboHues,
                         focusSet: comboPreview.focusSet,
                         mode: comboPreview.mode,
                         palette: comboPreview.palette,
-                        ariaLabel: memberships.length ? keyComboAriaLabel(keyName, memberships, keyboard.cosmetic?.combos) : keyName,
+                        ariaLabel: (memberships.length ? keyComboAriaLabel(keyName, memberships, keyboard.cosmetic?.combos) : keyName)
+                            + (appView.appHold ? `. ${appView.appHold.title}` : ""),
                         pinned: comboPreview.isPinned(focus.id),
                         tabStop: (tabStopPos ?? firstKeyPos) === pos,
                         onOpenCombo: foldOpens,
@@ -963,6 +969,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                                 }
                             } : undefined}
                             keyContents={keyContents}
+                            appHold={isGhostKey ? undefined : appView.appHold}
+                            appKey={appView.appKey}
                             layerColor={activeLayerColor}
                             headerClassName={keyHeaderClassFull}
                             hoverBackgroundColor={keyHoverBg}

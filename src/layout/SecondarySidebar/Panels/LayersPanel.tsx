@@ -1,4 +1,5 @@
 import { useLayerNames } from "@/hooks/useLayerNames";
+import { AppKeysSection } from "@/features/app-aware/AppKeysSection";
 import { useState } from "react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -179,7 +180,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                         {MODIFIER_DESCRIPTIONS[activeModifier]}
                     </span>
                 </div>
-
+                <AppKeysSection compact />
             </div>
         );
     }
@@ -258,6 +259,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                         );
                     })}
                 </div>
+                <AppKeysSection />
             </div>
         </section>
     );

@@ -17,6 +17,7 @@ import { layerHexFor } from "@/utils/combo-hues";
 import { buildKeyIndex, inspectKey, type KeyInspection, type Part, type Row, type Section } from "@/utils/key-inspect";
 import { ComboOptions } from "@/types/keyboard.types";
 import { FoldGlyph } from "./FoldGlyph";
+import { KeyHoldSection } from "@/features/app-aware/KeyHoldSection";
 
 /** Combo lines a hovering card lists before "+N More Combos" (a pinned card lists all). */
 export const HOVER_COMBO_CAP = 6;
@@ -294,6 +295,7 @@ export function KeyInspector({ keyboard, hues, className }: {
                 >
                     <div ref={bodyRef} className={cn("px-3.5 pt-3 min-h-0", pinned ? "overflow-y-auto" : "overflow-hidden", !model && "pb-3")}>
                         {header}
+                        {active.key && <KeyHoldSection keyboard={keyboard} k={active.key} pinned={pinned} />}
                         {model && <Sections list={model.before} kb={keyboard} />}
                         {combosBlock}
                         {model && <Sections list={model.after} kb={keyboard} />}

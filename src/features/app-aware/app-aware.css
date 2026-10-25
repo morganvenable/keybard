@@ -1,0 +1,66 @@
+/* App Taps prototype (?proto=app-aware). Colors come from tokens in src/index.css. */
+
+.kb-hold {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-transform: none;
+    pointer-events: none;
+    letter-spacing: 0.01em;
+}
+
+/* Look a: a band at the bottom of the key. */
+.kb-hold--a { bottom: 0; border-radius: 0 0 4px 4px; }
+/* Look c: a band at the top, where mod-tap and layer-tap holds sit today. */
+.kb-hold--c { top: 0; border-radius: 4px 4px 0 0; }
+.kb-hold--a.kb-hold--normal,
+.kb-hold--c.kb-hold--normal { background: var(--kb-hold-band); color: var(--kb-hold-band-fg); }
+.kb-hold--a.kb-hold--own,
+.kb-hold--c.kb-hold--own { background: var(--kb-hold-own-band); color: var(--kb-hold-band-fg); }
+.kb-hold--a.kb-hold--inherited { color: currentColor; opacity: 0.6; border-top: 1px dashed currentColor; }
+.kb-hold--c.kb-hold--inherited { color: currentColor; opacity: 0.6; border-bottom: 1px dashed currentColor; }
+
+/* Look b: a small tag at the bottom; the app's own holds are a filled tag. */
+.kb-hold--b { bottom: 2px; left: 50%; right: auto; transform: translateX(-50%); border-radius: 999px; padding: 0 5px; max-width: calc(100% - 4px); }
+.kb-hold--b.kb-hold--normal { background: var(--kb-hold-band); color: var(--kb-hold-band-fg); }
+.kb-hold--b.kb-hold--own { background: var(--kb-hold-tag-own-bg); color: var(--kb-hold-tag-own-fg); box-shadow: 0 0 0 1px var(--kb-hold-tag-own-ring); }
+.kb-hold--b.kb-hold--inherited { color: currentColor; opacity: 0.6; box-shadow: inset 0 0 0 1px currentColor; }
+
+/* The app's own hold is marked with a dot; "no hold in this app" is struck. */
+.kb-hold__dot { width: 4px; height: 4px; border-radius: 999px; background: currentColor; flex-shrink: 0; }
+.kb-hold--removed .kb-hold__text { text-decoration: line-through; }
+
+/* Placed Type / Pause keys. */
+.kb-app-key-mark { position: absolute; top: 2px; right: 3px; font-size: 9px; font-weight: 700; opacity: 0.8; pointer-events: none; }
+
+/* Pretend Overlay pieces (mock desktop corner). */
+.kb-overlay-mock {
+    background: var(--kb-overlay-mock-bg);
+    color: var(--kb-overlay-mock-fg);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+.kb-warn {
+    background: var(--kb-warn-bg);
+    color: var(--kb-warn-fg);
+    border: 1px solid var(--kb-warn-border);
+}
+.kb-app-mono {
+    background: var(--kb-ink);
+    color: var(--kb-surface);
+}
+.kb-app-own-chip {
+    background: var(--kb-hold-own-band);
+    color: var(--kb-hold-band-fg);
+}
+
+@keyframes kb-note-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.kb-note-in { animation: kb-note-in 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .kb-note-in { animation: none; } }
