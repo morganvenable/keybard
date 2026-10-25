@@ -8,8 +8,8 @@
 import type { Page } from "@playwright/test";
 import { expect } from "./fixtures";
 
-const POINT_GET = 0x2f, POINT_SET = 0x30, POINT_STATUS = 0x31, POINT_STOP = 0x32;
-const POINT_TOOLS_FLAG = 0x20; // GET_INFO feature_flags2 bit 5
+const POINT_GET = 0x34, POINT_SET = 0x35, POINT_STATUS = 0x36, POINT_STOP = 0x37;
+const POINT_TOOLS_FLAG = 0x80; // GET_INFO feature_flags2 bit 7
 
 /** What the board keeps across power cycles, plus a log of the writes it took. */
 export class MockBoard {

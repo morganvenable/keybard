@@ -41,7 +41,7 @@ async function openWithToolsBoard(page: Page) {
         const { upgradePointControls, POINT_DEFAULTS } = await imp("constants/point-controls.ts");
         const content = await (await fetch(root.replace(/\/?$/, "/") + "default-layouts/sval-default.svil")).text();
         const fixture = await fileService.loadFile(new File([content], "test-board.svil"));
-        Object.assign(fixture, { name: "test board", svil_proto: 3, macros_size: 4096, feature_flags2: 0x20, settings: {} });
+        Object.assign(fixture, { name: "test board", svil_proto: 3, macros_size: 4096, feature_flags2: 0x80, settings: {} });
         fixture.custom_keycodes = custom.map(([name, shortName]: [string, string]) => ({ name, shortName, title: name }));
         fixture.pointing_controls = upgradePointControls({ version: 1, profiles: structuredClone(POINT_DEFAULTS) }, 5);
         first.forEach((code: number, i: number) => { fixture.keymap[0][i] = code; });
@@ -87,9 +87,12 @@ test("drag scroll keys are placeable beside the pointing tools and write their o
     const scroll = page.getByRole("region", { name: "Drag scroll keys" }).first();
     if (!(await scroll.isVisible())) await page.getByRole("button", { name: "Pointing Devices", exact: true }).first().click();
     await expect(scroll).toBeVisible();
-    for (const k of ["SV_SCROLL_HOLD", "SV_SCROLL_TOGGLE", "SV_LEFT_SCROLL_TOGGLE", "SV_RIGHT_SCROLL_TOGGLE"]) {
+    for (const k of ["SV_SCROLL_TOGGLE", "SV_LEFT_SCROLL_TOGGLE", "SV_RIGHT_SCROLL_TOGGLE"]) {
         await expect(scroll.locator(`[data-keycode="${k}"]`)).toBeVisible();
     }
+    // Scroll Hold is offered once, in the Scroll row beside Velocity Scroll.
+    await expect(scroll.locator('[data-keycode="SV_SCROLL_HOLD"]')).toHaveCount(0);
+    await expect(scroll.locator("xpath=..").locator('[data-keycode="SV_SCROLL_HOLD"]')).toHaveCount(1);
     await scroll.locator('[data-keycode="SV_SCROLL_TOGGLE"]').click();
 
     await expect(canvasKey(page, "SV_SCROLL_TOGGLE")).toBeVisible();
