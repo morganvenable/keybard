@@ -10,7 +10,7 @@ import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { COMMON_ACTIONS, NO_HOLD, shortcutText } from "./catalog";
 import { AppMono } from "./AppMenu";
 import {
-    ALL, appName, clearHold, getState, layerName, nativeHold, posKey, resolveHold, setHold, setPickMode, undoWarning,
+    ALL, appName, clearHold, getState, layerName, nativeHold, openMenu, posKey, resolveHold, selectApp, setHold, setPickMode, undoWarning,
     useAppAware, type AppAwareState,
 } from "./store";
 
@@ -183,16 +183,40 @@ function KeyHoldSectionOn({ keyboard, k, pinned }: { keyboard: KeyboardInfo; k: 
             <h3 className="mt-2.5 text-[12px] font-medium text-muted-foreground m-0">{s.apps.length ? "Hold in each app" : "Hold"}</h3>
             <ul className="list-none mt-1 p-0 grid gap-1" data-hold-everywhere="">
                 {rows.map(r => (
-                    <li key={r.id} className="grid grid-cols-[18px_96px_1fr] items-center gap-x-2 min-h-6 text-[13px]" data-inspector-row="" data-hold-row={r.id}>
-                        <span className="inline-flex justify-center">{r.mono ? <AppMono mono={r.mono} size={16} /> : null}</span>
-                        <span className={cn("truncate text-[12.5px]", r.id === app ? "text-kb-ink font-semibold" : "text-muted-foreground")}>{r.label}</span>
-                        <span className="flex items-center gap-1.5 min-w-0">
-                            <span className={cn("truncate", r.id !== ALL && !r.own && "text-muted-foreground", r.id !== ALL && r.own && "font-semibold")}>{r.value}</span>
-                            {r.id !== ALL && r.own && <span className="kb-app-own-chip rounded px-1 text-[10px] font-semibold" data-own-mark="">Own</span>}
-                            {r.note && <span className="text-[11px] text-muted-foreground whitespace-nowrap">{r.note}</span>}
-                        </span>
+                    <li key={r.id} data-inspector-row="" data-hold-row={r.id}>
+                        {/* Clicking a row edits that app's hold on this key. */}
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); selectApp(r.id); setPickMode("hold"); }}
+                            aria-pressed={r.id === app}
+                            title={r.id === app ? undefined : `Edit the hold in ${r.label}`}
+                            className={cn(
+                                "w-full grid grid-cols-[18px_96px_1fr] items-center gap-x-2 min-h-6 rounded-md px-1 -mx-1 text-left text-[13px]",
+                                r.id === app ? "bg-kb-combo-row-lit" : "hover:bg-kb-combo-row-lit",
+                            )}
+                            data-hold-row-select={r.id}
+                        >
+                            <span className="inline-flex justify-center">{r.mono ? <AppMono mono={r.mono} size={16} /> : null}</span>
+                            <span className={cn("truncate text-[12.5px]", r.id === app ? "text-kb-ink font-semibold" : "text-muted-foreground")}>{r.label}</span>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                                <span className={cn("truncate", r.id !== ALL && !r.own && "text-muted-foreground", r.id !== ALL && r.own && "font-semibold")}>{r.value}</span>
+                                {r.id !== ALL && r.own && <span className="kb-app-own-chip rounded px-1 text-[10px] font-semibold" data-own-mark="">Own</span>}
+                                {r.note && <span className="text-[11px] text-muted-foreground whitespace-nowrap">{r.note}</span>}
+                            </span>
+                        </button>
                     </li>
                 ))}
+                <li>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openMenu("add"); }}
+                        className="w-full grid grid-cols-[18px_1fr] items-center gap-x-2 min-h-6 rounded-md px-1 -mx-1 text-left text-[12.5px] text-muted-foreground hover:bg-kb-combo-row-lit hover:text-kb-ink"
+                        data-hold-add-app=""
+                    >
+                        <span className="inline-flex justify-center">+</span>
+                        <span>Add app</span>
+                    </button>
+                </li>
             </ul>
             {tdIndex !== undefined && pinned && (
                 <button type="button" className="mt-1.5 text-[12px] underline text-kb-ink" onClick={(e) => { e.stopPropagation(); openEditor("tapdances", Number(tdIndex)); }} data-edit-tapdance="">
