@@ -234,6 +234,12 @@ export class SvilUSB {
   static readonly CMD_SVIL_POINTING_HARDWARE = 0x2c; // each half's side and trackball sensor
   static readonly CMD_SVIL_POINTING_MOTION = 0x2d; // each hand's motion since the last read (read-and-clear)
   static readonly CMD_SVIL_POINTING_CONTACTS = 0x2f; // every touch contact on its pad (a snapshot; native touchpad)
+  // Pointing tools (volume, arrows, tabs, tasks, zoom, undo/redo, proportional scroll).
+  // Advertised by GET_INFO feature_flags2 bit 7 (POINT_CONTROL_FLAG in src/constants/point-controls.ts).
+  static readonly CMD_SVIL_POINT_TOOLS_GET = 0x34;
+  static readonly CMD_SVIL_POINT_TOOLS_SET = 0x35;
+  static readonly CMD_SVIL_POINT_TOOLS_STATUS = 0x36;
+  static readonly CMD_SVIL_POINT_TOOLS_STOP = 0x37;
 
   // Label types for CMD_SVIL_LABEL_*; every label is a fixed 16-byte, null-padded UTF-8 field
   static readonly SVIL_LABEL_TYPE_LAYER = 0;

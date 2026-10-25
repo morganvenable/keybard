@@ -1,3 +1,4 @@
+import { hasPointControls, pointKey, configuredPointKey } from "@/constants/point-controls";
 import { CODEMAP } from "@/constants/keygen";
 import { customKeycodeShortName } from "@/constants/custom-keycode-labels";
 import { keyService } from "@/services/key.service";
@@ -171,7 +172,7 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any): any {
     }
     let m;
 
-    keystr = keyService.canonical(keystr);
+    keystr = typeof keystr === "number" ? keyService.stringify(keystr) : keyService.canonical(keystr);
 
     // Special handling for HYPR_T which keyService often fails to parse
     m = keystr.match(/^HYPR_T\((.*)\)$/);
@@ -195,6 +196,8 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any): any {
     }
 
     const keyid = keyService.parse(keystr);
+    const point = hasPointControls(KBINFO) ? pointKey(keyid) : undefined;
+    if (point) {const display=configuredPointKey(point,KBINFO.pointing_controls);return { type:'user', str:display.label, title:display.title, top:display.title };}
 
     if (keyid === 0) {
         const def = keyService.define("KC_NO");

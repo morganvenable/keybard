@@ -5,13 +5,14 @@ import PointingPanel from '../../src/layout/SecondarySidebar/Panels/PointingPane
 // Guard for the key-sizing consistency rule: the Pointing panel must not render
 // <Key> itself. Every assignable key comes from MouseKeysSection, which owns the
 // single size computation for the panel.
+const preview = vi.hoisted(() => ({ connected: true, profiles: undefined as any }));
 const layoutSettings = { keyVariant: 'default', layoutMode: 'sidebar' as 'sidebar' | 'bottombar' };
 const keyRenders = vi.fn();
 const mouseKeysSectionRenders = vi.fn();
 
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
 vi.mock('@/contexts/KeyboardContext', () => ({
-    useKeyboard: () => ({ keyboard: { menus: [{ label: 'Pointing Device', content: [] }] }, isConnected: true, connect: vi.fn() }),
+    useKeyboard: () => ({ keyboard: { pointing_controls: preview.profiles, menus: [{ label: 'Pointing Device', content: [] }] }, isConnected: preview.connected, connect: vi.fn() }),
 }));
 vi.mock('@/components/Key', () => ({
     Key: (props: { keycode: string }) => { keyRenders(props); return <div data-testid="stray-key" />; },
@@ -56,4 +57,12 @@ describe('PointingPanel: all keys come from the shared MouseKeysSection', () => 
         expect(screen.queryByTestId('pointing-hardware-summary')).not.toBeInTheDocument();
         expect(screen.queryByText(/trackball|TrackPoint|Checking/i)).not.toBeInTheDocument();
     });
+});
+
+it('allows an exported pointing layout to be edited without a live keyboard', () => {
+    preview.connected = false;
+    preview.profiles = {version:1, profiles:[]};
+    render(<PointingPanel />);
+    expect(screen.getByTestId('mouse-keys-section')).toBeInTheDocument();
+    expect(screen.queryByText('Connect')).not.toBeInTheDocument();
 });

@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { POINT_CONTROL_FLAG } from '@/constants/point-controls';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MouseKeysSection from '../../src/layout/SecondarySidebar/Panels/MouseKeysSection';
 
 // The section must size every key row from one effectiveVariant, so the keys
 // are stubbed to expose exactly the props that control sizing.
+const preview = vi.hoisted(() => ({ keyboard: null as any, target: null as any, assign: vi.fn() }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/PointControlSettings', () => ({ default: () => null }));
 const layoutSettings = { keyVariant: 'default' as 'small' | 'medium' | 'default', layoutMode: 'sidebar' };
 
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
-const keyboardState: { keyboard: unknown } = { keyboard: null };
-vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardState }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: preview.keyboard }) }));
 vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
-const assignKeycode = vi.fn();
-vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode }) }));
+vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: preview.assign, selectedTarget: preview.target }) }));
 vi.mock('@/components/Key', () => ({
     Key: ({ keycode, variant, className, label, onClick }: { keycode: string; variant?: string; className?: string; label?: string; onClick?: () => void }) => (
         <div data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} data-label={label ?? ''} onClick={onClick} />
@@ -46,7 +47,7 @@ function expectUniformSizing(expectedVariant: string, expectedSize: string) {
 describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size identically', () => {
     beforeEach(() => {
         layoutSettings.keyVariant = 'default';
-        keyboardState.keyboard = null;
+        preview.keyboard = null; preview.target = null; preview.assign.mockClear();
     });
 
     it('renders the Boost and Scroll rows alongside Mouse Buttons and Sniper Keys', () => {
@@ -71,11 +72,11 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL')!;
         expect(key.getAttribute('data-label')).toBe('Vel Scroll');
         fireEvent.click(key);
-        expect(assignKeycode).toHaveBeenCalledWith('SV_VELOCITY_SCROLL');
+        expect(preview.assign).toHaveBeenCalledWith('SV_VELOCITY_SCROLL');
     });
 
     it('leaves Velocity Scroll out for firmware that has no such key', () => {
-        keyboardState.keyboard = { custom_keycodes: [{ name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' }] };
+        preview.keyboard = { custom_keycodes: [{ name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' }] };
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
         expect(keys).toContain('SV_SCROLL_HOLD');
@@ -86,7 +87,7 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         render(<MouseKeysSection />);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_SCROLL_HOLD')!;
         fireEvent.click(key);
-        expect(assignKeycode).toHaveBeenCalledWith('SV_SCROLL_HOLD');
+        expect(preview.assign).toHaveBeenCalledWith('SV_SCROLL_HOLD');
     });
 
     it.each([
@@ -107,5 +108,19 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
     it('compact without an override drops every row to small', () => {
         render(<MouseKeysSection compact />);
         expectUniformSizing('small', 'h-[30px] w-[30px]');
+    });
+});
+
+describe('Pointing control key integration', () => {
+    it.each([false, true])('sizes and assigns physical control keys (compact=%s)', compact => {
+        preview.keyboard = { feature_flags2:POINT_CONTROL_FLAG };
+        preview.target = { type: 'keyboard' };
+        render(<MouseKeysSection compact={compact} />);
+        const keys = screen.getAllByTestId('key');
+        for (const key of keys) expect(key.dataset.size).toBe(compact ? 'h-[30px] w-[30px]' : 'h-[60px] w-[60px]');
+        fireEvent.click(keys.find(key => key.dataset.keycode === 'SV_POINT_R_VOLUME_HOLD')!);
+        expect(preview.assign).toHaveBeenCalledWith('SV_POINT_R_VOLUME_HOLD');
+        fireEvent.click(screen.getByText('Left pointer'));
+        expect(screen.getAllByTestId('key').some(key => key.dataset.keycode === 'SV_POINT_L_TASKS_TOGGLE')).toBe(true);
     });
 });

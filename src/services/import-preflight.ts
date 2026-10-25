@@ -1,3 +1,4 @@
+import { supportsPointControls, validatePointControls, upgradePointControls } from "@/constants/point-controls";
 import type { KeyboardInfo } from '../types/keyboard.types';
 import { customValueService } from './custom-value.service';
 import { MacroService } from './macro.service';
@@ -26,6 +27,12 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
     if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
     const next = structuredClone(current);
+    if (file.pointing_controls) {
+        try { validatePointControls(file.pointing_controls); } catch (e) { errors.push((e as Error).message); }
+        if (!supportsPointControls(current)) errors.push('This layout uses pointing controls. Install the matching firmware before importing it.');
+        else if (file.pointing_controls.version > (current.pointing_controls?.version ?? 1)) errors.push('Update the keyboard firmware before importing these pointing settings.');
+        else { next.pointing_controls = (current.pointing_controls?.version??1)>=3 ? upgradePointControls(file.pointing_controls,current.pointing_controls!.version as 3|4|5) : structuredClone(file.pointing_controls); summary.push('Pointing control settings'); }
+    }
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
     if ((file.layers ?? 0) > (current.layers ?? 0)) errors.push(`The file has ${file.layers} layers; this keyboard supports ${current.layers}.`);
     if (file.kbid && current.kbid && file.kbid.toLowerCase() !== current.kbid.toLowerCase()) warnings.push('This file identifies a different keyboard. Matching dimensions do not guarantee matching physical key positions.');

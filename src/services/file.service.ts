@@ -1,3 +1,4 @@
+import { validatePointControls, hasPointControls, pointKey } from "@/constants/point-controls";
 import type { CustomValueEntry, KeyboardInfo } from "../types/keyboard.types";
 import { ComboOptions } from "../types/keyboard.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
@@ -322,7 +323,8 @@ export class FileService {
                 for (let r = 0; r < kbinfo.rows; r++) {
                     const rowArr: string[] = [];
                     for (let c = 0; c < kbinfo.cols; c++) {
-                        rowArr.push(keyService.stringify(km[(r * kbinfo.cols) + c]));
+                        const code = km[(r * kbinfo.cols) + c];
+                        rowArr.push(hasPointControls(kbinfo) && pointKey(code) ? pointKey(code)!.name : keyService.stringify(code));
                     }
                     layerArr.push(rowArr);
                 }
@@ -419,6 +421,10 @@ export class FileService {
             settings: kbinfo.settings || {},
         };
 
+        if (kbinfo.pointing_controls) {
+            validatePointControls(kbinfo.pointing_controls);
+            svil.pointing_controls = structuredClone(kbinfo.pointing_controls);
+        }
         // Only include oneshot if present
         if (oneshot) {
             svil.oneshot = oneshot;
@@ -634,6 +640,10 @@ export class FileService {
     svilToKBINFO(svil: any): KeyboardInfo {
         const kbinfo: KeyboardInfo = structuredClone(DEFAULT_KB_INFO) as KeyboardInfo;
 
+        if (svil.pointing_controls !== undefined) {
+            validatePointControls(svil.pointing_controls);
+            kbinfo.pointing_controls = structuredClone(svil.pointing_controls);
+        }
         // Store protocol versions
         kbinfo.svil_proto = svil.sval_protocol || svil.svil_protocol || svil.viable_protocol || 1; // viable_protocol: legacy .viable files
         kbinfo.via_proto = svil.via_protocol || 12;
