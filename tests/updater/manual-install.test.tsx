@@ -282,7 +282,7 @@ describe("Install by hand from Settings > Firmware", () => {
             "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
             "Drag the file onto the drive. The half restarts and the drive closes.",
             "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
-            "Both halves light up in rainbow colors for about half a minute, then flash green twice.",
+            "Wait about half a minute. The halves may show rainbow colors while they check each other.",
         ]);
         expect(dialog.textContent).not.toMatch(/either half|updates by itself/);
         expect(dialog.textContent).toContain("When the lights have settled, connect the keyboard.");

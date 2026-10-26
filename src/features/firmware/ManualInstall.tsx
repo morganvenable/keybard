@@ -95,7 +95,7 @@ function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release
             <li>{RESET}</li>
             <li>{DRAG(release)}</li>
             <li>{`Then the ${handName(second)} half: move the USB cable to its U port, press its RESET button twice, and drag the ${release ? "same file" : "file for that half"} onto the drive.`}</li>
-            <li>Both halves light up in rainbow colors for about half a minute, then flash green twice.</li>
+            <li>Wait about half a minute. The halves may show rainbow colors while they check each other.</li>
         </ol>
     );
 }
