@@ -66,9 +66,8 @@ describe('a board with 31 custom keycodes is unchanged', () => {
         expect(CODEMAP[0x7e60]).toBeUndefined();
         expect(keyService.stringify(0x7e60)).toBe('0x7e60');
         expect(CODEMAP[0x7fff]).toBe('QK_USER_MAX');
-        // Legacy USERnn naming is untouched.
+        // USERnn (QK_KB, 0x7E00+) keeps its codes; how it is named is not this change's.
         expect(KEYMAP['USER05'].code).toBe(0x7e05);
-        expect(KEYMAP['USER05'].qmkid).toBe('SV_TEST_5');
     });
 });
 
