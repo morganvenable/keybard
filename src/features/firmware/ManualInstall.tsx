@@ -1,6 +1,9 @@
 // M: Install by hand. Plain instructions: the layout choice, the one file, the steps.
-// From x4 on a release is one file for both halves: copied onto either half, that half
-// installs it and then updates the other half over the split cable by itself.
+// From x4 on a release is one file for both halves, and the steps copy it onto both, one
+// half at a time, the other half first so the cable ends in the usual half. A half on
+// Vial or on firmware before the updater can't link to the new firmware, so it never
+// gets it over the split cable: copying onto both halves is right whatever they ran.
+// A second copy onto a half that already has it is harmless (it keeps its settings).
 // Keybard can't see a half while it is a drive, so nothing here is ticked off. The one
 // check is on Connect: Keybard reads what each half runs, and either puts the layout back
 // and says it's done, names the half that still needs the file, or (one-image firmware)
@@ -70,14 +73,29 @@ function Files({ release }: { release: FirmwareReleasePin | null }) {
 
 const RESET = "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.";
 
-/** The steps on either half (the other half follows by itself), or on one half that still needs the file. */
-function Steps({ hand }: { hand?: Hand }) {
+const DRAG = (release: FirmwareReleasePin | null) => release
+    ? "Drag the file onto the drive. The half restarts and the drive closes."
+    : "Drag that half's file onto the drive. The half restarts and the drive closes.";
+
+/** The steps on both halves, the first one first (the other half, then the usual one), or on one half that still needs the file. */
+function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release: FirmwareReleasePin | null }) {
+    if (hand !== undefined) {
+        return (
+            <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm marker:font-semibold marker:text-muted-foreground" data-testid="manual-steps">
+                <li>{`Plug the USB cable into the ${handName(hand)} half's U port. Keep the split cable connected.`}</li>
+                <li>{RESET}</li>
+                <li>{DRAG(release)}</li>
+            </ol>
+        );
+    }
+    const [first, second] = halves;
     return (
         <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm marker:font-semibold marker:text-muted-foreground" data-testid="manual-steps">
-            <li>{hand === undefined ? "Plug the USB cable into either half's U port." : `Plug the USB cable into the ${handName(hand)} half's U port.`}</li>
+            <li>{`Plug the USB cable into the ${handName(first)} half's U port. Keep the split cable connected.`}</li>
             <li>{RESET}</li>
-            <li>Drag the file onto the drive. The half restarts and the drive closes.</li>
-            {hand === undefined && <li>The other half updates by itself, in about half a minute. Keep the split cable connected.</li>}
+            <li>{DRAG(release)}</li>
+            <li>{`Then the ${handName(second)} half: move the USB cable to its U port, press its RESET button twice, and drag the ${release ? "same file" : "file for that half"} onto the drive.`}</li>
+            <li>Wait about half a minute. The halves may show rainbow colors while they check each other.</li>
         </ol>
     );
 }
@@ -117,7 +135,7 @@ function stillLine(check: ManualCheck, pending: Hand[], tag: string, usual: Hand
         return `${say(usbOld)} Install the file on it, then connect again.`;
     }
     const lines = pending.map(say).filter(Boolean).join(" ");
-    return `${lines} Install the file on ${pending.length > 1 ? "either half" : `the ${handName(pending[0] ?? usual)} half`}, then connect again.`;
+    return `${lines} Install the file on ${pending.length > 1 ? "both halves" : `the ${handName(pending[0] ?? usual)} half`}, then connect again.`;
 }
 
 export function ManualInstall({ release, only, usualHand = 1, once = false, backup, afterwards, onAfterwards, check = null, outcome, onConnect, onClose, onOpenBackups, onSides, sidesBusy, sidesNote }: ManualInstallProps) {
@@ -190,7 +208,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                 <Halves check={check} tag={tag} />
                 <section className="flex flex-col gap-3" aria-label={`Install on the ${handName(one)} half`}>
                     <Files release={release} />
-                    <Steps hand={one} />
+                    <Steps hand={one} halves={halves} release={release} />
                 </section>
                 <footer className="flex flex-col gap-3 border-t border-kb-gray-border pt-4">
                     {one !== usualHand && <p className="text-sm text-muted-foreground">Then plug into your usual half.</p>}
@@ -232,11 +250,11 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
 
             <section className="flex flex-col gap-2" aria-label={only !== undefined ? `Install on the ${handName(only)} half` : "Install"}>
                 <SectionLabel>{only !== undefined ? `Install on the ${handName(only)} half` : "Install"}</SectionLabel>
-                <Steps hand={only} />
+                <Steps hand={only} halves={halves} release={release} />
             </section>
 
             <footer className="flex flex-col gap-3 border-t border-kb-gray-border pt-4">
-                <p className="text-sm text-muted-foreground">{only === undefined ? "When both halves have restarted, connect the keyboard." : "When it's done, plug into your usual half."}</p>
+                <p className="text-sm text-muted-foreground">{only === undefined ? "When the lights have settled, connect the keyboard." : "When it's done, plug into your usual half."}</p>
                 <div className="flex justify-end"><Button variant="kb-primary" data-connect onClick={onConnect}>{check ? "Connect again" : "Connect keyboard"}</Button></div>
             </footer>
         </div>
