@@ -95,7 +95,7 @@ function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release
             <li>{RESET}</li>
             <li>{DRAG(release)}</li>
             <li>{`Then the ${handName(second)} half: move the USB cable to its U port, press its RESET button twice, and drag the ${release ? "same file" : "file for that half"} onto the drive.`}</li>
-            <li>Wait about half a minute. The halves may show rainbow colors while they check each other.</li>
+            <li>Both halves turn rainbow. The first half glows steady magenta for a few seconds while it writes, then both flash green twice, about half a minute later.</li>
         </ol>
     );
 }
@@ -254,7 +254,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
             </section>
 
             <footer className="flex flex-col gap-3 border-t border-kb-gray-border pt-4">
-                <p className="text-sm text-muted-foreground">{only === undefined ? "When the lights have settled, connect the keyboard." : "When it's done, plug into your usual half."}</p>
+                <p className="text-sm text-muted-foreground">{only === undefined ? "After the green flashes, connect the keyboard." : "When it's done, plug into your usual half."}</p>
                 <div className="flex justify-end"><Button variant="kb-primary" data-connect onClick={onConnect}>{check ? "Connect again" : "Connect keyboard"}</Button></div>
             </footer>
         </div>
