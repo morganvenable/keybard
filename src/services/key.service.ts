@@ -5,6 +5,7 @@ import '../constants/keycode-numbering';
 import type { KeyString, KeyMapEntry } from '../types/keymap';
 import type { CustomKeycode, KeyboardInfo } from '../types/keyboard.types';
 import { customKeycodeShortName } from '../constants/custom-keycode-labels';
+import { QK_USER, QK_USER_COUNT, qkUserIndex, qkUserName } from '../constants/qk-user';
 
 interface KeyParseDesc {
   type: 'layer' | 'macro' | 'tapdance' | 'key';
@@ -45,9 +46,12 @@ export class KeyService {
       }
     }
 
-    // Also populate QK_USER...QK_USER_31 keys (QMK range: 0x7e40+)
-    // These are the keycodes that Svil/QMK firmware actually uses
-    for (let i = 0; i < 32; i++) {
+    // Also populate QK_USER keys (QMK range: 0x7e40-0x7fff), one per custom
+    // keycode the board reports, up to the 448 the range holds. These are the
+    // keycodes that Svalboard QMK firmware actually uses. The catalog names
+    // QK_USER_0..QK_USER_31; later positions get their entries here.
+    const customCount = Math.min(kbinfo.custom_keycodes?.length ?? 0, QK_USER_COUNT);
+    for (let i = 0; i < customCount; i++) {
       if (kbinfo.custom_keycodes && kbinfo.custom_keycodes[i]) {
         this.registerQkUserKeycode(i, kbinfo.custom_keycodes[i]);
       }
@@ -87,8 +91,9 @@ export class KeyService {
    * Name QK_USER_<i> after a custom keycode, as a board's definition does.
    */
   private registerQkUserKeycode(i: number, custom: CustomKeycode): void {
-    const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
-    const code = 0x7e40 + i; // QK_USER base is 0x7e40
+    if (!Number.isInteger(i) || i < 0 || i >= QK_USER_COUNT) return; // never past QK_USER_MAX
+    const qkUserKey = qkUserName(i);
+    const code = QK_USER + i; // QK_USER base is 0x7e40
     const entry = { code, qmkid: custom.name, str: customKeycodeShortName(custom), title: custom.title };
     KEYMAP[qkUserKey] = { ...entry };
     // Also register by custom name
@@ -106,9 +111,11 @@ export class KeyService {
    */
   registerKnownCustomKeycodes(list: readonly CustomKeycode[]): void {
     list.forEach((custom, i) => {
-      if (i >= 32 || custom.name in KEYMAP) return;
-      const qkUserKey = i === 0 ? 'QK_USER' : `QK_USER_${i}`;
-      if (CODEMAP[0x7e40 + i] !== qkUserKey) return;
+      if (i >= QK_USER_COUNT || custom.name in KEYMAP) return;
+      // Unnamed: the catalog's name (QK_USER_0..31, QK_USER_MAX at 0x7fff), or
+      // no name at all for a position past the catalog's 32.
+      const current = CODEMAP[QK_USER + i];
+      if (current !== undefined && current !== qkUserName(i) && current !== 'QK_USER_MAX') return;
       this.registerQkUserKeycode(i, custom);
     });
   }
@@ -197,6 +204,11 @@ export class KeyService {
       }
     }
 
+    // QK_USER_<n> past the catalog's 32 (QMK's own name for 0x7e40 + n), so a
+    // layout naming one parses even before a board has named that position.
+    const qkUser = qkUserIndex(keystr);
+    if (qkUser !== null) return QK_USER + qkUser;
+
     return parseInt(keystr);
   }
 
@@ -222,6 +234,14 @@ export class KeyService {
 
     if (keystr in KEYMAP) {
       return KEYMAP[keystr];
+    }
+
+    // An unnamed QK_USER_<n> past the catalog's 32 reads as its QMK name, the
+    // way the catalog's QK_USER_0..31 do.
+    const qkUser = qkUserIndex(keystr);
+    if (qkUser !== null) {
+      const name = qkUserName(qkUser);
+      return { code: QK_USER + qkUser, qmkid: name, str: name, title: name };
     }
 
     console.log('Unknown keystr', orig, keystr);
