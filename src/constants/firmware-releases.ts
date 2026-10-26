@@ -6,8 +6,8 @@
 // - dev builds: everything listed here.
 // Only releases whose firmware speaks updater protocol 4 (one confirmation for both halves,
 // settings reset) and ship one pair UF2 for both halves (x4 on) are listed: an install through Keybard always ends on one of them.
-// A release lands here by PR, with its SHA-256 pins (tech doc 3.4). The list is empty
-// until the first protocol-4 release exists.
+// A release lands here by PR, with its SHA-256 pins (tech doc 3.4), and its file goes in
+// public/firmware/<tag>/ so every deploy carries it.
 
 export type ReleaseKind = "v" | "x";
 export type Site = "production" | "next" | "dev";
@@ -36,8 +36,22 @@ export interface FirmwareReleasePin {
     notesUrl: string;
 }
 
-/** Releases pinned into this build. Empty until a protocol-4 release ships. */
-export const CARRIED_RELEASES: FirmwareReleasePin[] = [];
+/** Releases pinned into this build. */
+export const CARRIED_RELEASES: FirmwareReleasePin[] = [
+    {
+        tag: "x4",
+        kind: "x",
+        fwVersion: 10,
+        updaterProtocol: 4,
+        svalProtocol: 3,
+        file: {
+            uf2: "svalboard_sval_x4.uf2",
+            sha256: "2dd26d33e9689bcdb9f7451c8c101def1f863d316a82161426b78ddba1c81122",
+            size: 319488,
+        },
+        notesUrl: "https://github.com/svalboard/qmk/releases/tag/x4",
+    },
+];
 
 /** The updater protocol a carried release must speak. */
 export const CARRIED_UPDATER_PROTOCOL = 4;

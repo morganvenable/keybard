@@ -5,9 +5,12 @@ import { LATEST_FIRMWARE_RELEASE, SVALBOARD_FIRMWARE_URL, describeFirmware, iden
 
 const mode = vi.hoisted(() => ({ paranoid: false }));
 vi.mock('@/lib/paranoid', () => ({ get PARANOID() { return mode.paranoid; }, userIsLooking: () => true }));
+// The site decides which carried releases the card offers: production (and Keybard Paranoid) has none until a v release is pinned.
+const site = vi.hoisted(() => ({ current: 'production' as 'production' | 'next' | 'dev' }));
+vi.mock('@/constants/firmware-releases', async (importActual) => ({ ...(await importActual<object>()), currentSite: () => site.current }));
 
 describe('UnsupportedFirmwareCard', () => {
-    beforeEach(() => { mode.paranoid = false; });
+    beforeEach(() => { mode.paranoid = false; site.current = 'production'; });
 
     it('tells a Vial Svalboard owner to save the layout, then leads to the manual install', () => {
         render(<UnsupportedFirmwareCard info={{ kind: 'svalboard-vial', reportedVersion: 'v2025-11-01' }} />);
@@ -24,6 +27,13 @@ describe('UnsupportedFirmwareCard', () => {
         // One title, and it names the dialog
         expect(screen.getByRole('dialog')).toHaveAccessibleName('Install the newest firmware by hand');
         expect(manual).not.toHaveTextContent('Download the firmware and copy it onto each half');
+    });
+
+    it('links the carried release on a site that carries one', () => {
+        site.current = 'next';
+        render(<UnsupportedFirmwareCard info={{ kind: 'unknown' }} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Install by hand' }));
+        expect(screen.getByRole('link', { name: /x4 for both halves/ })).toHaveAttribute('href', '/firmware/x4/svalboard_sval_x4.uf2');
     });
 
     it('sends other keyboards elsewhere without the Svalboard download', () => {

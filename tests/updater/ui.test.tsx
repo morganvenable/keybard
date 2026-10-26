@@ -1,8 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
-import { currentSite, matchPin, parseReleaseTag, releasesForSite, type FirmwareReleasePin } from "@/constants/firmware-releases";
+import { CARRIED_RELEASES, currentSite, matchPin, parseReleaseTag, releasesForSite, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { FirmwareSection } from "@/features/firmware/FirmwareSection";
 import { lightFor } from "@/features/firmware/lights";
 import { ConfirmView, ProgressView, overallProgress, stageLine, timeLeft } from "@/features/firmware/ProgressDialog";
@@ -40,9 +43,17 @@ describe("carried releases per site", () => {
         expect(releasesForSite("dev", all).map((r) => r.tag)).toEqual(["x5", "x3.2.1", "v4", "v3", "v2"]);
     });
 
-    it("is empty until a protocol-4 release is pinned", () => {
+    it("carries x4 on next; production waits for a v release", () => {
         expect(releasesForSite("production")).toEqual([]);
-        expect(releasesForSite("next")).toEqual([]);
+        expect(releasesForSite("next").map((r) => r.tag)).toEqual(["x4"]);
+    });
+
+    it("every pinned file is in public/firmware/<tag>/ and matches its pin", () => {
+        for (const r of CARRIED_RELEASES) {
+            const bytes = readFileSync(path.join(process.cwd(), "public/firmware", r.tag, r.file.uf2));
+            expect(bytes.length).toBe(r.file.size);
+            expect(createHash("sha256").update(bytes).digest("hex")).toBe(r.file.sha256);
+        }
     });
 
     it("reads the site from the build mode", () => {
