@@ -282,10 +282,10 @@ describe("Install by hand from Settings > Firmware", () => {
             "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
             "Drag the file onto the drive. The half restarts and the drive closes.",
             "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
-            "Wait about half a minute. The halves may show rainbow colors while they check each other.",
+            "Both halves turn rainbow. The first half glows steady magenta for a few seconds while it writes, then both flash green twice, about half a minute later.",
         ]);
         expect(dialog.textContent).not.toMatch(/either half|updates by itself/);
-        expect(dialog.textContent).toContain("When the lights have settled, connect the keyboard.");
+        expect(dialog.textContent).toContain("After the green flashes, connect the keyboard.");
         expect(dialog.textContent).not.toMatch(/\.svup|both files|each half's file/);
         expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
         expect(dialog.querySelector("svg")).toBeNull();
