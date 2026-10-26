@@ -16,6 +16,9 @@ export const CUSTOM_KEYCODE_LABELS: Readonly<Record<string, string>> = {
     // The key reads "Vel Scroll" so it fits a key face; menus and descriptions
     // keep the full name, Velocity Scroll.
     SV_VELOCITY_SCROLL: "Vel Scroll",
+    // Firmware: "Vel\nScrollTG". The same, from a tap that turns it on to the
+    // next tap that turns it off.
+    SV_VELOCITY_SCROLL_TOGGLE: "Vel Scroll Toggle",
 };
 
 /** The label Keybard shows for a custom keycode, with real line breaks. */

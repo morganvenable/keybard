@@ -81,14 +81,16 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
 
     // Row 4: hold to scroll with the pointer (firmware SV_SCROLL_HOLD), and
     // hold to scroll at a speed set by how far the pointer moves
-    // (SV_VELOCITY_SCROLL). The labels match the layout's
-    // (CUSTOM_KEYCODE_LABELS). Velocity Scroll is offered unless the connected
-    // firmware has no such key (it came after Drag Scroll).
+    // (SV_VELOCITY_SCROLL), and its toggle (SV_VELOCITY_SCROLL_TOGGLE: tap on,
+    // tap off). The labels match the layout's (CUSTOM_KEYCODE_LABELS). Each
+    // Velocity Scroll key is offered unless the connected firmware has no such
+    // key (they came after Drag Scroll, the toggle after the hold key).
     const firmwareKeycodes = keyboard?.custom_keycodes;
-    const hasVelocityScroll = !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === "SV_VELOCITY_SCROLL");
+    const firmwareHas = (name: string) => !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === name);
     const scrollKeys = [
         { keycode: "SV_SCROLL_HOLD", label: "Drag Scroll" },
-        ...(hasVelocityScroll ? [{ keycode: "SV_VELOCITY_SCROLL", label: "Vel Scroll" }] : []),
+        ...(firmwareHas("SV_VELOCITY_SCROLL") ? [{ keycode: "SV_VELOCITY_SCROLL", label: "Vel Scroll" }] : []),
+        ...(firmwareHas("SV_VELOCITY_SCROLL_TOGGLE") ? [{ keycode: "SV_VELOCITY_SCROLL_TOGGLE", label: "Vel Scroll Toggle" }] : []),
     ];
 
     // Every key row in this section MUST go through renderKey so it picks up the
@@ -246,7 +248,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Scroll
                 </span>
-                {/* Row 4: Drag Scroll, Velocity Scroll */}
+                {/* Row 4: Drag Scroll, Velocity Scroll, its toggle */}
                 <div className="flex flex-wrap gap-1">
                     {scrollKeys.map((k) => renderKey(k, false))}
                 </div>

@@ -3,7 +3,8 @@ Browser test of the Scroll key row as a person uses it: the built app, the
 QWERTY Example, no keyboard. Run with `npm run test:e2e:scroll-keys`.
 
   1. Add a tap dance, and pick its Tap key from Pointing Devices: the Scroll
-     row has one key per scroll key, each reading its label (Drag Scroll, Vel Scroll).
+     row has one key per scroll key, each reading its label (Drag Scroll, Vel Scroll,
+     Vel Scroll Toggle).
   2. At Normal and Medium key sizes each label fits its key face. (At Small,
      30px keys, the word "Scroll" is wider than the key; the label is still
      checked to be there.)
@@ -35,7 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 BASE_PATH = "/keybard-e2e/"
 NPX = shutil.which("npx") or "npx"
 # The Scroll row's keys, in order, by the label each shows on its key face.
-SCROLL_KEYS = ["Drag Scroll", "Vel Scroll"]
+SCROLL_KEYS = ["Drag Scroll", "Vel Scroll", "Vel Scroll Toggle"]
 # Key sizes (the editor's size buttons) at which every label must fit its key.
 FIT_SIZES = ["Normal", "Medium"]
 
