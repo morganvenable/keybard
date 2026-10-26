@@ -8,6 +8,7 @@ import { isTapdanceKeycode } from "@/utils/keys";
 import { isEditorInput } from "@/utils/editor-input";
 import { keyboardService } from "@/services/keyboard.service";
 import { prepareOverrideForEdit } from "@/utils/key-override";
+import { startNewCombo } from "@/utils/combo-edit";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { DEFAULT_TAPDANCE_TERM_MS } from "@/utils/tapdance-term";
@@ -332,6 +333,9 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                         console.log("combo update debug: newKeys after", combo.keys);
                     }
+
+                    // The first key or output in a blank slot makes a new combo, which starts on.
+                    startNewCombo(originalCombo, combo);
 
                     // Capture comboId for closure
                     const cmbId = comboId;

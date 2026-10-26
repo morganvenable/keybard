@@ -11,6 +11,11 @@ Browser tests of the combo editor as a person uses it: the built app, the
      and the Modifiers row each sit on one line; nothing wraps alone.
   4. The review link ?demo=combos&theme=light&edit=combo:0 lands in the editor
      with the combo's name as the title.
+  5. A new combo starts on: with unused slots off, as a board reports them,
+     the first key in an unused slot turns the combo on. A combo turned off
+     stays off when its keys change.
+  6. Rename a combo (nothing else), then change its keys and reload without
+     keeping that change: the old keys come back with the new name.
 
 Scroll bars are drawn, as in a desktop browser: a hidden scroll bar gives the
 panel ~15px it does not have on a real screen.
@@ -22,7 +27,9 @@ E2E_SKIP_BUILD=1 to reuse .e2e-dist. Needs Python Playwright with Chromium:
   pip install playwright && python -m playwright install chromium
 Exits 1 when a check fails.
 """
+import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -196,6 +203,106 @@ def flow_rename_and_clear(browser, url):
     context.close()
 
 
+def combo_on(page: Page):
+    """The editor's on/off switch: True when ON is pressed."""
+    group = page.get_by_role("group", name="Combo enabled").locator("visible=true").first
+    expect(group).to_be_visible()
+    return group.get_by_role("button", name="ON", exact=True).get_attribute("aria-pressed") == "true"
+
+
+def click_layout_key(page: Page, label: str):
+    """Click a key on the keyboard canvas, which puts it in the editor's selected slot."""
+    box = page.evaluate("""label => {
+        const canvas = document.querySelector('[aria-label="Keyboard canvas"]');
+        const key = [...canvas.querySelectorAll('[data-keycap]')].find(k => k.offsetParent && k.innerText.trim() === label);
+        if (!key) return null;
+        const r = key.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }""", label)
+    assert box, f"no {label} key on the keyboard"
+    page.mouse.click(box["x"], box["y"])
+
+
+def empty_combos_off(route):
+    """Unused combo slots read back from a board as off (the firmware stores them zeroed)."""
+    response = route.fetch()
+    try:
+        data = json.loads(response.text())
+    except ValueError:  # the dev server's module for the ?url import, not the file
+        route.fulfill(response=response)
+        return
+    for combo in data.get("combo", []):
+        if all(k in ("KC_NO", "", None) for k in combo.get("keys", [])) and combo.get("output") in ("KC_NO", "", None):
+            combo["on"] = False
+    route.fulfill(response=response, body=json.dumps(data))
+
+
+def open_board_like(browser, url: str):
+    context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="light", reduced_motion="reduce")
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.route("**/sval-default*.svil*", empty_combos_off)
+    page.goto(f"{url}?{REVIEW}&theme=light")
+    page.locator("[data-keycap]:visible").first.wait_for(timeout=20000)
+    return context, page, errors
+
+
+def editor_slot(page: Page, name: str):
+    return page.locator("aside.detail-panel").get_by_role("group", name=name).locator("visible=true").first
+
+
+EMPTY_COMBO = 10
+
+
+def flow_new_combo_is_on(browser, url):
+    context, page, errors = open_board_like(browser, url)
+    open_combos(page)
+    open_combo(page, EMPTY_COMBO)
+    expect(editor_slot(page, "Trigger key 1")).to_be_visible()
+    assert not combo_on(page), "an unused slot reads as off before anything is in it"
+    click_layout_key(page, "Q")
+    expect(editor_slot(page, "Trigger key 1")).to_contain_text("Q")
+    expect(page.get_by_role("group", name="Combo enabled").locator("visible=true").first
+           .get_by_role("button", name="ON", exact=True)).to_have_attribute("aria-pressed", "true")
+    # A combo that was turned off stays off when its keys change.
+    page.get_by_role("group", name="Combo enabled").locator("visible=true").first.get_by_role(
+        "button", name="OFF", exact=True).click()
+    assert not combo_on(page)
+    click_layout_key(page, "W")
+    expect(editor_slot(page, "Trigger key 2")).to_contain_text("W")
+    assert not combo_on(page), "changing an existing combo's keys does not turn it back on"
+    assert not errors, errors
+    context.close()
+
+
+def flow_rename_then_edit_keys(browser, url):
+    """
+    Rename a combo (nothing else), then change its keys and leave without
+    keeping that change. The layout comes back with the old keys, which still
+    carry the new name. (An offline layout drops unsaved key edits on reload,
+    as a board does with edits that were never applied.)
+    """
+    context, page, errors = open_board_like(browser, url)
+    open_combos(page)
+    open_combo(page, 1)
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Snap left")
+    editor_slot(page, "Trigger key 2").locator("div").first.click()
+    click_layout_key(page, "S")
+    expect(editor_slot(page, "Trigger key 2")).to_contain_text("S")
+    expect(title(page).get_by_role("heading", level=2)).to_have_text("Snap left")
+    go_back(page)
+    expect(list_name(page, 1)).to_have_text("Snap left")
+    page.reload()
+    page.locator("[data-keycap]:visible").first.wait_for(timeout=20000)
+    open_combos(page)
+    expect(list_name(page, 1)).to_have_text("Snap left")
+    open_combo(page, 1)
+    expect(editor_slot(page, "Trigger key 2")).not_to_contain_text("S")  # the key change was not kept
+    assert not errors, errors
+    context.close()
+
+
 ROWS_JS = """() => {
     const lines = el => {
         const tops = [...el.children].filter(c => c.getBoundingClientRect().width > 0)
@@ -268,6 +375,8 @@ def main() -> int:
         ("2. rename and clear a name", flow_rename_and_clear),
         ("3. editor row and Modifiers row on one line (light/dark, Normal/Medium/Small)", flow_one_line),
         ("4. the review link lands in the editor with the name", flow_review_link),
+        ("5. a new combo starts on; a combo turned off stays off when its keys change", flow_new_combo_is_on),
+        ("6. a renamed combo keeps its name when a later key change is not kept", flow_rename_then_edit_keys),
     ]
     failed = 0
     with app_url() as url, sync_playwright() as p:

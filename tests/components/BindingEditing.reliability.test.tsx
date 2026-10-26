@@ -4,6 +4,7 @@ import { ChangesProvider, useChanges } from '@/contexts/ChangesContext';
 import MacroEditor from '@/layout/SecondarySidebar/components/BindingEditor/MacroEditor';
 import ComboEditor from '@/layout/SecondarySidebar/components/BindingEditor/ComboEditor';
 import OverrideEditor from '@/layout/SecondarySidebar/components/BindingEditor/OverrideEditor';
+import { ComboOptions } from '@/types/keyboard.types';
 
 const state = vi.hoisted(() => ({
     board: {} as any, setKeyboard: vi.fn(),
@@ -19,7 +20,11 @@ vi.mock('@/contexts/SettingsContext', () => ({ useSettings: () => ({ getSetting:
 vi.mock('@/services/keyboard.service', () => ({ keyboardService: state.service }));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/MacroEditorKey', () => ({ default: ({ onDelete }: { onDelete: () => void }) => <button onClick={onDelete}>Delete action</button> }));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/MacroEditorText', () => ({ default: () => <div /> }));
-vi.mock('@/layout/SecondarySidebar/components/BindingEditor/EditorKey', () => ({ default: () => <div /> }));
+vi.mock('@/layout/SecondarySidebar/components/BindingEditor/EditorKey', () => ({
+    default: ({ editorType, editorSlot, onDrop }: { editorType?: string; editorSlot?: number; onDrop?: (item: any) => void }) => editorType === 'combo'
+        ? <button onClick={() => onDrop?.({ keycode: 'KC_J' })}>{`Drop on slot ${editorSlot}`}</button>
+        : <div />,
+}));
 vi.mock('@/layout/SecondarySidebar/components/BindingEditor/OverrideModifierSelector', () => ({ default: () => <div /> }));
 let changes: ReturnType<typeof useChanges>;
 function Capture() { changes = useChanges(); return null; }
@@ -52,5 +57,19 @@ describe('editing side effects', () => {
         expect(state.service.updateMacros).not.toHaveBeenCalled();
         await act(async () => { expect(await changes.commit()).toBe(true); });
         expect(state.service.updateMacros).toHaveBeenCalledOnce();
+    });
+    it.each([0, 4])('a key dropped into a blank combo (slot %s) makes a new combo that is on', async slot => {
+        state.board.combos = [{ cmbid: 0, keys: ['KC_NO', 'KC_NO', 'KC_NO', 'KC_NO'], output: 'KC_NO', options: 50 }];
+        const view = render(<ChangesProvider><Capture /><ComboEditor /></ChangesProvider>);
+        await act(async () => { fireEvent.click(view.getAllByText(`Drop on slot ${slot}`)[0]); });
+        const written = state.setKeyboard.mock.calls.at(-1)![0].combos[0];
+        expect(written.options).toBe(ComboOptions.ENABLED | 50);
+        expect(changes.getPendingCount()).toBe(1);
+    });
+    it('a key dropped into a combo that was turned off leaves it off', async () => {
+        state.board.combos = [{ cmbid: 0, keys: ['KC_A', 'KC_B', 'KC_NO', 'KC_NO'], output: 'KC_ESC', options: 0 }];
+        const view = render(<ChangesProvider><Capture /><ComboEditor /></ChangesProvider>);
+        await act(async () => { fireEvent.click(view.getAllByText('Drop on slot 2')[0]); });
+        expect(state.setKeyboard.mock.calls.at(-1)![0].combos[0].options).toBe(0);
     });
 });

@@ -128,6 +128,26 @@ describe('combo names on connect', () => {
         expect(state.setKeyboard).not.toHaveBeenCalled();
     });
 
+    it('backs up a name-only edit with nothing pending, and the next connect brings the name back', async () => {
+        state.isConnected = true; state.keyboard = withCombos('KC_ENTER');
+        const view = render(ui());
+        await settle();
+        // Rename combo 1 only: no board write, so nothing is pending.
+        state.keyboard = { ...withCombos('KC_ENTER'), cosmetic: { combos: { '1': 'Zoom mute' } } };
+        view.rerender(ui());
+        await act(async () => { await vi.advanceTimersByTimeAsync(EDIT_SETTLE_MS + 100); });
+        await settle();
+        const [latest] = await service.listSnapshots();
+        expect(latest).toMatchObject({ kind: 'edited', includesPending: false, pendingCount: 0 });
+        expect(JSON.parse(await service.getSvil(latest.id)).cosmetic.combos).toEqual({ '1': 'Zoom mute' });
+        view.unmount();
+        // The tab closed; the board connects again with no names of its own.
+        state.keyboard = withCombos('KC_ENTER'); state.session = 5;
+        render(ui());
+        await settle();
+        expect(state.keyboard?.cosmetic?.combos).toEqual({ '1': 'Zoom mute' });
+    });
+
     it('uses only this board\'s backups', async () => {
         const named = { ...withCombos('KC_ENTER'), cosmetic: { combos: { '0': 'Dictation' } } };
         await service.saveSnapshot({ boardKey: 'sval:0123456789ABCDEF', boardName: 'Other', svil: serializeForBackup(named), kind: 'edited', pendingCount: 0 });
