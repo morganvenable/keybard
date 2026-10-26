@@ -30,6 +30,10 @@ describe('custom keycode labels', () => {
         expect(KEYMAP['SV_SNIPER_2'].str).toBe('Sniper\n2x');
     });
 
+    it('shows SV_VELOCITY_SCROLL_TOGGLE as "Vel Scroll Toggle", in full words', () => {
+        expect(customKeycodeShortName({ name: 'SV_VELOCITY_SCROLL_TOGGLE', shortName: 'Vel\\nScrollTG' })).toBe('Vel Scroll Toggle');
+    });
+
     it('labels an assigned SV_VELOCITY_SCROLL "Vel Scroll" on the layout', () => {
         const kbinfo = {
             custom_keycodes: [

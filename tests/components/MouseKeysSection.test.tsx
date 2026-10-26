@@ -22,7 +22,7 @@ const EXPECTED_KEYS = [
     'KC_BTN1', 'KC_BTN2', 'KC_BTN3', 'KC_BTN4', 'KC_BTN5',
     'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
     'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
-    'SV_SCROLL_HOLD', 'SV_VELOCITY_SCROLL',
+    'SV_SCROLL_HOLD', 'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE',
 ];
 
 function renderedKeys() {
@@ -74,12 +74,34 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         expect(assignKeycode).toHaveBeenCalledWith('SV_VELOCITY_SCROLL');
     });
 
+    it('offers the Velocity Scroll toggle right after Velocity Scroll, and assigns it', () => {
+        render(<MouseKeysSection />);
+        const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
+        expect(keys.indexOf('SV_VELOCITY_SCROLL_TOGGLE')).toBe(keys.indexOf('SV_VELOCITY_SCROLL') + 1);
+        const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL_TOGGLE')!;
+        expect(key.getAttribute('data-label')).toBe('Vel Scroll Toggle');
+        fireEvent.click(key);
+        expect(assignKeycode).toHaveBeenCalledWith('SV_VELOCITY_SCROLL_TOGGLE');
+    });
+
+    it('offers the hold key alone for firmware with Velocity Scroll but no toggle', () => {
+        keyboardState.keyboard = { custom_keycodes: [
+            { name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' },
+            { name: 'SV_VELOCITY_SCROLL', title: '', shortName: 'Vel\\nScroll' },
+        ] };
+        render(<MouseKeysSection />);
+        const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
+        expect(keys).toContain('SV_VELOCITY_SCROLL');
+        expect(keys).not.toContain('SV_VELOCITY_SCROLL_TOGGLE');
+    });
+
     it('leaves Velocity Scroll out for firmware that has no such key', () => {
         keyboardState.keyboard = { custom_keycodes: [{ name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' }] };
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
         expect(keys).toContain('SV_SCROLL_HOLD');
         expect(keys).not.toContain('SV_VELOCITY_SCROLL');
+        expect(keys).not.toContain('SV_VELOCITY_SCROLL_TOGGLE');
     });
 
     it('assigns SV_SCROLL_HOLD when Drag Scroll is clicked', () => {
