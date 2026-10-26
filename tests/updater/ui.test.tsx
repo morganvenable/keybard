@@ -187,6 +187,25 @@ describe("the Firmware card (D2)", () => {
         expect(screen.getByText("Connect a keyboard to see its firmware.")).toBeTruthy();
     });
 
+    it("the other half didn't answer: install on both halves by hand, not an update of one half", () => {
+        const onManual = vi.fn();
+        const onInstall = vi.fn();
+        const silent = board({ halves: [{ hand: 0, usb: false, tag: "", fwVersion: 0, answered: false }, { hand: 1, usb: true, tag: "v3", fwVersion: 3000, answered: true }] });
+        render(<FirmwareSection board={silent} releases={releases} onInstall={onInstall} onManual={onManual} paranoid={false} />);
+        const lead = screen.getByTestId("firmware-silent");
+        expect(lead.textContent).toBe("The left half didn't answer.Check the split cable. If the left half runs older firmware, install x4 on both halves by hand.Install by hand");
+        expect(screen.queryByRole("button", { name: /Update to/ })).toBeNull();
+        fireEvent.click(within(lead).getByRole("button", { name: "Install by hand" }));
+        expect(onManual).toHaveBeenCalledWith(releases[0]);
+        expect(onInstall).not.toHaveBeenCalled();
+    });
+
+    it("firmware before the updater names no half it can't tell", () => {
+        render(<FirmwareSection board={board({ updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", handUnknown: true, halves: [] })} releases={releases} onInstall={vi.fn()} onManual={vi.fn()} paranoid={false} />);
+        expect(screen.getByTestId("firmware-halves").textContent).toBe("Plugged-in halfSvalboard QMK vLaunch2 or later");
+        expect(screen.getByRole("button", { name: "Update to x4" })).toBeTruthy();
+    });
+
     it("Install a firmware file… takes one .uf2 for both halves; an older per-side file is refused with the steps by hand", async () => {
         const onInstall = vi.fn();
         render(<FirmwareSection board={board()} releases={releases} onInstall={onInstall} onManual={vi.fn()} paranoid={false} />);

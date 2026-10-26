@@ -13,9 +13,11 @@ Run with `npm run test:e2e:firmware`.
      both halves; a real pair UF2 built on the firmware branch opens the sheet too.
   5. An older per-side .uf2 (the real x3.1.3 left half's file) is refused in a
      sentence that says how to install it by hand.
-  6. Install by hand, both halves updated: one file, either half, the other half
-     follows by itself; Connect reads both halves, puts the layout back and says it's
-     done. No Next buttons and no check marks before.
+  6. Install by hand, both halves updated: one file, copied onto both halves one at a
+     time (the other half first, then the usual one); Connect reads both halves, puts
+     the layout back and says it's done. No Next buttons and no check marks before.
+     A board on x4 whose other half doesn't answer (Vial or older firmware there) offers
+     Install by hand for both halves, not an update of one half.
   7. Install by hand, one half still old: that half's steps, then Connect again.
   8. Which half is which (one-image firmware): a half without a side, or two on one
      side, on the Firmware card; before an update; after an update (sides the
@@ -345,9 +347,12 @@ def main() -> int:
                 check("about a quarter of a second apart" in text, f"{label}: the reset timing")
                 check(dialog.locator("[data-file]").count() == 1, f"{label}: one file")
                 check(dialog.locator("[data-file]").get_attribute("download") == "svalboard_sval_x4.uf2", f"{label}: the x4 pair file")
-                check("either half's U port" in text, f"{label}: either half")
-                check("The other half updates by itself, in about half a minute. Keep the split cable connected." in text, f"{label}: the other half follows")
-                check("Then move the cable" not in text, f"{label}: no second half to do by hand")
+                steps = dialog.get_by_test_id("manual-steps").locator("li").all_inner_texts()
+                check(len(steps) == 5, f"{label}: five steps")
+                check(steps[0] == "Plug the USB cable into the left half's U port. Keep the split cable connected.", f"{label}: the left half first")
+                check(steps[3] == "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.", f"{label}: then the right half")
+                check(steps[4] == "Both halves light up in rainbow colors for about half a minute, then flash green twice.", f"{label}: what the lights do")
+                check("either half" not in text and "updates by itself" not in text, f"{label}: never one half for both")
                 layout(page, f"{label} instructions")
                 if vp is PHONE and theme == "light":
                     shot(page, "09-by-hand-instructions")
@@ -362,6 +367,25 @@ def main() -> int:
                 expect(page.get_by_test_id("firmware-halves")).to_contain_text("x4")
                 check(page.get_by_test_id("firmware-halves").inner_text().count("x4") == 2, f"{label}: both halves on x4")
                 check(not dialogs, f"{label}: no native dialogs {dialogs}")
+                check(not errors, f"{label}: no page errors {errors}")
+                context.close()
+
+        # 6b. x4 on the half with USB, the other half silent: Install by hand, both halves.
+        for vp_name, vp in [("phone", PHONE), ("desktop", DESKTOP)]:
+            for theme in ["light", "dark"]:
+                label = f"{vp_name} {theme} other half silent"
+                context, page, errors, dialogs = open_firmware(browser, url, f"{BASE}&speed=4&running=x4&othersilent=1", theme, vp)
+                lead = page.get_by_test_id("firmware-silent")
+                expect(lead).to_be_visible(timeout=20000)
+                check(lead.get_by_text("The left half didn't answer.").count() == 1, f"{label}: names the silent half")
+                check(lead.get_by_text("Check the split cable. If the left half runs older firmware, install x4 on both halves by hand.").count() == 1, f"{label}: both halves by hand")
+                check(page.get_by_role("button", name=re.compile("^Update to")).count() == 0, f"{label}: no one-half update offered")
+                check(page.evaluate(WIDE_JS)["page"] is False, f"{label}: no sideways scroll")
+                lead.get_by_role("button", name="Install by hand").click()
+                dialog = page.get_by_test_id("manual-install")
+                expect(dialog.get_by_role("heading", name="Install x4 by hand")).to_be_visible(timeout=15000)
+                check(len(dialog.get_by_test_id("manual-steps").locator("li").all_inner_texts()) == 5, f"{label}: steps for both halves")
+                layout(page, label)
                 check(not errors, f"{label}: no page errors {errors}")
                 context.close()
 

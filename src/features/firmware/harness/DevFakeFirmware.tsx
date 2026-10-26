@@ -175,6 +175,9 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
                 otherRunning: p.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
                 half: p.get("proto") === "3" ? { protocol: 3 } : undefined,
             });
+            // &othersilent=1: the half without USB doesn't answer from the start (it runs Vial or
+            // firmware before the updater, which can't link to this one).
+            if (p.has("othersilent")) board.setAnswering(otherHand(board.usbHand), false);
             const host = new DevFakeHost(board, clock);
             host.sides = fakeSides?.host;
             const fail = p.get("infofail");

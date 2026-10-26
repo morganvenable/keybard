@@ -90,6 +90,7 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     const unread = !!board?.unread;
     const behind = !!(board && !unread && newest && (!updater || board.halves.some((h) => !h.answered || h.fwVersion < newest.fwVersion)));
     const boardNewer = !!(updater && newest && board!.fwVersion > newest.fwVersion);
+    const silent = updater && !unread ? board!.halves.find((h) => !h.usb && !h.answered) ?? null : null;
 
     const chooseFiles = (onlyHand?: Hand) => {
         setPendingHand(onlyHand);
@@ -149,6 +150,19 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-kb-warn-ink">The halves run different firmware.</p>
                 <Button variant="kb-primary" onClick={() => (target ? install(target) : chooseFiles())}>Finish update</Button>
+            </div>
+        );
+    } else if (updater && silent) {
+        // The other half didn't answer: a half on Vial or on firmware before the updater
+        // can't link to this one at all, so Keybard can't update it. Both halves by hand.
+        const name = silent.hand === 0 ? "left" : "right";
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3" data-testid="firmware-silent">
+                <div className="flex flex-col">
+                    <p className="text-sm font-semibold text-kb-warn-ink">The {name} half didn't answer.</p>
+                    <p className="text-sm text-muted-foreground">Check the split cable. If the {name} half runs older firmware, install {newest?.tag ?? "the newest firmware"} on both halves by hand.</p>
+                </div>
+                <Button variant="kb-primary" onClick={() => onManual(newest)}>Install by hand</Button>
             </div>
         );
     } else if (behind && newest) {
@@ -212,10 +226,10 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                                 </dd>,
                             ];
                         }) : [
-                            <dt key="t">{HALF(board.usbHand)}</dt>,
-                            <dd key="d" data-half={board.usbHand}>
+                            <dt key="t">{board.handUnknown ? "Plugged-in half" : HALF(board.usbHand)}</dt>,
+                            <dd key="d" data-half={board.handUnknown ? undefined : board.usbHand}>
                                 <span className="font-mono">{board.legacyLabel ?? "older firmware"}</span>
-                                <span className="text-muted-foreground"> · plugged in</span>
+                                {!board.handUnknown && <span className="text-muted-foreground"> · plugged in</span>}
                             </dd>,
                         ]}
                     </dl>

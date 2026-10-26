@@ -1,5 +1,5 @@
 // Install by hand from Settings > Firmware: plain instructions (no Next buttons, nothing
-// ticked off), one file copied onto either half (the other half follows by itself), a backup
+// ticked off), one file copied onto both halves, one at a time, a backup
 // when it opens, and one real check on Connect: Keybard reads what each half runs. Both on
 // the release: the layout goes back and it says so. One half old, or silent: that half's
 // steps. Neither: the instructions, with one line. A half without a side: which is which first.
@@ -8,6 +8,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
+import type { UpdaterTransport } from "@/services/updater/transport";
+import type { KeyboardInfo } from "@/types/keyboard.types";
 import { readBoardSummary, updaterVersionLabel } from "@/features/firmware/board-summary";
 import { ManualInstall } from "@/features/firmware/ManualInstall";
 import { useManualInstall, type ManualHost } from "@/features/firmware/useManualInstall";
@@ -272,9 +274,18 @@ describe("Install by hand from Settings > Firmware", () => {
         expect(files).toHaveLength(1);
         expect(files[0].getAttribute("download")).toBe("svalboard_sval_x4.uf2");
         expect(dialog.textContent).toContain("Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.");
-        expect(dialog.textContent).toContain("Plug the USB cable into either half's U port.");
-        expect(dialog.textContent).toContain("Drag the file onto the drive. The half restarts and the drive closes.");
-        expect(dialog.textContent).toContain("The other half updates by itself, in about half a minute. Keep the split cable connected.");
+        // Both halves by hand, the other half first so the cable ends in the usual (right) half:
+        // a half on Vial or older firmware never gets the file over the split cable.
+        const steps = [...screen.getByTestId("manual-steps").querySelectorAll("li")].map((li) => li.textContent);
+        expect(steps).toEqual([
+            "Plug the USB cable into the left half's U port. Keep the split cable connected.",
+            "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
+            "Drag the file onto the drive. The half restarts and the drive closes.",
+            "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
+            "Both halves light up in rainbow colors for about half a minute, then flash green twice.",
+        ]);
+        expect(dialog.textContent).not.toMatch(/either half|updates by itself/);
+        expect(dialog.textContent).toContain("When the lights have settled, connect the keyboard.");
         expect(dialog.textContent).not.toMatch(/\.svup|both files|each half's file/);
         expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
         expect(dialog.querySelector("svg")).toBeNull();
@@ -385,6 +396,26 @@ describe("Install by hand from Settings > Firmware", () => {
         expect(screen.queryByText(/Connect your keyboard to save its layout first/)).toBeNull();
         expect(screen.queryByRole("radiogroup")).toBeNull();
         expect(screen.getByRole("button", { name: "Connect keyboard" })).toBeTruthy();
+    });
+});
+
+describe("a board from before the updater (vLaunch2)", () => {
+    it("answers the updater's channel with the request echoed back, and is named from what it reported on connecting", async () => {
+        // vLaunch2's VIA custom-value handler leaves an unknown channel's request as it was:
+        // value_data is the request's own [hand, args...].
+        const echo: UpdaterTransport = {
+            request: async (_op, hand, args = []) => {
+                const rsp = new Uint8Array(55);
+                rsp.set([hand, ...Array.from(args)].slice(0, 55));
+                return { status: rsp[0], rsp };
+            },
+            clientId: () => 1, ensureClient: async () => 1, renewClient: async () => 1,
+            onClientRenewed: () => () => undefined, onDisconnect: () => () => undefined, connected: () => true,
+        } as UpdaterTransport;
+        const keyboard = { svil_proto: 3, feature_flags: 0, feature_flags2: 1, keycode_version_reported: 1, sval_firmware: "vLaunch2" } as unknown as KeyboardInfo;
+        const summary = await readBoardSummary(echo, keyboard, undefined, { retryMs: [] });
+        expect(summary).toMatchObject({ updater: false, legacyLabel: "vLaunch2", handUnknown: true });
+        expect(summary.unread).toBeFalsy();
     });
 });
 
