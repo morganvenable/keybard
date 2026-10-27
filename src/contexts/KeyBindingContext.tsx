@@ -8,7 +8,7 @@ import { isTapdanceKeycode } from "@/utils/keys";
 import { isEditorInput } from "@/utils/editor-input";
 import { keyboardService } from "@/services/keyboard.service";
 import { prepareOverrideForEdit } from "@/utils/key-override";
-import { startNewCombo } from "@/utils/combo-edit";
+import { startNewAltRepeat, startNewCombo, startNewLeader } from "@/utils/combo-edit";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { DEFAULT_TAPDANCE_TERM_MS } from "@/utils/tapdance-term";
@@ -501,6 +501,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const previousValue = altRepeatKeys[altRepeatId][altRepeatSlot];
                     const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
                     altRepeatKeys[altRepeatId][altRepeatSlot] = keycodeName;
+                    // The first key in a blank slot makes a new alt-repeat key, which starts on.
+                    startNewAltRepeat(keyboard.alt_repeat_keys?.[altRepeatId], altRepeatKeys[altRepeatId]);
 
                     // Capture values for closure
                     const arkId = altRepeatId;
@@ -548,6 +550,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     } else if (leaderSlot === "output") {
                         leaders[leaderId].output = keycodeName;
                     }
+                    // The first key or output in a blank slot makes a new leader, which starts on.
+                    startNewLeader(keyboard.leaders?.[leaderId], leaders[leaderId]);
 
                     // Capture values for closure
                     const ldrId = leaderId;

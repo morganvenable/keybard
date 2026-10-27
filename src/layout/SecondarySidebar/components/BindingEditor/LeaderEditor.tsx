@@ -1,4 +1,5 @@
 import { FC, ReactNode, useEffect } from "react";
+import { startNewLeader } from "@/utils/combo-edit";
 import { ArrowRight, ArrowRightFromLine } from "lucide-react";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -104,6 +105,7 @@ const LeaderEditor: FC<Props> = ({ bar = false, barEnd }) => {
         } else if (slot === "output") {
             entry.output = keycode;
         }
+        startNewLeader(keyboard.leaders?.[leaderIndex], entry);
 
         setKeyboard(updatedKeyboard);
         await persistBinding(updatedKeyboard, "leader", leaderIndex);

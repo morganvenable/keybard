@@ -16,6 +16,8 @@ Browser tests of the combo editor as a person uses it: the built app, the
      stays off when its keys change.
   6. Rename a combo (nothing else), then change its keys and reload without
      keeping that change: the old keys come back with the new name.
+  7. The same rule for leaders and alt-repeat keys: the first key in an unused
+     slot turns it on.
 
 Scroll bars are drawn, as in a desktop browser: a hidden scroll bar gives the
 panel ~15px it does not have on a real screen.
@@ -303,6 +305,49 @@ def flow_rename_then_edit_keys(browser, url):
     context.close()
 
 
+def click_picker_key(page: Page, label: str):
+    """Click a key in the key picker (not on the keyboard canvas)."""
+    box = page.evaluate("""label => {
+        const key = [...document.querySelectorAll('[data-keycap]')].find(k => k.offsetParent
+            && !k.closest('[aria-label="Keyboard canvas"]') && k.innerText.trim() === label);
+        if (!key) return null;
+        const r = key.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }""", label)
+    assert box, f"no {label} key in the picker"
+    page.mouse.click(box["x"], box["y"])
+
+
+def toggle_on(page: Page, label: str):
+    group = page.get_by_role("group", name=label).locator("visible=true").first
+    expect(group).to_be_visible()
+    return group.get_by_role("button", name="ON", exact=True)
+
+
+def flow_new_leader_and_alt_repeat_are_on(browser, url):
+    """The same rule as combos: the first key in an unused leader or alt-repeat slot turns it on."""
+    context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="light", reduced_motion="reduce")
+    # Alt-Repeat is on the rail only with its preference on.
+    # The test site keeps its storage under "keybard-test:" (VITE_STORAGE_NAMESPACE); set both.
+    context.add_init_script("""try { for (const k of ['keyboard-settings', 'keybard-test:keyboard-settings']) {
+        const s = JSON.parse(localStorage.getItem(k) || '{}') || {};
+        s['show-alt-repeat'] = true; localStorage.setItem(k, JSON.stringify(s)); } } catch {}""")
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"{url}?{REVIEW}&theme=light")
+    page.locator("[data-keycap]:visible").first.wait_for(timeout=20000)
+    for rail, toggle in [("Leaders", "Leader sequence enabled"), ("Alt-Repeat", "Alt-repeat enabled")]:
+        page.get_by_role("button", name=rail, exact=True).first.click()
+        page.locator("[data-binding-row='0']").first.click()
+        expect(toggle_on(page, toggle)).to_have_attribute("aria-pressed", "false")  # an unused slot reads off
+        click_picker_key(page, "Q")  # from the panel's Standard Keys into the selected slot
+        expect(toggle_on(page, toggle)).to_have_attribute("aria-pressed", "true")
+        page.locator("[data-binding-editor-back]:visible").first.click()
+    assert not errors, errors
+    context.close()
+
+
 ROWS_JS = """() => {
     const lines = el => {
         const tops = [...el.children].filter(c => c.getBoundingClientRect().width > 0)
@@ -377,6 +422,7 @@ def main() -> int:
         ("4. the review link lands in the editor with the name", flow_review_link),
         ("5. a new combo starts on; a combo turned off stays off when its keys change", flow_new_combo_is_on),
         ("6. a renamed combo keeps its name when a later key change is not kept", flow_rename_then_edit_keys),
+        ("7. a new leader and a new alt-repeat key start on", flow_new_leader_and_alt_repeat_are_on),
     ]
     failed = 0
     with app_url() as url, sync_playwright() as p:
