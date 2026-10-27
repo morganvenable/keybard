@@ -13,6 +13,14 @@ protocol, so Keybard's own connect, load, edit and Apply code runs. Run with
   4. ?fakeBoard=old acts as firmware without combo names: it connects, the
      combos load, the board offers no combo names, and the label says so.
   5. Without the parameter nothing is simulated.
+  6. Renaming a combo (nothing else) is one pending change; Apply writes it to
+     the board; after a reload, with this browser's memory of it cleared, the
+     name comes from the board.
+  7. Firmware that stores combo names, with none stored yet, is offered the
+     names Keybard kept (here, one given on older firmware) as pending
+     changes, held for Apply even with live updating on.
+  8. Firmware without combo names: a rename is no pending change, and the name
+     survives a reload (kept in Keybard).
 
 It builds the app (vite build, base /keybard-e2e/) into .e2e-dist and serves it
 with vite preview. Set E2E_URL to test a server that is already running (its
@@ -236,11 +244,119 @@ def flow_off_without_param(browser, url):
     context.close()
 
 
+BOARD_NAMES_JS = """() => {
+    const raw = window.keybardFakeBoard.device.state.labels[3];
+    const out = {};
+    for (let i = 0; i * 16 < raw.length; i++) {
+        const name = new TextDecoder().decode(raw.slice(i * 16, i * 16 + 16)).replace(/\\0+$/, '');
+        if (name) out[i] = name;
+    }
+    return out;
+}"""
+
+# This browser's combo name memory, under the plain key and the test site's namespace.
+FORGET_BROWSER_NAMES_JS = """() => { for (const k of ['keybard-combo-names', 'keybard-test:keybard-combo-names']) localStorage.removeItem(k); }"""
+
+
+def board_names(page: Page):
+    return {int(k): v for k, v in page.evaluate(BOARD_NAMES_JS).items()}
+
+
+def set_mode(page: Page, live: bool):
+    switch = page.get_by_role("button", name="Switch to Live Updating" if live else "Switch to Manual Updates")
+    if switch.count():
+        switch.first.click()
+
+
+def rename(page: Page, opener, name: str):
+    opener.click()
+    field = page.get_by_role("textbox", name="Name of Combo", exact=False)
+    expect(field).to_be_focused()
+    field.fill(name)
+    field.press("Enter")
+    expect(field).to_have_count(0)
+
+
+def flow_rename_only(browser, url):
+    """A rename alone is one pending change; Apply writes it; after a reload the board's name shows."""
+    context, page, errors = open_board(browser, url)
+    set_mode(page, live=False)
+    expect(page.get_by_role("button", name="No pending changes")).to_be_visible()
+    open_combos(page)
+    open_combo(page, 1)
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Mute")
+    go_back(page)
+    expect(apply_button(page)).to_have_text(re.compile(r"^Apply 1 Change\b"))
+    assert 1 not in board_names(page), "nothing is written before Apply"
+    apply_button(page).click()
+    expect(page.get_by_role("button", name="No pending changes")).to_be_visible(timeout=15000)
+    assert board_names(page).get(1) == "Mute", board_names(page)
+    # Forget the name in this browser, so after the reload it can only come from the board.
+    page.evaluate(FORGET_BROWSER_NAMES_JS)
+    page.reload()
+    wait_connected(page)
+    open_combos(page)
+    expect(list_name(page, 1)).to_have_text("Mute")
+    expect(page.get_by_role("button", name="No pending changes")).to_be_visible()
+    assert not errors, errors
+    context.close()
+
+
+def flow_offer_kept_names(browser, url):
+    """A board that stores combo names but has none is offered Keybard's names as pending changes."""
+    context, page, errors = open_board(browser, url, "fakeBoard=old")
+    # On firmware without combo names, a name stays in Keybard: no pending change.
+    open_combos(page)
+    open_combo(page, 1)
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Offered")
+    go_back(page)
+    expect(apply_button(page)).to_have_count(0)
+    # The board then gets firmware that stores combo names, with none stored yet.
+    page.evaluate("""() => {
+        const k = 'keybard.fakeBoard.v1';
+        const stored = JSON.parse(localStorage.getItem(k));
+        stored.labels3 = '';
+        localStorage.setItem(k, JSON.stringify(stored));
+    }""")
+    page.goto(f"{url}?{REVIEW}&fakeBoard")
+    wait_connected(page)
+    set_mode(page, live=True)  # held as pending even with live updating on
+    open_combos(page)
+    expect(list_name(page, 1)).to_have_text("Offered")
+    expect(apply_button(page)).to_have_text(re.compile(r"^Apply 1 Change\b"))
+    assert board_names(page) == {}, f"nothing is written without Apply: {board_names(page)}"
+    apply_button(page).click()
+    expect(apply_button(page)).to_have_count(0, timeout=15000)
+    assert board_names(page) == {1: "Offered"}, board_names(page)
+    assert not errors, errors
+    context.close()
+
+
+def flow_old_firmware_keeps_names(browser, url):
+    """Firmware without combo names: a rename is no board change, and the name survives a reload."""
+    context, page, errors = open_board(browser, url, "fakeBoard=old")
+    set_mode(page, live=False)
+    open_combos(page)
+    open_combo(page, 1)
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Local only")
+    go_back(page)
+    expect(page.get_by_role("button", name="No pending changes")).to_be_visible()
+    page.reload()
+    wait_connected(page)
+    open_combos(page)
+    expect(list_name(page, 1)).to_have_text("Local only")
+    assert not errors, errors
+    context.close()
+
+
 def main() -> int:
     flows = [
         ("1. ?fakeBoard connects with no chooser, labeled simulated, no errors", flow_connects),
         ("2. the Combos panel lists the seeded combos and their stored names", flow_combos_listed),
         ("3. rename a combo and turn one off, Apply; both are still there after a reload", flow_edit_apply_reload),
+        ("6. a rename alone is one pending change; Apply; after a reload the name comes from the board", flow_rename_only),
+        ("7. a board with no combo names is offered Keybard's names as pending changes, even live", flow_offer_kept_names),
+        ("8. firmware without combo names: no pending change, the name survives a reload", flow_old_firmware_keeps_names),
         ("4. ?fakeBoard=old: firmware without combo names", flow_old_firmware),
         ("5. without the parameter nothing is simulated", flow_off_without_param),
     ]

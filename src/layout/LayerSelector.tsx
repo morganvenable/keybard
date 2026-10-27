@@ -282,8 +282,46 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const visibleLayerIds = allLayerIds.filter(shouldRenderLayerTab);
     const displayOrder = isLayerOrderReversed ? [...visibleLayerIds].reverse() : visibleLayerIds;
 
+    // The Apply button: always in manual mode; in live mode while changes are held for it.
+    const applyButton = () => (
+        <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIgnoreHover(true);
+                    // Handle "Update Changes"
+                    commit();
+                }}
+                onMouseLeave={() => setIgnoreHover(false)}
+                disabled={isSaving || getPendingCount() === 0}
+                className={cn(
+                    "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
+                    // Disabled state
+                    getPendingCount() === 0
+                        ? "bg-gray-200 dark:bg-neutral-700 text-kb-ink border-gray-200 dark:border-neutral-700 cursor-not-allowed"
+                        : "bg-kb-active text-gray-200 dark:text-neutral-900 cursor-pointer",
+                    // Hover logic - Manual Mode: Red (only when enabled)
+                    getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white dark:hover:text-white hover:border-red-500",
+
+                    // Pending Changes Ring (Manual Mode only)
+                    getPendingCount() > 0
+                        ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-kb-ink" : ""}`
+                        : "", // No ring when disabled
+
+                    // Active state (click) - only when enabled
+                    getPendingCount() > 0 && "active:bg-red-500 active:text-white dark:active:text-white"
+                )}
+            >
+                <span className="select-none">
+                    {isSaving ? "Saving…" : getPendingCount() > 0
+                        ? `Apply ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
+                        : 'No pending changes'}
+                </span>
+            </button>
+    );
+
     // Keep toolbar and layer rows compact; constrained rows can scroll.
     // When vertically constrained: explicit disclosure keeps controls reachable.
+
     return (
         <div
             ref={containerRef}
@@ -392,49 +430,18 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                     Switch to Manual Updates
                                                 </TooltipContent>
                                             </Tooltip>
-                                            {/* Live Updating button - black text on transparent background */}
+                                            {/* Changes held for Apply even while live updating (an offer, an import):
+                                                the Apply button until they are written; otherwise the Live Updating label. */}
+                                            {getPendingCount() > 0 ? applyButton() : (
                                             <button
                                                 disabled={true}
                                                 className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-kb-ink border border-transparent cursor-default"
                                             >
                                                 <span className="select-none">{isSaving ? "Saving…" : saveError ? "Changes not saved" : "Live Updating"}</span>
                                             </button>
-                                        </>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIgnoreHover(true);
-                                                // Handle "Update Changes"
-                                                commit();
-                                            }}
-                                            onMouseLeave={() => setIgnoreHover(false)}
-                                            disabled={isSaving || getPendingCount() === 0}
-                                            className={cn(
-                                                "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
-                                                // Disabled state
-                                                getPendingCount() === 0
-                                                    ? "bg-gray-200 dark:bg-neutral-700 text-kb-ink border-gray-200 dark:border-neutral-700 cursor-not-allowed"
-                                                    : "bg-kb-active text-gray-200 dark:text-neutral-900 cursor-pointer",
-                                                // Hover logic - Manual Mode: Red (only when enabled)
-                                                getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white dark:hover:text-white hover:border-red-500",
-
-                                                // Pending Changes Ring (Manual Mode only)
-                                                getPendingCount() > 0
-                                                    ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-kb-ink" : ""}`
-                                                    : "", // No ring when disabled
-
-                                                // Active state (click) - only when enabled
-                                                getPendingCount() > 0 && "active:bg-red-500 active:text-white dark:active:text-white"
                                             )}
-                                        >
-                                            <span className="select-none">
-                                                {isSaving ? "Saving…" : getPendingCount() > 0
-                                                    ? `Apply ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
-                                                    : 'No pending changes'}
-                                            </span>
-                                        </button>
-                                    )}
+                                        </>
+                                    ) : applyButton()}
 
                                     {!liveUpdating && (
                                         <Tooltip>
