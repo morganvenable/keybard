@@ -49,3 +49,26 @@ describe('macro and tap dance labels', () => {
         await expect(service.saveName(kb,'macro',0,'Email')).rejects.toThrow('refused');
     });
 });
+
+describe('combo names on the board', () => {
+    it('saves combo names as label type 3 and reloads them from the board, replacing Keybard\'s', async () => {
+        const { service, kb, usb } = setup();
+        Object.assign(kb, { feature_flags2: 0x80, combo_count: 8 });
+        await service.saveName(kb, 'combo', 5, 'Dictation');
+        expect(usb.sendSvil.mock.calls[0][1].slice(0, 3)).toEqual([3, 5, 0]);
+        kb.cosmetic = { combos: { '1': 'Only in Keybard' } };
+        await service.loadBindingNames(kb);
+        expect(kb.cosmetic.combos).toEqual({ '5': 'Dictation' });
+        await service.saveName(kb, 'combo', 5, '');
+        await service.loadBindingNames(kb);
+        expect(kb.cosmetic.combos).toEqual({});
+    });
+    it('leaves combo names alone, and refuses to save them, on firmware without the capability', async () => {
+        const { service, kb, usb } = setup();
+        kb.cosmetic = { combos: { '1': 'Kept in Keybard' } };
+        await service.loadBindingNames(kb);
+        expect(kb.cosmetic.combos).toEqual({ '1': 'Kept in Keybard' });
+        expect(usb.sendSvil.mock.calls.some(([, args]) => args[0] === 3)).toBe(false);
+        await expect(service.saveName(kb, 'combo', 0, 'Zoom')).rejects.toThrow('firmware');
+    });
+});

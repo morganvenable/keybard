@@ -1,12 +1,16 @@
 import type { KeyboardInfo } from "@/types/keyboard.types";
+import { boardStoresComboNames } from "@/utils/combo-name-storage";
+export { boardStoresComboNames, SVIL_FLAG2_COMBO_LABELS } from "@/utils/combo-name-storage";
 import { SvilUSB, svilHasWideIndex, svilIndexArgs } from "./usb.service";
 
-export type LabelKind = "layer" | "macro" | "tapdance";
+export type LabelKind = "layer" | "macro" | "tapdance" | "combo";
 const labelTypes = {
     layer: SvilUSB.SVIL_LABEL_TYPE_LAYER,
     macro: SvilUSB.SVIL_LABEL_TYPE_MACRO,
     tapdance: SvilUSB.SVIL_LABEL_TYPE_TAP_DANCE,
+    combo: SvilUSB.SVIL_LABEL_TYPE_COMBO,
 };
+
 
 /**
  * The rules every stored name follows: up to 16 UTF-8 bytes, no control
@@ -42,6 +46,15 @@ export class LabelService {
     async loadBindingNames(kb: KeyboardInfo): Promise<void> {
         if ((kb.svil_proto ?? 1) < 2) return;
         kb.cosmetic ??= {};
+        if (boardStoresComboNames(kb)) {
+            // The board is authoritative for combo names, as for the other labels.
+            const count = kb.combo_count ?? kb.combos?.length ?? 0;
+            const names = count > 0 ? await this.getAll(labelTypes.combo, count) : new Map<number, string>();
+            kb.cosmetic.combos = {};
+            for (const [index, name] of names) {
+                if (index < count && name) kb.cosmetic.combos[String(index)] = name;
+            }
+        }
         for (const kind of ["macro", "tapdance"] as const) {
             const count = kind === "macro" ? kb.macro_count ?? kb.macros?.length ?? 0
                 : kb.tapdance_count ?? kb.tapdances?.length ?? 0;
@@ -55,7 +68,7 @@ export class LabelService {
     }
 
     validateName(kb: KeyboardInfo, kind: LabelKind, name: string): void {
-        if ((kb.svil_proto ?? 1) < 2) throw new Error(`This firmware cannot save ${kind} names on the keyboard. Names in offline layouts are included in exported backups.`);
+        if ((kb.svil_proto ?? 1) < 2 || (kind === "combo" && !boardStoresComboNames(kb))) throw new Error(`This firmware cannot save ${kind} names on the keyboard. Names in offline layouts are included in exported backups.`);
         validateLabelText(name);
     }
 

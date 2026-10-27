@@ -176,4 +176,11 @@ describe('unsaved edits', () => {
         expect(draftOf(after, false)).not.toBe(draftOf(before, false));
         expect(draftOf(board({ name: 'x', cosmetic: { combos: { '0': 'Dictation' } } }), true)).not.toBe(draftOf(before, true));
     });
+
+    it('a combo name is an unsaved edit on a board that stores combo names', async () => {
+        const { draftOf } = await import('../../src/contexts/KeyboardContext');
+        const before = board({ svil_proto: 3, feature_flags2: 0x80 });
+        const after = board({ svil_proto: 3, feature_flags2: 0x80, cosmetic: { combos: { '0': 'Dictation' } } });
+        expect(draftOf(after, true)).not.toBe(draftOf(before, true));
+    });
 });

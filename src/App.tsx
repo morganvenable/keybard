@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { ComboNameOffer } from "@/hooks/useComboNameOffer";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
@@ -115,6 +116,7 @@ function App() {
                 <ThemeSync />
                 <ChangesProviderWithKeyboard>
                     <BackupProvider>
+                        <ComboNameOffer />
                         <KeyBindingProvider>
                             <LayoutLibraryProvider>
                                 <NavigationProvider>

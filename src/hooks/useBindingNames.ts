@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useChanges } from "@/contexts/ChangesContext";
-import { LabelService, validateLabelText } from "@/services/label.service";
+import { boardStoresComboNames, LabelService, validateLabelText } from "@/services/label.service";
 import { usbInstance } from "@/services/usb.service";
 
 const labels = new LabelService(usbInstance);
@@ -18,10 +18,12 @@ export function useBindingNames() {
         const name = value.trim();
         setNameError(null);
         try {
-            // Combo names stay in Keybard (files and backups): same rules, no board write.
-            const boardKind = kind === "combo" || !isConnected ? null : kind;
-            if (kind === "combo") validateLabelText(name);
-            else if (boardKind) labels.validateName(keyboard, boardKind, name);
+            // Combo names go to boards that store them (flags2 bit 7); on older
+            // firmware they stay in Keybard (files and backups): same rules, no board write.
+            const keptOnBoard = kind !== "combo" || boardStoresComboNames(keyboard);
+            const boardKind = keptOnBoard && isConnected ? kind : null;
+            if (boardKind) labels.validateName(keyboard, boardKind, name);
+            else validateLabelText(name);
             const key = COSMETIC_KEY[kind];
             setKeyboard(current => {
                 if (!current) return current;
