@@ -31,6 +31,26 @@ describe('binding name draft persistence',()=>{
         expect(state.keyboard?.cosmetic?.combos).toEqual({});
         expect(state.queue).not.toHaveBeenCalled();expect(state.sendSvil).not.toHaveBeenCalled();
     });
+    it('queues a combo name as a board label write on firmware that stores combo names',async()=>{
+        state.keyboard={...state.keyboard!,feature_flags2:0x80,combo_count:8};const {result}=renderHook(()=>useBindingNames());
+        await act(async()=>{expect(await result.current.renameBinding('combo',3,'Dictation')).toBe(true)});
+        expect(state.keyboard?.cosmetic?.combos).toEqual({'3':'Dictation'});
+        expect(state.queue).toHaveBeenCalledTimes(1);
+        expect(state.queue.mock.calls[0][0]).toBe('combo 3 name');
+        expect(state.queue.mock.calls[0][2]).toMatchObject({type:'label',writeKey:'label:combo:3'});
+        expect(state.sendSvil).not.toHaveBeenCalled();
+        await state.queue.mock.calls[0][1]();
+        // LABEL_SET, label type 3, index 3 (two bytes), then the UTF-8 name padded to 16 bytes.
+        const [cmd,args]=state.sendSvil.mock.calls[0];
+        expect(cmd).toBe(0x1c);expect(args.slice(0,3)).toEqual([3,3,0]);
+        expect(new TextDecoder().decode(Uint8Array.from(args.slice(3)).filter(b=>b))).toBe('Dictation');
+        expect(args).toHaveLength(3+16);
+    });
+    it('keeps combo names in Keybard on a connected board without the capability',async()=>{
+        state.keyboard={...state.keyboard!,feature_flags2:0x01};const {result}=renderHook(()=>useBindingNames());
+        await act(async()=>{expect(await result.current.renameBinding('combo',1,'Zoom')).toBe(true)});
+        expect(state.queue).not.toHaveBeenCalled();
+    });
     it('checks combo names with the label rules on any firmware',async()=>{
         state.keyboard!.svil_proto=1;const {result}=renderHook(()=>useBindingNames());
         await act(async()=>{expect(await result.current.renameBinding('combo',0,'Zoom')).toBe(true)});

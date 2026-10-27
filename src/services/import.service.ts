@@ -1,6 +1,7 @@
 import { KeyboardInfo } from "../types/keyboard.types";
 import { PendingChange } from "./changes.service";
 import { customValueService } from "./custom-value.service";
+import { boardStoresComboNames } from "@/utils/combo-name-storage";
 import { LabelService } from "./label.service";
 import { usbInstance } from "./usb.service";
 import { keyService } from "./key.service";
@@ -182,11 +183,14 @@ export class ImportService {
             }
         }
 
-        // Board labels only. Combo names (cosmetic.combos) stay in Keybard: the
-        // preflight already put them in newKb, and nothing is written for them.
+        // Board labels. Combo names (cosmetic.combos) are written only to firmware
+        // that stores them; elsewhere they stay in Keybard (the preflight already
+        // put them in newKb, and nothing is written for them).
         const labels = services.labelService ?? new LabelService(usbInstance);
         if ((currentKb.svil_proto ?? 0) >= 2) {
-            for (const [field, kind, count] of [["layer", "layer", currentKb.layers], ["macros", "macro", currentKb.macro_count], ["tapdances", "tapdance", currentKb.tapdance_count]] as const) {
+            const fields = [["layer", "layer", currentKb.layers], ["macros", "macro", currentKb.macro_count], ["tapdances", "tapdance", currentKb.tapdance_count]] as const;
+            const combos = [["combos", "combo", currentKb.combo_count ?? currentKb.combos?.length]] as const;
+            for (const [field, kind, count] of [...fields, ...(boardStoresComboNames(currentKb) ? combos : [])]) {
                 if (!newKb.cosmetic?.[field]) continue;
                 for (let index = 0; index < (count ?? 0); index++) {
                     const name = newKb.cosmetic[field]?.[index] ?? "";

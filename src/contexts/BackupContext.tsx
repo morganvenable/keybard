@@ -7,6 +7,7 @@ import { identityService, SerialSource, type IdentityInfo } from "@/services/ide
 import { folderPickerSupported, getBackupService, type BackupService, type FolderStatus, type SnapshotKind, type SnapshotMeta } from "@/services/backup/backup.service";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { comboNamesFromSvil, seedComboNames } from "@/utils/combo-names";
+import { boardStoresComboNames } from "@/utils/combo-name-storage";
 
 /** Wait this long after the last edit before saving an "edited" snapshot. */
 export const EDIT_SETTLE_MS = 10_000;
@@ -43,8 +44,12 @@ export function boardKeyFor(identity: IdentityInfo | null, keyboard: KeyboardInf
     return null;
 }
 
-/** Names from the board's latest backup that still fit its combos, or null. Never throws. */
+/**
+ * Names from the board's latest backup that still fit its combos, or null. Never
+ * throws. A board whose firmware stores combo names keeps its own (or none).
+ */
 async function restoreComboNames(service: BackupService, boardKey: string, loaded: KeyboardInfo): Promise<Record<string, string> | null> {
+    if (boardStoresComboNames(loaded)) return null;
     try {
         const latest = (await service.listSnapshots()).find(s => s.boardKey === boardKey);
         if (!latest) return null;

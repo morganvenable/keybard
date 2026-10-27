@@ -242,6 +242,8 @@ export class SvilUSB {
   static readonly SVIL_LABEL_TYPE_LAYER = 0;
   static readonly SVIL_LABEL_TYPE_TAP_DANCE = 1;
   static readonly SVIL_LABEL_TYPE_MACRO = 2;
+  /** Combo names: firmware with GET_INFO flags2 bit 7 (SVIL_FLAG2_COMBO_LABELS). */
+  static readonly SVIL_LABEL_TYPE_COMBO = 3;
   static readonly SVIL_LABEL_SIZE = 16;
 
   // Svalboard-specific constants
