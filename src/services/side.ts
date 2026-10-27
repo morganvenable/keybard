@@ -25,7 +25,8 @@ export const SIDE_RIGHT = 1;
 export const SIDE_UNKNOWN = 0xff;
 export const SIDE_NO_RECORD = 0xfe;
 
-export const SideSource = { NONE: 0, FACTORY: 1, KEYBARD: 2, MIGRATED: 3, STRAP: 4 } as const;
+/** 5: a one-side build, the release's left or right file (x4.2 on). */
+export const SideSource = { NONE: 0, FACTORY: 1, KEYBARD: 2, MIGRATED: 3, STRAP: 4, BUILD: 5 } as const;
 
 /** The thumb strap read at startup. 4 is a right strap (the probe's RIGHT class). */
 export const Strap = { NONE: 0, LEFT: 1, ANOMALY: 2, NOT_READ: 3, RIGHT: 4 } as const;
@@ -45,6 +46,8 @@ export const SideStatus = {
     NO_ANSWER: 6,
     /** The other half took it and saves it from its main loop: read again after it restarts. */
     OTHER_ACCEPTED: 7,
+    /** That half runs the left or right file, which sets its side: refused (x4.2 on). */
+    BUILD: 8,
 } as const;
 
 export const SideTarget = { THIS: 0, OTHER: 1 } as const;
@@ -70,7 +73,7 @@ export interface SideReport {
     format: number;
     /** The side this half (the one with USB) runs as now. */
     side: SideValue;
-    /** 0 none, 1 factory, 2 Keybard, 3 migrated, 4 strap. */
+    /** 0 none, 1 factory, 2 Keybard, 3 migrated, 4 strap, 5 the left or right file. */
     source: number;
     /** 0 no strap, 1 left, 2 anomaly, 3 not read, 4 right. */
     strap: number;
@@ -93,6 +96,10 @@ export interface SideReport {
     /** This half has room for the record (16 MB flash). */
     recordArea: boolean;
     usbHalf: boolean;
+    /** This half runs the left or right file (x4.2 on): its side. Null on the one-image file. */
+    buildSide: Side | null;
+    /** This half runs the file for the other side, and its thumb strap won. */
+    strapOverBuild: boolean;
 }
 
 /** Whether the board advertises SIDE (GET_INFO feature_flags2 bit 6). */
@@ -139,6 +146,9 @@ export function decodeSideGet(reply: ArrayLike<number>): SideReport | null {
         restartPending: (flags & 0x02) !== 0,
         recordArea: (flags & 0x04) !== 0,
         usbHalf: (flags & 0x08) !== 0,
+        // Firmware before x4.2 sends 0 here (or a shorter reply), so it counts only with source 5.
+        buildSide: reply.length > 16 && (reply[5] === SideSource.BUILD || reply[9] === SideSource.BUILD || (flags & 0x10) !== 0) && (reply[16] === SIDE_LEFT || reply[16] === SIDE_RIGHT) ? (sideOf(reply[16]) as Side) : null,
+        strapOverBuild: (flags & 0x10) !== 0,
     };
 }
 
