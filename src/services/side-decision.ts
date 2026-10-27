@@ -182,6 +182,7 @@ export function writesForAnswer(a: SideAssessment, usb: Side): SideWrite[] {
     return writes;
 }
 
+const HAND_DOCS = "https://docs.svalboard.com/firmware/update/";
 const SUPPORT = "open a ticket in #customer-service on the Svalboard Discord (https://www.svalboard.com/discord)";
 
 export const sideWord = (s: Side) => (s === "left" ? "left" : "right");
@@ -203,6 +204,14 @@ export function explainSideStatus(status: number, o: { role?: HalfRole; wanted?:
             if (!fitted) return `${capitalize(which)} has a thumb PCBA for the other side, which sets its side. To sort it out, ${SUPPORT}.`;
             return `${capitalize(which)} has a ${fitted} thumb PCBA, which makes it the ${fitted} half. ` +
                 `If it's really the ${oppositeSide(fitted)} half, it has the wrong thumb PCBA. To sort it out, ${SUPPORT}.`;
+        }
+        case SideStatus.BUILD: {
+            // The half runs the release's left or right file, which owns its side until another file goes on.
+            const file = o.wanted ? oppositeSide(o.wanted) : null;
+            const fix = o.wanted
+                ? `If it's really the ${o.wanted} half, install the ${o.wanted}-half file on it (svalboard_sval_${o.wanted}_<release>.uf2), as ${HAND_DOCS} shows.`
+                : `To change it, install the file for its own half on it, as ${HAND_DOCS} shows.`;
+            return `${capitalize(which)} runs the ${file ? `${file}-half` : "one-side"} firmware file, which sets its side. ${fix}`;
         }
         case SideStatus.NO_RECORD_AREA:
             return `${capitalize(which)} has no room to save its side. To sort it out, ${SUPPORT}.`;

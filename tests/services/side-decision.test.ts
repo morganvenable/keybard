@@ -121,6 +121,12 @@ describe("explainSideStatus", () => {
         // Without the strap read (the other half), it says the other side of what was asked.
         expect(explainSideStatus(4, { role: "other", wanted: "right" })).toContain("a left thumb PCBA");
     });
+    it("status 8: the half runs the other side's file; install its own file, with the walkthrough", () => {
+        const text = explainSideStatus(SideStatus.BUILD, { role: "usb", wanted: "right" })!;
+        expect(text).toBe("The half plugged into your computer runs the left-half firmware file, which sets its side. If it's really the right half, install the right-half file on it (svalboard_sval_right_<release>.uf2), as https://docs.svalboard.com/firmware/update/ shows.");
+        expect(explainSideStatus(8, { role: "other" })).toContain("install the file for its own half");
+        expect(text).not.toMatch(/status|0x/i);
+    });
     it("every other status has words", () => {
         for (const s of [1, 2, 3, 5, 6, 9]) expect(explainSideStatus(s)).toMatch(/\w/);
         expect(explainSideStatus(SideStatus.OTHER_NOT_CONNECTED)).toContain("split cable");

@@ -58,6 +58,17 @@ describe("SIDE GET reply", () => {
         expect(decodeSideGet(firmwareGet([0, 0, 1, 1, 2, 0, 0, 0, 2, 3, 1, 1, 0, 0, 0x0f]))).toMatchObject({ pair: "same", recordSide: "left", restartPending: true });
         expect(decodeSideGet(firmwareGet([0, 0, 1, 1, 2, 0, 0, 1, 2, 1, 0xff, 3, 0, 0, 0x0c]))!.pair).toBe("pending");
     });
+    it("reads the build side of the left and right files (x4.2), never from older firmware", () => {
+        // source 5 (one-side build), build side right
+        expect(decodeSideGet(firmwareGet([0, 0, 1, 1, 5, 0, 0, 1, 5, 3, 0, 0, 0, 0, 0x0c, 1]))).toMatchObject({ source: 5, buildSide: "right", strapOverBuild: false });
+        // the strap won over a left file: flags bit 4
+        expect(decodeSideGet(firmwareGet([0, 0, 1, 1, 4, Strap.RIGHT, 0, 1, 4, 3, 0, 0, 0, 0, 0x1c, 0]))).toMatchObject({ buildSide: "left", strapOverBuild: true });
+        // older firmware: a zero where the build side goes, or no byte at all
+        expect(decodeSideGet(firmwareGet([0, 0, 1, 0, 2, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0x0c, 0]))!.buildSide).toBeNull();
+        expect(decodeSideGet(firmwareGet([0, 0, 1, 0, 2, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0x0c]))!.buildSide).toBeNull();
+        // the one-image file sends FF
+        expect(decodeSideGet(firmwareGet([0, 0, 1, 0, 5, 0, 0, 0, 5, 3, 1, 0, 0, 0, 0x0c, 0xff]))!.buildSide).toBeNull();
+    });
     it("rejects another command, another op, a bad status or format, a short reply", () => {
         expect(decodeSideGet([0x2c, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])).toBeNull();
         expect(decodeSideGet(firmwareGet([1, 0, 1, 1]))).toBeNull();
