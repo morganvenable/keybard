@@ -328,8 +328,10 @@ def flow_new_leader_and_alt_repeat_are_on(browser, url):
     """The same rule as combos: the first key in an unused leader or alt-repeat slot turns it on."""
     context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="light", reduced_motion="reduce")
     # Alt-Repeat is on the rail only with its preference on.
-    context.add_init_script("""try { const k = 'keyboard-settings'; const s = JSON.parse(localStorage.getItem(k) || '{}') || {};
-        s['show-alt-repeat'] = true; localStorage.setItem(k, JSON.stringify(s)); } catch {}""")
+    # The test site keeps its storage under "keybard-test:" (VITE_STORAGE_NAMESPACE); set both.
+    context.add_init_script("""try { for (const k of ['keyboard-settings', 'keybard-test:keyboard-settings']) {
+        const s = JSON.parse(localStorage.getItem(k) || '{}') || {};
+        s['show-alt-repeat'] = true; localStorage.setItem(k, JSON.stringify(s)); } } catch {}""")
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
