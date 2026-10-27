@@ -43,9 +43,9 @@ describe("carried releases per site", () => {
         expect(releasesForSite("dev", all).map((r) => r.tag)).toEqual(["x5", "x3.2.1", "v4", "v3", "v2"]);
     });
 
-    it("carries x4.1 on next; production waits for a v release", () => {
+    it("carries x4.2 on next; production waits for a v release", () => {
         expect(releasesForSite("production")).toEqual([]);
-        expect(releasesForSite("next").map((r) => r.tag)).toEqual(["x4.1"]);
+        expect(releasesForSite("next").map((r) => r.tag)).toEqual(["x4.2"]);
     });
 
     it("every pinned file is in public/firmware/<tag>/ and matches its pin", () => {
