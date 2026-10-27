@@ -16,9 +16,11 @@ protocol, so Keybard's own connect, load, edit and Apply code runs. Run with
   6. Renaming a combo (nothing else) is one pending change; Apply writes it to
      the board; after a reload, with this browser's memory of it cleared, the
      name comes from the board.
-  7. Firmware that stores combo names, with none stored yet, is offered the
-     names Keybard kept (here, one given on older firmware) as pending
-     changes, held for Apply even with live updating on.
+  7. Firmware that stores combo names, with none stored yet, shows none:
+     names Keybard kept (here, one given on older firmware) are not brought
+     back, nothing is pending and nothing is written.
+  9. Live updating: a rename is written to the board at once, with no Apply
+     button.
   8. Firmware without combo names: a rename is no pending change, and the name
      survives a reload (kept in Keybard).
 
@@ -302,13 +304,13 @@ def flow_rename_only(browser, url):
     context.close()
 
 
-def flow_offer_kept_names(browser, url):
-    """A board that stores combo names but has none is offered Keybard's names as pending changes."""
+def flow_board_names_only(browser, url):
+    """A board that stores combo names but has none shows none: Keybard's kept names are not brought back."""
     context, page, errors = open_board(browser, url, "fakeBoard=old")
     # On firmware without combo names, a name stays in Keybard: no pending change.
     open_combos(page)
     open_combo(page, 1)
-    rename(page, title(page).get_by_role("button", name="Name this combo"), "Offered")
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Kept")
     go_back(page)
     expect(apply_button(page)).to_have_count(0)
     # The board then gets firmware that stores combo names, with none stored yet.
@@ -320,14 +322,31 @@ def flow_offer_kept_names(browser, url):
     }""")
     page.goto(f"{url}?{REVIEW}&fakeBoard")
     wait_connected(page)
-    set_mode(page, live=True)  # held as pending even with live updating on
+    set_mode(page, live=True)
     open_combos(page)
-    expect(list_name(page, 1)).to_have_text("Offered")
-    expect(apply_button(page)).to_have_text(re.compile(r"^Apply 1 Change\b"))
-    assert board_names(page) == {}, f"nothing is written without Apply: {board_names(page)}"
-    apply_button(page).click()
-    expect(apply_button(page)).to_have_count(0, timeout=15000)
-    assert board_names(page) == {1: "Offered"}, board_names(page)
+    expect(page.locator("[data-combo-row='1']")).to_be_visible()
+    expect(list_name(page, 1)).to_have_count(0)
+    expect(apply_button(page)).to_have_count(0)
+    page.wait_for_timeout(1000)
+    assert board_names(page) == {}, f"nothing is written: {board_names(page)}"
+    assert not errors, errors
+    context.close()
+
+
+def flow_live_rename(browser, url):
+    """Live updating: a rename is written to the board at once, with no Apply button."""
+    context, page, errors = open_board(browser, url)
+    set_mode(page, live=True)
+    open_combos(page)
+    open_combo(page, 1)
+    rename(page, title(page).get_by_role("button", name="Name this combo"), "Live")
+    expect(apply_button(page)).to_have_count(0)
+    for _ in range(30):
+        if board_names(page).get(1) == "Live":
+            break
+        page.wait_for_timeout(250)
+    assert board_names(page).get(1) == "Live", board_names(page)
+    expect(apply_button(page)).to_have_count(0)
     assert not errors, errors
     context.close()
 
@@ -355,7 +374,8 @@ def main() -> int:
         ("2. the Combos panel lists the seeded combos and their stored names", flow_combos_listed),
         ("3. rename a combo and turn one off, Apply; both are still there after a reload", flow_edit_apply_reload),
         ("6. a rename alone is one pending change; Apply; after a reload the name comes from the board", flow_rename_only),
-        ("7. a board with no combo names is offered Keybard's names as pending changes, even live", flow_offer_kept_names),
+        ("7. a board with no combo names shows none; Keybard's kept names are not brought back", flow_board_names_only),
+        ("9. live updating: a rename is written at once, no Apply button", flow_live_rename),
         ("8. firmware without combo names: no pending change, the name survives a reload", flow_old_firmware_keeps_names),
         ("4. ?fakeBoard=old: firmware without combo names", flow_old_firmware),
         ("5. without the parameter nothing is simulated", flow_off_without_param),

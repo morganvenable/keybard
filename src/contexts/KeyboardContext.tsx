@@ -361,15 +361,10 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     return recallComboNames(named);
                 };
                 // Older firmware: the names live in Keybard, and the board state includes them.
-                // Firmware that stores them: the board's names win. A board with none yet is
-                // offered Keybard's names as pending changes (useComboNameOffer), never written
-                // without Apply, so the draft has them and the board state does not.
-                const boardNames = boardStoresComboNames(loadedInfo);
-                const offer = boardNames && !Object.keys(loadedInfo.cosmetic?.combos ?? {}).length;
-                if (!boardNames) loadedInfo.cosmetic = keptNames(loadedInfo).cosmetic;
-                const draft = offer ? keptNames(structuredClone(loadedInfo)) : loadedInfo;
-                loadedLayoutRef.current = draft;
-                setKeyboard(draft);
+                // Firmware that stores them: only the board's names, never Keybard's.
+                if (!boardStoresComboNames(loadedInfo)) loadedInfo.cosmetic = keptNames(loadedInfo).cosmetic;
+                loadedLayoutRef.current = loadedInfo;
+                setKeyboard(loadedInfo);
                 setBoardLoad((n) => n + 1);
                 setConnectionState("connected");
                 setConnectionError(null);

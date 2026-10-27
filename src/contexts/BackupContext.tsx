@@ -46,11 +46,10 @@ export function boardKeyFor(identity: IdentityInfo | null, keyboard: KeyboardInf
 
 /**
  * Names from the board's latest backup that still fit its combos, or null. Never
- * throws. A board that stores combo names and has some keeps its own; one that
- * has none yet gets them in the draft, offered as pending changes (useComboNameOffer).
+ * throws. A board whose firmware stores combo names keeps its own (or none).
  */
 async function restoreComboNames(service: BackupService, boardKey: string, loaded: KeyboardInfo): Promise<Record<string, string> | null> {
-    if (boardStoresComboNames(loaded) && Object.keys(loaded.cosmetic?.combos ?? {}).length) return null;
+    if (boardStoresComboNames(loaded)) return null;
     try {
         const latest = (await service.listSnapshots()).find(s => s.boardKey === boardKey);
         if (!latest) return null;
