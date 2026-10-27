@@ -11,6 +11,7 @@ import { useBindingChanges } from "@/hooks/useBindingChanges";
 import EditorKey from "./EditorKey";
 import { BAR_KEY_PX, BAR_KEY_SIZE, BAR_KEY_VARIANT, BarEnd, BarRow, BarSep, BarSlot } from "./EditorBar";
 import { ComboEntry } from "@/types/keyboard.types";
+import { startNewCombo } from "@/utils/combo-edit";
 
 interface ComboEditorProps {
     /** One compact row for the underslung placements (dock, anchored, float). */
@@ -96,7 +97,7 @@ const ComboEditor: FC<ComboEditorProps> = ({ strip = false, bar = false, barEnd 
                 } else {
                     combo.output = item.keycode;
                 }
-                combos[itemToEdit] = combo;
+                combos[itemToEdit] = startNewCombo(combos[itemToEdit], combo);
             }
             const updatedKeyboard = { ...keyboard, combos };
             setKeyboard(updatedKeyboard);
@@ -116,7 +117,7 @@ const ComboEditor: FC<ComboEditorProps> = ({ strip = false, bar = false, barEnd 
             } else {
                 combo.output = keycode;
             }
-            combos[itemToEdit] = combo;
+            combos[itemToEdit] = startNewCombo(combos[itemToEdit], combo);
         }
         const updatedKeyboard = { ...keyboard, combos };
         setKeyboard(updatedKeyboard);

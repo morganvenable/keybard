@@ -48,8 +48,10 @@ const shapeOf = (combo: ComboEntry | undefined) => (isEmpty(combo) ? null : comb
 
 /**
  * Record what changed between two versions of a layout: a named combo's name
- * under its current shape, a removed name as "no name", and a renamed or
- * reshaped combo's old entry dropped. Does nothing when nothing changed.
+ * under its current shape, and a removed name as "no name". A reshaped combo
+ * keeps its name under the old shape too: until the new keys are applied, the
+ * board still has the old combo, and a reload must not lose its name. Does
+ * nothing when nothing changed.
  */
 export function rememberComboNames(previous: KeyboardInfo | null | undefined, next: KeyboardInfo | null | undefined) {
     if (!next?.combos) return;
@@ -64,13 +66,8 @@ export function rememberComboNames(previous: KeyboardInfo | null | undefined, ne
     next.combos.forEach((combo, index) => {
         const shape = shapeOf(combo);
         const name = comboName(next.cosmetic, index) ?? "";
-        const before = previous?.combos?.[index];
-        const oldShape = shapeOf(before);
+        const oldShape = shapeOf(previous?.combos?.[index]);
         const oldName = previous ? comboName(previous.cosmetic, index) ?? "" : undefined;
-        if (oldShape && oldShape !== shape && oldName && memory[oldShape] === oldName) {
-            delete memory[oldShape];
-            changed = true;
-        }
         if (!shape) return;
         if (name) set(shape, name);
         // Only a name the person removed is recorded as "no name".

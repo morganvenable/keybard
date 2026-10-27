@@ -23,16 +23,29 @@ describe('combo name memory (names that survive a reload)', () => {
         expect(named(recallComboNames(moved))).toEqual({ '3': 'Submit' });
     });
 
-    it('never names an empty combo, and drops a name whose combo changed', () => {
+    it('never names an empty combo', () => {
         rememberComboNames(layout(), layout({ '2': 'Nothing yet' }));
         expect(localStorage.getItem(COMBO_NAME_MEMORY_KEY) ?? '{}').toBe('{}');
+    });
+
+    it('keeps a name through a key change, under the old keys and the new ones', () => {
+        // Rename only, then change the keys: F+D -> Tab carries the name...
         const a = layout({ '0': 'Quick escape' });
         rememberComboNames(layout(), a);
         const b = layout({ '0': 'Quick escape' }, [combo(['KC_F', 'KC_D'], 'KC_TAB'), combo(['KC_J', 'KC_K'], 'KC_ENTER'), combo([], 'KC_NO')]);
         rememberComboNames(a, b);
-        // The old F+D -> Esc entry is gone; F+D -> Tab now carries the name.
-        expect(named(recallComboNames(layout()))).toEqual({});
         expect(named(recallComboNames(layout({}, b.combos)))).toEqual({ '0': 'Quick escape' });
+        // ...and when the key change is never applied, the board's F+D -> Esc still has it.
+        expect(named(recallComboNames(layout()))).toEqual({ '0': 'Quick escape' });
+    });
+
+    it('keeps a name when a combo is turned off and that is never applied', () => {
+        const a = layout({ '1': 'Submit' });
+        rememberComboNames(layout(), a);
+        const off = layout({ '1': 'Submit' }, [combo(['KC_F', 'KC_D'], 'KC_ESC'), combo(['KC_J', 'KC_K'], 'KC_ENTER', false), combo([], 'KC_NO')]);
+        rememberComboNames(a, off);
+        expect(named(recallComboNames(layout()))).toEqual({ '1': 'Submit' });
+        expect(named(recallComboNames(layout({}, off.combos)))).toEqual({ '1': 'Submit' });
     });
 
     it('keeps a layout\'s own names, unless told to replace them (the demo)', () => {
