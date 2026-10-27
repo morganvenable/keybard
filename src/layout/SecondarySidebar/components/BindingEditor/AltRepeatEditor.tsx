@@ -1,4 +1,5 @@
 import { FC, ReactNode, useEffect, useId, useState } from "react";
+import { startNewAltRepeat } from "@/utils/combo-edit";
 import { ArrowRight } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
@@ -92,6 +93,7 @@ const AltRepeatEditor: FC<Props> = ({ bar = false, barEnd }) => {
             entry[targetSlot] = sourceVal;
         } else {
             updatedKeyboard.alt_repeat_keys![altRepeatIndex][slot] = item.keycode;
+            startNewAltRepeat(keyboard.alt_repeat_keys?.[altRepeatIndex], updatedKeyboard.alt_repeat_keys![altRepeatIndex]);
         }
 
         setKeyboard(updatedKeyboard);
