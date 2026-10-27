@@ -5,7 +5,8 @@ import { useKeyboard, listPermittedDevices } from "@/contexts/KeyboardContext";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import { UnsupportedFirmwareCard } from "@/components/FirmwareUpdate";
 import demoLayoutUrl from "@/default-layouts/sval-default.svil?url";
-import { claimDemoStart, demoFromSearch, type DemoChoice, withDemoFeatures } from "@/lib/deepLinks";
+import { claimDemoStart, claimFakeBoardStart, demoFromSearch, type DemoChoice, withDemoFeatures } from "@/lib/deepLinks";
+import { fakeBoardReady } from "@/dev/fake-board/start";
 
 const ConnectKeyboard = () => {
     const { isConnected, connect, connectDevice, disconnect, loadFromFile, isWebHIDSupported, connectionState, connectionError, connectionFix, connectionFirmware } = useKeyboard();
@@ -130,6 +131,14 @@ const ConnectKeyboard = () => {
         const demo = demoFromSearch(window.location.search);
         if (!demo || isConnected || !claimDemoStart()) return;
         void handleLoadDemo(demo);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ?fakeBoard: connect to the simulated board on start, as a permitted device, once per page load.
+    useEffect(() => {
+        const ready = fakeBoardReady();
+        if (!ready || isConnected || !claimFakeBoardStart()) return;
+        void ready.then((device) => handleConnectDevice(device)).catch(() => undefined);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     return (

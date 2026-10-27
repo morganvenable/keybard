@@ -5,6 +5,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import 'virtual:paranoid-fonts';
+import { startFakeBoard } from './dev/fake-board/start';
+
+// ?fakeBoard only: a simulated Svalboard in place of WebHID (nothing happens without it)
+startFakeBoard();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

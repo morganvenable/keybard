@@ -9,12 +9,16 @@
  *   combos named (DEMO_COMBO_NAMES).
  * - ?theme=light|dark forces the theme for this load only.
  * - ?edit=combo:N | tapdance:N | macro:N opens that editor once a layout is loaded.
+ * - ?fakeBoard connects to a simulated Svalboard (src/dev/fake-board) as if it
+ *   were plugged in, firmware with combo names; ?fakeBoard=old simulates
+ *   firmware without them. Its settings stay in this browser across reloads.
  */
 import type { ResolvedTheme } from "@/lib/theme";
 
 export const DEMO_PARAM = "demo";
 export const THEME_PARAM = "theme";
 export const EDIT_PARAM = "edit";
+export const FAKE_BOARD_PARAM = "fakeBoard";
 
 export type DemoChoice = "qwerty" | "combos";
 
@@ -37,6 +41,16 @@ export function demoFromSearch(search: string): DemoChoice | null {
 export function themeFromSearch(search: string): ResolvedTheme | null {
     const value = param(search, THEME_PARAM)?.trim().toLowerCase();
     return value === "light" || value === "dark" ? value : null;
+}
+
+/** "combo-names": firmware that stores combo names; "old": firmware without them. */
+export type FakeBoardChoice = "combo-names" | "old";
+
+/** ?fakeBoard (any value but "old") is the simulated board with combo names; absent is null. */
+export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
+    const value = param(search, FAKE_BOARD_PARAM);
+    if (value === null) return null;
+    return value.trim().toLowerCase() === "old" ? "old" : "combo-names";
 }
 
 export type EditKind = "combo" | "tapdance" | "macro";
@@ -125,8 +139,17 @@ export function claimEditStart(): boolean {
     return true;
 }
 
+let fakeBoardStarted = false;
+/** The ?fakeBoard connect happens once per page load, not again after a disconnect. */
+export function claimFakeBoardStart(): boolean {
+    if (fakeBoardStarted) return false;
+    fakeBoardStarted = true;
+    return true;
+}
+
 /** Tests only: forget that this load already used its deep links. */
 export function resetDeepLinksForTests() {
     demoStarted = false;
     editStarted = false;
+    fakeBoardStarted = false;
 }
