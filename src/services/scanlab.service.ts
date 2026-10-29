@@ -23,6 +23,15 @@ export const ID_IDLE_LONG_NAP = 29;
 export const ID_SCAN_DEEP_CLOCK_IDX = 30;
 /** Debounce the optical keys (1, the default) or not (0); the thumb Double Down always is. */
 export const ID_OPTICAL_DEBOUNCE = 48;
+
+/**
+ * The debounce periods, in ms. The firmware doesn't report them (not in Scan Lab STATUS, not
+ * as a custom value), so these match it by hand. svalboard/qmk, keyboards/svalboard/debounce_sval.c:
+ * SVAL_OPTICAL_DEBOUNCE_MS 5 (QMK's sym_defer_g with its DEBOUNCE default of 5, on the optical
+ * keys) and SVAL_DD_DEBOUNCE_MS 5 (the thumb Double Down). Change them with the firmware.
+ */
+export const OPTICAL_DEBOUNCE_MS = 5;
+export const DOUBLE_DOWN_DEBOUNCE_MS = 5;
 export const DEEP_CLOCK_CHOICES_MHZ = [48, 24, 12] as const;
 
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */

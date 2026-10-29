@@ -27,6 +27,8 @@ import {
     type ScanLabIdle,
     type IdleSettings,
     HAND_NAMES,
+    OPTICAL_DEBOUNCE_MS,
+    DOUBLE_DOWN_DEBOUNCE_MS,
     ROW_NAMES,
     SweepState,
     type Hand,
@@ -403,9 +405,9 @@ const ScanLabPanel = () => {
         <div className="flex flex-col gap-1" data-testid="debounce-section">
             <label className="flex items-center gap-2 text-sm font-medium text-kb-ink">
                 <input type="checkbox" checked={debounceOn} disabled={!!busy} onChange={(e) => handleDebounce(e.target.checked)} data-testid="debounce-optical" />
-                Debounce (optical keys)
+                <span data-testid="debounce-label">Debounce optical keys: {debounceOn ? `${OPTICAL_DEBOUNCE_MS} ms` : "off"}</span>
             </label>
-            <p className="text-xs text-muted-foreground">The thumb Double Down is always debounced.</p>
+            <p className="text-xs text-muted-foreground" data-testid="debounce-dd-note">The thumb Double Down is always debounced: {DOUBLE_DOWN_DEBOUNCE_MS} ms</p>
             {debounceHalfNotes.map((n) => <p key={n} className="text-xs text-muted-foreground" data-testid="debounce-half-note">{n}</p>)}
         </div>
     );

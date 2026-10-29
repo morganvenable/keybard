@@ -73,12 +73,14 @@ describe('ScanLabPanel debounce switch', () => {
     it('shows the saved mode, writes a change and reads both halves back', async () => {
         render(<ScanLabPanel />);
         const box = await screen.findByTestId('debounce-optical');
-        expect(screen.getByTestId('debounce-section')).toHaveTextContent('Debounce (optical keys)');
-        expect(screen.getByTestId('debounce-section')).toHaveTextContent('The thumb Double Down is always debounced.');
+        expect(screen.getByTestId('debounce-label')).toHaveTextContent(/^Debounce optical keys: 5 ms$/);
+        expect(screen.getByTestId('debounce-dd-note')).toHaveTextContent(/^The thumb Double Down is always debounced: 5 ms$/);
         expect(box).toBeChecked();
         fireEvent.click(box);
         await waitFor(() => expect(svc.setOpticalDebounce).toHaveBeenCalledWith(false));
         await waitFor(() => expect(screen.getByTestId('debounce-optical')).not.toBeChecked());
+        expect(screen.getByTestId('debounce-label')).toHaveTextContent(/^Debounce optical keys: off$/);
+        expect(screen.getByTestId('debounce-dd-note')).toHaveTextContent(/^The thumb Double Down is always debounced: 5 ms$/);
         await waitFor(() => expect(svc.getStatus.mock.calls.length).toBeGreaterThanOrEqual(4), { timeout: 2000 });
         expect(screen.queryByTestId('debounce-half-note')).toBeNull();
     });

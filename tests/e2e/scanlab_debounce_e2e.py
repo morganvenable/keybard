@@ -3,8 +3,9 @@ Browser tests of the Scan Lab's optical debounce switch against the simulated
 Svalboard (?fakeBoard). Run with `npm run test:e2e:scanlab-debounce`.
 
   1. ?fakeBoard&panel=scanlab opens the Scan Lab with the switch: "Debounce
-     (optical keys)", checked (the board's default), with the note that the
-     thumb Double Down is always debounced.
+     optical keys: 5 ms", checked (the board's default), with the note "The
+     thumb Double Down is always debounced: 5 ms". Off, the label reads
+     "Debounce optical keys: off".
   2. Turning it off writes value 48 = 0 and saves; the box reads back off
      from the board, both halves report off, and nothing else is written.
      Turning it on again writes 1.
@@ -52,8 +53,8 @@ def flow_shows(browser, url):
     context, page, errors = open_lab(browser, url)
     section = page.locator(SECTION)
     expect(section).to_be_visible()
-    expect(section).to_contain_text("Debounce (optical keys)")
-    expect(section).to_contain_text("The thumb Double Down is always debounced.")
+    expect(page.locator("[data-testid='debounce-label']")).to_have_text("Debounce optical keys: 5 ms")
+    expect(page.locator("[data-testid='debounce-dd-note']")).to_have_text("The thumb Double Down is always debounced: 5 ms")
     expect(page.locator(BOX)).to_be_checked()
     assert fw(page, "f.opticalDebounceOn") is True
     assert not errors, errors
@@ -65,6 +66,8 @@ def flow_toggle(browser, url):
     custom_before = fw(page, "Array.from(f.state.custom)")
     page.locator(BOX).click()
     expect(page.locator(BOX)).not_to_be_checked()
+    expect(page.locator("[data-testid='debounce-label']")).to_have_text("Debounce optical keys: off")
+    expect(page.locator("[data-testid='debounce-dd-note']")).to_have_text("The thumb Double Down is always debounced: 5 ms")
     expect(page.get_by_text("Turning optical debounce off…")).to_have_count(0, timeout=5000)
     assert fw(page, "f.opticalDebounceOn") is False
     assert fw(page, "f.debounceWrites") == [{"value": 0, "saved": True}], fw(page, "f.debounceWrites")
@@ -97,7 +100,7 @@ def flow_old_firmware(browser, url):
     expect(page.locator("[data-testid='status-0']")).to_contain_text("Revision")
     page.wait_for_timeout(500)
     expect(page.locator(SECTION)).to_have_count(0)
-    expect(page.get_by_text("Debounce (optical keys)")).to_have_count(0)
+    expect(page.get_by_text(re.compile("^Debounce optical keys"))).to_have_count(0)
     assert not errors, errors
     context.close()
 
