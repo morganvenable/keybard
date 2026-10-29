@@ -68,7 +68,7 @@ export const MatrixTesterNote: FC<MatrixTesterNoteProps> = ({ kind, exitName, on
                     <Icon aria-hidden className={cn("mt-0.5 h-6 w-6 shrink-0", warn ? "text-kb-warn-ink" : "text-kb-primary")} />
                     <div className="min-w-0">
                         <h2 className="text-base font-semibold leading-snug">{heading}</h2>
-                        <p className="mt-1 text-sm leading-relaxed text-kb-gray">{body}</p>
+                        <p className="mt-1 text-sm leading-relaxed">{body}</p>
                     </div>
                 </div>
             </div>

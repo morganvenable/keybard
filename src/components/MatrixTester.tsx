@@ -385,11 +385,11 @@ export const MatrixTester: FC = () => {
         >
             {/* The note, kept in view while the keyboard scrolls sideways */}
             <div
-                className="sticky left-4 z-10 mb-4 flex items-start gap-2 self-start"
+                className="sticky left-4 z-10 mb-4 flex flex-wrap items-start justify-end gap-2 self-start"
                 style={noteWidth ? { width: `${noteWidth}px` } : undefined}
                 data-tester-note-row=""
             >
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[16rem] flex-1">
                     <MatrixTesterNote kind={noteKind} exitName={exitKey.name} onUpdateFirmware={openFirmwareUpdate} />
                 </div>
                 <button
@@ -426,7 +426,7 @@ export const MatrixTester: FC = () => {
                 {supportsPause && exitMarks.length > 0 && (
                     <>
                         <svg
-                            className="pointer-events-none absolute inset-0 overflow-visible"
+                            className="pointer-events-none absolute inset-0 z-10 overflow-visible"
                             width={keyboardDimensions.width}
                             height={keyboardDimensions.height}
                             aria-hidden
