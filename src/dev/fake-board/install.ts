@@ -34,9 +34,9 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
 
 export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
     // "old" predates both combo names and the typing pause.
-    // This firmware has 64-byte reports, the typing pause and the flicker latch; the older choices have neither.
+    // This firmware has 64-byte reports, the typing pause, the flicker latch and the debounce switch; the older choices have none of them.
     const current = choice === "combo-names";
-    const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current, reportLength: current ? 64 : 32 });
+    const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current, debounceSwitch: current, reportLength: current ? 64 : 32 });
     const wipe = () => {
         device.forgetSettings();
         window.location.reload();

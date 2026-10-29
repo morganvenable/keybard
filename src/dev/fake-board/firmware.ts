@@ -66,6 +66,12 @@ const ID_UNHANDLED = 0xff;
 const RGBLIGHT_CHANNEL = 2;
 const IDENTITY_CHANNEL = 0x49;
 const SCANLAB_CHANNEL = 0x53;
+const SCANLAB_RSP_LEN = 24;
+const SCANLAB_ROWS = 5;
+// svalboard.c sval_prewait_us / sval_postwait_us (the turbo table), id_turbo_scan, id_optical_debounce
+const TURBO_US = [90, 60, 45, 30, 25, 20, 15];
+const ID_TURBO_SCAN = 9;
+const ID_OPTICAL_DEBOUNCE = 48;
 const KEYTEST_CHANNEL = 0x54;
 const IDENTITY_NAME_MAX_BYTES = 64;
 // sval:5356414C424F4152, a fixed serial for the simulation ("SVALBOAR")
@@ -92,6 +98,11 @@ export interface FakeFirmwareOptions {
     typingPause?: boolean;
     /** Firmware with the flicker latch (Sval 0x3D, GET_INFO byte 20 bit 3). Default true. */
     flickerLatch?: boolean;
+    /**
+     * Firmware with the optical debounce switch: VIA value 48 and Scan Lab
+     * STATUS byte 23 (svalboard.c, scanlab.c). Default true.
+     */
+    debounceSwitch?: boolean;
 }
 
 /** A Sval table (TABLE_SCAN ids 0-4): its storage, entry size and "in use" test. */
@@ -159,6 +170,15 @@ export class FakeSvalFirmware {
     readonly comboLabels: boolean;
     readonly typingPause: boolean;
     readonly flickerLatch: boolean;
+    readonly debounceSwitch: boolean;
+    /**
+     * The optical debounce mode (global_saved_values.optical_debounce_off):
+     * RAM, then saved by id_custom_save. Both halves use the saved half's mode
+     * at once here; the real other half follows within a presence ping.
+     */
+    opticalDebounceOn = true;
+    /** Every value 48 write, oldest first, and whether a save followed. */
+    readonly debounceWrites: { value: number; saved: boolean }[] = [];
     /** Switches held down now ("row,col"), for VIA's matrix state and the latch's raw rows. */
     readonly pressed = new Set<string>();
     /** The flicker latch (flicker_latch.c): pressed and released since the last read, and change counts. */
@@ -188,6 +208,7 @@ export class FakeSvalFirmware {
         this.comboLabels = options.comboLabels ?? true;
         this.typingPause = options.typingPause ?? true;
         this.flickerLatch = options.flickerLatch ?? true;
+        this.debounceSwitch = options.debounceSwitch ?? true;
         this.onChange = options.onChange;
         this.factoryKeymap = options.factoryKeymap;
         const start = Date.now();
@@ -548,9 +569,13 @@ export class FakeSvalFirmware {
             this.rgblightCommand(data);
             return;
         }
-        // Keytest (keytest builds only) and Scan Lab aren't modeled: unhandled.
-        if (channel === KEYTEST_CHANNEL || channel === SCANLAB_CHANNEL) {
+        // Keytest (keytest builds only) isn't modeled: unhandled.
+        if (channel === KEYTEST_CHANNEL) {
             data[0] = ID_UNHANDLED;
+            return;
+        }
+        if (channel === SCANLAB_CHANNEL) {
+            this.scanlabCommand(data, length);
             return;
         }
         if (channel === IDENTITY_CHANNEL) {
@@ -560,6 +585,16 @@ export class FakeSvalFirmware {
         // Every other channel (0, and 0x55 on builds without the updater) lands
         // here: svalboard.c switches on the value ID alone.
         const c = this.state.custom;
+        if (valueId === ID_OPTICAL_DEBOUNCE && this.debounceSwitch) {
+            if (command === 0x07) {
+                this.opticalDebounceOn = value[0] !== 0;
+                this.debounceWrites.push({ value: value[0], saved: false });
+            } else if (command === 0x08) {
+                value[0] = this.opticalDebounceOn ? 1 : 0;
+            }
+            return;
+        }
+        if (command === 0x09 && this.debounceWrites.length) this.debounceWrites[this.debounceWrites.length - 1].saved = true;
         if (command === 0x07) {
             if (valueId >= CUSTOM_VALUE_IDS || !CUSTOM_WRITABLE(valueId)) return;
             let v0 = value[0];
@@ -577,6 +612,60 @@ export class FakeSvalFirmware {
             if (CUSTOM_TWO_BYTE.has(valueId) || valueId === 31 || valueId >= 32) value[1] = c[valueId * 2 + 1];
         }
         // id_custom_save: write_eeprom_kb(); values are already stored here
+    }
+
+    /**
+     * scanlab_via_command (keyboards/svalboard/scanlab.c): STATUS, POWER and
+     * IDLE for both halves, with no sweep or probe running; every other op
+     * answers zeros, as an idle engine does. The right half is the one with USB.
+     */
+    private scanlabCommand(data: Uint8Array, length: number): void {
+        const [cmd, , id] = [data[0], data[1], data[2]];
+        const args = data.subarray(3);
+        if (cmd !== 0x07 && cmd !== 0x08) return;
+        const op = cmd === 0x08 ? id & ~0x08 : id;
+        const hand = cmd === 0x08 ? (id >> 3) & 1 : args[0] & 1;
+        const rsp = new Uint8Array(SCANLAB_RSP_LEN);
+        const c = this.state.custom;
+        const v16 = (vid: number) => c[vid * 2] | (c[vid * 2 + 1] << 8);
+        const turbo = c[ID_TURBO_SCAN * 2] < TURBO_US.length ? c[ID_TURBO_SCAN * 2] : 0;
+        const pre = v16(13) || TURBO_US[turbo], post = v16(14) || TURBO_US[turbo];
+        const idleFlags = [25, 26, 27, 28, 29].reduce((f, vid, bit) => f | ((c[vid * 2] ? 1 : 0) << bit), 0);
+        if (op === 0x10) {
+            rsp[0] = 1; // SCANLAB_PROTO_VERSION
+            put16(rsp, 8, pre);
+            put16(rsp, 10, post);
+            rsp[12] = hand === 0 ? 1 : 0;
+            rsp[13] = 0b000100; // pushed: the active-dark centre key (sval_pushed_mask)
+            put16(rsp, 17, v16(13));
+            put16(rsp, 19, v16(14));
+            rsp[21] = c[ID_TURBO_SCAN * 2];
+            rsp[22] = hand === 1 ? 1 : 0; // the USB half sees the other half
+            if (this.debounceSwitch) rsp[23] = 0x01 | (this.opticalDebounceOn ? 0x02 : 0);
+        } else if (op === 0x11) {
+            put16(rsp, 0, v16(20));
+            put16(rsp, 2, v16(21));
+            put16(rsp, 4, v16(22));
+            put16(rsp, 6, 1000); // measured frame, us
+            put16(rsp, 8, SCANLAB_ROWS * (pre + 13)); // LED on per frame, us
+            put16(rsp, 11, v16(20));
+            put16(rsp, 13, pre);
+            put16(rsp, 15, post);
+            rsp[17] = SCANLAB_ROWS;
+            put16(rsp, 18, v16(23));
+            put16(rsp, 20, v16(24));
+            rsp[22] = (idleFlags & 0x1f) << 2;
+        } else if (op === 0x12) {
+            rsp[0] = idleFlags;
+            rsp[5] = this.state.rgb[0];
+            rsp[4] = this.state.rgb[0];
+            rsp[7] = 1;
+            rsp[21] = 125;
+            rsp[22] = [48, 24, 12][Math.min(2, c[30 * 2])];
+        }
+        // Firmware before the debounce switch copies 23 bytes back.
+        const n = Math.min(Math.max(0, length - 3), this.debounceSwitch ? SCANLAB_RSP_LEN : SCANLAB_RSP_LEN - 1);
+        args.set(rsp.subarray(0, n));
     }
 
     /** via_qmk_rgblight_command (quantum/via.c): brightness, effect, speed, color. */

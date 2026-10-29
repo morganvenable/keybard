@@ -21,6 +21,8 @@ export const ID_IDLE_CPU_SLEEP = 27;
 export const ID_IDLE_LOW_CLOCK = 28;
 export const ID_IDLE_LONG_NAP = 29;
 export const ID_SCAN_DEEP_CLOCK_IDX = 30;
+/** Debounce the optical keys (1, the default) or not (0); the thumb Double Down always is. */
+export const ID_OPTICAL_DEBOUNCE = 48;
 export const DEEP_CLOCK_CHOICES_MHZ = [48, 24, 12] as const;
 
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */
@@ -68,7 +70,8 @@ const OP = {
     PROBE_OFF: 0x60,
 } as const;
 
-const RESPONSE_BYTES = 23;
+// STATUS fills 24 bytes on firmware with the debounce switch (byte 23); older firmware sends 23, so byte 23 reads zero.
+const RESPONSE_BYTES = 24;
 const UNREACHABLE = 0xff;
 
 export interface ScanLabStatus {
@@ -90,6 +93,10 @@ export interface ScanLabStatus {
     savedPostwaitUs: number;
     turboIndex: number;
     otherHalfConnected: boolean;
+    /** The firmware has the optical debounce switch (STATUS byte 23 bit 0). */
+    debounceSwitch: boolean;
+    /** This half debounces its optical keys now (byte 23 bit 1): the other half shows the mode it took from the USB half. */
+    opticalDebounceOn: boolean;
 }
 
 const WIRE_CAP = 0xffff;
@@ -234,6 +241,7 @@ export class ScanLabService {
                 framesDone: 0, framesTarget: 0, refValid: false, effPrewaitUs: 0, effPostwaitUs: 0,
                 isLeft: false, fingerPushedMask: 0, thumbPushedMask: 0, probeValid: false, probeRow: 0,
                 savedPrewaitUs: 0, savedPostwaitUs: 0, turboIndex: 0, otherHalfConnected: false,
+                debounceSwitch: false, opticalDebounceOn: false,
             };
         }
         return {
@@ -255,6 +263,8 @@ export class ScanLabService {
             savedPostwaitUs: u16(b, 19),
             turboIndex: b[21],
             otherHalfConnected: b[22] === 1,
+            debounceSwitch: ((b[23] ?? 0) & 1) !== 0,
+            opticalDebounceOn: ((b[23] ?? 0) & 2) !== 0,
         };
     }
 
@@ -345,6 +355,18 @@ export class ScanLabService {
             sysClockMhz: b[21] > 0 ? b[21] : null,
             deepClockMhz: b[22] > 0 ? b[22] : null,
         };
+    }
+
+    /** The saved optical debounce mode (VIA value 48), as the half with USB holds it. */
+    async getOpticalDebounce(): Promise<boolean> {
+        const b = await this.usb.customValueGet(KEYBOARD_CHANNEL, ID_OPTICAL_DEBOUNCE, 1);
+        return b[0] !== 0;
+    }
+
+    /** Debounce the optical keys or not, and save; the other half follows within a presence ping. */
+    async setOpticalDebounce(on: boolean): Promise<void> {
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_OPTICAL_DEBOUNCE, [on ? 1 : 0]);
+        await this.usb.customValueSave(KEYBOARD_CHANNEL);
     }
 
     /** Pick the deep-idle clock (index into DEEP_CLOCK_CHOICES_MHZ) and save. */

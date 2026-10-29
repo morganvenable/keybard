@@ -17,6 +17,7 @@ const status = (over: Partial<ScanLabStatus>): ScanLabStatus => ({
     reachable: true, protoVersion: 1, hwRevision: 1, sweepState: 0, framesDone: 0, framesTarget: 0, refValid: false,
     effPrewaitUs: 200, effPostwaitUs: 200, isLeft: true, fingerPushedMask: 0b000100, thumbPushedMask: 0,
     probeValid: false, probeRow: 0, savedPrewaitUs: 200, savedPostwaitUs: 200, turboIndex: 0, otherHalfConnected: true,
+    debounceSwitch: false, opticalDebounceOn: false,
     ...over,
 });
 
@@ -40,6 +41,8 @@ const svc = vi.hoisted(() => ({
     runSweepStep: vi.fn(),
     abort: vi.fn(),
     applyTiming: vi.fn(),
+    getOpticalDebounce: vi.fn(),
+    setOpticalDebounce: vi.fn(),
 }));
 
 const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
@@ -52,6 +55,48 @@ const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
 vi.mock('@/services/scanlab.service', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@/services/scanlab.service')>();
     return { ...actual, scanlabService: svc };
+});
+
+describe('ScanLabPanel debounce switch', () => {
+    let mode = true;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        keyboardContext.isConnected = true;
+        mode = true;
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0, debounceSwitch: true, opticalDebounceOn: mode }));
+        svc.getOpticalDebounce.mockImplementation(async () => mode);
+        svc.setOpticalDebounce.mockImplementation(async (on: boolean) => { mode = on; });
+        svc.getPower.mockResolvedValue(powerReading({ reachable: false }));
+        svc.getIdle.mockResolvedValue({ reachable: false });
+    });
+
+    it('shows the saved mode, writes a change and reads both halves back', async () => {
+        render(<ScanLabPanel />);
+        const box = await screen.findByTestId('debounce-optical');
+        expect(screen.getByTestId('debounce-section')).toHaveTextContent('Debounce (optical keys)');
+        expect(screen.getByTestId('debounce-section')).toHaveTextContent('The thumb Double Down is always debounced.');
+        expect(box).toBeChecked();
+        fireEvent.click(box);
+        await waitFor(() => expect(svc.setOpticalDebounce).toHaveBeenCalledWith(false));
+        await waitFor(() => expect(screen.getByTestId('debounce-optical')).not.toBeChecked());
+        await waitFor(() => expect(svc.getStatus.mock.calls.length).toBeGreaterThanOrEqual(4), { timeout: 2000 });
+        expect(screen.queryByTestId('debounce-half-note')).toBeNull();
+    });
+
+    it('says which half has not followed yet', async () => {
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0, debounceSwitch: true, opticalDebounceOn: hand === 0 ? !mode : mode }));
+        render(<ScanLabPanel />);
+        expect(await screen.findByTestId('debounce-half-note')).toHaveTextContent('Left half: still off; it follows within a second.');
+    });
+
+    it('is hidden when no half has the switch', async () => {
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0 }));
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getStatus).toHaveBeenCalledTimes(2));
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByTestId('debounce-section')).toBeNull();
+        expect(svc.getOpticalDebounce).not.toHaveBeenCalled();
+    });
 });
 
 describe('ScanLabPanel', () => {

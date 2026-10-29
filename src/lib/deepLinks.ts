@@ -15,6 +15,8 @@
  *   pause typing for the matrix tester. Its settings stay in this browser
  *   across reloads.
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
+ * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
+ *   with ?panel=settings and the old panel names).
  * - ?testerNote=a|b|c picks the look of the matrix tester's note (A by default).
  */
 import type { ResolvedTheme } from "@/lib/theme";

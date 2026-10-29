@@ -65,6 +65,9 @@ const mono = "font-mono tabular-nums";
 const fmtMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)} s` : `${ms} ms`);
 const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`);
 
+/** The other half takes a debounce change from the presence ping, every 0.5 s: read both halves back after this. */
+const DEBOUNCE_SYNC_MS = 700;
+
 /** How long the armed reboot button waits for its confirming click. Generous so scripted clicks fit too. */
 const REBOOT_CONFIRM_WINDOW_MS = 20000;
 
@@ -95,6 +98,8 @@ const ScanLabPanel = () => {
     const [rebootArmedFor, setRebootArmedFor] = useState<Hand | null>(null);
     const [rebootNote, setRebootNote] = useState<string | null>(null);
     const pacingSeededRef = useRef(false);
+    // The saved optical debounce mode; null when no half's firmware has the switch.
+    const [debounceOn, setDebounceOn] = useState<boolean | null>(null);
     // Per-browser current model (baseline mA, mA per lit row) so the panel can
     // turn measured duty into an expected total current without the ammeter.
     const [baselineMa, setBaselineMa] = useState(() => {
@@ -120,6 +125,16 @@ const ScanLabPanel = () => {
             }
         }
         setStatus(next);
+        if (HANDS.some((h) => next[h]?.reachable && next[h]?.debounceSwitch)) {
+            try {
+                setDebounceOn(await scanlabService.getOpticalDebounce());
+            } catch (e) {
+                setDebounceOn(null);
+                setError(e instanceof Error ? e.message : String(e));
+            }
+        } else {
+            setDebounceOn(null);
+        }
         const any = next[0]?.reachable ? next[0] : next[1];
         if (any) {
             setApplyPre(any.savedPrewaitUs || any.effPrewaitUs);
@@ -246,6 +261,14 @@ const ScanLabPanel = () => {
             await refreshPower();
         });
 
+    const handleDebounce = (on: boolean) =>
+        run(on ? "Turning optical debounce on…" : "Turning optical debounce off…", async () => {
+            await scanlabService.setOpticalDebounce(on);
+            setDebounceOn(on);
+            await new Promise((r) => setTimeout(r, DEBOUNCE_SYNC_MS));
+            await refreshStatus();
+        });
+
     const handleIdleFeature = (feature: IdleFeature, on: boolean) => {
         const f = IDLE_FEATURES.find((x) => x.key === feature)!;
         return run(`${on ? "Enabling" : "Disabling"} ${f.label.toLowerCase()}…`, async () => {
@@ -355,6 +378,26 @@ const ScanLabPanel = () => {
                     </div>
                 );
             })}
+        </div>
+    );
+
+    // Halves whose firmware lacks the switch, or that haven't taken the mode yet.
+    const debounceHalfNotes = debounceOn === null ? [] : HANDS.flatMap((h) => {
+        const s = status[h];
+        if (!s?.reachable) return [];
+        if (!s.debounceSwitch) return [`${HAND_NAMES[h]} half: its firmware has no debounce switch.`];
+        if (s.opticalDebounceOn !== debounceOn) return [`${HAND_NAMES[h]} half: still ${s.opticalDebounceOn ? "on" : "off"}; it follows within a second.`];
+        return [];
+    });
+
+    const debounceSection = debounceOn === null ? null : (
+        <div className="flex flex-col gap-1" data-testid="debounce-section">
+            <label className="flex items-center gap-2 text-sm font-medium text-kb-ink">
+                <input type="checkbox" checked={debounceOn} disabled={!!busy} onChange={(e) => handleDebounce(e.target.checked)} data-testid="debounce-optical" />
+                Debounce (optical keys)
+            </label>
+            <p className="text-xs text-muted-foreground">The thumb Double Down is always debounced.</p>
+            {debounceHalfNotes.map((n) => <p key={n} className="text-xs text-muted-foreground" data-testid="debounce-half-note">{n}</p>)}
         </div>
     );
 
@@ -673,7 +716,7 @@ const ScanLabPanel = () => {
     if (isHorizontal) {
         return (
             <div className="flex flex-row gap-4 items-start flex-wrap content-start">
-                <div className="flex flex-col gap-2 min-w-0 w-full max-w-[520px]">{statusCards}{feedback}{powerSection}{applySection}{firmwareSection}</div>
+                <div className="flex flex-col gap-2 min-w-0 w-full max-w-[520px]">{statusCards}{feedback}{debounceSection}{powerSection}{applySection}{firmwareSection}</div>
                 <div className="min-w-0 w-full max-w-[520px]">{probeSection}</div>
                 <div className="min-w-0 w-full max-w-[520px]">{sweepSection}</div>
                 <div className="min-w-0 w-full max-w-[520px]"><DeveloperTuningSection /></div>
@@ -689,6 +732,7 @@ const ScanLabPanel = () => {
                 </DescriptionBlock>
                 {statusCards}
                 {feedback}
+                {debounceSection}
                 {powerSection}
                 {probeSection}
                 {sweepSection}

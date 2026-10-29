@@ -45,13 +45,36 @@ describe('ScanLabService', () => {
     it('reads status for a hand with the hand encoded in the value id', async () => {
         const { usb, service } = makeService({ [`${SCANLAB_CHANNEL}:${0x10 | (1 << 3)}`]: statusBytes({ isLeft: 0, pre: 45, post: 60 }) });
         const st = await service.getStatus(1);
-        expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x18, 23);
+        expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x18, 24);
         expect(st.reachable).toBe(true);
         expect(st.hwRevision).toBe(1);
         expect(st.effPrewaitUs).toBe(45);
         expect(st.effPostwaitUs).toBe(60);
         expect(st.isLeft).toBe(false);
         expect(st.otherHalfConnected).toBe(true);
+        expect(st.debounceSwitch).toBe(false); // 23 bytes: firmware from before the switch
+        expect(st.opticalDebounceOn).toBe(false);
+    });
+
+    it('reads the debounce switch and this half\'s mode from STATUS byte 23', async () => {
+        const withCap = (cap: number) => [...statusBytes(), cap];
+        for (const [cap, has, on] of [[0, false, false], [1, true, false], [3, true, true]] as const) {
+            const { service } = makeService({ [`${SCANLAB_CHANNEL}:${0x10}`]: withCap(cap) });
+            const st = await service.getStatus(0);
+            expect(st.debounceSwitch).toBe(has);
+            expect(st.opticalDebounceOn).toBe(on);
+        }
+    });
+
+    it('reads and writes the optical debounce mode as VIA value 48 on channel 0, and saves', async () => {
+        const { usb, service } = makeService({ ['0:48']: [1] });
+        expect(await service.getOpticalDebounce()).toBe(true);
+        expect(usb.customValueGet).toHaveBeenCalledWith(0, 48, 1);
+        await service.setOpticalDebounce(false);
+        expect(usb.customValueSet).toHaveBeenCalledWith(0, 48, [0]);
+        expect(usb.customValueSave).toHaveBeenCalledWith(0);
+        await service.setOpticalDebounce(true);
+        expect(usb.customValueSet).toHaveBeenLastCalledWith(0, 48, [1]);
     });
 
     it('reports an unreachable half when the firmware answers 0xFF', async () => {
@@ -130,7 +153,7 @@ describe('ScanLabService power readout and pacing', () => {
     it('parses measured frame and LED-on times into duty and scan rate', async () => {
         const { usb, service } = makeService({ [`${SCANLAB_CHANNEL}:${0x11}`]: powerBytes() });
         const p = await service.getPower(0);
-        expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x11, 23);
+        expect(usb.customValueGet).toHaveBeenCalledWith(SCANLAB_CHANNEL, 0x11, 24);
         expect(p.reachable).toBe(true);
         expect(p.periodUs).toBe(1000);
         expect(p.idlePeriodMs).toBe(100);

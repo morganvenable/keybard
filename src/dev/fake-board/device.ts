@@ -17,6 +17,8 @@ export interface FakeSvalboardOptions {
     typingPause?: boolean;
     /** Firmware with the flicker latch (Sval 0x3D). Default true. */
     flickerLatch?: boolean;
+    /** Firmware with the optical debounce switch (VIA value 48, Scan Lab STATUS byte 23). Default true. */
+    debounceSwitch?: boolean;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -86,6 +88,7 @@ export class FakeSvalboardDevice extends EventTarget {
             comboLabels: options.comboLabels ?? true,
             typingPause: options.typingPause ?? true,
             flickerLatch: options.flickerLatch ?? true,
+            debounceSwitch: options.debounceSwitch ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
         });
