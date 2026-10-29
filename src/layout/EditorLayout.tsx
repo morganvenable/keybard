@@ -63,6 +63,7 @@ import {
     SCENE_SPREAD_MS,
     type LayerSceneState,
 } from "./layer-scene";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
 const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
@@ -964,6 +965,7 @@ const EditorLayoutInner = () => {
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (matrixTesterOpen()) return;
             // Check for Ctrl+V (or Cmd+V on Mac)
             if (!e.defaultPrevented && !e.repeat && !isEditorInput(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                 // Only handle if we have a layer in clipboard

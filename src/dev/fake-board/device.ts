@@ -13,6 +13,12 @@ export const FAKE_BOARD_REPORT_LENGTH = 32;
 export interface FakeSvalboardOptions {
     /** Firmware with combo names (label type 3, GET_INFO flags2 bit 7). Default true. */
     comboLabels?: boolean;
+    /** Firmware with the typing pause (Sval 0x3C). Default true. */
+    typingPause?: boolean;
+    /** Firmware with the flicker latch (Sval 0x3D). Default true. */
+    flickerLatch?: boolean;
+    /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
+    reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
     state?: FakeBoardState;
     /** Keep the settings in localStorage after every write. Default: true unless `state` is given. */
@@ -51,16 +57,24 @@ export class FakeSvalboardDevice extends EventTarget {
     readonly vendorId = FAKE_BOARD_VENDOR_ID;
     readonly productId = FAKE_BOARD_PRODUCT_ID;
     readonly productName = FAKE_BOARD_PRODUCT_NAME;
-    readonly collections: HIDCollectionInfo[] = [rawHidCollection(FAKE_BOARD_REPORT_LENGTH)];
+    readonly reportLength: number;
+    readonly collections: HIDCollectionInfo[];
     readonly firmware: FakeSvalFirmware;
     /** Every report sent to the board, for tests (newest last; up to 2000 kept). */
     readonly sent: Uint8Array[] = [];
+    /**
+     * Extra time before each reply, in ms (0: none). The e2e tests set the round
+     * trip measured on the trackball test board: about 3 ms for a wrapped request.
+     */
+    replyDelayMs = 0;
     private isOpen = false;
     private persisting: boolean;
     private readonly schedule: (fn: () => void) => void;
 
     constructor(options: FakeSvalboardOptions = {}) {
         super();
+        this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
+        this.collections = [rawHidCollection(this.reportLength)];
         const persist = options.persist ?? !options.state;
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
@@ -70,6 +84,8 @@ export class FakeSvalboardDevice extends EventTarget {
         }
         this.firmware = new FakeSvalFirmware(state, {
             comboLabels: options.comboLabels ?? true,
+            typingPause: options.typingPause ?? true,
+            flickerLatch: options.flickerLatch ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
         });
@@ -110,8 +126,8 @@ export class FakeSvalboardDevice extends EventTarget {
         if (!this.isOpen) throw new DOMException("The device must be opened first.", "InvalidStateError");
         const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
         // A report is always the descriptor's length; shorter data is zero-padded, as the OS does.
-        const report = new Uint8Array(FAKE_BOARD_REPORT_LENGTH);
-        report.set(bytes.subarray(0, FAKE_BOARD_REPORT_LENGTH));
+        const report = new Uint8Array(this.reportLength);
+        report.set(bytes.subarray(0, this.reportLength));
         this.sent.push(report);
         if (this.sent.length > 2000) this.sent.splice(0, this.sent.length - 2000);
         if (reportId !== 0) return;
@@ -123,7 +139,9 @@ export class FakeSvalboardDevice extends EventTarget {
             console.error("[fake board] The simulated firmware failed on a report:", e);
             reply = null;
         }
-        if (reply) this.schedule(() => this.deliver(reply!));
+        if (!reply) return;
+        if (this.replyDelayMs > 0) setTimeout(() => this.deliver(reply!), this.replyDelayMs);
+        else this.schedule(() => this.deliver(reply!));
     }
 
     async sendFeatureReport(): Promise<void> {
@@ -136,7 +154,7 @@ export class FakeSvalboardDevice extends EventTarget {
 
     private deliver(reply: Uint8Array) {
         if (!this.isOpen) return;
-        const buffer = new ArrayBuffer(FAKE_BOARD_REPORT_LENGTH);
+        const buffer = new ArrayBuffer(this.reportLength);
         new Uint8Array(buffer).set(reply);
         const event = new Event("inputreport") as HIDInputReportEvent;
         Object.defineProperties(event, {

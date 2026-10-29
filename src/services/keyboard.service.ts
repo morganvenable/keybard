@@ -8,6 +8,8 @@ import { payloadCapacity } from "./hid-report";
 
 import LZMA from "js-lzma";
 import { assertSupportedSvilProto } from "@/utils/unsupported-firmware";
+import { CMD_SVIL_FLICKER_LATCH, FLICKER_COUNTS, FLICKER_READ, hasFlickerLatch, parseFlickerCounts, parseFlickerRead, type FlickerCounts, type FlickerRead } from "@/services/flicker-latch";
+import { CMD_SVIL_TYPING_PAUSE, hasTypingPause, parseTypingPauseReply, type TypingPauseReply } from "@/services/typing-pause";
 import { parsePointingHardware, SVIL_FLAG2_POINTING_HARDWARE } from "@/utils/pointing-hardware";
 import { parsePointingContacts, SVIL_FLAG2_POINTING_CONTACTS, withPadContacts, type PointingContactsReport } from "@/utils/pointing-contacts";
 import { KEYBARD_MOTION_READER, parsePointingMotion, SVIL_FLAG2_POINTING_MOTION, SVIL_FLAG2_POINTING_MOTION_READERS, type PointingMotionReport } from "@/utils/pointing-motion";
@@ -243,6 +245,8 @@ export class KeyboardService {
         kbinfo.feature_flags = svilInfo[13]; // Skip cmd_echo
         // [feature_flags2:1] follows the storage flags byte; older firmware sends zero.
         kbinfo.feature_flags2 = svilInfo[18] ?? 0;
+        // [feature_flags3:1] (GET_INFO byte 20) after it; older firmware sends zero.
+        kbinfo.feature_flags3 = svilInfo[19] ?? 0;
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
@@ -508,6 +512,37 @@ export class KeyboardService {
             kmpressed.push(rowpressed);
         }
         return kmpressed;
+    }
+
+    /** Whether the board can pause its typing while the matrix tester is open (TYPING_PAUSE). */
+    hasTypingPause(kbinfo: KeyboardInfo | null | undefined): boolean {
+        return hasTypingPause(kbinfo?.feature_flags3);
+    }
+
+    /**
+     * TYPING_PAUSE (0x3C): op 0 off, 1 on (or renew), 2 status. Null on a reply
+     * that isn't one (firmware without the command answers 0xFF).
+     */
+    async typingPause(op: number): Promise<TypingPauseReply | null> {
+        const reply = await this.usb.sendSvil(CMD_SVIL_TYPING_PAUSE, [op], { uint8: true }) as Uint8Array;
+        return parseTypingPauseReply(reply);
+    }
+
+    /** Whether the board reports every raw switch change (FLICKER_LATCH) over this connection. */
+    hasFlickerLatch(kbinfo: KeyboardInfo | null | undefined): boolean {
+        return hasFlickerLatch(kbinfo?.feature_flags3, this.usb.reportLength);
+    }
+
+    /** FLICKER_LATCH read: raw rows and the latches of both halves (cleared by the read). */
+    async readFlickerLatch(): Promise<FlickerRead | null> {
+        const reply = await this.usb.sendSvil(CMD_SVIL_FLICKER_LATCH, [FLICKER_READ], { uint8: true }) as Uint8Array;
+        return parseFlickerRead(reply);
+    }
+
+    /** FLICKER_LATCH counts of one half (0 left, 1 right), cleared by the read. */
+    async readFlickerCounts(half: number, kbinfo: KeyboardInfo): Promise<FlickerCounts | null> {
+        const reply = await this.usb.sendSvil(CMD_SVIL_FLICKER_LATCH, [FLICKER_COUNTS, half], { uint8: true }) as Uint8Array;
+        return parseFlickerCounts(reply, Math.floor(kbinfo.rows / 2), kbinfo.cols);
     }
 
     async getLayerStateMask(): Promise<number> {

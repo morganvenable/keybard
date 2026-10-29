@@ -59,7 +59,6 @@ interface KeyboardContextType {
     /** Writes runs of keycodes a message at a time; null unless a keyboard is connected and loaded. */
     getKeyBlockWriter: () => KeyBlockWriter | null;
     pollMatrix: () => Promise<boolean[][]>;
-    lastHeartbeat: number;
     activeLayerIndex: number | null;
     /** The board's default layer, when it reports one. */
     defaultLayerIndex: number | null;
@@ -156,9 +155,10 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, []);
     const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
     const [isImporting, setIsImporting] = useState(false);
-    const [lastHeartbeat, setLastHeartbeat] = useState<number>(0);
     const [activeLayerIndex, setActiveLayerIndex] = useState<number | null>(null);
     const [defaultLayerIndex, setDefaultLayerIndex] = useState<number | null>(null);
+    const activeLayerRef = useRef<number | null>(null);
+    const defaultLayerRef = useRef<number | null>(null);
     const isWebHIDSupported = KeyboardService.isWebHIDSupported();
 
     // Tracks the in-flight loadKeyboard promise. Multiple components mounted
@@ -475,9 +475,9 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const pollMatrix = useCallback(async () => {
         if (!keyboard || !isConnected) return [];
-        const result = await keyboardService.pollMatrix(keyboard);
-        setLastHeartbeat(Date.now());
-        return result;
+        // No state is set here: a poll runs many times a second, and every
+        // useKeyboard consumer would render again for each one.
+        return keyboardService.pollMatrix(keyboard);
     }, [keyboard, isConnected]);
 
     useEffect(() => {
@@ -491,14 +491,22 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
                     const { active, defaultLayer } = await keyboardService.getLayerIndexes(keyboard);
-                    if (isActive) {
+                    // Set only on a change: the poll runs about 8 times a second, and even an
+                    // unchanged value makes React render and commit again.
+                    if (isActive && active !== activeLayerRef.current) {
+                        activeLayerRef.current = active;
                         setActiveLayerIndex(active);
+                    }
+                    if (isActive && defaultLayer !== defaultLayerRef.current) {
+                        defaultLayerRef.current = defaultLayer;
                         setDefaultLayerIndex(defaultLayer);
                     }
                 } catch (error) {
                     console.warn("Layer state polling error:", error);
                 }
-            } else if (isActive) {
+            } else if (isActive && (activeLayerRef.current !== null || defaultLayerRef.current !== null)) {
+                activeLayerRef.current = null;
+                defaultLayerRef.current = null;
                 setActiveLayerIndex(null);
                 setDefaultLayerIndex(null);
             }
@@ -564,7 +572,9 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return () => window.removeEventListener("beforeunload", warn);
     }, [hasUnsavedChanges]);
 
-    const value: KeyboardContextType = {
+    const connected = isConnected && connectionState === "connected";
+    // Memoized, so a render of the provider that changes nothing doesn't render every consumer.
+    const value: KeyboardContextType = React.useMemo(() => ({
         keyboard,
         setKeyboard,
         originalKeyboard,
@@ -581,7 +591,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isChangingTarget,
         runDeviceMaintenance,
         hasUnsavedChanges,
-        isConnected: isConnected && connectionState === "connected",
+        isConnected: connected,
         isWebHIDSupported,
         isImporting,
         setIsImporting,
@@ -594,10 +604,15 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateKey,
         getKeyBlockWriter,
         pollMatrix,
-        lastHeartbeat,
         activeLayerIndex,
         defaultLayerIndex,
-    };
+    }), [
+        keyboard, setKeyboard, originalKeyboard, resetToOriginal, markAsSaved, getKeyboardSnapshot, connectionState,
+        connectionError, connectionFix, connectionFirmware, dismissConnectionError, connectionSessionId,
+        registerTargetChangeGuard, isChangingTarget, runDeviceMaintenance, hasUnsavedChanges, connected,
+        isWebHIDSupported, isImporting, setIsImporting, loadedFrom, connect, connectDevice, disconnect, loadKeyboard,
+        loadFromFile, updateKey, getKeyBlockWriter, pollMatrix, activeLayerIndex, defaultLayerIndex,
+    ]);
 
     return <KeyboardContext.Provider value={value}>{children}</KeyboardContext.Provider>;
 };

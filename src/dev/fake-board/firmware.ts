@@ -42,6 +42,23 @@ export const FEATURE_FLAGS = 0x01 | 0x02 | 0x08 | 0x40;
 // combo labels (bit 7) on the combo-labels branch.
 export const FLAG2_BASE = 0x01 | 0x02 | 0x04 | 0x08;
 export const FLAG2_COMBO_LABELS = 0x80;
+// flags3 (GET_INFO byte 20): typing pause (0x3C), bit 2.
+export const FLAG3_TYPING_PAUSE = 0x04;
+// flags3 bit 3: flicker latch (0x3D).
+export const FLAG3_FLICKER_LATCH = 0x08;
+const MATRIX_COLS = 6;
+const HALF_ROWS = 5;
+// keyboards/svalboard/typing_pause.h: the lease after the owner's last packet,
+// and how long output stays held back once a pause ends.
+export const TYPING_PAUSE_LEASE_MS = 1500;
+export const TYPING_PAUSE_DRAIN_MS = 500;
+
+/** A TYPING_PAUSE request the board received, for tests. */
+export interface TypingPauseRequest {
+    op: number;
+    client: number;
+    at: number;
+}
 
 // ---- VIA (quantum/via.h) ----------------------------------------------------
 const VIA_PROTOCOL_VERSION = 0x000d;
@@ -71,6 +88,10 @@ export interface FakeFirmwareOptions {
      * it, VIA's keymap reset answers as unhandled.
      */
     factoryKeymap?: Uint8Array;
+    /** Firmware with the typing pause (Sval 0x3C, GET_INFO byte 20 bit 2). Default true. */
+    typingPause?: boolean;
+    /** Firmware with the flicker latch (Sval 0x3D, GET_INFO byte 20 bit 3). Default true. */
+    flickerLatch?: boolean;
 }
 
 /** A Sval table (TABLE_SCAN ids 0-4): its storage, entry size and "in use" test. */
@@ -136,6 +157,24 @@ const CUSTOM_WRITABLE = (id: number) => (id <= 14) || (id >= 20 && id <= 30) || 
 /** Byte-level model of the board's raw HID protocol. */
 export class FakeSvalFirmware {
     readonly comboLabels: boolean;
+    readonly typingPause: boolean;
+    readonly flickerLatch: boolean;
+    /** Switches held down now ("row,col"), for VIA's matrix state and the latch's raw rows. */
+    readonly pressed = new Set<string>();
+    /** The flicker latch (flicker_latch.c): pressed and released since the last read, and change counts. */
+    private latchPressed = new Uint8Array(ROWS);
+    private latchReleased = new Uint8Array(ROWS);
+    private changes = new Uint8Array(ROWS * MATRIX_COLS);
+    /** Reads of the latch, for tests. */
+    latchReads = 0;
+    /** Every TYPING_PAUSE request, oldest first. */
+    readonly pauseRequests: TypingPauseRequest[] = [];
+    private pauseOwner = 0;
+    private pauseOwnerSeen = 0;
+    private pauseEndedAt: number | null = null;
+    private pausePaused = false;
+    private pauseLastEnd = 0;
+    private currentClient = 0;
     /** Live layer state (layer_state): never saved, as in QMK. */
     layerState = 0;
     private idCounter: number;
@@ -147,6 +186,8 @@ export class FakeSvalFirmware {
 
     constructor(readonly state: FakeBoardState, options: FakeFirmwareOptions = {}) {
         this.comboLabels = options.comboLabels ?? true;
+        this.typingPause = options.typingPause ?? true;
+        this.flickerLatch = options.flickerLatch ?? true;
         this.onChange = options.onChange;
         this.factoryKeymap = options.factoryKeymap;
         const start = Date.now();
@@ -157,6 +198,126 @@ export class FakeSvalFirmware {
 
     get macroBufferSize(): number {
         return this.comboLabels ? MACRO_BUFFER_SIZE : MACRO_BUFFER_SIZE_NO_COMBO_LABELS;
+    }
+
+    get featureFlags3(): number {
+        return (this.typingPause ? FLAG3_TYPING_PAUSE : 0) | (this.flickerLatch ? FLAG3_FLICKER_LATCH : 0);
+    }
+
+    private count(row: number, col: number) {
+        const i = row * MATRIX_COLS + col;
+        if (this.changes[i] < 255) this.changes[i]++;
+    }
+
+    /** A switch goes down (one raw scan saw it), as the firmware's scan would record it. */
+    press(row: number, col: number): void {
+        const k = `${row},${col}`;
+        if (this.pressed.has(k)) return;
+        this.pressed.add(k);
+        this.latchPressed[row] |= 1 << col;
+        this.count(row, col);
+    }
+
+    /** A switch goes up. */
+    release(row: number, col: number): void {
+        const k = `${row},${col}`;
+        if (!this.pressed.has(k)) return;
+        this.pressed.delete(k);
+        this.latchReleased[row] |= 1 << col;
+        this.count(row, col);
+    }
+
+    /** A bounce of one scan: down and up again between two reads. */
+    flicker(row: number, col: number): void {
+        this.press(row, col);
+        this.release(row, col);
+    }
+
+    private rawRow(row: number): number {
+        let bits = 0;
+        for (let col = 0; col < 8; col++) if (this.pressed.has(`${row},${col}`)) bits |= 1 << col;
+        return bits;
+    }
+
+    /** sval_flicker_command: data after [0xDF][0x3D]. */
+    private flickerCommand(data: Uint8Array, length: number): void {
+        if (length < 4 + 3 * ROWS || length < 4 + HALF_ROWS * MATRIX_COLS) {
+            if (length > 1) data[1] = 3;
+            return;
+        }
+        const op = data[0], arg = data[1];
+        data.fill(0, 1, length);
+        if (op === 0) {
+            this.latchReads++;
+            data[2] = 3; // both halves
+            data[3] = ROWS;
+            for (let r = 0; r < ROWS; r++) {
+                data[4 + r] = this.rawRow(r);
+                data[4 + ROWS + r] = this.latchPressed[r];
+                data[4 + 2 * ROWS + r] = this.latchReleased[r];
+            }
+            this.latchPressed.fill(0);
+            this.latchReleased.fill(0);
+        } else if (op === 1 && arg <= 1) {
+            data[2] = 1;
+            data[3] = arg;
+            const from = arg * HALF_ROWS * MATRIX_COLS;
+            data.set(this.changes.subarray(from, from + HALF_ROWS * MATRIX_COLS), 4);
+            this.changes.fill(0, from, from + HALF_ROWS * MATRIX_COLS);
+        } else {
+            data[1] = 1;
+        }
+    }
+
+    /**
+     * The typing pause now (typing_pause.c): "paused" until the owner has been
+     * quiet for the lease, then "ending" for the drain time, then "off".
+     */
+    typingPauseState(): "off" | "paused" | "ending" {
+        const now = this.timer();
+        if (this.pausePaused && now - this.pauseOwnerSeen >= TYPING_PAUSE_LEASE_MS) {
+            this.pausePaused = false;
+            this.pauseEndedAt = this.pauseOwnerSeen + TYPING_PAUSE_LEASE_MS;
+            this.pauseLastEnd = 2; // the owner went quiet
+        }
+        if (this.pausePaused) return "paused";
+        if (this.pauseEndedAt !== null && now - this.pauseEndedAt < TYPING_PAUSE_DRAIN_MS) return "ending";
+        this.pauseEndedAt = null;
+        return "off";
+    }
+
+    /** sval_typing_pause_command: data after [0xDF][0x3C]. */
+    private typingPauseCommand(data: Uint8Array, length: number): void {
+        if (length < 16) {
+            if (length > 1) data[1] = 3;
+            return;
+        }
+        const op = data[0];
+        this.pauseRequests.push({ op, client: this.currentClient, at: this.timer() });
+        if (this.pauseRequests.length > 2000) this.pauseRequests.splice(0, this.pauseRequests.length - 2000);
+        data.fill(0, 1, length);
+        let status = 0;
+        const state = this.typingPauseState();
+        if (op === 1) {
+            this.pausePaused = true;
+            this.pauseEndedAt = null;
+            this.pauseOwner = this.currentClient;
+            this.pauseOwnerSeen = this.timer();
+        } else if (op === 0) {
+            if (state === "paused") {
+                this.pausePaused = false;
+                this.pauseEndedAt = this.timer();
+                this.pauseLastEnd = 1;
+            }
+        } else if (op !== 2) {
+            status = 1;
+        }
+        const now = this.typingPauseState();
+        data[1] = status;
+        data[2] = now === "paused" ? 1 : now === "ending" ? 2 : 0;
+        data[3] = this.pauseLastEnd;
+        data[4] = now !== "off" && this.pauseOwner === this.currentClient ? 1 : 0;
+        put16(data, 5, now === "paused" ? Math.max(0, TYPING_PAUSE_LEASE_MS - (this.timer() - this.pauseOwnerSeen)) : 0);
     }
 
     get featureFlags2(): number {
@@ -221,6 +382,9 @@ export class FakeSvalFirmware {
             return data;
         }
         if (!this.validId(clientId)) return this.sendError(clientId, CLIENT_ERR_INVALID_ID, data);
+        // sval_client_packet_kb: only the owner's packets keep the typing pause on.
+        this.currentClient = clientId;
+        if (this.typingPauseState() === "paused" && clientId === this.pauseOwner) this.pauseOwnerSeen = this.timer();
         const protocol = data[5];
         if (protocol === SVAL_PREFIX) {
             this.svalCommand(data.subarray(5), length - 5);
@@ -268,10 +432,14 @@ export class FakeSvalFirmware {
                     case 0x04: // id_firmware_version (VIA_FIRMWARE_VERSION 0)
                         cd[1] = cd[2] = cd[3] = cd[4] = 0;
                         break;
-                    case 0x03: { // id_switch_matrix_state: nothing pressed (no VIA_INSECURE)
+                    case 0x03: { // id_switch_matrix_state (VIA_INSECURE): one byte per row, bit = column
                         const offset = cd[1];
                         let i = 2;
-                        for (let row = 0; row < 28 && row + offset < ROWS; row++) cd[i++] = 0;
+                        for (let row = 0; row < 28 && row + offset < ROWS; row++) {
+                            let bits = 0;
+                            for (let col = 0; col < 8; col++) if (this.pressed.has(`${row + offset},${col}`)) bits |= 1 << col;
+                            cd[i++] = bits;
+                        }
                         break;
                     }
                     case 0x06: // id_keycodes_version (QMK_KEYCODES_VERSION_BCD)
@@ -496,6 +664,7 @@ export class FakeSvalFirmware {
                 data[17] = KEYCODES_VERSION[2];
                 data[18] = s.storageFlags & 0x05; // bit 1 (write failed) never happens here
                 data[19] = this.featureFlags2;
+                if (length > 20) data[20] = this.featureFlags3;
                 break;
             }
             case 0x2a: // STORAGE_RESET_CLEAR
@@ -675,6 +844,20 @@ export class FakeSvalFirmware {
                 break;
             case 0x1d: // LABEL_CLEAR
                 this.labelClear(data, length);
+                break;
+            case 0x3d: // FLICKER_LATCH
+                if (!this.flickerLatch) {
+                    data[1] = SVAL_CMD_ERROR;
+                    break;
+                }
+                if (length > 3) this.flickerCommand(data.subarray(2), length - 2);
+                break;
+            case 0x3c: // TYPING_PAUSE
+                if (!this.typingPause) {
+                    data[1] = SVAL_CMD_ERROR;
+                    break;
+                }
+                if (length > 3) this.typingPauseCommand(data.subarray(2), length - 2);
                 break;
             default:
                 // Unknown command (context layers 0x26-0x29 included: not modeled), and
