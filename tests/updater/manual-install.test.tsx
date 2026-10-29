@@ -118,7 +118,7 @@ describe("the manual install's state", () => {
         const { board, host } = setup();
         board.storageFlags = 0x04;
         const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
-        expect(await runManualAfterwards(host, s)).toEqual({ layout: "restored", trimmed: [] });
+        expect(await runManualAfterwards(host, s)).toEqual({ layout: "restored", trimmed: [], replaced: [], unavailable: [] });
         expect(host.events).toEqual(["restore", "flags:4", "0x2A"]);
         expect(board.storageFlags & 0x04).toBe(0);
     });
@@ -126,7 +126,7 @@ describe("the manual install's state", () => {
     it("the default layout writes nothing; with no reset notice (the same build again) nothing was reset, so the layout is as it was", async () => {
         const { host } = setup();
         const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards: "defaults" as const, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}" } };
-        expect(await runManualAfterwards(host, s)).toEqual({ layout: "kept", trimmed: [] });
+        expect(await runManualAfterwards(host, s)).toEqual({ layout: "kept", trimmed: [], replaced: [], unavailable: [] });
         expect(host.restores).toBe(0);
         expect(host.clears).toBe(0);
     });

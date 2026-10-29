@@ -10,21 +10,31 @@ import { FragmentComposerService } from './fragment-composer.service';
 import { KleService } from './kle.service';
 import { getClosestPresetColor } from '../utils/color-conversion';
 import { sameCombo } from '../utils/combo-names';
+import { boardMenuRefs, migrateCustomValues, type SettingReplacement } from './settings-migrate';
+import { customValueLabel, qmkSettingLabel } from '../utils/setting-labels';
 
 export interface ImportReview {
     keyboard: KeyboardInfo;
     errors: string[];
     warnings: string[];
     summary: string[];
+    /** Settings carried to the setting this firmware has in their place; their values are applied. */
+    replaced: SettingReplacement[];
+    /** Names of settings in the file that this firmware doesn't have; the keyboard keeps its own. */
+    unavailable: string[];
 }
+
+/** Table names as people say them, for the capacity errors. */
+const TABLE_NAMES = { macros: 'macros', combos: 'combos', tapdances: 'tap dances', key_overrides: 'key overrides', alt_repeat_keys: 'alt-repeat keys', leaders: 'leader sequences' } as const;
 
 /** Pure preflight: never queues commands or touches the device. */
 export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): ImportReview {
-    const errors: string[] = [], warnings: string[] = [];
+    const errors: string[] = [], warnings: string[] = [], unavailable: string[] = [];
+    let replaced: SettingReplacement[] = [];
     const summary = [`${file.layers ?? 0} layers`, `${file.macros?.length ?? 0} macros`, `${file.combos?.length ?? 0} combos`, `${file.tapdances?.length ?? 0} tap dances`, `${file.key_overrides?.length ?? 0} overrides`];
     if (file.alt_repeat_keys?.length) summary.push(`${file.alt_repeat_keys.length} alt-repeat keys`);
     if (file.leaders?.length) summary.push(`${file.leaders.length} leader sequences`);
-    if (!current) return { keyboard: structuredClone(file), errors, warnings, summary };
+    if (!current) return { keyboard: structuredClone(file), errors, warnings, summary, replaced, unavailable };
     const next = structuredClone(current);
     if (file.rows !== current.rows || file.cols !== current.cols) errors.push(`Matrix mismatch: file ${file.rows} × ${file.cols}; keyboard ${current.rows} × ${current.cols}. Automatic remapping is not supported.`);
     if ((file.layers ?? 0) > (current.layers ?? 0)) errors.push(`The file has ${file.layers} layers; this keyboard supports ${current.layers}.`);
@@ -41,7 +51,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count'], ['alt_repeat_keys','alt_repeat_key_count'], ['leaders','leader_count']] as const) {
         const incoming = file[field];
         if (!incoming) continue;
-        if (incoming.length > (current[count] ?? 0)) errors.push(`${field}: file has ${incoming.length} entries; keyboard supports ${current[count] ?? 0}.`);
+        if (incoming.length > (current[count] ?? 0)) errors.push(`The file has ${incoming.length} ${TABLE_NAMES[field]}; this keyboard holds ${current[count] ?? 0}.`);
         (next as any)[field] = Array.from({ length: Math.max(current[field]?.length ?? 0, incoming.length) }, (_, index) => incoming[index] ?? current[field]?.[index]);
     }
     if (file.macros?.some(macro => macro.actions.some(action => action[0] === 'text' && /[^\x20-\x7e]/.test(String(action[1]))))) {
@@ -79,24 +89,29 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     next.settings = { ...current.settings };
     for (const [id, value] of Object.entries(file.settings ?? {})) {
         if (Object.prototype.hasOwnProperty.call(current.settings ?? {}, id)) next.settings[Number(id)] = value;
-        else warnings.push(`QMK setting ${id} is not supported by this keyboard and will be skipped.`);
+        else unavailable.push(qmkSettingLabel(Number(id)));
     }
     // One-shot timeout and tap toggle are QMK settings 6 and 5, restored with the others.
     // Files may also hold an older one-shot block that no Keybard screen could set; the settings win.
     if (next.one_shot && next.settings && 5 in next.settings && 6 in next.settings) next.one_shot = { timeout: next.settings[6], tap_toggle: next.settings[5] };
-    const menuItems = new Map(customValueService.extractAllItemsWithRefs(current.menus ?? []).map(({ item, ref }) => [ref.key, item]));
+    const boardRefs = boardMenuRefs(current.menus);
+    const menuItems = new Map([...boardRefs].map(([key, { item }]) => [key, item]));
+    // Settings a firmware release replaced land on their replacement, either way round.
+    const migrated = migrateCustomValues(file.custom_values ?? [], boardRefs);
+    replaced = migrated.replaced;
     // Layer colors are custom values on the board; the file loader keeps them in layer_colors.
     const layerColorValues = (file.layer_colors ?? []).flatMap((color, layer) =>
         color && layer < (current.layers ?? 0) ? [{ key: `id_layer${layer}_color`, channel: 0, valueId: 0, data: [color.hue, color.sat] }] : []);
-    const supportedValues = [...(file.custom_values ?? []), ...layerColorValues].filter(entry => {
+    const supportedValues = [...migrated.values, ...layerColorValues].filter(entry => {
         if (menuItems.has(entry.key)) {
+            const name = customValueLabel(entry.key, current.menus);
             const width = customValueService.getByteWidth(menuItems.get(entry.key)!);
-            if (entry.data.length !== width && !(entry.data.length === 1 && width > 1)) errors.push(`Setting ${entry.key} has ${entry.data.length} bytes; the keyboard expects ${width}.`);
-            if (entry.data.length === 1 && entry.data[0] >= 2 ** (8 * width)) errors.push(`Setting ${entry.key} exceeds the keyboard’s ${width}-byte value capacity.`);
-            if (!Array.isArray(entry.data) || !entry.data.length || entry.data.some(value => !Number.isInteger(value) || value < 0 || (entry.data.length > 1 && value > 255))) errors.push(`Setting ${entry.key} contains invalid value bytes.`);
+            if (entry.data.length !== width && !(entry.data.length === 1 && width > 1)) errors.push(`The setting ${name} has ${entry.data.length} bytes; the keyboard expects ${width}.`);
+            if (entry.data.length === 1 && entry.data[0] >= 2 ** (8 * width)) errors.push(`The setting ${name} exceeds the keyboard’s ${width}-byte value capacity.`);
+            if (!Array.isArray(entry.data) || !entry.data.length || entry.data.some(value => !Number.isInteger(value) || value < 0 || (entry.data.length > 1 && value > 255))) errors.push(`The setting ${name} contains invalid value bytes.`);
             return true;
         }
-        warnings.push(`Setting ${entry.key} is not supported by this keyboard and will be skipped.`);
+        unavailable.push(customValueLabel(entry.key, file.menus));
         return false;
     });
     next.custom_values = [...(current.custom_values ?? []).filter(entry => !supportedValues.some(value => value.key === entry.key)), ...supportedValues];
@@ -112,7 +127,9 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     for (const [field, kind, count] of [['layer','layer',file.layers], ['macros','macro',file.macros?.length], ['tapdances','tapdance',file.tapdances?.length]] as const) {
         if (!file.cosmetic?.[field]) continue;
         if ((current.svil_proto ?? 0) < 2) {
-            warnings.push(`${kind} names cannot be restored to this firmware and will be kept from the keyboard.`);
+            const named = Object.values(file.cosmetic[field] ?? {}).filter(name => String(name ?? '').trim()).length;
+            const what = kind === 'tapdance' ? 'tap dance' : kind;
+            if (named) warnings.push(`${named} ${what} name${named === 1 ? '' : 's'} can't be stored on this firmware, so the keyboard keeps its own.`);
             continue;
         }
         const map = { ...current.cosmetic?.[field] };
@@ -140,7 +157,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
         if (Object.keys(map).length || current.cosmetic?.combos) next.cosmetic.combos = map;
     }
     summary.push('Entries beyond the file’s layers and tables will be kept from the keyboard.');
-    return { keyboard: next, errors, warnings, summary };
+    return { keyboard: next, errors, warnings, summary, replaced, unavailable: [...new Set(unavailable)] };
 }
 
 /**

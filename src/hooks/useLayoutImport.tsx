@@ -6,6 +6,7 @@ import { useChanges } from '@/contexts/ChangesContext';
 import { fileService } from '@/services/file.service';
 import { prepareImport, type ImportReview } from '@/services/import-preflight';
 import type { KeyboardInfo } from '@/types/keyboard.types';
+import { ImportSettingsNotes } from '@/components/ImportSettingsNotes';
 
 export function useLayoutImport() {
     const { keyboard, setKeyboard, isConnected, setIsImporting, loadFromFile } = useKeyboard();
@@ -74,6 +75,7 @@ export function useLayoutImport() {
                 <ul className="list-disc pl-5 text-sm space-y-1">{review?.plan.summary.map((line, i) => <li key={i}>{line}</li>)}</ul>
                 {!!review?.plan.errors.length && <div role="alert" className="text-sm text-red-700 dark:text-red-400"><p className="font-semibold">Cannot import this file</p><ul className="list-disc pl-5">{review.plan.errors.map((line, i) => <li key={i}>{line}</li>)}</ul></div>}
                 {!!review?.plan.warnings.length && <div className="text-sm"><p className="font-semibold">Review before applying</p><ul className="list-disc pl-5">{review.plan.warnings.map((line, i) => <li key={i}>{line}</li>)}</ul></div>}
+                {review && <ImportSettingsNotes replaced={review.plan.replaced} unavailable={review.plan.unavailable} done={false} />}
                 {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
                 <p className="text-sm">{isConnected ? (isInstant ? 'Applying writes these changes to the keyboard. Save a backup first so you can restore the previous layout.' : 'This will stage changes in Manual mode. Nothing is written until you use Apply.') : 'This replaces the current offline layout.'}</p>
                 <DialogFooter className="flex-wrap">

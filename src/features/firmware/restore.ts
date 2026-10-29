@@ -5,6 +5,7 @@ import { fileService } from "@/services/file.service";
 import { prepareImport } from "@/services/import-preflight";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import type { PendingChange } from "@/services/changes.service";
+import type { RestoreReport } from "@/services/updater/flow";
 
 export interface RestoreTarget {
     keyboard: KeyboardInfo;
@@ -19,7 +20,7 @@ export interface RestoreTarget {
     markSaved?: (kb: KeyboardInfo) => void;
 }
 
-export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Promise<{ trimmed: string[] }> {
+export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Promise<RestoreReport> {
     const imported = await fileService.loadFile(new File([svil], "backup.svil", { type: "application/json" }));
     const plan = prepareImport(imported, t.keyboard);
     if (plan.errors.length) throw new Error(plan.errors.join(" "));
@@ -29,5 +30,5 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
     await importService.syncWithKeyboard(plan.keyboard, t.keyboard, (desc, cb, metadata) => t.queue(desc, cb, { ...metadata, deferCommit: true }), { keyboardService });
     if (!(await t.commit())) throw new Error("Some of the layout couldn't be written.");
     t.markSaved?.(plan.keyboard);
-    return { trimmed: plan.warnings };
+    return { trimmed: plan.warnings, replaced: plan.replaced, unavailable: plan.unavailable };
 }
