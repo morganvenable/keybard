@@ -14,6 +14,7 @@ import { boardStoresComboNames } from "@/utils/combo-name-storage";
 import { recallComboNames, rememberComboNames } from "../utils/combo-name-memory";
 import type { KeyBlockWriter } from "../services/changes.service";
 import { PARANOID, userIsLooking } from "../lib/paranoid";
+import { matrixTesterOpen } from "../lib/matrix-tester-lock";
 import { LinuxHidAccessError } from "../utils/linux-hid-access";
 import { UnsupportedFirmwareError, type UnsupportedFirmwareInfo } from "../utils/unsupported-firmware";
 import { RAW_HID_USAGES } from "../services/hid-report";
@@ -488,6 +489,8 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (!isActive) return;
             if (PARANOID && !userIsLooking()) {
                 // Paranoid: don't watch the board while Keybard isn't in front of you.
+            } else if (matrixTesterOpen()) {
+                // The matrix tester has the link to itself: its reads never wait behind this poll.
             } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
                     const { active, defaultLayer } = await keyboardService.getLayerIndexes(keyboard);

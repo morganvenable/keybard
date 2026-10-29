@@ -39,6 +39,7 @@ import {
 } from "@/services/scanlab.service";
 import { cn } from "@/lib/utils";
 import { PARANOID, userIsLooking } from "@/lib/paranoid";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
 type Axis = "pre" | "post";
 type ByHand<T> = { 0: T; 1: T };
@@ -177,7 +178,8 @@ const ScanLabPanel = () => {
     useEffect(() => {
         if (!isConnected || busy) return;
         // Paranoid: idle readings reveal typing timing, so only take them while you're looking.
-        const tick = () => { if (!PARANOID || userIsLooking()) refreshPower(); };
+        // Never while the matrix tester is open: it has the link to itself.
+        const tick = () => { if ((!PARANOID || userIsLooking()) && !matrixTesterOpen()) refreshPower(); };
         tick();
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);

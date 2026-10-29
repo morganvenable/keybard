@@ -2,6 +2,8 @@
 // (Delete/Backspace on a key, typing binds a key, Ctrl/Cmd+B, Ctrl/Cmd+V layer
 // paste, modifier tracking). The tester also swallows key events at the window
 // in the capture phase; this flag is the second guard, checked by each handler.
+// The layer state poll (KeyboardContext) also waits, so the tester's reads have
+// the USB queue to themselves.
 let open = false;
 
 export function setMatrixTesterOpen(value: boolean): void {

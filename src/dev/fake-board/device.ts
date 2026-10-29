@@ -59,6 +59,44 @@ function defaultSchedule(): (fn: () => void) => void {
 }
 
 /**
+ * Runs a callback at an exact time, as a USB reply lands: a worker watches the
+ * clock and posts back when it is due, so the reply arrives as its own task on
+ * the page, on time. Page timers can't do this: on Windows a short setTimeout
+ * waits for the next system tick, often 15.6 ms, which made the simulated link
+ * four times slower than the real one. The worker only runs while a reply is
+ * pending, and never on the page's main thread. Null where workers don't exist
+ * (jsdom); setTimeout is used there.
+ */
+function makeLinkClock(): ((fn: () => void, delayMs: number) => void) | null {
+    if (typeof Worker === "undefined" || typeof Blob === "undefined" || typeof URL?.createObjectURL !== "function") return null;
+    try {
+        const source = "onmessage = (e) => { const [id, due] = e.data; while (performance.timeOrigin + performance.now() < due) {} postMessage(id); };";
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        const pending = new Map<number, () => void>();
+        let next = 0, broken = false;
+        // A policy that forbids workers (Paranoid) may only say so later: fall back to timers.
+        worker.onerror = () => {
+            broken = true;
+            for (const fn of pending.values()) setTimeout(fn, 0);
+            pending.clear();
+        };
+        worker.onmessage = (e: MessageEvent<number>) => {
+            const fn = pending.get(e.data);
+            pending.delete(e.data);
+            fn?.();
+        };
+        return (fn, delayMs) => {
+            if (broken) { setTimeout(fn, delayMs); return; }
+            const id = next++;
+            pending.set(id, fn);
+            worker.postMessage([id, performance.timeOrigin + performance.now() + delayMs]);
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Structurally a HIDDevice (WebHID's overloaded event typings can't be
  * implemented by a plain class); use asHIDDevice() where one is expected.
  */
@@ -73,13 +111,14 @@ export class FakeSvalboardDevice extends EventTarget {
     /** Every report sent to the board, for tests (newest last; up to 2000 kept). */
     readonly sent: Uint8Array[] = [];
     /**
-     * Extra time before each reply, in ms (0: none). The e2e tests set the round
-     * trip measured on the trackball test board: about 3 ms for a wrapped request.
+     * Extra time before each reply, in ms (0: none), kept exactly (makeLinkClock).
+     * The e2e tests set the round trip measured on the trackball test board.
      */
     replyDelayMs = 0;
     private isOpen = false;
     private persisting: boolean;
     private readonly schedule: (fn: () => void) => void;
+    private linkClock: ((fn: () => void, delayMs: number) => void) | null | undefined;
 
     constructor(options: FakeSvalboardOptions = {}) {
         super();
@@ -157,7 +196,12 @@ export class FakeSvalboardDevice extends EventTarget {
             reply = null;
         }
         if (!reply) return;
-        if (this.replyDelayMs > 0) setTimeout(() => this.deliver(reply!), this.replyDelayMs);
+        if (this.replyDelayMs > 0) {
+            if (this.linkClock === undefined) this.linkClock = makeLinkClock();
+            const at = this.linkClock;
+            if (at) at(() => this.deliver(reply!), this.replyDelayMs);
+            else setTimeout(() => this.deliver(reply!), this.replyDelayMs);
+        }
         else this.schedule(() => this.deliver(reply!));
     }
 
