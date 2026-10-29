@@ -3,7 +3,7 @@ Browser test of the Settings page as a person opens it: the built app, the
 QWERTY Example opened by a review link (?demo&panel=settings), no keyboard.
 Run with `npm run test:e2e:settings`.
 
-  1. The link lands on Settings with zero clicks: five cards, the search
+  1. The link lands on Settings with zero clicks: six cards, the search
      field and a chip per card. No sideways scroll, every card heading
      visible, Hardware open with its rows, every other card collapsed.
   2. Retired controls stay gone: no Large combo indicator option, no ball
@@ -33,7 +33,8 @@ SETTINGS = "?demo=combos&panel=settings"
 # id, title, chip, open on a first visit
 CARDS = [
     ("hardware", "Hardware", "Hardware", True),
-    ("firmware", "Firmware and backups", "Firmware", False),
+    ("firmware", "Firmware", "Firmware", False),
+    ("backups", "Backups", "Backups", False),
     ("appearance", "Appearance and editing", "Appearance", False),
     ("typing", "Typing behavior", "Typing", False),
     ("about", "About", "About", False),
@@ -90,7 +91,7 @@ def main() -> int:
         # 1. Landing.
         context, page, errors = open_settings(browser, url)
         titles = page.locator("h4[id^=settings-section-]").all_inner_texts()
-        check(titles == [c[1] for c in CARDS], f"five cards in order: {titles}")
+        check(titles == [c[1] for c in CARDS], f"six cards in order: {titles}")
         nav = page.get_by_role("navigation", name="Settings sections")
         chips = nav.get_by_role("button").all_inner_texts()
         check(chips == [c[2] for c in CARDS], f"a chip per card: {chips}")

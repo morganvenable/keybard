@@ -84,7 +84,7 @@ def flow_from_settings(browser, url):
     expect(card.get_by_test_id("backups-status")).to_contain_text("Automatic backups")
     expect(card.get_by_test_id("backups-status")).to_contain_text("before a firmware update")
     expect(card.get_by_role("button", name="Back up now")).to_be_visible()
-    expect(card.get_by_text("Backup folder")).to_be_visible()
+    expect(card.get_by_text("Backup folder", exact=True)).to_be_visible()
     expect(card.get_by_test_id("backup-row").first).to_be_visible(timeout=15000)
     expect(card.get_by_text("Saved when the keyboard connected").first).to_be_visible()
     expect(card.get_by_text("Import layout", exact=True)).to_be_visible()
@@ -127,7 +127,8 @@ def flow_event(browser, url):
 
 
 def flow_banner(browser, url):
-    context, page, errors = open_page(browser, url, "demo&fwfake=1&differ=1")
+    # The banner shows for a connected board: the simulated one, with the mock firmware board halves differing.
+    context, page, errors = open_page(browser, url, "fakeBoard&fwfake=1&differ=1")
     banner = page.get_by_role("alert", name="Halves differ")
     expect(banner).to_be_visible(timeout=30000)
     banner.get_by_role("button", name="Finish update").click()
@@ -168,11 +169,14 @@ def flow_install_backs_up(browser, url):
     context.close()
 
 
+# Lines of text an element shows: distinct line tops of its text, not its box height.
 ONE_LINE_JS = """(sels) => sels.flatMap((sel) => [...document.querySelectorAll(sel)].filter((el) => el.offsetParent)).map((el) => {
-    const cs = getComputedStyle(el);
-    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
-    const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-    return { text: el.textContent.trim().slice(0, 50), lines: Math.round((el.getBoundingClientRect().height - pad) / lh) };
+    const tops = new Set(), walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+        const range = document.createRange(); range.selectNodeContents(t);
+        for (const r of range.getClientRects()) if (r.width > 0) tops.add(Math.round(r.top / 4));
+    }
+    return { text: el.textContent.trim().slice(0, 50), lines: tops.size };
 }).filter((r) => r.lines > 1)"""
 
 
@@ -187,7 +191,7 @@ def flow_layout(browser, url, shots=None):
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), f"{label}: sideways scroll"
             card = page.locator(CARD).bounding_box()
             assert card and card["x"] >= 0 and card["x"] + card["width"] <= width + 1, f"{label}: card {card}"
-            wrapped = page.evaluate(ONE_LINE_JS, [f"{CARD} h4 button > span", f"{CARD} [data-testid='backups-status'] > span > span:first-child", f"{CARD} button"])
+            wrapped = page.evaluate(ONE_LINE_JS, [f"{CARD} h4 button > span", f"{CARD} [data-testid='backups-status'] > span > span:first-child", f"{CARD} [data-slot='button']"])
             assert not wrapped, f"{label}: wrapped {wrapped}"
             bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
             dark = page.evaluate("document.documentElement.classList.contains('dark')")
