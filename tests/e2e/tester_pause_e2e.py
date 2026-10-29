@@ -1,8 +1,9 @@
 """
 Browser tests of the matrix tester (typing pause, flicker latch, drawing) against
-the simulated Svalboard (?fakeBoard). Its replies come 4 ms after each request:
-the round trip of a flicker latch read on the trackball test board (3.9 ms
-median; a VIA matrix read is 3.0 ms). Run with `npm run test:e2e:tester-pause`.
+the simulated Svalboard (?fakeBoard). Its replies come 3 ms after each request,
+on time (the simulated link keeps its own clock, not the page's timers): the
+round trip of a flicker latch read on the trackball test board, which reads
+about 270 times a second in Chromium. Run with `npm run test:e2e:tester-pause`.
 
   1. Opening the tester sends TYPING_PAUSE on; the note is two short lines
      ("Typing paused while testing", "Leave this screen to type again · Hold
@@ -25,11 +26,16 @@ median; a VIA matrix read is 3.0 ms). Run with `npm run test:e2e:tester-pause`.
  10. The note fits at phone and desktop widths, light and dark, each line on
      one line at desktop, under the scrim checks; one note style (no ?testerNote).
  11. A one-scan flicker shows for at least one frame and counts; Reset counts clears.
+ 11b. Opening the tester starts every count at 0, though the board's latch
+     collected flickers before (and Keybard counted some in an earlier
+     opening); a key held at opening shows down at once.
  12. Tester keys have no transition or animation.
  13. Nothing renders in React while nothing changes, or while keys change fast.
  14. With keys changing at a high rate, frames keep the display rate with no
-     long tasks; reads per second, frame rate, main-thread time per frame and
-     main-thread busy share are printed.
+     long tasks, and the board is read at least 200 times a second (the real
+     link reads about 270); while the tester is open only its own requests use
+     the link (latch reads, counts, the pause renewal). Reads per second, frame
+     rate, main-thread time per frame and main-thread busy share are printed.
 
 It builds the app like fake_board_e2e.py (E2E_URL and E2E_SKIP_BUILD work the
 same). SHOT_DIR=path also saves screenshots of the tester, light and dark.
@@ -43,7 +49,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fake_board_e2e import app_url, wait_connected  # noqa: E402
 from playwright.sync_api import Page, expect, sync_playwright  # noqa: E402
 
-REPLY_DELAY_MS = 4  # flicker latch read round trip on the trackball test board
+REPLY_DELAY_MS = 3  # flicker latch read round trip on the trackball test board (2.9-3.0 ms)
+MIN_READS_PER_S = 200  # the real link: about 270 reads/s
 TESTER = "[data-matrix-tester]"
 METRICS = {}
 
@@ -160,6 +167,8 @@ def flow_hold_esc_exits(browser, url):
     log = page.evaluate("window.__cd")
     if len(log) >= 2 and log[-2][1] == "" and log[-1][1] == "closed":
         log = log[:-2] + [[log[-2][0], "closed"]]  # hidden on the frame it closes
+    if log and log[0][1] != "":
+        log = [[0, ""]] + log  # the read beat the first frame: the countdown was up on it
     texts = [t for _, t in log]
     assert texts == ["", "Keep holding to close: 2", "Keep holding to close: 1", "closed"], log
     shown, one, closed = log[1][0], log[2][0], log[3][0]
@@ -376,6 +385,43 @@ def flow_flicker(browser, url):
     context.close()
 
 
+def all_counts_zero(page: Page):
+    return page.evaluate("""() => [...document.querySelectorAll('[data-key-count]')]
+        .filter(e => !e.hidden && e.textContent !== '' && e.textContent !== '0').map(e => e.dataset.keyCount + '=' + e.textContent)""")
+
+
+def flow_counts_reset(browser, url):
+    context, page, errors = open_board(browser, url)
+    for _ in range(5):
+        fw(page, "f.flicker(2, 3)")
+    fw(page, "f.flicker(7, 1)")
+    press(page, 1, 1, True)  # held as the tester opens
+    open_tester(page)
+    assert exit_key(page) != (1, 1), "the held key is the exit key"
+    expect(page.locator("[data-matrix-key='1-1']")).to_have_attribute("data-down", "")
+    page.wait_for_function("window.keybardTester && window.keybardTester.stats().reads > 20")
+    page.wait_for_timeout(300)  # past a counts read
+    assert page.locator("[data-key-count]").count() > 0, "no count badges"
+    shown = all_counts_zero(page)
+    assert not shown, f"counts from before the tester opened: {shown}"
+    assert page.locator("[data-matrix-key='2-3']").get_attribute("data-seen") is None, "an old flicker shows as seen"
+    # A flicker now counts; close, flicker while closed, open again: back to 0.
+    fw(page, "f.flicker(2, 3)")
+    expect(page.locator("[data-key-count='2-3']")).to_have_text("1")
+    page.locator("[data-tester-close]").click()
+    expect(page.locator(TESTER)).to_have_count(0)
+    for _ in range(3):
+        fw(page, "f.flicker(2, 3)")
+    open_tester(page)
+    page.wait_for_function("window.keybardTester && window.keybardTester.stats().reads > 20")
+    page.wait_for_timeout(300)
+    shown = all_counts_zero(page)
+    assert not shown, f"counts after reopening: {shown}"
+    expect(page.locator("[data-matrix-key='1-1']")).to_have_attribute("data-down", "")
+    assert not errors, errors
+    context.close()
+
+
 def flow_no_animation(browser, url):
     context, page, errors = open_board(browser, url, params="tester")
     expect(page.locator(TESTER)).to_be_visible()
@@ -424,8 +470,14 @@ def flow_perf(browser, url):
     def task_s():
         return {m["name"]: m["value"] for m in cdp.send("Performance.getMetrics")["metrics"]}["TaskDuration"]
 
+    # Every report the tester's page sends, by Sval command (and sub-op for the latch).
+    page.evaluate("""() => { const d = window.keybardFakeBoard.device; const send = d.sendReport.bind(d); window.__sent = {};
+        d.sendReport = (id, data) => { const b = new Uint8Array(data.buffer || data, data.byteOffset || 0);
+            const k = b[5].toString(16) + ':' + b[6].toString(16) + (b[6] === 0x3d ? ':' + b[7] : '');
+            window.__sent[k] = (window.__sent[k] || 0) + 1; return send(id, data); }; }""")
+
     def window(seconds):
-        page.evaluate("""() => { window.__f = []; window.__long = 0;
+        page.evaluate("""() => { window.__f = []; window.__long = 0; window.__sent = {};
             try { new PerformanceObserver((l) => { window.__long += l.getEntries().length; }).observe({ type: 'longtask', buffered: false }); } catch (e) {}
             const tick = (t) => { window.__f.push(t); if (window.__f.length < 100000) window.__raf = requestAnimationFrame(tick); };
             window.__raf = requestAnimationFrame(tick); }""")
@@ -436,12 +488,14 @@ def flow_perf(browser, url):
         s1 = page.evaluate("window.keybardTester.stats()")
         f = page.evaluate("cancelAnimationFrame(window.__raf), window.__f")
         long_tasks = page.evaluate("window.__long")
+        sent = page.evaluate("window.__sent")
         gaps = sorted(b - a for a, b in zip(f, f[1:]))
         fps = (len(f) - 1) / ((f[-1] - f[0]) / 1000)
         return dict(fps=round(fps, 1), worst_frame_gap_ms=round(gaps[-1], 1), long_tasks=long_tasks,
                     reads_per_s=round((s1["reads"] - s0["reads"]) / seconds),
                     main_thread_busy_pct=round(100 * (t1 - t0) / seconds, 1),
-                    main_thread_ms_per_frame=round(1000 * (t1 - t0) / max(1, len(f) - 1), 2))
+                    main_thread_ms_per_frame=round(1000 * (t1 - t0) / max(1, len(f) - 1), 2),
+                    round_trip_ms=round(s1["roundTripMs"], 2), requests=sent)
 
     idle = window(3)
     page.evaluate("""() => { const f = window.keybardFakeBoard.device.firmware; let i = 0;
@@ -453,7 +507,11 @@ def flow_perf(browser, url):
     assert busy["fps"] >= 0.9 * idle["fps"], f"frames dropped while keys change: {busy['fps']} vs {idle['fps']} fps"
     assert busy["long_tasks"] == 0, f"{busy['long_tasks']} long tasks"
     assert busy["worst_frame_gap_ms"] < 50, f"a {busy['worst_frame_gap_ms']} ms frame gap"
-    assert busy["reads_per_s"] >= 100, f"only {busy['reads_per_s']} reads/s"
+    for name, w in (("idle", idle), ("keys changing", busy)):
+        assert w["reads_per_s"] >= MIN_READS_PER_S, f"{name}: only {w['reads_per_s']} reads/s"
+        # The tester's own requests only: latch reads (df:3d:0), counts (df:3d:1), the pause (df:3c).
+        others = {k: n for k, n in w["requests"].items() if k not in ("df:3d:0", "df:3d:1", "df:3c")}
+        assert not others, f"{name}: other requests share the link: {others}"
     context.close()
 
 
@@ -498,6 +556,7 @@ def main() -> int:
         ("9. older firmware: its note, no requests, keys swallowed, Escape exits, Update firmware", flow_older_firmware),
         ("10. the note fits at phone and desktop widths, light and dark, one line each", flow_layout),
         ("11. a one-scan flicker shows and counts; Reset counts clears", flow_flicker),
+        ("11b. opening the tester starts every count at 0; held keys show at once", flow_counts_reset),
         ("12. tester keys have no transition or animation", flow_no_animation),
         ("13. no React renders while idle or while keys change fast", flow_no_renders),
         ("14. frames keep the display rate with keys changing fast; no long tasks", flow_perf),

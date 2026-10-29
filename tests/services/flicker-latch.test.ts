@@ -1,6 +1,6 @@
 // Flicker latch (Sval 0x3D) against the simulated board, and the tester's engine
 // (src/lib/tester-engine.ts) that turns readings into what the frame loop draws.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { blankBoard } from "@/dev/fake-board/board";
 import { FakeSvalFirmware, FLAG3_FLICKER_LATCH } from "@/dev/fake-board/firmware";
 import { CMD_SVIL_FLICKER_LATCH, hasFlickerLatch, parseFlickerCounts, parseFlickerRead, pressesFrom } from "@/services/flicker-latch";
@@ -60,6 +60,8 @@ describe("FLICKER_LATCH on the simulated board", () => {
     });
 });
 
+const later = () => new Promise((r) => setTimeout(r, 0));
+
 describe("TesterEngine", () => {
     const source = { readLatch: null, readCounts: null, readMatrix: async () => [], mayRead: () => true };
 
@@ -96,5 +98,35 @@ describe("TesterEngine", () => {
         e.resetCounts();
         expect(e.presses[(5 + 2) * 6 + 1]).toBe(0);
         expect(e.countsVersion).toBeGreaterThan(cv);
+    });
+
+    it("opening starts the counts at zero: the board's backlog is read once and thrown away; held keys still show", async () => {
+        const fw = new FakeSvalFirmware(blankBoard());
+        const id = bootstrap(fw);
+        for (let i = 0; i < 40; i++) fw.flicker(3, 4); // collected while nobody read the latch
+        fw.flicker(7, 1);
+        fw.press(2, 2); // held now
+        const e = new TesterEngine(10, 6, {
+            // Each reply a task later, as on USB.
+            readLatch: async () => { await later(); return parseFlickerRead(sval(fw, id, [CMD_SVIL_FLICKER_LATCH, 0])); },
+            readCounts: async (half) => { await later(); return parseFlickerCounts(sval(fw, id, [CMD_SVIL_FLICKER_LATCH, 1, half]), 5, 6); },
+            readMatrix: async () => [],
+            mayRead: () => true,
+        });
+        e.presses[3 * 6 + 4] = 9; // left over from an earlier tester
+        e.start();
+        try {
+            await vi.waitFor(() => expect(e.reads).toBeGreaterThan(3));
+            await new Promise((r) => setTimeout(r, 150)); // past a counts read
+            expect([...e.presses].every((n) => n === 0)).toBe(true);
+            expect(e.current[2]).toBe(1 << 2);
+            expect(e.seen[3]).toBe(0);
+            expect(e.seen[7]).toBe(0);
+            // A flicker after opening counts as usual.
+            fw.flicker(3, 4);
+            await vi.waitFor(() => expect(e.presses[3 * 6 + 4]).toBe(1), { timeout: 2000 });
+        } finally {
+            e.stop();
+        }
     });
 });

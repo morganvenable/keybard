@@ -2,8 +2,11 @@
 //
 // It reads the board as fast as the link allows: the next request goes out as soon
 // as the last reply lands, with no fixed interval. Requests share Keybard's one
-// USB queue, so anything else queued meanwhile (the layer poll, an edit) goes
-// first; the tester never starves it. With the flicker latch (Sval 0x3D) each
+// USB queue; while the tester is open Keybard's own polls (layer state, late
+// pointing detection, Scan Lab status) wait (matrix-tester-lock), so only the
+// tester's reads, its counts and the typing pause renewal use the link. An edit
+// queued meanwhile still goes first; the tester never starves it. Opening
+// starts the counts at zero (discardBacklog). With the flicker latch (Sval 0x3D) each
 // read also returns every switch that went down since the last read, so a
 // bounce of one scan between two reads still shows; without it, the debounced
 // VIA matrix state is read instead. Readings land in plain typed arrays and a
@@ -129,7 +132,46 @@ export class TesterEngine {
         if (changed) this.countsVersion++;
     }
 
+    /**
+     * Opening the tester starts the counts from zero. The board's latch keeps
+     * collecting while nobody reads it (its change counts saturate), so one
+     * latch read and one counts read per half go first and only the raw rows
+     * are kept: the keys held now show at once, but nothing from before counts.
+     */
+    private async discardBacklog(): Promise<void> {
+        if (!this.source.readLatch) return;
+        try {
+            const read = await this.source.readLatch();
+            if (!this.running) return;
+            if (read) {
+                for (let r = 0; r < this.rows && r < read.raw.length; r++) {
+                    const block = r < this.rows / 2 ? 1 : 2;
+                    if (!(read.halves & block)) continue;
+                    this.current[r] = read.raw[r];
+                    this.latched[r] |= read.raw[r];
+                    this.seen[r] |= read.raw[r];
+                }
+                this.version++;
+            }
+            if (this.source.readCounts) {
+                for (const half of [0, 1]) {
+                    await this.source.readCounts(half);
+                    if (!this.running) return;
+                }
+            }
+        } catch (error) {
+            console.error("Matrix tester: clearing the board's latch failed:", error);
+        }
+        this.countsBase.set(this.current);
+        this.lastCounts = performance.now();
+        this.presses.fill(0);
+        this.countsVersion++;
+    }
+
     private async loop(): Promise<void> {
+        this.presses.fill(0);
+        this.countsVersion++;
+        await this.discardBacklog();
         this.readStart = performance.now();
         this.reads = 0;
         while (this.running) {
