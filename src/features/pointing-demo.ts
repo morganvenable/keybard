@@ -15,7 +15,8 @@
 //                             one the touchpad left out, as the firmware lists it)
 //   &ball=<id> / &leftBall=   show that ball for this load (see pointing-look.service)
 //   &panel=settings           open Settings on start; typing, clusters, fragments,
-//                             hardware or about open it at that card; scanlab opens
+//                             hardware, about, firmware or backups open it at that
+//                             card; scanlab opens
 //                             the Scan Lab, pointing the Pointing Devices panel
 //
 // The scripted motion is the round 5 prototype's finger paths, turned into the

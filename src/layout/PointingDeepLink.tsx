@@ -9,7 +9,7 @@ import { requestSettingsSection, settingsSectionForPanel } from "@/layout/Second
  * ?panel=settings opens Settings once a layout is loaded (with ?demo, the
  * QWERTY Example), so a review link lands on the Settings page. The old panel
  * names of what is now in Settings (?panel=typing, clusters, fragments, about) open
- * Settings at that section. ?panel=scanlab opens the Scan Lab and ?panel=pointing
+ * Settings at that section, as do ?panel=firmware and ?panel=backups. ?panel=scanlab opens the Scan Lab and ?panel=pointing
  * the Pointing Devices panel (its settings, auto mouse included). Once per page load.
  */
 export default function PointingDeepLink() {

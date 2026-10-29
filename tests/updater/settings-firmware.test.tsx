@@ -13,6 +13,7 @@ vi.mock("@/features/firmware/FirmwareUpdateProvider", () => ({ useFirmwareUpdate
 vi.mock("@/contexts/KeyboardContext", () => ({ useKeyboard: () => ({ keyboard: null, isConnected: ctx.connected }) }));
 
 import FirmwareRow from "@/layout/SecondarySidebar/Panels/settings/FirmwareRow";
+import { OPEN_BACKUPS_EVENT } from "@/features/firmware/useHalvesDiffer";
 
 const board: BoardSummary = {
     updater: true, legacyLabel: null, usbHand: 1, differ: false, noChord: false, fwVersion: 3000, tag: "v3",
@@ -47,6 +48,19 @@ describe("Settings > Firmware", () => {
             expect(row.textContent).not.toMatch(/Any module|pointing|Trackball|Touchpad|Trackpoint/i);
         }
         expect(document.querySelectorAll("[data-half]").length).toBe(2);
+    });
+
+    it("holds no backup list: one line says where backups are, and its link asks for Backups", () => {
+        render(<FirmwareRow />);
+        expect(screen.queryByTestId("backups")).toBeNull();
+        expect(screen.queryByTestId("backup-row")).toBeNull();
+        expect(screen.queryByRole("button", { name: "Back up now" })).toBeNull();
+        expect(screen.getByTestId("firmware-backups-link")).toHaveTextContent("Keybard backs up your layout before every update. Open Backups");
+        const asked = vi.fn();
+        window.addEventListener(OPEN_BACKUPS_EVENT, asked);
+        fireEvent.click(screen.getByRole("button", { name: "Open Backups" }));
+        window.removeEventListener(OPEN_BACKUPS_EVENT, asked);
+        expect(asked).toHaveBeenCalledTimes(1);
     });
 
     it("says it's reading while the board's firmware is read", () => {

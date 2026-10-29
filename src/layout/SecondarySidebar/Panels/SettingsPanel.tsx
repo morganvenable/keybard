@@ -128,13 +128,7 @@ const SettingsPanel = () => {
                     ? <BoardIdentitySection />
                     : <p className="px-3 py-2.5 text-sm text-muted-foreground">{demoBoard ? "The example keyboard has no name or serial." : "Connect a keyboard to see its name and serial."}</p>;
             case "backups":
-                return (
-                    <BackupsSection
-                        onRestore={reviewFile}
-                        forceOpen={[...(matches?.values() ?? [])].some((m) => m.rows.has("block:backups"))}
-                        highlight={highlight}
-                    />
-                );
+                return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
             case "typing":

@@ -42,6 +42,7 @@ import { HAND_LEFT, HAND_RIGHT, otherHand, type Hand } from "@/services/updater/
 import { readBoardSummary, type BoardSummary } from "../board-summary";
 import { FirmwareUpdateProvider, useFirmwareUpdates } from "../FirmwareUpdateProvider";
 import type { FirmwareUiHost, UpdateBackup } from "../useFirmwareUpdate";
+import { OPEN_BACKUPS_EVENT } from "../useHalvesDiffer";
 import { pinOf, ScaledClock } from "./HarnessApp";
 
 class DevFakeHost extends FakeHost implements FirmwareUiHost {
@@ -138,12 +139,14 @@ function ResetNoticeDemo() {
     const [open, setOpen] = useState(() => params().has("resetnotice"));
     if (!open || !updates?.board) return null;
     const close = () => setOpen(false);
+    // As the real notice does: close, then ask for Settings > Backups.
+    const otherBackups = () => { close(); window.dispatchEvent(new CustomEvent(OPEN_BACKUPS_EVENT)); };
     const at = new Date();
     at.setHours(6, 26, 0, 0);
     return (
         <Dialog open onOpenChange={(next) => !next && close()}>
             <DialogContent className={RESET_DIALOG_CLASS}>
-                <ResetNoticeView firmware firmwareNow={firmwareLine(updates.board, null)} backupLine={`Backup saved before the update, ${backupWhen(at.getTime())}`} onDefaults={close} onOtherBackups={close} onPutBack={close} />
+                <ResetNoticeView firmware firmwareNow={firmwareLine(updates.board, null)} backupLine={`Backup saved before the update, ${backupWhen(at.getTime())}`} onDefaults={close} onOtherBackups={otherBackups} onPutBack={close} />
             </DialogContent>
         </Dialog>
     );

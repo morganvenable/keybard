@@ -37,7 +37,7 @@ vi.mock('@/contexts/SettingsContext', async (orig) => {
     };
 });
 vi.mock('../../src/layout/SecondarySidebar/Panels/BoardIdentitySection', () => ({ default: () => <p>Board identity</p> }));
-vi.mock('../../src/layout/SecondarySidebar/Panels/BackupsSection', () => ({ default: () => <p>Backups</p> }));
+vi.mock('../../src/layout/SecondarySidebar/Panels/BackupsSection', () => ({ default: () => <p>Backup list</p> }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/settings/FirmwareRow', () => ({ default: () => <p>Firmware status</p> }));
 vi.mock('../../src/components/ExportDialog', () => ({ default: ({ open }: { open: boolean }) => (open ? <p>Export dialog</p> : null) }));
 
@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => raf.mockRestore());
 
-const TITLES = ['Hardware', 'Firmware and backups', 'Appearance and editing', 'Typing behavior', 'About'];
+const TITLES = ['Hardware', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About'];
 const toggle = (title: string) => within(screen.getByRole('heading', { level: 4, name: title })).getByRole('button');
 const expanded = (title: string) => toggle(title).getAttribute('aria-expanded') === 'true';
 const openCard = (title: string) => { if (!expanded(title)) fireEvent.click(toggle(title)); };
@@ -60,14 +60,14 @@ describe('Settings page', () => {
     it('is one short list of cards, in order, with a chip for each', () => {
         render(<SettingsPanel />);
         expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(TITLES);
-        expect(within(chips()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Hardware', 'Firmware', 'Appearance', 'Typing', 'About']);
+        expect(within(chips()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
         expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0);
     });
 
     it('starts with Hardware open and every other card collapsed on a first visit', () => {
         render(<SettingsPanel />);
         expect(TITLES.map((t) => [t, expanded(t)])).toEqual([
-            ['Hardware', true], ['Firmware and backups', false], ['Appearance and editing', false], ['Typing behavior', false], ['About', false],
+            ['Hardware', true], ['Firmware', false], ['Backups', false], ['Appearance and editing', false], ['Typing behavior', false], ['About', false],
         ]);
         expect(screen.getByText('Hardware rows')).toBeVisible();
         expect(screen.queryByText('Typing behavior rows')).toBeNull();
@@ -77,7 +77,7 @@ describe('Settings page', () => {
     it('holds the board setup, and no layout configuration', () => {
         render(<SettingsPanel />);
         TITLES.forEach(openCard);
-        for (const text of ['Hardware rows', 'Firmware status', 'Board identity', 'Backups', 'Typing behavior rows']) {
+        for (const text of ['Hardware rows', 'Firmware status', 'Board identity', 'Backup list', 'Typing behavior rows']) {
             expect(screen.getByText(text)).toBeVisible();
         }
         const body = document.body.textContent ?? '';
@@ -124,9 +124,21 @@ describe('Settings page', () => {
         expect(state.stored['key-size']).toBe('small');
     });
 
-    it('opens the one Export dialog from Firmware and backups', () => {
+    it('keeps Firmware to firmware: backups, import and export are in Backups', () => {
         render(<SettingsPanel />);
-        openCard('Firmware and backups');
+        openCard('Firmware');
+        const firmware = screen.getByRole('region', { name: 'Firmware' });
+        expect(within(firmware).getByText('Firmware status')).toBeVisible();
+        for (const text of ['Backup list', 'Import layout', 'Export layout', 'Board identity']) expect(within(firmware).queryByText(text)).toBeNull();
+        openCard('Backups');
+        const backups = screen.getByRole('region', { name: 'Backups' });
+        for (const text of ['Backup list', 'Import layout', 'Export layout']) expect(within(backups).getByText(text)).toBeVisible();
+        expect(within(screen.getByRole('region', { name: 'Hardware' })).getByText('Board identity')).toBeVisible();
+    });
+
+    it('opens the one Export dialog from Backups', () => {
+        render(<SettingsPanel />);
+        openCard('Backups');
         expect(screen.queryByText('Export dialog')).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Export layout' }));
         expect(screen.getByText('Export dialog')).toBeVisible();
@@ -146,14 +158,14 @@ describe('Settings page', () => {
     it.each(['sidebar', 'bottombar'])('renders the same page in %s mode', (mode) => {
         state.mode = mode;
         render(<SettingsPanel />);
-        expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(5);
+        expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(6);
         expect(chips()).toBeVisible();
     });
 
     it('asks for a connection where the board is needed', () => {
         state.connected = false;
         render(<SettingsPanel />);
-        openCard('Firmware and backups');
+        openCard('Hardware');
         expect(screen.getByText('Connect a keyboard to see its name and serial.')).toBeVisible();
         expect(screen.queryByText('Board identity')).toBeNull();
     });
@@ -178,7 +190,8 @@ describe('jump chips', () => {
         state.firmwareDot = true;
         render(<SettingsPanel />);
         expect(within(chips()).getByRole('button', { name: 'Firmware, update available' })).toBeVisible();
-        expect(expanded('Firmware and backups')).toBe(true);
+        expect(expanded('Firmware')).toBe(true);
+        expect(expanded('Backups')).toBe(false);
         expect(state.stored[sectionStateSetting('firmware')]).toBeUndefined();
     });
 });
@@ -201,7 +214,7 @@ describe('every card remembers whether it was left open or collapsed', () => {
         expect(expanded(title)).toBe(defaultOpen);
     });
 
-    it.each([['typing', 'Typing behavior'], ['hardware', 'Hardware']])('an old link to %s opens it for the visit without changing what is remembered', (id, title) => {
+    it.each([['typing', 'Typing behavior'], ['hardware', 'Hardware'], ['backups', 'Backups'], ['firmware', 'Firmware']])('an old link to %s opens it for the visit without changing what is remembered', (id, title) => {
         state.stored[sectionStateSetting(id)] = 'collapsed';
         requestSettingsSection(id);
         const view = render(<SettingsPanel />);
