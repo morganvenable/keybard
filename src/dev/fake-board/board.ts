@@ -33,7 +33,7 @@ export const MACRO_BUFFER_SIZE_NO_COMBO_LABELS = 106664;
 export const MACRO_BUFFER_SIZE = MACRO_BUFFER_SIZE_NO_COMBO_LABELS - COMBO_LABEL_REGION_SIZE;
 
 /** Custom values on VIA channel 0 (svalboard.c enum sval_via_value_id), 2 bytes each. */
-export const CUSTOM_VALUE_IDS = 48;
+export const CUSTOM_VALUE_IDS = 51; // 0-50; 48 (optical debounce) is held by the firmware model
 
 export const LABEL_TYPE_LAYER = 0;
 export const LABEL_TYPE_TAP_DANCE = 1;

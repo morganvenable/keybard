@@ -1,8 +1,7 @@
 /** App copy keyed by firmware value ID. Labels never alter values or protocol IDs. */
 export const developerSettingsCopy: Record<string, { label: string; description: string }> = {
-    id_turbo_scan: { label: "Key scan speed", description: "Selects a preset for key scanning. Higher values scan faster." },
-    id_scan_prewait_us: { label: "Sensor settling time · µs", description: "Waits before reading each key sensor row. Zero uses the scan speed preset." },
-    id_scan_postwait_us: { label: "Pause after sensor reading · µs", description: "Waits after reading each key sensor row. Zero uses the scan speed preset." },
+    id_scan_prewait_us: { label: "Sensor settling time · µs", description: "Waits before reading each key sensor row. Shorter waits scan faster. Both halves use it." },
+    id_scan_postwait_us: { label: "Pause after sensor reading · µs", description: "Waits after reading each key sensor row. Shorter waits scan faster. Both halves use it." },
     id_scan_period_us: { label: "Key scan rate limit", description: "Maximum key scans per second. A limit allows the processor to sleep between scans. Unlimited disables keyboard idle stages." },
     id_scan_idle_after_ms: { label: "Enter idle after · ms", description: "Time without key or pointer activity before idle begins. Zero disables idle." },
     id_scan_idle_period_ms: { label: "Idle scan interval · ms", description: "Time between key scans while idle. A longer interval saves power but can delay the first response. Must exceed the active interval." },

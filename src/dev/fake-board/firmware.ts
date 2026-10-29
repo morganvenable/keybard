@@ -72,6 +72,12 @@ const SCANLAB_ROWS = 5;
 const TURBO_US = [90, 60, 45, 30, 25, 20, 15];
 const ID_TURBO_SCAN = 9;
 const ID_OPTICAL_DEBOUNCE = 48;
+// feat/timing-us-only: the auto mouse layer timeout (sval_timing.c)
+const ID_AUTOMOUSE_CHOICE = 5;
+const ID_AUTOMOUSE_MS = 49;
+const ID_AUTOMOUSE_NO_TIMEOUT = 50;
+const AUTOMOUSE_CHOICES = [200, 300, 400, 500, 800]; // index 5: no timeout
+const AUTOMOUSE_NEVER = 5;
 const KEYTEST_CHANNEL = 0x54;
 const IDENTITY_NAME_MAX_BYTES = 64;
 // sval:5356414C424F4152, a fixed serial for the simulation ("SVALBOAR")
@@ -103,6 +109,13 @@ export interface FakeFirmwareOptions {
      * STATUS byte 23 (svalboard.c, scanlab.c). Default true.
      */
     debounceSwitch?: boolean;
+    /**
+     * Firmware with the scan timing in µs only (feat/timing-us-only): at boot a
+     * wait of 0 is filled in from the turbo table, id_turbo_scan writes both
+     * waits and reads the matching preset (0xFF for none), and the auto mouse
+     * timeout is VIA 49 (ms) and 50 (no timeout). Default true.
+     */
+    timingUsOnly?: boolean;
 }
 
 /** A Sval table (TABLE_SCAN ids 0-4): its storage, entry size and "in use" test. */
@@ -161,9 +174,11 @@ const SETTINGS: SettingDesc[] = [
 const isBitSetting = (qsid: number) => (qsid >= 22 && qsid <= 26 && qsid !== 25) || qsid === 29;
 
 // Channel-0 custom values (svalboard.c via_custom_value_command_kb)
-const CUSTOM_TWO_BYTE = new Set([6, 13, 14, 20, 21, 22, 23, 24]);
+const CUSTOM_TWO_BYTE = new Set([6, 13, 14, 20, 21, 22, 23, 24, ID_AUTOMOUSE_MS]);
 const CUSTOM_READABLE = (id: number) => (id <= 15) || (id >= 20 && id <= 31) || (id >= 32 && id < 48);
 const CUSTOM_WRITABLE = (id: number) => (id <= 14) || (id >= 20 && id <= 30) || (id >= 32 && id < 48);
+const TIMING_US_ONLY_IDS = new Set([ID_AUTOMOUSE_MS, ID_AUTOMOUSE_NO_TIMEOUT]);
+const nearestChoice = (ms: number) => AUTOMOUSE_CHOICES.reduce((best, c, i) => (Math.abs(c - ms) < Math.abs(AUTOMOUSE_CHOICES[best] - ms) ? i : best), 0);
 
 /** Byte-level model of the board's raw HID protocol. */
 export class FakeSvalFirmware {
@@ -171,6 +186,9 @@ export class FakeSvalFirmware {
     readonly typingPause: boolean;
     readonly flickerLatch: boolean;
     readonly debounceSwitch: boolean;
+    readonly timingUsOnly: boolean;
+    /** Every channel-0 custom value write ([id, bytes]), oldest first, for tests. */
+    readonly customWrites: { id: number; value: number[] }[] = [];
     /**
      * The optical debounce mode (global_saved_values.optical_debounce_off):
      * RAM, then saved by id_custom_save. Both halves use the saved half's mode
@@ -209,12 +227,80 @@ export class FakeSvalFirmware {
         this.typingPause = options.typingPause ?? true;
         this.flickerLatch = options.flickerLatch ?? true;
         this.debounceSwitch = options.debounceSwitch ?? true;
+        this.timingUsOnly = options.timingUsOnly ?? true;
         this.onChange = options.onChange;
+        if (this.timingUsOnly) this.migrateTiming();
         this.factoryKeymap = options.factoryKeymap;
         const start = Date.now();
         this.now = options.now ?? (() => Date.now() - start);
         // client_wrapper_init(): the counter is seeded from the timer
         this.idCounter = Math.floor(Math.random() * 0x10000);
+    }
+
+    /**
+     * read_eeprom_kb() on feat/timing-us-only: a 0 wait (the old "turbo table")
+     * is filled in from the table at the saved turbo index and saved; the auto
+     * mouse ms value starts from the old choice.
+     */
+    private migrateTiming(): void {
+        const c = this.state.custom;
+        const get16 = (id: number) => c[id * 2] | (c[id * 2 + 1] << 8);
+        const set16 = (id: number, v: number) => { c[id * 2] = v & 0xff; c[id * 2 + 1] = (v >> 8) & 0xff; };
+        let changed = false;
+        const turbo = c[ID_TURBO_SCAN * 2] < TURBO_US.length ? c[ID_TURBO_SCAN * 2] : 0;
+        for (const id of [13, 14]) {
+            if (get16(id) === 0) { set16(id, TURBO_US[turbo]); changed = true; }
+        }
+        if (c[ID_TURBO_SCAN * 2] !== 0) { c[ID_TURBO_SCAN * 2] = 0; changed = true; }
+        if (get16(ID_AUTOMOUSE_MS) === 0) {
+            const choice = c[ID_AUTOMOUSE_CHOICE * 2];
+            set16(ID_AUTOMOUSE_MS, choice < AUTOMOUSE_NEVER ? AUTOMOUSE_CHOICES[choice] : 500);
+            changed = true;
+        }
+        if (changed) this.changed();
+    }
+
+    /** The preset both waits match (id_turbo_scan read), or 0xFF. */
+    private timingPreset(): number {
+        const c = this.state.custom;
+        const pre = c[26] | (c[27] << 8), post = c[28] | (c[29] << 8);
+        const i = TURBO_US.indexOf(pre as (typeof TURBO_US)[number]);
+        return pre === post && i >= 0 ? i : 0xff;
+    }
+
+    /** VIA 9, 13, 14, 5, 49 and 50 on feat/timing-us-only; true when handled. */
+    private timingValue(command: number, valueId: number, value: Uint8Array): boolean {
+        const c = this.state.custom;
+        const set16 = (id: number, v: number) => { c[id * 2] = v & 0xff; c[id * 2 + 1] = (v >> 8) & 0xff; };
+        const get16 = (id: number) => c[id * 2] | (c[id * 2 + 1] << 8);
+        if (command === 0x08) {
+            if (valueId === ID_TURBO_SCAN) value[0] = this.timingPreset();
+            else if (valueId === ID_AUTOMOUSE_MS) { value[0] = c[ID_AUTOMOUSE_MS * 2]; value[1] = c[ID_AUTOMOUSE_MS * 2 + 1]; }
+            else if (valueId === ID_AUTOMOUSE_NO_TIMEOUT) value[0] = c[ID_AUTOMOUSE_CHOICE * 2] === AUTOMOUSE_NEVER ? 1 : 0;
+            else return false;
+            return true;
+        }
+        if (command !== 0x07) return false;
+        const v16 = value[0] | (value[1] << 8);
+        if (valueId === ID_TURBO_SCAN) {
+            if (value[0] < TURBO_US.length) { set16(13, TURBO_US[value[0]]); set16(14, TURBO_US[value[0]]); }
+        } else if (valueId === 13 || valueId === 14) {
+            set16(valueId, v16 || TURBO_US[0]);
+        } else if (valueId === ID_AUTOMOUSE_CHOICE) {
+            if (value[0] > AUTOMOUSE_NEVER) return true;
+            c[ID_AUTOMOUSE_CHOICE * 2] = value[0];
+            if (value[0] < AUTOMOUSE_NEVER) set16(ID_AUTOMOUSE_MS, AUTOMOUSE_CHOICES[value[0]]);
+        } else if (valueId === ID_AUTOMOUSE_MS) {
+            const ms = Math.round(Math.min(2000, Math.max(100, v16)) / 10) * 10;
+            set16(ID_AUTOMOUSE_MS, ms);
+            if (c[ID_AUTOMOUSE_CHOICE * 2] !== AUTOMOUSE_NEVER) c[ID_AUTOMOUSE_CHOICE * 2] = nearestChoice(ms);
+        } else if (valueId === ID_AUTOMOUSE_NO_TIMEOUT) {
+            c[ID_AUTOMOUSE_CHOICE * 2] = value[0] ? AUTOMOUSE_NEVER : nearestChoice(get16(ID_AUTOMOUSE_MS) || 500);
+        } else {
+            return false;
+        }
+        this.changed();
+        return true;
     }
 
     get macroBufferSize(): number {
@@ -595,6 +681,9 @@ export class FakeSvalFirmware {
             return;
         }
         if (command === 0x09 && this.debounceWrites.length) this.debounceWrites[this.debounceWrites.length - 1].saved = true;
+        if (command === 0x07) this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
+        if (this.timingUsOnly && this.timingValue(command, valueId, value)) return;
+        if (!this.timingUsOnly && TIMING_US_ONLY_IDS.has(valueId)) return;
         if (command === 0x07) {
             if (valueId >= CUSTOM_VALUE_IDS || !CUSTOM_WRITABLE(valueId)) return;
             let v0 = value[0];
@@ -639,7 +728,7 @@ export class FakeSvalFirmware {
             rsp[13] = 0b000100; // pushed: the active-dark centre key (sval_pushed_mask)
             put16(rsp, 17, v16(13));
             put16(rsp, 19, v16(14));
-            rsp[21] = c[ID_TURBO_SCAN * 2];
+            rsp[21] = this.timingUsOnly ? this.timingPreset() : c[ID_TURBO_SCAN * 2];
             rsp[22] = hand === 1 ? 1 : 0; // the USB half sees the other half
             if (this.debounceSwitch) rsp[23] = 0x01 | (this.opticalDebounceOn ? 0x02 : 0);
         } else if (op === 0x11) {

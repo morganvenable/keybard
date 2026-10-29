@@ -60,7 +60,7 @@ const mono = "font-mono tabular-nums";
  * - Sweep: run frames at a series of candidate timings and count per-key
  *   mismatches against a reference captured at safe timing. Keys held during
  *   the sweep are part of the reference, so pressed states can be covered.
- * - Apply: write explicit pre/post-wait to the keyboard (both halves).
+ * - Apply: write the pre/post-wait to the keyboard (both halves).
  */
 const fmtMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)} s` : `${ms} ms`);
 const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`);
@@ -72,7 +72,7 @@ const DEBOUNCE_SYNC_MS = 700;
 const REBOOT_CONFIRM_WINDOW_MS = 20000;
 
 const ScanLabPanel = () => {
-    const { isConnected, connect } = useKeyboard();
+    const { isConnected, connect, setKeyboard } = useKeyboard();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
 
@@ -244,9 +244,19 @@ const ScanLabPanel = () => {
 
     const handleApply = (pre: number, post: number) =>
         run("Applying…", async () => {
-            await scanlabService.applyTiming(pre, post);
-            customValueService.setCached("id_scan_prewait_us", pre);
-            customValueService.setCached("id_scan_postwait_us", post);
+            const back = await scanlabService.applyTiming(pre, post);
+            customValueService.setCached("id_scan_prewait_us", back.prewaitUs);
+            customValueService.setCached("id_scan_postwait_us", back.postwaitUs);
+            // The Tuning section and the saved layout file read keyboard.custom_values.
+            setKeyboard((current) => {
+                if (!current?.custom_values) return current;
+                const set = (key: string, v: number) => (e: NonNullable<typeof current.custom_values>[number]) =>
+                    e.key === key ? { ...e, data: [v & 0xff, (v >> 8) & 0xff] } : e;
+                return { ...current, custom_values: current.custom_values
+                    .map(set("id_scan_prewait_us", back.prewaitUs)).map(set("id_scan_postwait_us", back.postwaitUs)) };
+            });
+            setApplyPre(back.prewaitUs);
+            setApplyPost(back.postwaitUs);
             await refreshStatus();
         });
 
@@ -369,10 +379,9 @@ const ScanLabPanel = () => {
                             <>
                                 <span>Revision <b>{hwRevisionName(s.hwRevision)}</b></span>
                                 <span className={mono}>pre {s.effPrewaitUs} µs · post {s.effPostwaitUs} µs</span>
-                                <span className="text-muted-foreground">
-                                    {s.savedPrewaitUs || s.savedPostwaitUs ? "explicit" : `turbo table ${s.turboIndex}`}
-                                    {s.sweepState !== SweepState.Idle && ` · sweep ${SweepState[s.sweepState]}`}
-                                </span>
+                                {s.sweepState !== SweepState.Idle && (
+                                    <span className="text-muted-foreground">sweep {SweepState[s.sweepState]}</span>
+                                )}
                             </>
                         )}
                     </div>
@@ -561,7 +570,6 @@ const ScanLabPanel = () => {
                 {numberField("pre-wait µs", applyPre, setApplyPre, "scanlab-apply-pre")}
                 {numberField("post-wait µs", applyPost, setApplyPost, "scanlab-apply-post")}
                 <Button size="sm" variant="kb-primary" onClick={() => handleApply(applyPre, applyPost)} disabled={!!busy}>Apply to keyboard</Button>
-                <Button size="sm" variant="secondary" onClick={() => handleApply(0, 0)} disabled={!!busy}>Back to turbo table</Button>
             </div>
             <p className="text-xs text-muted-foreground">Written to EEPROM on the connected half and pushed to the other half within half a second.</p>
         </div>
@@ -728,7 +736,7 @@ const ScanLabPanel = () => {
         <section className="flex flex-col">
             <div className="flex flex-col gap-5 pb-4">
                 <DescriptionBlock>
-                    Measure how long the sense lines take to settle and recover, sweep the scan timing to find where reads go wrong, then apply explicit pre- and post-wait to the keyboard.
+                    Measure how long the sense lines take to settle and recover, sweep the scan timing to find where reads go wrong, then apply the pre- and post-wait to the keyboard.
                 </DescriptionBlock>
                 {statusCards}
                 {feedback}

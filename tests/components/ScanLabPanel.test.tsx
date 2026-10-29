@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanLabPanel from '../../src/layout/SecondarySidebar/Panels/ScanLabPanel';
 import type { ProbeRow, ScanLabPower, ScanLabStatus } from '../../src/services/scanlab.service';
 
-const keyboardContext = { isConnected: true, connect: vi.fn() };
+const keyboardContext = { isConnected: true, connect: vi.fn(), setKeyboard: vi.fn() };
 const layoutSettings = { layoutMode: 'sidebar' as 'sidebar' | 'bottombar', keyVariant: 'default' };
 
 vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardContext }));
@@ -104,7 +104,7 @@ describe('ScanLabPanel', () => {
         vi.clearAllMocks();
         keyboardContext.isConnected = true;
         svc.getStatus.mockImplementation(async (hand: 0 | 1) => status(hand === 0 ? { isLeft: true } : { isLeft: false, hwRevision: 0 }));
-        svc.applyTiming.mockResolvedValue(undefined);
+        svc.applyTiming.mockImplementation(async (pre: number, post: number) => ({ prewaitUs: pre || 90, postwaitUs: post || 90 }));
         svc.applyPacing.mockResolvedValue(undefined);
         svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
         svc.getIdle.mockImplementation(async (hand: 0 | 1) => ({
@@ -251,5 +251,18 @@ describe('ScanLabPanel', () => {
         fireEvent.change(screen.getByLabelText('post-wait µs'), { target: { value: '80' } });
         fireEvent.click(screen.getByRole('button', { name: 'Apply to keyboard' }));
         await waitFor(() => expect(svc.applyTiming).toHaveBeenCalledWith(120, 80));
+        // The waits read back from the board go into keyboard.custom_values, which the Tuning section shows.
+        await waitFor(() => expect(keyboardContext.setKeyboard).toHaveBeenCalled());
+        const update = keyboardContext.setKeyboard.mock.calls.at(-1)![0] as (k: unknown) => { custom_values: { key: string; data: number[] }[] };
+        const next = update({ custom_values: [{ key: 'id_scan_prewait_us', data: [0, 0] }, { key: 'id_scan_postwait_us', data: [0, 0] }, { key: 'id_left_dpi', data: [3] }] });
+        expect(next.custom_values).toEqual([{ key: 'id_scan_prewait_us', data: [120, 0] }, { key: 'id_scan_postwait_us', data: [80, 0] }, { key: 'id_left_dpi', data: [3] }]);
+    });
+
+    it('offers no turbo preset: no "Back to turbo table", no "turbo table" or "explicit" on the status cards', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getStatus).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(screen.getByTestId('status-0')).toHaveTextContent('pre'));
+        expect(screen.queryByRole('button', { name: /turbo/i })).toBeNull();
+        expect(document.body.textContent).not.toMatch(/turbo|explicit/i);
     });
 });

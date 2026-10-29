@@ -19,6 +19,14 @@ export interface FakeSvalboardOptions {
     flickerLatch?: boolean;
     /** Firmware with the optical debounce switch (VIA value 48, Scan Lab STATUS byte 23). Default true. */
     debounceSwitch?: boolean;
+    /** Firmware with the scan timing in µs only (feat/timing-us-only). Default true. */
+    timingUsOnly?: boolean;
+    /**
+     * A board that ran turbo TURBO with both waits at 0 before this firmware:
+     * seeded that way, fresh on every load (not saved), so the firmware's boot
+     * migration runs each time.
+     */
+    seedTurbo?: number;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -77,11 +85,16 @@ export class FakeSvalboardDevice extends EventTarget {
         super();
         this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
         this.collections = [rawHidCollection(this.reportLength)];
-        const persist = options.persist ?? !options.state;
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
             state = seedBoard();
+            if (options.seedTurbo !== undefined) {
+                const c = state.custom;
+                c[9 * 2] = options.seedTurbo;
+                c[13 * 2] = c[13 * 2 + 1] = c[14 * 2] = c[14 * 2 + 1] = 0;
+            }
             if (persist) storeBoard(state);
         }
         this.firmware = new FakeSvalFirmware(state, {
@@ -89,6 +102,7 @@ export class FakeSvalboardDevice extends EventTarget {
             typingPause: options.typingPause ?? true,
             flickerLatch: options.flickerLatch ?? true,
             debounceSwitch: options.debounceSwitch ?? true,
+            timingUsOnly: options.timingUsOnly ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
         });

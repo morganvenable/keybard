@@ -510,11 +510,19 @@ export class ScanLabService {
         return { hand, prewaitUs, postwaitUs, frames, state: st.sweepState, rows, totalMismatches };
     }
 
-    /** Persist explicit scan timing on the keyboard; the master relays it to the other half. */
-    async applyTiming(prewaitUs: number, postwaitUs: number): Promise<void> {
+    /**
+     * Save both scan waits on the keyboard; the half with USB relays them to
+     * the other half. Returns the waits read back from the board.
+     */
+    async applyTiming(prewaitUs: number, postwaitUs: number): Promise<{ prewaitUs: number; postwaitUs: number }> {
         await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_PREWAIT_US, [lo(prewaitUs), hi(prewaitUs)]);
         await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_POSTWAIT_US, [lo(postwaitUs), hi(postwaitUs)]);
         await this.usb.customValueSave(KEYBOARD_CHANNEL);
+        const read = async (id: number) => {
+            const b = await this.usb.customValueGet(KEYBOARD_CHANNEL, id, 2);
+            return (b?.[0] ?? 0) | ((b?.[1] ?? 0) << 8);
+        };
+        return { prewaitUs: await read(ID_SCAN_PREWAIT_US), postwaitUs: await read(ID_SCAN_POSTWAIT_US) };
     }
 }
 

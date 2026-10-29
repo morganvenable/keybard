@@ -12,11 +12,14 @@
  * - ?fakeBoard connects to a simulated Svalboard (src/dev/fake-board) as if it
  *   were plugged in, firmware with combo names; ?fakeBoard=old simulates
  *   firmware without them; ?fakeBoard=nopause simulates firmware that can't
- *   pause typing for the matrix tester. Its settings stay in this browser
- *   across reloads.
+ *   pause typing for the matrix tester; ?fakeBoard=turbo6 is this firmware
+ *   on a board that ran turbo 6 with both scan waits at 0 before updating
+ *   (its migration lands on 15 / 15 µs; it starts fresh on every load).
+ *   Its settings stay in this browser across reloads (except turbo6).
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
  * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
- *   with ?panel=settings and the old panel names).
+ *   with ?panel=settings and the old panel names); ?panel=pointing opens the
+ *   Pointing Devices panel, where the auto mouse settings are.
  * - ?testerNote=a|b|c picks the look of the matrix tester's note (A by default).
  */
 import type { ResolvedTheme } from "@/lib/theme";
@@ -55,14 +58,14 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
  * "combo-names": this firmware (combo names, typing pause); "old": firmware
  * without combo names; "no-pause": firmware that can't pause typing.
  */
-export type FakeBoardChoice = "combo-names" | "old" | "no-pause";
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6";
 
 /** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
     const v = value.trim().toLowerCase();
-    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : "combo-names";
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : "combo-names";
 }
 
 /** ?tester: open the matrix tester on start. */
