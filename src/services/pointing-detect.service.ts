@@ -18,6 +18,7 @@
 // reads of 0x18, then nothing.
 
 import { PARANOID, userIsLooking } from "@/lib/paranoid";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 import { widgetInstanceIndices } from "@/services/fragment-composer.service";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 
@@ -62,8 +63,11 @@ function waitingSlots(kbinfo: KeyboardInfo, hw: Map<number, number>): number[] {
     return [...widgetInstanceIndices(kbinfo)].filter((idx) => slotState(kbinfo, idx, hw.get(idx)) !== "module");
 }
 
-/** In Keybard Paranoid, the board is read only while you are looking at Keybard. */
-const mayRead = () => !PARANOID || userIsLooking();
+/**
+ * In Keybard Paranoid, the board is read only while you are looking at Keybard.
+ * Never while the matrix tester is open: it has the link to itself.
+ */
+const mayRead = () => (!PARANOID || userIsLooking()) && !matrixTesterOpen();
 
 export class PointingDetectPoller {
     private timer: ReturnType<typeof setTimeout> | undefined;

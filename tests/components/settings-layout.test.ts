@@ -33,13 +33,19 @@ describe('Settings page declaration', () => {
         }
     });
 
-    it('is five cards, each with a chip, a summary and a sentence-case title', () => {
-        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Firmware and backups', 'Appearance and editing', 'Typing behavior', 'About']);
-        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Firmware', 'Appearance', 'Typing', 'About']);
+    it('is six cards, each with a chip, a summary and a sentence-case title', () => {
+        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
         for (const s of SETTINGS_PAGE) {
             expect(s.summary, s.id).not.toBe('');
             expect(s.title.slice(1), s.title).toBe(s.title.slice(1).toLowerCase());
         }
+    });
+
+    it('keeps Firmware to firmware, and backups, import and export in Backups', () => {
+        const rows = (id: string) => SETTINGS_PAGE.find((s) => s.id === id)!.rows.map((r) => ('block' in r ? `block:${r.block}` : r.setting));
+        expect(rows('firmware')).toEqual(['block:firmware']);
+        expect(rows('backups')).toEqual(['block:backups', 'import', 'export']);
     });
 
     it('holds Hardware, Typing behavior and every block once', () => {

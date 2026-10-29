@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
 const SIDEBAR_COOKIE_SUFFIX = "state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -249,6 +250,7 @@ function SidebarProvider({ defaultOpen = true, className, style, children, ...pr
 
     React.useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (matrixTesterOpen()) return;
             if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
                 const targetName = defaultTargetRef.current;

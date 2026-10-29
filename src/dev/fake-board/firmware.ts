@@ -42,6 +42,23 @@ export const FEATURE_FLAGS = 0x01 | 0x02 | 0x08 | 0x40;
 // combo labels (bit 7) on the combo-labels branch.
 export const FLAG2_BASE = 0x01 | 0x02 | 0x04 | 0x08;
 export const FLAG2_COMBO_LABELS = 0x80;
+// flags3 (GET_INFO byte 20): typing pause (0x3C), bit 2.
+export const FLAG3_TYPING_PAUSE = 0x04;
+// flags3 bit 3: flicker latch (0x3D).
+export const FLAG3_FLICKER_LATCH = 0x08;
+const MATRIX_COLS = 6;
+const HALF_ROWS = 5;
+// keyboards/svalboard/typing_pause.h: the lease after the owner's last packet,
+// and how long output stays held back once a pause ends.
+export const TYPING_PAUSE_LEASE_MS = 1500;
+export const TYPING_PAUSE_DRAIN_MS = 500;
+
+/** A TYPING_PAUSE request the board received, for tests. */
+export interface TypingPauseRequest {
+    op: number;
+    client: number;
+    at: number;
+}
 
 // ---- VIA (quantum/via.h) ----------------------------------------------------
 const VIA_PROTOCOL_VERSION = 0x000d;
@@ -49,6 +66,18 @@ const ID_UNHANDLED = 0xff;
 const RGBLIGHT_CHANNEL = 2;
 const IDENTITY_CHANNEL = 0x49;
 const SCANLAB_CHANNEL = 0x53;
+const SCANLAB_RSP_LEN = 24;
+const SCANLAB_ROWS = 5;
+// svalboard.c sval_prewait_us / sval_postwait_us (the turbo table), id_turbo_scan, id_optical_debounce
+const TURBO_US = [90, 60, 45, 30, 25, 20, 15];
+const ID_TURBO_SCAN = 9;
+const ID_OPTICAL_DEBOUNCE = 48;
+// feat/timing-us-only: the auto mouse layer timeout (sval_timing.c)
+const ID_AUTOMOUSE_CHOICE = 5;
+const ID_AUTOMOUSE_MS = 49;
+const ID_AUTOMOUSE_NO_TIMEOUT = 50;
+const AUTOMOUSE_CHOICES = [200, 300, 400, 500, 800]; // index 5: no timeout
+const AUTOMOUSE_NEVER = 5;
 const KEYTEST_CHANNEL = 0x54;
 const IDENTITY_NAME_MAX_BYTES = 64;
 // sval:5356414C424F4152, a fixed serial for the simulation ("SVALBOAR")
@@ -71,6 +100,22 @@ export interface FakeFirmwareOptions {
      * it, VIA's keymap reset answers as unhandled.
      */
     factoryKeymap?: Uint8Array;
+    /** Firmware with the typing pause (Sval 0x3C, GET_INFO byte 20 bit 2). Default true. */
+    typingPause?: boolean;
+    /** Firmware with the flicker latch (Sval 0x3D, GET_INFO byte 20 bit 3). Default true. */
+    flickerLatch?: boolean;
+    /**
+     * Firmware with the optical debounce switch: VIA value 48 and Scan Lab
+     * STATUS byte 23 (svalboard.c, scanlab.c). Default true.
+     */
+    debounceSwitch?: boolean;
+    /**
+     * Firmware with the scan timing in µs only (feat/timing-us-only): at boot a
+     * wait of 0 is filled in from the turbo table, id_turbo_scan writes both
+     * waits and reads the matching preset (0xFF for none), and the auto mouse
+     * timeout is VIA 49 (ms) and 50 (no timeout). Default true.
+     */
+    timingUsOnly?: boolean;
 }
 
 /** A Sval table (TABLE_SCAN ids 0-4): its storage, entry size and "in use" test. */
@@ -129,13 +174,45 @@ const SETTINGS: SettingDesc[] = [
 const isBitSetting = (qsid: number) => (qsid >= 22 && qsid <= 26 && qsid !== 25) || qsid === 29;
 
 // Channel-0 custom values (svalboard.c via_custom_value_command_kb)
-const CUSTOM_TWO_BYTE = new Set([6, 13, 14, 20, 21, 22, 23, 24]);
+const CUSTOM_TWO_BYTE = new Set([6, 13, 14, 20, 21, 22, 23, 24, ID_AUTOMOUSE_MS]);
 const CUSTOM_READABLE = (id: number) => (id <= 15) || (id >= 20 && id <= 31) || (id >= 32 && id < 48);
 const CUSTOM_WRITABLE = (id: number) => (id <= 14) || (id >= 20 && id <= 30) || (id >= 32 && id < 48);
+const TIMING_US_ONLY_IDS = new Set([ID_AUTOMOUSE_MS, ID_AUTOMOUSE_NO_TIMEOUT]);
+const nearestChoice = (ms: number) => AUTOMOUSE_CHOICES.reduce((best, c, i) => (Math.abs(c - ms) < Math.abs(AUTOMOUSE_CHOICES[best] - ms) ? i : best), 0);
 
 /** Byte-level model of the board's raw HID protocol. */
 export class FakeSvalFirmware {
     readonly comboLabels: boolean;
+    readonly typingPause: boolean;
+    readonly flickerLatch: boolean;
+    readonly debounceSwitch: boolean;
+    readonly timingUsOnly: boolean;
+    /** Every channel-0 custom value write ([id, bytes]), oldest first, for tests. */
+    readonly customWrites: { id: number; value: number[] }[] = [];
+    /**
+     * The optical debounce mode (global_saved_values.optical_debounce_off):
+     * RAM, then saved by id_custom_save. Both halves use the saved half's mode
+     * at once here; the real other half follows within a presence ping.
+     */
+    opticalDebounceOn = true;
+    /** Every value 48 write, oldest first, and whether a save followed. */
+    readonly debounceWrites: { value: number; saved: boolean }[] = [];
+    /** Switches held down now ("row,col"), for VIA's matrix state and the latch's raw rows. */
+    readonly pressed = new Set<string>();
+    /** The flicker latch (flicker_latch.c): pressed and released since the last read, and change counts. */
+    private latchPressed = new Uint8Array(ROWS);
+    private latchReleased = new Uint8Array(ROWS);
+    private changes = new Uint8Array(ROWS * MATRIX_COLS);
+    /** Reads of the latch, for tests. */
+    latchReads = 0;
+    /** Every TYPING_PAUSE request, oldest first. */
+    readonly pauseRequests: TypingPauseRequest[] = [];
+    private pauseOwner = 0;
+    private pauseOwnerSeen = 0;
+    private pauseEndedAt: number | null = null;
+    private pausePaused = false;
+    private pauseLastEnd = 0;
+    private currentClient = 0;
     /** Live layer state (layer_state): never saved, as in QMK. */
     layerState = 0;
     private idCounter: number;
@@ -147,7 +224,12 @@ export class FakeSvalFirmware {
 
     constructor(readonly state: FakeBoardState, options: FakeFirmwareOptions = {}) {
         this.comboLabels = options.comboLabels ?? true;
+        this.typingPause = options.typingPause ?? true;
+        this.flickerLatch = options.flickerLatch ?? true;
+        this.debounceSwitch = options.debounceSwitch ?? true;
+        this.timingUsOnly = options.timingUsOnly ?? true;
         this.onChange = options.onChange;
+        if (this.timingUsOnly) this.migrateTiming();
         this.factoryKeymap = options.factoryKeymap;
         const start = Date.now();
         this.now = options.now ?? (() => Date.now() - start);
@@ -155,8 +237,194 @@ export class FakeSvalFirmware {
         this.idCounter = Math.floor(Math.random() * 0x10000);
     }
 
+    /**
+     * read_eeprom_kb() on feat/timing-us-only: a 0 wait (the old "turbo table")
+     * is filled in from the table at the saved turbo index and saved; the auto
+     * mouse ms value starts from the old choice.
+     */
+    private migrateTiming(): void {
+        const c = this.state.custom;
+        const get16 = (id: number) => c[id * 2] | (c[id * 2 + 1] << 8);
+        const set16 = (id: number, v: number) => { c[id * 2] = v & 0xff; c[id * 2 + 1] = (v >> 8) & 0xff; };
+        let changed = false;
+        const turbo = c[ID_TURBO_SCAN * 2] < TURBO_US.length ? c[ID_TURBO_SCAN * 2] : 0;
+        for (const id of [13, 14]) {
+            if (get16(id) === 0) { set16(id, TURBO_US[turbo]); changed = true; }
+        }
+        if (c[ID_TURBO_SCAN * 2] !== 0) { c[ID_TURBO_SCAN * 2] = 0; changed = true; }
+        if (get16(ID_AUTOMOUSE_MS) === 0) {
+            const choice = c[ID_AUTOMOUSE_CHOICE * 2];
+            set16(ID_AUTOMOUSE_MS, choice < AUTOMOUSE_NEVER ? AUTOMOUSE_CHOICES[choice] : 500);
+            changed = true;
+        }
+        if (changed) this.changed();
+    }
+
+    /** The preset both waits match (id_turbo_scan read), or 0xFF. */
+    private timingPreset(): number {
+        const c = this.state.custom;
+        const pre = c[26] | (c[27] << 8), post = c[28] | (c[29] << 8);
+        const i = TURBO_US.indexOf(pre as (typeof TURBO_US)[number]);
+        return pre === post && i >= 0 ? i : 0xff;
+    }
+
+    /** VIA 9, 13, 14, 5, 49 and 50 on feat/timing-us-only; true when handled. */
+    private timingValue(command: number, valueId: number, value: Uint8Array): boolean {
+        const c = this.state.custom;
+        const set16 = (id: number, v: number) => { c[id * 2] = v & 0xff; c[id * 2 + 1] = (v >> 8) & 0xff; };
+        const get16 = (id: number) => c[id * 2] | (c[id * 2 + 1] << 8);
+        if (command === 0x08) {
+            if (valueId === ID_TURBO_SCAN) value[0] = this.timingPreset();
+            else if (valueId === ID_AUTOMOUSE_MS) { value[0] = c[ID_AUTOMOUSE_MS * 2]; value[1] = c[ID_AUTOMOUSE_MS * 2 + 1]; }
+            else if (valueId === ID_AUTOMOUSE_NO_TIMEOUT) value[0] = c[ID_AUTOMOUSE_CHOICE * 2] === AUTOMOUSE_NEVER ? 1 : 0;
+            else return false;
+            return true;
+        }
+        if (command !== 0x07) return false;
+        const v16 = value[0] | (value[1] << 8);
+        if (valueId === ID_TURBO_SCAN) {
+            if (value[0] < TURBO_US.length) { set16(13, TURBO_US[value[0]]); set16(14, TURBO_US[value[0]]); }
+        } else if (valueId === 13 || valueId === 14) {
+            set16(valueId, v16 || TURBO_US[0]);
+        } else if (valueId === ID_AUTOMOUSE_CHOICE) {
+            if (value[0] > AUTOMOUSE_NEVER) return true;
+            c[ID_AUTOMOUSE_CHOICE * 2] = value[0];
+            if (value[0] < AUTOMOUSE_NEVER) set16(ID_AUTOMOUSE_MS, AUTOMOUSE_CHOICES[value[0]]);
+        } else if (valueId === ID_AUTOMOUSE_MS) {
+            const ms = Math.round(Math.min(2000, Math.max(100, v16)) / 10) * 10;
+            set16(ID_AUTOMOUSE_MS, ms);
+            if (c[ID_AUTOMOUSE_CHOICE * 2] !== AUTOMOUSE_NEVER) c[ID_AUTOMOUSE_CHOICE * 2] = nearestChoice(ms);
+        } else if (valueId === ID_AUTOMOUSE_NO_TIMEOUT) {
+            c[ID_AUTOMOUSE_CHOICE * 2] = value[0] ? AUTOMOUSE_NEVER : nearestChoice(get16(ID_AUTOMOUSE_MS) || 500);
+        } else {
+            return false;
+        }
+        this.changed();
+        return true;
+    }
+
     get macroBufferSize(): number {
         return this.comboLabels ? MACRO_BUFFER_SIZE : MACRO_BUFFER_SIZE_NO_COMBO_LABELS;
+    }
+
+    get featureFlags3(): number {
+        return (this.typingPause ? FLAG3_TYPING_PAUSE : 0) | (this.flickerLatch ? FLAG3_FLICKER_LATCH : 0);
+    }
+
+    private count(row: number, col: number) {
+        const i = row * MATRIX_COLS + col;
+        if (this.changes[i] < 255) this.changes[i]++;
+    }
+
+    /** A switch goes down (one raw scan saw it), as the firmware's scan would record it. */
+    press(row: number, col: number): void {
+        const k = `${row},${col}`;
+        if (this.pressed.has(k)) return;
+        this.pressed.add(k);
+        this.latchPressed[row] |= 1 << col;
+        this.count(row, col);
+    }
+
+    /** A switch goes up. */
+    release(row: number, col: number): void {
+        const k = `${row},${col}`;
+        if (!this.pressed.has(k)) return;
+        this.pressed.delete(k);
+        this.latchReleased[row] |= 1 << col;
+        this.count(row, col);
+    }
+
+    /** A bounce of one scan: down and up again between two reads. */
+    flicker(row: number, col: number): void {
+        this.press(row, col);
+        this.release(row, col);
+    }
+
+    private rawRow(row: number): number {
+        let bits = 0;
+        for (let col = 0; col < 8; col++) if (this.pressed.has(`${row},${col}`)) bits |= 1 << col;
+        return bits;
+    }
+
+    /** sval_flicker_command: data after [0xDF][0x3D]. */
+    private flickerCommand(data: Uint8Array, length: number): void {
+        if (length < 4 + 3 * ROWS || length < 4 + HALF_ROWS * MATRIX_COLS) {
+            if (length > 1) data[1] = 3;
+            return;
+        }
+        const op = data[0], arg = data[1];
+        data.fill(0, 1, length);
+        if (op === 0) {
+            this.latchReads++;
+            data[2] = 3; // both halves
+            data[3] = ROWS;
+            for (let r = 0; r < ROWS; r++) {
+                data[4 + r] = this.rawRow(r);
+                data[4 + ROWS + r] = this.latchPressed[r];
+                data[4 + 2 * ROWS + r] = this.latchReleased[r];
+            }
+            this.latchPressed.fill(0);
+            this.latchReleased.fill(0);
+        } else if (op === 1 && arg <= 1) {
+            data[2] = 1;
+            data[3] = arg;
+            const from = arg * HALF_ROWS * MATRIX_COLS;
+            data.set(this.changes.subarray(from, from + HALF_ROWS * MATRIX_COLS), 4);
+            this.changes.fill(0, from, from + HALF_ROWS * MATRIX_COLS);
+        } else {
+            data[1] = 1;
+        }
+    }
+
+    /**
+     * The typing pause now (typing_pause.c): "paused" until the owner has been
+     * quiet for the lease, then "ending" for the drain time, then "off".
+     */
+    typingPauseState(): "off" | "paused" | "ending" {
+        const now = this.timer();
+        if (this.pausePaused && now - this.pauseOwnerSeen >= TYPING_PAUSE_LEASE_MS) {
+            this.pausePaused = false;
+            this.pauseEndedAt = this.pauseOwnerSeen + TYPING_PAUSE_LEASE_MS;
+            this.pauseLastEnd = 2; // the owner went quiet
+        }
+        if (this.pausePaused) return "paused";
+        if (this.pauseEndedAt !== null && now - this.pauseEndedAt < TYPING_PAUSE_DRAIN_MS) return "ending";
+        this.pauseEndedAt = null;
+        return "off";
+    }
+
+    /** sval_typing_pause_command: data after [0xDF][0x3C]. */
+    private typingPauseCommand(data: Uint8Array, length: number): void {
+        if (length < 16) {
+            if (length > 1) data[1] = 3;
+            return;
+        }
+        const op = data[0];
+        this.pauseRequests.push({ op, client: this.currentClient, at: this.timer() });
+        if (this.pauseRequests.length > 2000) this.pauseRequests.splice(0, this.pauseRequests.length - 2000);
+        data.fill(0, 1, length);
+        let status = 0;
+        const state = this.typingPauseState();
+        if (op === 1) {
+            this.pausePaused = true;
+            this.pauseEndedAt = null;
+            this.pauseOwner = this.currentClient;
+            this.pauseOwnerSeen = this.timer();
+        } else if (op === 0) {
+            if (state === "paused") {
+                this.pausePaused = false;
+                this.pauseEndedAt = this.timer();
+                this.pauseLastEnd = 1;
+            }
+        } else if (op !== 2) {
+            status = 1;
+        }
+        const now = this.typingPauseState();
+        data[1] = status;
+        data[2] = now === "paused" ? 1 : now === "ending" ? 2 : 0;
+        data[3] = this.pauseLastEnd;
+        data[4] = now !== "off" && this.pauseOwner === this.currentClient ? 1 : 0;
+        put16(data, 5, now === "paused" ? Math.max(0, TYPING_PAUSE_LEASE_MS - (this.timer() - this.pauseOwnerSeen)) : 0);
     }
 
     get featureFlags2(): number {
@@ -221,6 +489,9 @@ export class FakeSvalFirmware {
             return data;
         }
         if (!this.validId(clientId)) return this.sendError(clientId, CLIENT_ERR_INVALID_ID, data);
+        // sval_client_packet_kb: only the owner's packets keep the typing pause on.
+        this.currentClient = clientId;
+        if (this.typingPauseState() === "paused" && clientId === this.pauseOwner) this.pauseOwnerSeen = this.timer();
         const protocol = data[5];
         if (protocol === SVAL_PREFIX) {
             this.svalCommand(data.subarray(5), length - 5);
@@ -268,10 +539,14 @@ export class FakeSvalFirmware {
                     case 0x04: // id_firmware_version (VIA_FIRMWARE_VERSION 0)
                         cd[1] = cd[2] = cd[3] = cd[4] = 0;
                         break;
-                    case 0x03: { // id_switch_matrix_state: nothing pressed (no VIA_INSECURE)
+                    case 0x03: { // id_switch_matrix_state (VIA_INSECURE): one byte per row, bit = column
                         const offset = cd[1];
                         let i = 2;
-                        for (let row = 0; row < 28 && row + offset < ROWS; row++) cd[i++] = 0;
+                        for (let row = 0; row < 28 && row + offset < ROWS; row++) {
+                            let bits = 0;
+                            for (let col = 0; col < 8; col++) if (this.pressed.has(`${row + offset},${col}`)) bits |= 1 << col;
+                            cd[i++] = bits;
+                        }
                         break;
                     }
                     case 0x06: // id_keycodes_version (QMK_KEYCODES_VERSION_BCD)
@@ -380,9 +655,13 @@ export class FakeSvalFirmware {
             this.rgblightCommand(data);
             return;
         }
-        // Keytest (keytest builds only) and Scan Lab aren't modeled: unhandled.
-        if (channel === KEYTEST_CHANNEL || channel === SCANLAB_CHANNEL) {
+        // Keytest (keytest builds only) isn't modeled: unhandled.
+        if (channel === KEYTEST_CHANNEL) {
             data[0] = ID_UNHANDLED;
+            return;
+        }
+        if (channel === SCANLAB_CHANNEL) {
+            this.scanlabCommand(data, length);
             return;
         }
         if (channel === IDENTITY_CHANNEL) {
@@ -392,6 +671,19 @@ export class FakeSvalFirmware {
         // Every other channel (0, and 0x55 on builds without the updater) lands
         // here: svalboard.c switches on the value ID alone.
         const c = this.state.custom;
+        if (valueId === ID_OPTICAL_DEBOUNCE && this.debounceSwitch) {
+            if (command === 0x07) {
+                this.opticalDebounceOn = value[0] !== 0;
+                this.debounceWrites.push({ value: value[0], saved: false });
+            } else if (command === 0x08) {
+                value[0] = this.opticalDebounceOn ? 1 : 0;
+            }
+            return;
+        }
+        if (command === 0x09 && this.debounceWrites.length) this.debounceWrites[this.debounceWrites.length - 1].saved = true;
+        if (command === 0x07) this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
+        if (this.timingUsOnly && this.timingValue(command, valueId, value)) return;
+        if (!this.timingUsOnly && TIMING_US_ONLY_IDS.has(valueId)) return;
         if (command === 0x07) {
             if (valueId >= CUSTOM_VALUE_IDS || !CUSTOM_WRITABLE(valueId)) return;
             let v0 = value[0];
@@ -409,6 +701,60 @@ export class FakeSvalFirmware {
             if (CUSTOM_TWO_BYTE.has(valueId) || valueId === 31 || valueId >= 32) value[1] = c[valueId * 2 + 1];
         }
         // id_custom_save: write_eeprom_kb(); values are already stored here
+    }
+
+    /**
+     * scanlab_via_command (keyboards/svalboard/scanlab.c): STATUS, POWER and
+     * IDLE for both halves, with no sweep or probe running; every other op
+     * answers zeros, as an idle engine does. The right half is the one with USB.
+     */
+    private scanlabCommand(data: Uint8Array, length: number): void {
+        const [cmd, , id] = [data[0], data[1], data[2]];
+        const args = data.subarray(3);
+        if (cmd !== 0x07 && cmd !== 0x08) return;
+        const op = cmd === 0x08 ? id & ~0x08 : id;
+        const hand = cmd === 0x08 ? (id >> 3) & 1 : args[0] & 1;
+        const rsp = new Uint8Array(SCANLAB_RSP_LEN);
+        const c = this.state.custom;
+        const v16 = (vid: number) => c[vid * 2] | (c[vid * 2 + 1] << 8);
+        const turbo = c[ID_TURBO_SCAN * 2] < TURBO_US.length ? c[ID_TURBO_SCAN * 2] : 0;
+        const pre = v16(13) || TURBO_US[turbo], post = v16(14) || TURBO_US[turbo];
+        const idleFlags = [25, 26, 27, 28, 29].reduce((f, vid, bit) => f | ((c[vid * 2] ? 1 : 0) << bit), 0);
+        if (op === 0x10) {
+            rsp[0] = 1; // SCANLAB_PROTO_VERSION
+            put16(rsp, 8, pre);
+            put16(rsp, 10, post);
+            rsp[12] = hand === 0 ? 1 : 0;
+            rsp[13] = 0b000100; // pushed: the active-dark centre key (sval_pushed_mask)
+            put16(rsp, 17, v16(13));
+            put16(rsp, 19, v16(14));
+            rsp[21] = this.timingUsOnly ? this.timingPreset() : c[ID_TURBO_SCAN * 2];
+            rsp[22] = hand === 1 ? 1 : 0; // the USB half sees the other half
+            if (this.debounceSwitch) rsp[23] = 0x01 | (this.opticalDebounceOn ? 0x02 : 0);
+        } else if (op === 0x11) {
+            put16(rsp, 0, v16(20));
+            put16(rsp, 2, v16(21));
+            put16(rsp, 4, v16(22));
+            put16(rsp, 6, 1000); // measured frame, us
+            put16(rsp, 8, SCANLAB_ROWS * (pre + 13)); // LED on per frame, us
+            put16(rsp, 11, v16(20));
+            put16(rsp, 13, pre);
+            put16(rsp, 15, post);
+            rsp[17] = SCANLAB_ROWS;
+            put16(rsp, 18, v16(23));
+            put16(rsp, 20, v16(24));
+            rsp[22] = (idleFlags & 0x1f) << 2;
+        } else if (op === 0x12) {
+            rsp[0] = idleFlags;
+            rsp[5] = this.state.rgb[0];
+            rsp[4] = this.state.rgb[0];
+            rsp[7] = 1;
+            rsp[21] = 125;
+            rsp[22] = [48, 24, 12][Math.min(2, c[30 * 2])];
+        }
+        // Firmware before the debounce switch copies 23 bytes back.
+        const n = Math.min(Math.max(0, length - 3), this.debounceSwitch ? SCANLAB_RSP_LEN : SCANLAB_RSP_LEN - 1);
+        args.set(rsp.subarray(0, n));
     }
 
     /** via_qmk_rgblight_command (quantum/via.c): brightness, effect, speed, color. */
@@ -496,6 +842,7 @@ export class FakeSvalFirmware {
                 data[17] = KEYCODES_VERSION[2];
                 data[18] = s.storageFlags & 0x05; // bit 1 (write failed) never happens here
                 data[19] = this.featureFlags2;
+                if (length > 20) data[20] = this.featureFlags3;
                 break;
             }
             case 0x2a: // STORAGE_RESET_CLEAR
@@ -675,6 +1022,20 @@ export class FakeSvalFirmware {
                 break;
             case 0x1d: // LABEL_CLEAR
                 this.labelClear(data, length);
+                break;
+            case 0x3d: // FLICKER_LATCH
+                if (!this.flickerLatch) {
+                    data[1] = SVAL_CMD_ERROR;
+                    break;
+                }
+                if (length > 3) this.flickerCommand(data.subarray(2), length - 2);
+                break;
+            case 0x3c: // TYPING_PAUSE
+                if (!this.typingPause) {
+                    data[1] = SVAL_CMD_ERROR;
+                    break;
+                }
+                if (length > 3) this.typingPauseCommand(data.subarray(2), length - 2);
                 break;
             default:
                 // Unknown command (context layers 0x26-0x29 included: not modeled), and

@@ -1,5 +1,5 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Download, Pin, RotateCcw, Trash2 } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
+import { Download, Pin, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBackups } from "@/contexts/BackupContext";
 import { dayKey } from "@/services/backup/retention";
@@ -7,7 +7,6 @@ import type { SnapshotMeta } from "@/services/backup/backup.service";
 import { PINNED_SNAPSHOT_KINDS } from "@/services/backup/store";
 import { backupFirmwareNote, backupReason } from "@/services/backup/describe";
 import { fileService } from "@/services/file.service";
-import { cn } from "@/lib/utils";
 
 const VISIBLE_PER_BOARD = 8;
 
@@ -40,8 +39,6 @@ const fileNameFor = (snap: SnapshotMeta) => {
 interface BackupsSectionProps {
     /** Opens the import review for a file, the same path as Import. */
     onRestore?: (file: File) => Promise<void> | void;
-    /** Open the list while true (a search matched it); it collapses again after. */
-    forceOpen?: boolean;
     /** Marks search matches in the header label. */
     highlight?: (text: string) => ReactNode;
 }
@@ -53,14 +50,15 @@ export function backupsSummary(snapshots: SnapshotMeta[], now = Date.now()): str
     return `${snapshots.length} backup${snapshots.length === 1 ? "" : "s"}, latest ${formatTime(newest, now)}`;
 }
 
-export default function BackupsSection({ onRestore, forceOpen = false, highlight = (t) => t }: BackupsSectionProps) {
+/**
+ * Settings > Backups: the automatic backups (when Keybard saves them, how many, the newest),
+ * Back up now, the backup folder, and every backup by board with Restore, Download and Delete.
+ */
+export default function BackupsSection({ onRestore, highlight = (t) => t }: BackupsSectionProps) {
     const { available, snapshots, folder, folderSupported, board, getSvil, deleteSnapshot, chooseFolder, resumeFolder, stopFolder, backUpNow } = useBackups();
     const [savedAt, setSavedAt] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-    // The list starts collapsed every time Settings opens.
-    const [open, setOpen] = useState(forceOpen);
-    useEffect(() => setOpen(forceOpen), [forceOpen]);
 
     const groups = useMemo(() => {
         const byBoard = new Map<string, SnapshotMeta[]>();
@@ -106,28 +104,18 @@ export default function BackupsSection({ onRestore, forceOpen = false, highlight
     const summary = backupsSummary(snapshots);
     return (
         <div className="flex flex-col gap-2" data-testid="backups">
-            <div className="flex flex-row items-center gap-2 px-3 py-2.5 panel-layer-item">
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls="settings-backups-list"
-                    aria-label={`Backups, ${summary}`}
-                    onClick={() => setOpen((o) => !o)}
-                    className="flex min-w-0 flex-1 flex-row items-center gap-2 text-left"
-                >
-                    <ChevronDown aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")} />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-sm text-kb-ink">{highlight("Backups")}</span>
-                        {savedAt !== null
-                            ? <span role="status" className="truncate text-xs text-muted-foreground">Saved {formatTime(savedAt)}</span>
-                            : <span className="truncate text-xs text-muted-foreground">{summary}</span>}
-                    </span>
-                </button>
+            <div className="flex flex-row items-center gap-2 px-3 py-2.5 panel-layer-item" data-testid="backups-status">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-sm text-kb-ink">{highlight("Automatic backups")}</span>
+                    <span className="text-xs text-muted-foreground">Keybard saves your layout when the keyboard connects, after you edit, and before a firmware update.</span>
+                    {savedAt !== null
+                        ? <span role="status" className="truncate text-xs text-muted-foreground">Saved {formatTime(savedAt)}</span>
+                        : <span className="truncate text-xs text-muted-foreground" data-testid="backups-summary">{summary}</span>}
+                </span>
                 {board && (
                     <Button size="sm" className="shrink-0" onClick={now}>Back up now</Button>
                 )}
             </div>
-            {open && (
             <div id="settings-backups-list" className="flex flex-col gap-2">
             <div className="flex flex-col p-3 gap-2 panel-layer-item">
                 <span className="text-md text-left">Backup folder</span>
@@ -209,7 +197,6 @@ export default function BackupsSection({ onRestore, forceOpen = false, highlight
                 );
             })}
             </div>
-            )}
         </div>
     );
 }

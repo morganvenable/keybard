@@ -1,0 +1,32 @@
+/*
+ * Matrix tester keys: drawn by the tester's frame loop (MatrixTester.tsx), which sets
+ * data-down and data-seen on each key. No transitions or animations: a key turns on
+ * and off on the frame its state changes. The shared Key component's transitions
+ * (Key.tsx, Key.css) are removed here, not shortened.
+ */
+[data-matrix-tester] [data-matrix-key],
+[data-matrix-tester] [data-matrix-key] *,
+[data-matrix-tester] [data-key-count],
+[data-matrix-tester] [data-tester-exit-countdown] {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* Seen down since the tester opened (or Clear). */
+[data-matrix-tester] [data-matrix-key][data-seen] {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+/* Down now, or went down since the last frame. */
+[data-matrix-tester] [data-matrix-key][data-down] {
+    background-color: var(--color-kb-red) !important;
+    border-color: var(--color-kb-red) !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 2px var(--color-kb-red);
+}
+
+[data-matrix-tester] [data-key-count][hidden],
+[data-matrix-tester] [data-tester-exit-countdown][hidden] {
+    display: none;
+}

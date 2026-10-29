@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanLabPanel from '../../src/layout/SecondarySidebar/Panels/ScanLabPanel';
 import type { ProbeRow, ScanLabPower, ScanLabStatus } from '../../src/services/scanlab.service';
 
-const keyboardContext = { isConnected: true, connect: vi.fn() };
+const keyboardContext = { isConnected: true, connect: vi.fn(), setKeyboard: vi.fn() };
 const layoutSettings = { layoutMode: 'sidebar' as 'sidebar' | 'bottombar', keyVariant: 'default' };
 
 vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardContext }));
@@ -17,6 +17,7 @@ const status = (over: Partial<ScanLabStatus>): ScanLabStatus => ({
     reachable: true, protoVersion: 1, hwRevision: 1, sweepState: 0, framesDone: 0, framesTarget: 0, refValid: false,
     effPrewaitUs: 200, effPostwaitUs: 200, isLeft: true, fingerPushedMask: 0b000100, thumbPushedMask: 0,
     probeValid: false, probeRow: 0, savedPrewaitUs: 200, savedPostwaitUs: 200, turboIndex: 0, otherHalfConnected: true,
+    debounceSwitch: false, opticalDebounceOn: false,
     ...over,
 });
 
@@ -40,6 +41,8 @@ const svc = vi.hoisted(() => ({
     runSweepStep: vi.fn(),
     abort: vi.fn(),
     applyTiming: vi.fn(),
+    getOpticalDebounce: vi.fn(),
+    setOpticalDebounce: vi.fn(),
 }));
 
 const powerReading = (over: Partial<ScanLabPower> = {}): ScanLabPower => ({
@@ -54,12 +57,56 @@ vi.mock('@/services/scanlab.service', async (importOriginal) => {
     return { ...actual, scanlabService: svc };
 });
 
+describe('ScanLabPanel debounce switch', () => {
+    let mode = true;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        keyboardContext.isConnected = true;
+        mode = true;
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0, debounceSwitch: true, opticalDebounceOn: mode }));
+        svc.getOpticalDebounce.mockImplementation(async () => mode);
+        svc.setOpticalDebounce.mockImplementation(async (on: boolean) => { mode = on; });
+        svc.getPower.mockResolvedValue(powerReading({ reachable: false }));
+        svc.getIdle.mockResolvedValue({ reachable: false });
+    });
+
+    it('shows the saved mode, writes a change and reads both halves back', async () => {
+        render(<ScanLabPanel />);
+        const box = await screen.findByTestId('debounce-optical');
+        expect(screen.getByTestId('debounce-label')).toHaveTextContent(/^Debounce optical keys: 5 ms$/);
+        expect(screen.getByTestId('debounce-dd-note')).toHaveTextContent(/^The thumb Double Down is always debounced: 5 ms$/);
+        expect(box).toBeChecked();
+        fireEvent.click(box);
+        await waitFor(() => expect(svc.setOpticalDebounce).toHaveBeenCalledWith(false));
+        await waitFor(() => expect(screen.getByTestId('debounce-optical')).not.toBeChecked());
+        expect(screen.getByTestId('debounce-label')).toHaveTextContent(/^Debounce optical keys: off$/);
+        expect(screen.getByTestId('debounce-dd-note')).toHaveTextContent(/^The thumb Double Down is always debounced: 5 ms$/);
+        await waitFor(() => expect(svc.getStatus.mock.calls.length).toBeGreaterThanOrEqual(4), { timeout: 2000 });
+        expect(screen.queryByTestId('debounce-half-note')).toBeNull();
+    });
+
+    it('says which half has not followed yet', async () => {
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0, debounceSwitch: true, opticalDebounceOn: hand === 0 ? !mode : mode }));
+        render(<ScanLabPanel />);
+        expect(await screen.findByTestId('debounce-half-note')).toHaveTextContent('Left half: still off; it follows within a second.');
+    });
+
+    it('is hidden when no half has the switch', async () => {
+        svc.getStatus.mockImplementation(async (hand: 0 | 1) => status({ isLeft: hand === 0 }));
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getStatus).toHaveBeenCalledTimes(2));
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByTestId('debounce-section')).toBeNull();
+        expect(svc.getOpticalDebounce).not.toHaveBeenCalled();
+    });
+});
+
 describe('ScanLabPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         keyboardContext.isConnected = true;
         svc.getStatus.mockImplementation(async (hand: 0 | 1) => status(hand === 0 ? { isLeft: true } : { isLeft: false, hwRevision: 0 }));
-        svc.applyTiming.mockResolvedValue(undefined);
+        svc.applyTiming.mockImplementation(async (pre: number, post: number) => ({ prewaitUs: pre || 90, postwaitUs: post || 90 }));
         svc.applyPacing.mockResolvedValue(undefined);
         svc.getPower.mockImplementation(async (hand: 0 | 1) => (hand === 0 ? powerReading() : powerReading({ reachable: false })));
         svc.getIdle.mockImplementation(async (hand: 0 | 1) => ({
@@ -206,5 +253,18 @@ describe('ScanLabPanel', () => {
         fireEvent.change(screen.getByLabelText('post-wait µs'), { target: { value: '80' } });
         fireEvent.click(screen.getByRole('button', { name: 'Apply to keyboard' }));
         await waitFor(() => expect(svc.applyTiming).toHaveBeenCalledWith(120, 80));
+        // The waits read back from the board go into keyboard.custom_values, which the Tuning section shows.
+        await waitFor(() => expect(keyboardContext.setKeyboard).toHaveBeenCalled());
+        const update = keyboardContext.setKeyboard.mock.calls.at(-1)![0] as (k: unknown) => { custom_values: { key: string; data: number[] }[] };
+        const next = update({ custom_values: [{ key: 'id_scan_prewait_us', data: [0, 0] }, { key: 'id_scan_postwait_us', data: [0, 0] }, { key: 'id_left_dpi', data: [3] }] });
+        expect(next.custom_values).toEqual([{ key: 'id_scan_prewait_us', data: [120, 0] }, { key: 'id_scan_postwait_us', data: [80, 0] }, { key: 'id_left_dpi', data: [3] }]);
+    });
+
+    it('offers no turbo preset: no "Back to turbo table", no "turbo table" or "explicit" on the status cards', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getStatus).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(screen.getByTestId('status-0')).toHaveTextContent('pre'));
+        expect(screen.queryByRole('button', { name: /turbo/i })).toBeNull();
+        expect(document.body.textContent).not.toMatch(/turbo|explicit/i);
     });
 });

@@ -82,13 +82,13 @@ export const primarySidebarItems: SidebarItem[] = [
 const SHOW_LEADERS = true;
 
 /**
- * The binding group of the rail. Alt-Repeat is the last item, only when its app
+ * The binding group of the rail: Combos, Leaders, Overrides. Alt-Repeat is the last item, only when its app
  * preference is on. Typing behavior is set up once, so it lives in Settings.
  */
 export function featureSidebarItemsFor(showAltRepeat: boolean): SidebarItem[] {
     return [
-        ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
         { title: "Combos", url: "combos", icon: ComboIcon },
+        ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
         { title: "Overrides", url: "overrides", icon: OverridesIcon },
         ...(showAltRepeat ? [{ title: "Alt-Repeat", url: ALT_REPEAT_PANEL, icon: AltRepeatArrowsIcon }] : []),
     ];

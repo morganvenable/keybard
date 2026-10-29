@@ -12,7 +12,8 @@ import { TYPING_BEHAVIOR_SECTIONS, type SettingsBlock, type SettingsRow, type Se
 /** Words people search with that are not on screen, by section. */
 export const SECTION_SYNONYMS: Record<string, string[]> = {
     hardware: ["clusters", "fragments", "pointing devices"],
-    firmware: ["backup", "back up", "files"],
+    firmware: ["update", "flash", "uf2"],
+    backups: ["backup", "back up", "files", "layout files"],
     appearance: ["look", "display", "editor", "keymap"],
     typing: ["qmk settings", "timing"],
     about: ["developer", "dev", "debug"],

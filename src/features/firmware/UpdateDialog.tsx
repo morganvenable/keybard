@@ -79,7 +79,8 @@ function useHiddenToast(active: boolean) {
 export function UpdateDialog(p: UpdateDialogProps) {
     const { ui } = p;
     const running = ui.kind === "flow" && ui.state.phase === "running";
-    const now = useTicker(p.now);
+    // Ticks only while the dialog shows: the provider keeps it mounted when idle.
+    const now = useTicker(p.now, 250, !(ui.kind === "idle" || (ui.kind === "flow" && ui.state.phase === "cancelled")));
     const [toast, dismissToast] = useHiddenToast(running);
 
     useEffect(() => {

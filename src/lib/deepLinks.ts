@@ -11,7 +11,16 @@
  * - ?edit=combo:N | tapdance:N | macro:N opens that editor once a layout is loaded.
  * - ?fakeBoard connects to a simulated Svalboard (src/dev/fake-board) as if it
  *   were plugged in, firmware with combo names; ?fakeBoard=old simulates
- *   firmware without them. Its settings stay in this browser across reloads.
+ *   firmware without them; ?fakeBoard=nopause simulates firmware that can't
+ *   pause typing for the matrix tester; ?fakeBoard=turbo6 is this firmware
+ *   on a board that ran turbo 6 with both scan waits at 0 before updating
+ *   (its migration lands on 15 / 15 µs; it starts fresh on every load).
+ *   Its settings stay in this browser across reloads (except turbo6).
+ * - ?tester opens the matrix tester once a board is connected or a layout loaded.
+ * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
+ *   with ?panel=settings and the old panel names); ?panel=pointing opens the
+ *   Pointing Devices panel, where the auto mouse settings are. ?panel=firmware and
+ *   ?panel=backups open Settings at that card.
  */
 import type { ResolvedTheme } from "@/lib/theme";
 
@@ -19,6 +28,7 @@ export const DEMO_PARAM = "demo";
 export const THEME_PARAM = "theme";
 export const EDIT_PARAM = "edit";
 export const FAKE_BOARD_PARAM = "fakeBoard";
+export const TESTER_PARAM = "tester";
 
 export type DemoChoice = "qwerty" | "combos";
 
@@ -43,14 +53,23 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
     return value === "light" || value === "dark" ? value : null;
 }
 
-/** "combo-names": firmware that stores combo names; "old": firmware without them. */
-export type FakeBoardChoice = "combo-names" | "old";
+/**
+ * "combo-names": this firmware (combo names, typing pause); "old": firmware
+ * without combo names; "no-pause": firmware that can't pause typing.
+ */
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6";
 
-/** ?fakeBoard (any value but "old") is the simulated board with combo names; absent is null. */
+/** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
-    return value.trim().toLowerCase() === "old" ? "old" : "combo-names";
+    const v = value.trim().toLowerCase();
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : "combo-names";
+}
+
+/** ?tester: open the matrix tester on start. */
+export function testerFromSearch(search: string): boolean {
+    return param(search, TESTER_PARAM) !== null;
 }
 
 export type EditKind = "combo" | "tapdance" | "macro";
@@ -139,6 +158,14 @@ export function claimEditStart(): boolean {
     return true;
 }
 
+let testerStarted = false;
+/** The ?tester open happens once per page load. */
+export function claimTesterStart(): boolean {
+    if (testerStarted) return false;
+    testerStarted = true;
+    return true;
+}
+
 let fakeBoardStarted = false;
 /** The ?fakeBoard connect happens once per page load, not again after a disconnect. */
 export function claimFakeBoardStart(): boolean {
@@ -152,4 +179,5 @@ export function resetDeepLinksForTests() {
     demoStarted = false;
     editStarted = false;
     fakeBoardStarted = false;
+    testerStarted = false;
 }

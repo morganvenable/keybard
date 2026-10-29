@@ -13,6 +13,22 @@ export const FAKE_BOARD_REPORT_LENGTH = 32;
 export interface FakeSvalboardOptions {
     /** Firmware with combo names (label type 3, GET_INFO flags2 bit 7). Default true. */
     comboLabels?: boolean;
+    /** Firmware with the typing pause (Sval 0x3C). Default true. */
+    typingPause?: boolean;
+    /** Firmware with the flicker latch (Sval 0x3D). Default true. */
+    flickerLatch?: boolean;
+    /** Firmware with the optical debounce switch (VIA value 48, Scan Lab STATUS byte 23). Default true. */
+    debounceSwitch?: boolean;
+    /** Firmware with the scan timing in µs only (feat/timing-us-only). Default true. */
+    timingUsOnly?: boolean;
+    /**
+     * A board that ran turbo TURBO with both waits at 0 before this firmware:
+     * seeded that way, fresh on every load (not saved), so the firmware's boot
+     * migration runs each time.
+     */
+    seedTurbo?: number;
+    /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
+    reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
     state?: FakeBoardState;
     /** Keep the settings in localStorage after every write. Default: true unless `state` is given. */
@@ -43,6 +59,44 @@ function defaultSchedule(): (fn: () => void) => void {
 }
 
 /**
+ * Runs a callback at an exact time, as a USB reply lands: a worker watches the
+ * clock and posts back when it is due, so the reply arrives as its own task on
+ * the page, on time. Page timers can't do this: on Windows a short setTimeout
+ * waits for the next system tick, often 15.6 ms, which made the simulated link
+ * four times slower than the real one. The worker only runs while a reply is
+ * pending, and never on the page's main thread. Null where workers don't exist
+ * (jsdom); setTimeout is used there.
+ */
+function makeLinkClock(): ((fn: () => void, delayMs: number) => void) | null {
+    if (typeof Worker === "undefined" || typeof Blob === "undefined" || typeof URL?.createObjectURL !== "function") return null;
+    try {
+        const source = "onmessage = (e) => { const [id, due] = e.data; while (performance.timeOrigin + performance.now() < due) {} postMessage(id); };";
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        const pending = new Map<number, () => void>();
+        let next = 0, broken = false;
+        // A policy that forbids workers (Paranoid) may only say so later: fall back to timers.
+        worker.onerror = () => {
+            broken = true;
+            for (const fn of pending.values()) setTimeout(fn, 0);
+            pending.clear();
+        };
+        worker.onmessage = (e: MessageEvent<number>) => {
+            const fn = pending.get(e.data);
+            pending.delete(e.data);
+            fn?.();
+        };
+        return (fn, delayMs) => {
+            if (broken) { setTimeout(fn, delayMs); return; }
+            const id = next++;
+            pending.set(id, fn);
+            worker.postMessage([id, performance.timeOrigin + performance.now() + delayMs]);
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Structurally a HIDDevice (WebHID's overloaded event typings can't be
  * implemented by a plain class); use asHIDDevice() where one is expected.
  */
@@ -51,25 +105,43 @@ export class FakeSvalboardDevice extends EventTarget {
     readonly vendorId = FAKE_BOARD_VENDOR_ID;
     readonly productId = FAKE_BOARD_PRODUCT_ID;
     readonly productName = FAKE_BOARD_PRODUCT_NAME;
-    readonly collections: HIDCollectionInfo[] = [rawHidCollection(FAKE_BOARD_REPORT_LENGTH)];
+    readonly reportLength: number;
+    readonly collections: HIDCollectionInfo[];
     readonly firmware: FakeSvalFirmware;
     /** Every report sent to the board, for tests (newest last; up to 2000 kept). */
     readonly sent: Uint8Array[] = [];
+    /**
+     * Extra time before each reply, in ms (0: none), kept exactly (makeLinkClock).
+     * The e2e tests set the round trip measured on the trackball test board.
+     */
+    replyDelayMs = 0;
     private isOpen = false;
     private persisting: boolean;
     private readonly schedule: (fn: () => void) => void;
+    private linkClock: ((fn: () => void, delayMs: number) => void) | null | undefined;
 
     constructor(options: FakeSvalboardOptions = {}) {
         super();
-        const persist = options.persist ?? !options.state;
+        this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
+        this.collections = [rawHidCollection(this.reportLength)];
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
             state = seedBoard();
+            if (options.seedTurbo !== undefined) {
+                const c = state.custom;
+                c[9 * 2] = options.seedTurbo;
+                c[13 * 2] = c[13 * 2 + 1] = c[14 * 2] = c[14 * 2 + 1] = 0;
+            }
             if (persist) storeBoard(state);
         }
         this.firmware = new FakeSvalFirmware(state, {
             comboLabels: options.comboLabels ?? true,
+            typingPause: options.typingPause ?? true,
+            flickerLatch: options.flickerLatch ?? true,
+            debounceSwitch: options.debounceSwitch ?? true,
+            timingUsOnly: options.timingUsOnly ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
         });
@@ -110,8 +182,8 @@ export class FakeSvalboardDevice extends EventTarget {
         if (!this.isOpen) throw new DOMException("The device must be opened first.", "InvalidStateError");
         const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
         // A report is always the descriptor's length; shorter data is zero-padded, as the OS does.
-        const report = new Uint8Array(FAKE_BOARD_REPORT_LENGTH);
-        report.set(bytes.subarray(0, FAKE_BOARD_REPORT_LENGTH));
+        const report = new Uint8Array(this.reportLength);
+        report.set(bytes.subarray(0, this.reportLength));
         this.sent.push(report);
         if (this.sent.length > 2000) this.sent.splice(0, this.sent.length - 2000);
         if (reportId !== 0) return;
@@ -123,7 +195,14 @@ export class FakeSvalboardDevice extends EventTarget {
             console.error("[fake board] The simulated firmware failed on a report:", e);
             reply = null;
         }
-        if (reply) this.schedule(() => this.deliver(reply!));
+        if (!reply) return;
+        if (this.replyDelayMs > 0) {
+            if (this.linkClock === undefined) this.linkClock = makeLinkClock();
+            const at = this.linkClock;
+            if (at) at(() => this.deliver(reply!), this.replyDelayMs);
+            else setTimeout(() => this.deliver(reply!), this.replyDelayMs);
+        }
+        else this.schedule(() => this.deliver(reply!));
     }
 
     async sendFeatureReport(): Promise<void> {
@@ -136,7 +215,7 @@ export class FakeSvalboardDevice extends EventTarget {
 
     private deliver(reply: Uint8Array) {
         if (!this.isOpen) return;
-        const buffer = new ArrayBuffer(FAKE_BOARD_REPORT_LENGTH);
+        const buffer = new ArrayBuffer(this.reportLength);
         new Uint8Array(buffer).set(reply);
         const event = new Event("inputreport") as HIDInputReportEvent;
         Object.defineProperties(event, {

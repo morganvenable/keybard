@@ -27,7 +27,7 @@ vi.mock('@/contexts/SettingsContext', async (orig) => {
 });
 vi.mock('../../src/layout/SecondarySidebar/Panels/BoardIdentitySection', () => ({ default: () => <p>Board identity</p> }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/BackupsSection', () => ({
-    default: ({ forceOpen }: { forceOpen?: boolean }) => <p>{forceOpen ? 'Backups list open' : 'Backups list collapsed'}</p>,
+    default: () => <p>Backup list</p>,
 }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/settings/FirmwareRow', () => ({ default: () => <p>Firmware status</p> }));
 vi.mock('../../src/components/ExportDialog', () => ({ default: () => null }));
@@ -54,16 +54,17 @@ describe('Settings search', () => {
     it('finds Firmware for "update"', () => {
         render(<SettingsPanel />);
         type('update');
-        expect(sectionTitles()).toEqual(['Firmware and backups']);
+        expect(sectionTitles()).toEqual(['Firmware']);
         expect(screen.getByText('Firmware status')).toBeVisible();
+        expect(screen.queryByText('Backup list')).toBeNull();
     });
 
     it('finds Backups for "restore", and opens the backups list', () => {
         render(<SettingsPanel />);
-        expect(screen.queryByText('Backups list collapsed')).toBeNull();
+        expect(screen.queryByText('Backup list')).toBeNull();
         type('restore');
-        expect(sectionTitles()).toEqual(['Firmware and backups']);
-        expect(screen.getByText('Backups list open')).toBeVisible();
+        expect(sectionTitles()).toEqual(['Backups']);
+        expect(screen.getByText('Backup list')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Import layout' })).toBeVisible();
         expect(screen.queryByRole('button', { name: 'Export layout' })).toBeNull();
     });
@@ -71,10 +72,11 @@ describe('Settings search', () => {
     it('shows the whole section when its title matches, with the match marked', () => {
         render(<SettingsPanel />);
         type('backup');
-        expect(sectionTitles()).toEqual(['Firmware and backups']);
+        expect(sectionTitles()).toEqual(['Backups']);
         expect(screen.getByRole('button', { name: 'Export layout' })).toBeVisible();
-        expect(screen.getByText('Firmware status')).toBeVisible();
-        expect(screen.getByRole('heading', { level: 4 }).querySelector('mark')?.textContent).toBe('backup');
+        expect(screen.getByText('Backup list')).toBeVisible();
+        expect(screen.queryByText('Firmware status')).toBeNull();
+        expect(screen.getByRole('heading', { level: 4 }).querySelector('mark')?.textContent).toBe('Backup');
     });
 
     it('opens a collapsed section it finds a match in', () => {
@@ -93,7 +95,7 @@ describe('Settings search', () => {
         expect(screen.getByRole('status')).toHaveTextContent('Nothing in Settings matches “zzzz”.');
         fireEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Clear search' }));
         expect(search()).toHaveValue('');
-        expect(sectionTitles()).toHaveLength(5);
+        expect(sectionTitles()).toHaveLength(6);
     });
 
     it('clears on Esc', () => {
@@ -102,7 +104,7 @@ describe('Settings search', () => {
         expect(sectionTitles()).toEqual(['Appearance and editing']);
         fireEvent.keyDown(search(), { key: 'Escape' });
         expect(search()).toHaveValue('');
-        expect(sectionTitles()).toHaveLength(5);
+        expect(sectionTitles()).toHaveLength(6);
     });
 
     it('focuses the field on "/" or Ctrl+F inside Settings, without taking "/" from a text field', () => {
@@ -135,7 +137,7 @@ describe('Settings search', () => {
         expect(within(nav).getByRole('button', { name: 'Appearance' })).not.toHaveClass('opacity-50');
         fireEvent.click(within(nav).getByRole('button', { name: 'About' }));
         expect(search()).toHaveValue('');
-        expect(sectionTitles()).toHaveLength(5);
+        expect(sectionTitles()).toHaveLength(6);
     });
 });
 

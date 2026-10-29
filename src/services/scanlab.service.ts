@@ -21,6 +21,17 @@ export const ID_IDLE_CPU_SLEEP = 27;
 export const ID_IDLE_LOW_CLOCK = 28;
 export const ID_IDLE_LONG_NAP = 29;
 export const ID_SCAN_DEEP_CLOCK_IDX = 30;
+/** Debounce the optical keys (1, the default) or not (0); the thumb Double Down always is. */
+export const ID_OPTICAL_DEBOUNCE = 48;
+
+/**
+ * The debounce periods, in ms. The firmware doesn't report them (not in Scan Lab STATUS, not
+ * as a custom value), so these match it by hand. svalboard/qmk, keyboards/svalboard/debounce_sval.c:
+ * SVAL_OPTICAL_DEBOUNCE_MS 5 (QMK's sym_defer_g with its DEBOUNCE default of 5, on the optical
+ * keys) and SVAL_DD_DEBOUNCE_MS 5 (the thumb Double Down). Change them with the firmware.
+ */
+export const OPTICAL_DEBOUNCE_MS = 5;
+export const DOUBLE_DOWN_DEBOUNCE_MS = 5;
 export const DEEP_CLOCK_CHOICES_MHZ = [48, 24, 12] as const;
 
 /** Idle power features, each a firmware toggle so its effect can be measured alone. */
@@ -68,7 +79,8 @@ const OP = {
     PROBE_OFF: 0x60,
 } as const;
 
-const RESPONSE_BYTES = 23;
+// STATUS fills 24 bytes on firmware with the debounce switch (byte 23); older firmware sends 23, so byte 23 reads zero.
+const RESPONSE_BYTES = 24;
 const UNREACHABLE = 0xff;
 
 export interface ScanLabStatus {
@@ -90,6 +102,10 @@ export interface ScanLabStatus {
     savedPostwaitUs: number;
     turboIndex: number;
     otherHalfConnected: boolean;
+    /** The firmware has the optical debounce switch (STATUS byte 23 bit 0). */
+    debounceSwitch: boolean;
+    /** This half debounces its optical keys now (byte 23 bit 1): the other half shows the mode it took from the USB half. */
+    opticalDebounceOn: boolean;
 }
 
 const WIRE_CAP = 0xffff;
@@ -234,6 +250,7 @@ export class ScanLabService {
                 framesDone: 0, framesTarget: 0, refValid: false, effPrewaitUs: 0, effPostwaitUs: 0,
                 isLeft: false, fingerPushedMask: 0, thumbPushedMask: 0, probeValid: false, probeRow: 0,
                 savedPrewaitUs: 0, savedPostwaitUs: 0, turboIndex: 0, otherHalfConnected: false,
+                debounceSwitch: false, opticalDebounceOn: false,
             };
         }
         return {
@@ -255,6 +272,8 @@ export class ScanLabService {
             savedPostwaitUs: u16(b, 19),
             turboIndex: b[21],
             otherHalfConnected: b[22] === 1,
+            debounceSwitch: ((b[23] ?? 0) & 1) !== 0,
+            opticalDebounceOn: ((b[23] ?? 0) & 2) !== 0,
         };
     }
 
@@ -345,6 +364,18 @@ export class ScanLabService {
             sysClockMhz: b[21] > 0 ? b[21] : null,
             deepClockMhz: b[22] > 0 ? b[22] : null,
         };
+    }
+
+    /** The saved optical debounce mode (VIA value 48), as the half with USB holds it. */
+    async getOpticalDebounce(): Promise<boolean> {
+        const b = await this.usb.customValueGet(KEYBOARD_CHANNEL, ID_OPTICAL_DEBOUNCE, 1);
+        return b[0] !== 0;
+    }
+
+    /** Debounce the optical keys or not, and save; the other half follows within a presence ping. */
+    async setOpticalDebounce(on: boolean): Promise<void> {
+        await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_OPTICAL_DEBOUNCE, [on ? 1 : 0]);
+        await this.usb.customValueSave(KEYBOARD_CHANNEL);
     }
 
     /** Pick the deep-idle clock (index into DEEP_CLOCK_CHOICES_MHZ) and save. */
@@ -488,11 +519,19 @@ export class ScanLabService {
         return { hand, prewaitUs, postwaitUs, frames, state: st.sweepState, rows, totalMismatches };
     }
 
-    /** Persist explicit scan timing on the keyboard; the master relays it to the other half. */
-    async applyTiming(prewaitUs: number, postwaitUs: number): Promise<void> {
+    /**
+     * Save both scan waits on the keyboard; the half with USB relays them to
+     * the other half. Returns the waits read back from the board.
+     */
+    async applyTiming(prewaitUs: number, postwaitUs: number): Promise<{ prewaitUs: number; postwaitUs: number }> {
         await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_PREWAIT_US, [lo(prewaitUs), hi(prewaitUs)]);
         await this.usb.customValueSet(KEYBOARD_CHANNEL, ID_SCAN_POSTWAIT_US, [lo(postwaitUs), hi(postwaitUs)]);
         await this.usb.customValueSave(KEYBOARD_CHANNEL);
+        const read = async (id: number) => {
+            const b = await this.usb.customValueGet(KEYBOARD_CHANNEL, id, 2);
+            return (b?.[0] ?? 0) | ((b?.[1] ?? 0) << 8);
+        };
+        return { prewaitUs: await read(ID_SCAN_PREWAIT_US), postwaitUs: await read(ID_SCAN_POSTWAIT_US) };
     }
 }
 

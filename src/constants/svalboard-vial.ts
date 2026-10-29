@@ -17,7 +17,7 @@ export const SVALBOARD_VIAL_CUSTOM_KEYCODES = [
     { name: 'SV_LEFT_SCROLL_TOGGLE', title: "Toggle if the left pointer is scroll or pointer.", shortName: "Scroll\nLeft\nToggle" },
     { name: 'SV_RIGHT_SCROLL_TOGGLE', title: "Toggle if the right pointer is scroll or pointer.", shortName: "Scroll\nRight\nToggle" },
     { name: 'SV_RECALIBRATE_POINTER', title: "Reset the calibration of the pointing device", shortName: "Fix\nDrift" },
-    { name: 'SV_MH_CHANGE_TIMEOUTS', title: "Cycle between various settings of the mouse keys timer.", shortName: "Mouse\nKey\nTimer" },
+    { name: 'SV_MH_CHANGE_TIMEOUTS', title: "Cycles the auto mouse layer timeout through 200, 300, 400, 500 and 800 ms and no timeout, and saves it.", shortName: "Mouse\nKey\nTimer" },
     { name: 'SV_CAPS_WORD', title: "Toggle Caps Word.", shortName: "Caps\nWord\nToggle" },
     { name: 'SV_AXIS_SCROLL_LOCK', title: "Toggle Axis Scroll Lock.", shortName: "Axis\nScroll\nLock" },
     { name: 'SV_TOGGLE_23_67', title: "Toggle layer 2 and 3, if 4 and 5 also active toggle 6 and 7", shortName: "MO 23\n(45=67)" },
@@ -29,5 +29,5 @@ export const SVALBOARD_VIAL_CUSTOM_KEYCODES = [
     { name: 'SV_SCROLL_TOGGLE', title: "Press to toggle the scrolling mode of both pointers.", shortName: "Scroll\nToggle" },
     { name: 'SV_OUTPUT_STATUS', title: "Output the current internal state of the keyboard.", shortName: "Output\nStatus" },
     { name: 'SV_TOGGLE_AUTOMOUSE', title: "Toggle Auto Mouse layer activation.", shortName: "AutoMouse\nToggle" },
-    { name: 'SV_TURBO_SCAN', title: "Change the scan mode of the keyboard.", shortName: "Turbo\nScan" },
+    { name: 'SV_TURBO_SCAN', title: "Steps the key scan waits to the next faster preset (90 to 15 µs), then back to 90, and saves them.", shortName: "Turbo\nScan" },
 ];

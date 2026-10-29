@@ -40,6 +40,7 @@ import type { KeyComboProps } from "./Key";
 import { dark3DLabelColor, needsDarkIndicatorOutline, screenedBackdropHex } from "./layer3DColors";
 import { PointingLayer } from "./pointing-viz/PointingLayer";
 import { placedKeyRects } from "@/utils/pointing-geometry";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
 const NO_MEMBERSHIPS: ComboMembership[] = [];
 
@@ -432,6 +433,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (matrixTesterOpen()) return;
             const typingBindsKey = getSetting("typing-binds-key");
             if (typingBindsKey) return;
 

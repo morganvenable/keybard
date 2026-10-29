@@ -13,6 +13,7 @@ import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { DEFAULT_TAPDANCE_TERM_MS } from "@/utils/tapdance-term";
 import { useKeyboard } from "./KeyboardContext";
+import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
 interface BindingTarget {
     type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders";
@@ -713,6 +714,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             code === "MetaLeft" || code === "MetaRight";
 
         const handleModifierDown = (event: KeyboardEvent) => {
+            if (matrixTesterOpen()) return;
             if (!isModifierCode(event.code)) return;
             modifierStateRef.current.add(event.code);
         };
@@ -732,6 +734,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (matrixTesterOpen()) return;
             const typingBindsKey = getSetting("typing-binds-key");
 
             if (!typingBindsKey || !selectedTargetRef.current || event.defaultPrevented || event.repeat) return;

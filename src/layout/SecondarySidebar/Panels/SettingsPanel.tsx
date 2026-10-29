@@ -26,6 +26,28 @@ const sectionDomId = (id: string) => `settings-section-${id}`;
 const isTextField = (target: EventTarget | null) =>
     target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 
+/** How long a jump to a card keeps the card in place while rows above it finish loading. */
+const SETTLE_MS = 1500;
+
+/**
+ * Cards above the one jumped to can grow after the jump (the board's name and serial load
+ * from the keyboard). While they settle, keep the card at the top, until the person
+ * scrolls or SETTLE_MS passes.
+ */
+function followWhileSettling(card: HTMLElement) {
+    const page = card.parentElement;
+    if (!page || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => card.scrollIntoView?.({ block: "start" }));
+    observer.observe(page);
+    const stop = () => {
+        observer.disconnect();
+        window.clearTimeout(timer);
+        for (const type of ["wheel", "touchstart", "keydown", "pointerdown"]) window.removeEventListener(type, stop, true);
+    };
+    const timer = window.setTimeout(stop, SETTLE_MS);
+    for (const type of ["wheel", "touchstart", "keydown", "pointerdown"]) window.addEventListener(type, stop, true);
+}
+
 /**
  * Settings: a short list of cards for the setup a board needs once
  * (hardware, firmware, backups, typing behavior) and app preferences, declared
@@ -97,7 +119,11 @@ const SettingsPanel = () => {
     // A chip, a link or the rail opens a card for this visit only: what is remembered stays.
     const scrollToSection = (id: string) => {
         if (SETTINGS_PAGE.some((s) => s.id === id)) sticky.openForVisit(id);
-        const jump = () => document.getElementById(sectionDomId(id))?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+        const jump = () => {
+            const card = document.getElementById(sectionDomId(id));
+            card?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+            if (card) followWhileSettling(card);
+        };
         // Clear a search first, then jump once the whole page renders.
         if (matches) {
             setQuery("");
@@ -128,13 +154,7 @@ const SettingsPanel = () => {
                     ? <BoardIdentitySection />
                     : <p className="px-3 py-2.5 text-sm text-muted-foreground">{demoBoard ? "The example keyboard has no name or serial." : "Connect a keyboard to see its name and serial."}</p>;
             case "backups":
-                return (
-                    <BackupsSection
-                        onRestore={reviewFile}
-                        forceOpen={[...(matches?.values() ?? [])].some((m) => m.rows.has("block:backups"))}
-                        highlight={highlight}
-                    />
-                );
+                return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
             case "typing":

@@ -16,7 +16,9 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
     badge.dataset.fakeBoardBadge = choice;
     badge.className = "fixed bottom-2 right-2 z-[1000] flex items-center gap-2 rounded-full border border-kb-gray-border bg-kb-warn-bg px-3 py-1 text-xs font-medium text-kb-warn-ink shadow-sm";
     const label = document.createElement("span");
-    label.textContent = choice === "old" ? `${FAKE_BOARD_PRODUCT_NAME}, firmware without combo names` : FAKE_BOARD_PRODUCT_NAME;
+    label.textContent = choice === "old" ? `${FAKE_BOARD_PRODUCT_NAME}, firmware without combo names`
+        : choice === "no-pause" ? `${FAKE_BOARD_PRODUCT_NAME}, firmware that can't pause typing`
+        : choice === "turbo6" ? `${FAKE_BOARD_PRODUCT_NAME}, updated from turbo 6` : FAKE_BOARD_PRODUCT_NAME;
     const reset = document.createElement("button");
     reset.type = "button";
     reset.textContent = "Reset";
@@ -32,13 +34,18 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
 }
 
 export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
-    const device = new FakeSvalboardDevice({ comboLabels: choice !== "old" });
+    // "old" predates both combo names and the typing pause.
+    // This firmware has 64-byte reports, the typing pause, the flicker latch and the debounce switch; the older choices have none of them.
+    // "turbo6" is this firmware too, on a board that ran turbo 6 with both scan waits at 0 before it.
+    const current = choice === "combo-names" || choice === "turbo6";
+    const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current, debounceSwitch: current,
+        timingUsOnly: current, seedTurbo: choice === "turbo6" ? 6 : undefined, reportLength: current ? 64 : 32 });
     const wipe = () => {
         device.forgetSettings();
         window.location.reload();
     };
     window.keybardFakeBoard = { device, wipe };
     showBadge(choice, wipe);
-    console.info(`[fake board] ${FAKE_BOARD_PRODUCT_NAME} (${choice === "old" ? "firmware without combo names" : "combo names on the board"}) in place of WebHID.`);
+    console.info(`[fake board] ${FAKE_BOARD_PRODUCT_NAME} (${choice === "old" ? "firmware without combo names" : choice === "no-pause" ? "firmware that can't pause typing" : "combo names on the board"}) in place of WebHID.`);
     return device.asHIDDevice();
 }

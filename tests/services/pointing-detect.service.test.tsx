@@ -226,6 +226,23 @@ describe('late pointing detection', () => {
         expect(poller.isPolling).toBe(false);
     });
 
+    it('reads nothing while the matrix tester is open, and resumes after', async () => {
+        const { setMatrixTesterOpen } = await import('../../src/lib/matrix-tester-lock');
+        const poller = new PointingDetectPoller(deps);
+        setMatrixTesterOpen(true);
+        try {
+            poller.start(connectedBoard(), vi.fn());
+            await at(3 * STEP);
+            expect(reads()).toBe(0);
+            expect(poller.isPolling).toBe(true);
+        } finally {
+            setMatrixTesterOpen(false);
+        }
+        await at(STEP);
+        expect(reads()).toBe(1);
+        poller.stop();
+    });
+
     it('withPointingDetection keeps everything else, including a plain-object detection map from a file', () => {
         const kb = connectedBoard();
         (kb.fragmentState as any).hwDetection = { 0: 1, [IDX.left]: ID.pointing_none };

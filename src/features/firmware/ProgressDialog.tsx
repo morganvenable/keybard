@@ -105,12 +105,15 @@ export function timeLeft(s: FlowState, now: number): string {
     return "Less than a minute left";
 }
 
-export function useTicker(now: () => number, ms = 250): number {
+/** The time, every `ms` while `active`; a ticker that isn't needed renders nothing 4 times a second. */
+export function useTicker(now: () => number, ms = 250, active = true): number {
     const [t, setT] = useState(now);
     useEffect(() => {
+        if (!active) return;
+        setT(now());
         const id = setInterval(() => setT(now()), ms);
         return () => clearInterval(id);
-    }, [now, ms]);
+    }, [now, ms, active]);
     return t;
 }
 

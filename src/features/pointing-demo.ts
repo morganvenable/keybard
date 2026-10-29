@@ -15,7 +15,9 @@
 //                             one the touchpad left out, as the firmware lists it)
 //   &ball=<id> / &leftBall=   show that ball for this load (see pointing-look.service)
 //   &panel=settings           open Settings on start; typing, clusters, fragments,
-//                             hardware or about open it at that card
+//                             hardware, about, firmware or backups open it at that
+//                             card; scanlab opens
+//                             the Scan Lab, pointing the Pointing Devices panel
 //
 // The scripted motion is the round 5 prototype's finger paths, turned into the
 // same raw counts POINTING_MOTION reports, so the demo and a board drive the
@@ -72,7 +74,7 @@ export function pointingDemoFromSearch(search: string): PointingDemo | null {
     const left = kindParam(p.get("left")), right = kindParam(p.get("right"));
     const sniper = on(p.get("sniper")), boost = on(p.get("boost")), velocity = on(p.get("velocity"));
     const panelRaw = p.get("panel")?.trim().toLowerCase();
-    const panel = panelRaw === "settings" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
+    const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "pointing" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
     const contactsRaw = parseInt(p.get("contacts") ?? "", 10);
     const contacts = Number.isFinite(contactsRaw) && contactsRaw > 0 ? Math.min(MAX_CONTACTS, contactsRaw) : undefined;
     if (!demo && !left && !right && !sniper && !boost && !velocity && !p.has("motion") && !panel && !contacts) return null;

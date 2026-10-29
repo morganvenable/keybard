@@ -1,4 +1,5 @@
 import { selectPointingMenu, type PointingMenuSection } from "@/utils/pointing-menu";
+import { readBackKeys, timingWrites, withEffectiveTiming } from "@/utils/scan-timing";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { CustomUIRenderer } from "@/components/CustomUI";
 import { customValueService } from "@/services/custom-value.service";
@@ -64,26 +65,53 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
 
     // Draft and device writes share the same queue; persistence completes before
     // the queue acknowledges success. Reopening the panel preserves manual drafts.
+    // Writes key (and, for a scan wait on older firmware, the other wait it
+    // would otherwise leave on the preset), saves, then reads back what the
+    // board stored for the values it may have changed (clamped, rounded, or
+    // set together) so every view shows the board's own values.
     const handleValueChange = useCallback(async (key: string, value: number) => {
         if (!menu || !isConnected || !keyboard) return;
-        const found = customValueService.extractAllItemsWithRefs([menu]).find(({ ref }) => ref.key === key);
+        const refs = customValueService.extractAllItemsWithRefs([menu]);
+        const find = (k: string) => refs.find(({ ref }) => ref.key === k);
+        const found = find(key);
         if (!found) { setError(`Unknown setting: ${key}`); return; }
-        const width = customValueService.getByteWidth(found.item);
-        setValues(prev => new Map(prev).set(key, value));
-        setKeyboard(current => {
-            if (!current) return current;
-            const entries = [...(current.custom_values ?? [])];
-            const index = entries.findIndex(entry => entry.key === key);
-            const entry = { key, channel: found.ref.channel, valueId: found.ref.valueId, data: customValueService.intToBytes(value, width) };
-            if (index >= 0) entries[index] = { ...entries[index], ...entry };
-            else entries.push(entry);
-            return { ...current, custom_values: entries };
-        });
+        const writes = timingWrites(key, value, customValueService.getCache()).filter(([k]) => find(k));
+        const store = (pairs: [string, number][]) => {
+            setValues(prev => {
+                const next = new Map(prev);
+                for (const [k, v] of pairs) next.set(k, v);
+                return next;
+            });
+            setKeyboard(current => {
+                if (!current) return current;
+                const entries = [...(current.custom_values ?? [])];
+                for (const [k, v] of pairs) {
+                    const f = find(k);
+                    if (!f) continue;
+                    const index = entries.findIndex(entry => entry.key === k);
+                    const entry = { key: k, channel: f.ref.channel, valueId: f.ref.valueId, data: customValueService.intToBytes(v, customValueService.getByteWidth(f.item)) };
+                    if (index >= 0) entries[index] = { ...entries[index], ...entry };
+                    else entries.push(entry);
+                }
+                return { ...current, custom_values: entries };
+            });
+        };
+        store(writes);
         await queue(`Setting ${key}`, async () => {
-            await customValueService.setValue(key, value, [menu]);
+            for (const [k, v] of writes) await customValueService.setValue(k, v, [menu]);
             await customValueService.save(found.ref.channel);
+            const back: [string, number][] = [];
+            for (const k of readBackKeys(key)) {
+                const f = find(k);
+                if (!f) continue;
+                const v = await customValueService.get(f.ref.channel, f.ref.valueId, customValueService.getByteWidth(f.item));
+                customValueService.setCached(k, v);
+                back.push([k, v]);
+            }
+            if (back.length) store(back);
         }, { type: "custom_ui", writeKey: `custom:${key}` });
     }, [menu, isConnected, queue, keyboard, setKeyboard]);
+    const shownValues = useMemo(() => withEffectiveTiming(values), [values]);
 
     const handleButtonClick = useCallback(async (key: string) => {
         await handleValueChange(key, 1);
@@ -136,7 +164,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
             <section className={embedded ? "px-2 py-1" : "px-2 py-1"}>
                 <CustomUIRenderer
                     items={displayItems}
-                    values={values}
+                    values={shownValues}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}
                     horizontal
@@ -151,7 +179,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
             <div className={embedded ? "pb-4" : "pb-4"}>
                 <CustomUIRenderer
                     items={displayItems}
-                    values={values}
+                    values={shownValues}
                     onValueChange={handleValueChange}
                     onButtonClick={handleButtonClick}
                 />
