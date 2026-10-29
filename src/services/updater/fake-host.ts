@@ -4,7 +4,7 @@
 import { FakeSvalboard, type Fault, type FakeHalfConfig, type FakeTiming } from "./fake-board";
 import { FakeSides, type FakeSidesOptions } from "./fake-sides";
 import type { SideHost } from "../side-host";
-import type { FlowHost } from "./flow";
+import type { FlowHost, RestoreReport } from "./flow";
 import { HAND_EITHER, HAND_LEFT, HAND_RIGHT, MANIFEST_BYTES, Op, type Hand } from "./protocol";
 import { buildSvup, loadSvup, type SvupFile } from "./svup";
 import { buildPairUf2, buildPlainUf2, loadFirmwareFile } from "./uf2";
@@ -57,7 +57,7 @@ export class FakeHost implements FlowHost {
         return this.board.settings[this.board.usbHand] === "blank";
     }
 
-    async restoreLayout(_svil: string): Promise<{ trimmed: string[] }> {
+    async restoreLayout(_svil: string): Promise<RestoreReport> {
         this.restores++;
         this.events.push("restore");
         if (this.o.restoreFails) throw new Error("The keyboard stopped answering while the layout was written.");

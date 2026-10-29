@@ -11,6 +11,7 @@ import type { Afterwards, FlowState } from "@/services/updater/flow";
 import { handName, type Hand } from "@/services/updater/protocol";
 import { FailureView, type FailureAction } from "./failures";
 import { FwTitle, InFirmwareDialog, Problem } from "./parts";
+import { ImportSettingsNotes } from "@/components/ImportSettingsNotes";
 import { awaitingConfirm, ConfirmView, ProgressView, useTicker } from "./ProgressDialog";
 import { UpdateSheet } from "./UpdateSheet";
 import type { UpdateUi } from "./useFirmwareUpdate";
@@ -42,6 +43,7 @@ export function ResultView({ state, onDone }: { state: FlowState; onDone: () => 
                     {r.trimmed.map((line) => <p key={line}>{line}</p>)}
                 </Problem>
             )}
+            <ImportSettingsNotes replaced={r.replaced} unavailable={r.unavailable} done />
             <div className="flex justify-end"><Button variant="kb-primary" onClick={onDone}>Done</Button></div>
         </div>
     );
