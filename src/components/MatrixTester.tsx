@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 import "./MatrixTester.css";
@@ -17,6 +18,7 @@ import { PARANOID, userIsLooking } from "@/lib/paranoid";
 import { TesterEngine } from "@/lib/tester-engine";
 import { keyboardService } from "@/services/keyboard.service";
 import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/settings/anchor";
+import { SpotlightScrim } from "@/layout/BindingSpotlight";
 import { EXIT_HOLD_MS, findTesterExitKey } from "@/utils/tester-exit-key";
 
 const BUTTON_STYLES = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 bg-kb-surface shadow-lg flex items-center justify-center text-kb-ink focus:outline-none border border-gray-200 dark:border-neutral-700" as const;
@@ -49,28 +51,6 @@ declare global {
     interface Window {
         keybardTester?: { stats: () => TesterStats };
     }
-}
-
-/**
- * Everything on the page outside `root` becomes inert (no focus, no clicks), so
- * Tab can't move focus to the editor behind the tester. Returns the undo.
- */
-function makeOutsideInert(root: HTMLElement): () => void {
-    const changed: HTMLElement[] = [];
-    let node: HTMLElement | null = root;
-    while (node && node !== document.body) {
-        const parent: HTMLElement | null = node.parentElement;
-        if (!parent) break;
-        for (const sibling of Array.from(parent.children)) {
-            if (sibling === node || !(sibling instanceof HTMLElement) || sibling.inert) continue;
-            sibling.inert = true;
-            changed.push(sibling);
-        }
-        node = parent;
-    }
-    return () => {
-        for (const el of changed) el.inert = false;
-    };
 }
 
 /** The key grid: rendered once per layout, never per reading. */
@@ -115,8 +95,10 @@ const KeyGrid = memo(function KeyGrid({ keys, keyVariant }: { keys: PlacedKey[];
  * transitions or animation.
  *
  * While it is open the board's typing is paused where the firmware can
- * (useTypingPause), Keybard's own shortcuts do nothing, the rest of the editor
- * is inert, and every key event reaching the page is swallowed. Holding the
+ * (useTypingPause), Keybard's own shortcuts do nothing, and every key event
+ * reaching the page is swallowed (Tab included, so focus stays here). The rest
+ * of the editor sits under the binding editors' spotlight scrim, dimmed and out
+ * of reach; the canvas holding the tester is lifted above it (EditorLayout). Holding the
  * board's Esc key for 2 s, Escape from another keyboard, or Close ends it.
  */
 export const MatrixTester: FC = () => {
@@ -197,12 +179,10 @@ export const MatrixTester: FC = () => {
         return [{ id: k.id, cx: (l.x + l.w / 2) * currentUnitSize, cy: (l.y + l.h / 2) * currentUnitSize, top: l.y * currentUnitSize, r: (Math.max(l.w, l.h) * currentUnitSize) / 2 + 6 }];
     }), [exitKey, placedKeys, currentUnitSize]);
 
-    // The open tester: shortcuts off, the editor inert, key events swallowed.
+    // The open tester: shortcuts off, key events swallowed (the scrim covers the editor).
     useLayoutEffect(() => {
         setMatrixTesterOpen(true);
-        const root = rootRef.current;
-        const undoInert = root ? makeOutsideInert(root) : () => undefined;
-        root?.focus({ preventScroll: true });
+        rootRef.current?.focus({ preventScroll: true });
         const swallow = (e: KeyboardEvent) => {
             if (e.type === "keydown" && e.key === "Escape") {
                 e.preventDefault();
@@ -221,7 +201,6 @@ export const MatrixTester: FC = () => {
             window.removeEventListener("keydown", swallow, true);
             window.removeEventListener("keyup", swallow, true);
             window.removeEventListener("keypress", swallow, true);
-            undoInert();
             setMatrixTesterOpen(false);
         };
     }, []);
@@ -383,6 +362,8 @@ export const MatrixTester: FC = () => {
             aria-label="Matrix tester"
             role="region"
         >
+            {/* The editors' spotlight scrim over the whole page, under the lifted canvas */}
+            {typeof document !== "undefined" && createPortal(<SpotlightScrim className="fixed inset-0 z-[45]" />, document.body)}
             {/* The note, kept in view while the keyboard scrolls sideways */}
             <div
                 className="sticky left-4 z-10 mb-4 flex flex-wrap items-start justify-end gap-2 self-start"

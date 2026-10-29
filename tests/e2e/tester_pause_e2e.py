@@ -4,19 +4,26 @@ the simulated Svalboard (?fakeBoard). Its replies come 4 ms after each request:
 the round trip of a flicker latch read on the trackball test board (3.9 ms
 median; a VIA matrix read is 3.0 ms). Run with `npm run test:e2e:tester-pause`.
 
-  1. Opening the tester sends TYPING_PAUSE on; the note names Esc.
+  1. Opening the tester sends TYPING_PAUSE on; the note is two short lines
+     ("Typing paused while testing", "Leave this screen to type again · Hold
+     Esc 2 s to leave") and lists no blocked keys.
   2. The pause is renewed while the tester stays open.
   3. Holding the board's Esc key shows "Keep holding to close: 2", then "1",
      in whole steps, and closes at about 2 s; the pause ends with an off.
   4. Tapping Esc only lights it.
   5. Losing window focus sends off at once and stops renewing; focus resumes.
-  6. Tab stays inside the tester, and the rest of the editor is inert.
+  6. Tab stays inside the tester. The editors' spotlight scrim covers the rest
+     of the editor: a click on the rail, Settings or a layer tab lands
+     on the scrim, the layer bar is inert, and the tester's note and Close stay
+     above it. The scrim goes when the tester closes.
   7. Keybard's shortcuts and listeners see no keys.
   8. Escape from another keyboard and Close both exit.
-  9. Older firmware (?fakeBoard=nopause): its note, no pause requests, keys
+  9. Older firmware (?fakeBoard=nopause): its one-line note ("Your firmware
+     can't pause typing. Update to block keys while testing."), no pause requests, keys
      swallowed, Escape exits, Update firmware opens the firmware settings;
      keys still light from VIA's matrix state.
- 10. The note fits at phone and desktop widths.
+ 10. The note fits at phone and desktop widths, light and dark, each line on
+     one line at desktop, under the scrim checks; one note style (no ?testerNote).
  11. A one-scan flicker shows for at least one frame and counts; Reset counts clears.
  12. Tester keys have no transition or animation.
  13. Nothing renders in React while nothing changes, or while keys change fast.
@@ -25,7 +32,7 @@ median; a VIA matrix read is 3.0 ms). Run with `npm run test:e2e:tester-pause`.
      main-thread busy share are printed.
 
 It builds the app like fake_board_e2e.py (E2E_URL and E2E_SKIP_BUILD work the
-same). SHOT_DIR=path also saves screenshots of every note look, light and dark.
+same). SHOT_DIR=path also saves screenshots of the tester, light and dark.
 Needs Python Playwright with Chromium. Exits 1 when a check fails.
 """
 import json
@@ -110,8 +117,10 @@ def flow_open_sends_on(browser, url):
     assert requests(page)[:1] == [1], requests(page)
     assert pause_state(page) == "paused"
     note = page.locator("[data-tester-note='paused']")
-    expect(note).to_contain_text("Typing from your Svalboard is paused while the tester is open.")
-    expect(note).to_contain_text("Hold Esc for 2 seconds to close the tester.")
+    lines = note.locator("[data-tester-note-line]")
+    expect(lines).to_have_text(["Typing paused while testing", "Leave this screen to type again · Hold Esc 2 s to leave"])
+    for word in ("Windows", "Tab", "Ctrl", "media"):
+        expect(note).not_to_contain_text(word)
     assert page.locator(TESTER).get_attribute("data-typing-pause") == "on"
     assert page.locator(TESTER).get_attribute("data-flicker-latch") == "on"
     assert not errors, errors
@@ -208,9 +217,48 @@ def flow_tab_stays(browser, url):
         page.keyboard.press("Tab")
     inside = page.evaluate(f"!!document.activeElement.closest('{TESTER}')")
     assert inside, page.evaluate("document.activeElement.outerHTML.slice(0, 120)")
-    assert page.evaluate("[...document.querySelectorAll('[inert]')].length > 0"), "nothing outside the tester is inert"
     assert page.evaluate(f"!document.querySelector('{TESTER}').closest('[inert]')"), "the tester itself is inert"
+    spotlight_checks(page)
+    page.locator("[data-tester-close]").click()
+    expect(page.locator(TESTER)).to_have_count(0)
+    expect(page.locator("[data-binding-scrim]")).to_have_count(0)
     context.close()
+
+
+# What a click at the middle of an element lands on: "scrim", "tester" or something else.
+HIT = """(el) => { const r = el.getBoundingClientRect(); const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !at ? 'none' : at.closest('[data-binding-scrim]') ? 'scrim' : at.closest('[data-matrix-tester]') ? 'tester' : at.outerHTML.slice(0, 80); }"""
+LAYER_BAR = "button[aria-label^='Layer 0:']"
+
+
+def spotlight_checks(page: Page, label: str = ""):
+    """The tester under the editors' spotlight: the scrim is there; outside is dimmed and out of reach."""
+    scrim = page.locator("[data-binding-scrim]")
+    expect(scrim).to_have_count(1)
+    color = scrim.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert color not in ("rgba(0, 0, 0, 0)", "transparent"), f"{label} scrim has no color: {color}"
+    outside = {
+        "rail": page.locator("[data-sidebar='menu'] button[aria-label]").first,
+        "layer bar": page.locator(LAYER_BAR).first,
+        "Settings": page.locator("[data-sidebar='menu'] button[aria-label^='Settings']").first,
+        "Combos": page.locator("[data-sidebar='menu'] button[aria-label='Combos']").first,
+        "toolbar": page.get_by_text("Live Updating", exact=True).first,
+    }
+    seen = 0
+    for name, el in outside.items():
+        if el.count() == 0 or not el.is_visible():
+            continue
+        seen += 1
+        hit = el.evaluate(HIT)
+        assert hit == "scrim", f"{label} a click on the {name} lands on {hit!r}, not the scrim"
+    need = 3 if page.viewport_size["width"] >= 1000 else 1
+    assert seen >= need, f"{label} only {seen} outside areas found"
+    layers = page.locator(LAYER_BAR)
+    if layers.count():
+        assert layers.first.evaluate("e => !!e.closest('[inert]')"), f"{label} the layer bar is not inert"
+    for sel in ("[data-tester-close]", "[data-tester-note]"):
+        hit = page.locator(sel).first.evaluate(HIT)
+        assert hit == "tester", f"{label} {sel} is covered: {hit!r}"
 
 
 def flow_shortcuts_off(browser, url):
@@ -252,8 +300,8 @@ def flow_older_firmware(browser, url):
     context, page, errors = open_board(browser, url, board="fakeBoard=nopause")
     open_tester(page)
     note = page.locator("[data-tester-note='unsupported']")
-    expect(note).to_contain_text("Your firmware can't pause typing yet.")
-    expect(note).to_contain_text("Keys may still reach your computer, including Windows and Tab.")
+    expect(note.locator("[data-tester-note-line]")).to_have_text(["Your firmware can't pause typing. Update to block keys while testing."])
+    expect(note.locator("[data-tester-update-firmware]")).to_have_text("Update")
     assert page.locator(TESTER).get_attribute("data-typing-pause") == "unsupported"
     assert page.locator(TESTER).get_attribute("data-flicker-latch") == "off"
     press(page, 2, 2, True)
@@ -279,14 +327,25 @@ def flow_older_firmware(browser, url):
 
 def flow_layout(browser, url):
     for width, height in ((390, 844), (1440, 900)):
-        for look in ("a", "b", "c"):
-            context, page, errors = open_board(browser, url, params=f"testerNote={look}&tester", viewport=(width, height))
-            note = page.locator("[data-tester-note]")
-            expect(note).to_be_visible()
-            row = page.locator("[data-tester-note-row]").bounding_box()
-            assert row and row["x"] >= 0 and row["x"] + row["width"] <= width + 1, f"{look} @ {width}: {row}"
-            assert note.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), f"note {look} overflows at {width}px"
-            context.close()
+        for scheme in ("light", "dark"):
+            for board in ("fakeBoard", "fakeBoard=nopause"):
+                label = f"{board} @ {width} {scheme}"
+                context, page, errors = open_board(browser, url, board=board, params="tester", viewport=(width, height), scheme=scheme)
+                note = page.locator("[data-tester-note]")
+                expect(note).to_be_visible()
+                page.wait_for_timeout(300)
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), f"{label}: sideways scroll"
+                row = page.locator("[data-tester-note-row]").bounding_box()
+                assert row and row["x"] >= 0 and row["x"] + row["width"] <= width + 1, f"{label}: {row}"
+                assert note.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), f"{label}: note overflows"
+                if width >= 1440:
+                    one = note.locator("[data-tester-note-line]").evaluate_all(
+                        "ls => ls.every(l => l.getBoundingClientRect().height <= parseFloat(getComputedStyle(l).lineHeight) * 1.5)")
+                    assert one, f"{label}: a note line wraps"
+                spotlight_checks(page, label)
+                assert page.locator("[data-tester-note-style]").count() == 0, f"{label}: a note style"
+                assert not errors, errors
+                context.close()
 
 
 def flow_flicker(browser, url):
@@ -401,19 +460,18 @@ def flow_perf(browser, url):
 def shots(browser, url, out):
     os.makedirs(out, exist_ok=True)
     for scheme in ("light", "dark"):
-        for look in ("a", "b", "c"):
-            for board, kind in (("fakeBoard", "paused"), ("fakeBoard=nopause", "old")):
-                context, page, _ = open_board(browser, url, board=board, params=f"testerNote={look}&tester", scheme=scheme)
-                expect(page.locator("[data-tester-note]")).to_be_visible()
-                page.wait_for_timeout(400)
-                page.screenshot(path=os.path.join(out, f"note-{look}-{kind}-{scheme}.png"))
-                context.close()
-        context, page, _ = open_board(browser, url, params="testerNote=a&tester", viewport=(390, 844), scheme=scheme)
+        for board, kind in (("fakeBoard", "paused"), ("fakeBoard=nopause", "old")):
+            context, page, _ = open_board(browser, url, board=board, params="tester", scheme=scheme)
+            expect(page.locator("[data-tester-note]")).to_be_visible()
+            page.wait_for_timeout(400)
+            page.screenshot(path=os.path.join(out, f"tester-{kind}-{scheme}.png"))
+            context.close()
+        context, page, _ = open_board(browser, url, params="tester", viewport=(390, 844), scheme=scheme)
         page.wait_for_timeout(400)
-        page.screenshot(path=os.path.join(out, f"note-a-paused-{scheme}-phone.png"))
+        page.screenshot(path=os.path.join(out, f"tester-paused-{scheme}-phone.png"))
         context.close()
     # Holding Esc, flickers counted, a key down.
-    context, page, _ = open_board(browser, url, params="testerNote=a&tester")
+    context, page, _ = open_board(browser, url, params="tester")
     page.wait_for_timeout(300)
     for _ in range(3):
         fw(page, "f.flicker(2, 3)")
@@ -434,11 +492,11 @@ def main() -> int:
         ("3. holding Esc counts down 2, 1 in whole steps and closes at 2 s; off is sent", flow_hold_esc_exits),
         ("4. tapping Esc only lights it", flow_tap_esc_lights),
         ("5. blur sends off at once and stops renewing; focus resumes", flow_blur_sends_off),
-        ("6. Tab stays inside the tester; the editor is inert", flow_tab_stays),
+        ("6. Tab stays inside the tester; the spotlight scrim covers the editor", flow_tab_stays),
         ("7. Keybard's shortcuts and listeners see no keys", flow_shortcuts_off),
         ("8. Escape from another keyboard and Close both exit", flow_escape_and_close),
         ("9. older firmware: its note, no requests, keys swallowed, Escape exits, Update firmware", flow_older_firmware),
-        ("10. the note fits at phone and desktop widths", flow_layout),
+        ("10. the note fits at phone and desktop widths, light and dark, one line each", flow_layout),
         ("11. a one-scan flicker shows and counts; Reset counts clears", flow_flicker),
         ("12. tester keys have no transition or animation", flow_no_animation),
         ("13. no React renders while idle or while keys change fast", flow_no_renders),

@@ -142,12 +142,18 @@ describe('Alt-Repeat behind its app preference', () => {
         expect(screen.queryByRole('button', { name: 'Alt-Repeat' })).toBeNull();
     });
 
+    it('orders the binding group Combos, Leaders, Overrides', () => {
+        renderRail();
+        const names = railNames().filter((n) => ['Combos', 'Leaders', 'Overrides'].includes(n ?? ''));
+        expect(names).toEqual(['Combos', 'Leaders', 'Overrides']);
+    });
+
     it('sits last in the binding group, after Overrides, when on', () => {
         settings['show-alt-repeat'] = true;
         renderRail();
         const names = railNames();
         expect(names.indexOf('Alt-Repeat')).toBe(names.indexOf('Overrides') + 1);
-        expect(names.indexOf('Leaders')).toBeLessThan(names.indexOf('Combos'));
+        expect(names.indexOf('Combos')).toBeLessThan(names.indexOf('Leaders'));
         fireEvent.click(rail('Alt-Repeat'));
         expect(panels.activePanel).toBe('altrepeat');
     });

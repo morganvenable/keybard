@@ -1075,6 +1075,10 @@ const EditorLayoutInner = () => {
     // tabs and keys), the editor, the picker and the rail's picker categories
     // stay usable; the rest of this column sits under the spotlight scrim.
     const spotlight = useBindingSpotlight();
+    // The matrix tester uses the same scrim (drawn by MatrixTester): the canvas is lifted
+    // above it and the layer bar and size controls go out of reach, as for an editor.
+    const testerSpotlight = activePanel === "matrixtester";
+    const covered = spotlight || testerSpotlight;
     const railMode = React.useMemo(currentRailMode, []);
 
     // Editor overlay state for bottom bar mode
@@ -1387,7 +1391,7 @@ const EditorLayoutInner = () => {
                 style={contentStyle}
                 onClick={() => clearSelection()}
             >
-                <div className="contents" inert={spotlight}>
+                <div className="contents" inert={covered}>
                 <LayerSelector
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
@@ -1414,9 +1418,9 @@ const EditorLayoutInner = () => {
                         // Lifted above the page scrim with no fill of its own: only what it
                         // draws (the keys and layer tabs) reads as lit, and the scrim shows
                         // through everywhere else.
-                        spotlight && "z-[46]"
+                        covered && "z-[46]"
                     )}
-                    data-spotlight-lift={spotlight ? "" : undefined}
+                    data-spotlight-lift={covered ? "" : undefined}
                     data-spotlight-canvas={spotlight ? "" : undefined}
                     ref={viewsScrollRef}
                     role="region"
@@ -1645,7 +1649,7 @@ const EditorLayoutInner = () => {
                             <div ref={canvasControlsRef} className="absolute bottom-4 right-2 max-w-[calc(100%-4rem)] flex flex-col items-end gap-1 pointer-events-none" style={lShape || comboEditorReserve + layoutTrayReserve > 0 ? { bottom: `${(lShape ? CANVAS_CONTROLS_INSET_PX : 16) + comboEditorReserve + (layoutTrayReserve > 0 ? layoutTrayReserve + 8 : 0)}px`, transition: lShape && !reducedMotion ? `bottom ${TRAY_MOTION_MS}ms cubic-bezier(0.33, 1, 0.68, 1)` : undefined } : undefined}>
                                 {/* While editing, the size controls stay in view under the page scrim, out of reach; a click there nudges the editor. */}
                                 <div className="pointer-events-auto" data-combo-editor-avoid data-inspector-avoid>
-                                    <div inert={spotlight}>
+                                    <div inert={covered}>
                                         <EditorControls />
                                     </div>
                                 </div>

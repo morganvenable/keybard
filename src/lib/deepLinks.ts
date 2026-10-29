@@ -21,7 +21,6 @@
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
  *   Pointing Devices panel, where the auto mouse settings are. ?panel=firmware and
  *   ?panel=backups open Settings at that card.
- * - ?testerNote=a|b|c picks the look of the matrix tester's note (A by default).
  */
 import type { ResolvedTheme } from "@/lib/theme";
 
@@ -30,7 +29,6 @@ export const THEME_PARAM = "theme";
 export const EDIT_PARAM = "edit";
 export const FAKE_BOARD_PARAM = "fakeBoard";
 export const TESTER_PARAM = "tester";
-export const TESTER_NOTE_PARAM = "testerNote";
 
 export type DemoChoice = "qwerty" | "combos";
 
@@ -72,14 +70,6 @@ export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
 /** ?tester: open the matrix tester on start. */
 export function testerFromSearch(search: string): boolean {
     return param(search, TESTER_PARAM) !== null;
-}
-
-export type TesterNoteStyle = "a" | "b" | "c";
-
-/** ?testerNote=a|b|c; anything else is null (the default look). */
-export function testerNoteFromSearch(search: string): TesterNoteStyle | null {
-    const value = param(search, TESTER_NOTE_PARAM)?.trim().toLowerCase();
-    return value === "a" || value === "b" || value === "c" ? value : null;
 }
 
 export type EditKind = "combo" | "tapdance" | "macro";
