@@ -31,7 +31,7 @@ const TABLE_NAMES = { macros: 'macros', combos: 'combos', tapdances: 'tap dances
 /**
  * A 0 in a setting that can't work at 0 (a leader timeout of 0 came from older
  * firmware's settings reset, and Keybard's default layouts carried it) is
- * imported as that setting's default, the value x4.3.2 firmware also stores in
+ * imported as that setting's default, the value x4.3.3 firmware also stores in
  * its place. Each one is listed in the replaced-settings note.
  */
 function replaceZeroSettings(settings: Record<number, number>): SettingReplacement[] {

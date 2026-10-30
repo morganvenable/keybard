@@ -105,7 +105,7 @@ export const LEADER_PER_KEY_QSID = 29;
  * combo term of 0 never fires a combo, a tapping term of 0 makes every tap-hold
  * key a hold, an Auto Shift timeout of 0 shifts every key, a mouse key interval
  * of 0 moves the cursor every scan, and a leader timeout of 0 ends every
- * sequence at once. Firmware from x4.3.2 replaces a stored 0 with the same
+ * sequence at once. Firmware from x4.3.3 replaces a stored 0 with the same
  * values (sval_qmk_settings.c), and so does an import. Settings where 0 means
  * something (one-shot timeout, Flow Tap, quick tap term, tap code delay) aren't here.
  */
@@ -117,8 +117,8 @@ export const ZERO_REPLACED_SETTINGS: Readonly<Record<number, number>> = {
   [LEADER_TIMEOUT_QSID]: 300,
 };
 
-/** The firmware release that replaces a stored 0 in those settings. */
-export const ZERO_SETTINGS_RELEASE = "x4.3.2";
+/** The full firmware release that replaces a stored 0 in those settings (first in x4.3.3); the replaced-settings note links it. */
+export const ZERO_SETTINGS_RELEASE = "v4.3.3";
 
 /** The value a setting takes on the board: its default in place of a 0 that can't work. */
 export function effectiveSetting(qsid: number, value: number | undefined): number | undefined {

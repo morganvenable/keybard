@@ -15,7 +15,7 @@
  *   pause typing for the matrix tester; ?fakeBoard=turbo6 is this firmware
  *   on a board that ran turbo 6 with both scan waits at 0 before updating
  *   (its migration lands on 15 / 15 µs; it starts fresh on every load);
- *   ?fakeBoard=leader0 is firmware from before x4.3.2 whose settings reset
+ *   ?fakeBoard=leader0 is firmware from before x4.3.3 whose settings reset
  *   stored a leader timeout of 0 (fresh on every load).
  *   Its settings stay in this browser across reloads (except turbo6 and leader0).
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.

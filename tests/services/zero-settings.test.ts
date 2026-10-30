@@ -71,7 +71,7 @@ describe('import of a layout with 0 in those settings', () => {
             'Time out period for combos: 0', 'Timeout: 0', 'Tapping Term: 0',
             'Time between cursor movements in milliseconds: 0', 'Leader timeout (ms): 0',
         ]);
-        expect(review.replaced.find(r => r.from.startsWith('Leader'))).toEqual({ from: 'Leader timeout (ms): 0', to: '300', release: 'x4.3.2' });
+        expect(review.replaced.find(r => r.from.startsWith('Leader'))).toEqual({ from: 'Leader timeout (ms): 0', to: '300', release: 'v4.3.3' });
     });
 
     it('keeps a leader timeout the user set', () => {

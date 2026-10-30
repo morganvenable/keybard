@@ -28,7 +28,7 @@ export interface FakeSvalboardOptions {
      */
     seedTurbo?: number;
     /**
-     * Firmware from before x4.3.2, whose settings reset stored a leader timeout
+     * Firmware from before x4.3.3, whose settings reset stored a leader timeout
      * of 0 with per-key timing off: seeded that way, fresh on every load.
      */
     seedLeaderZero?: boolean;
