@@ -4,10 +4,25 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
-## New in this release
+## New in v4.3.2
+
+This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.2. What changes since the last full release:
+
+- **Test your keys without typing into other apps.** While Keybard's key tester is open, nothing you press reaches the computer. Typing comes back as soon as you close it. This needs firmware v4.3.2.
+- **See every flicker.** The key tester shows each time a switch changes, even a bounce too short to type, with a count per key you can reset.
+- **Debounce switch in Scan Lab.** It is on by default, so typing is unchanged unless you turn it off.
+- **Scan timing in microseconds.** Your board keeps the timing it runs now. The mouse layer timeout is set in milliseconds, up to 2 seconds.
+- **Backups has its own section in Settings.**
+- **Older layouts and backups load cleanly on v4.3.2 firmware.** Settings that v4.3.2 renamed are converted automatically when you load them.
+- **Japanese and other international keys.** Henkan, Muhenkan, Kana, Yen and the other International and Language keys are under **Special Keys > International**.
+- **Menus are readable in dark mode.**
+- **Manual opens the online docs** at [docs.svalboard.com/keybard](https://docs.svalboard.com/keybard/).
+- **The firmware update steps describe the lights as the keyboard shows them.**
+- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to v4.3.2 from Keybard.
+
+## Also new since vLaunch2.3
 
 - **Linux, for testers.** Keybard Overlay for 64-bit Linux comes as `KeybardOverlay-x86_64.AppImage` and `KeybardOverlay-Linux-x86_64.tar.gz`, each with its own Python and Qt, so it needs no installs or admin rights to run. It is a test build that hasn't yet been confirmed on many Linux desktops: `README-LINUX.md` says how to run it, the one-time udev rule (`60-svalboard.rules`) that lets it read the board, and what to check. It needs glibc 2.34 or later (Ubuntu 22.04, Debian 12, Fedora 35 or later). On Wayland it runs through XWayland, so it can stay on top; plain GNOME shows no tray icon without the AppIndicator extension; X11 without a compositor shows a black box behind the keys. Checksums are in `SHA256SUMS-Linux.txt`.
-- **Keybard Host is now Keybard Overlay.** Same app, new name. It keeps your settings. The download is now **KeybardOverlay-Windows.zip**.
 
 ## New in vLaunch2.3
 
