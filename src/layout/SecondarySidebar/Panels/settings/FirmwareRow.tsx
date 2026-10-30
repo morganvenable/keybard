@@ -3,12 +3,11 @@ import { FirmwareSection } from "@/features/firmware/FirmwareSection";
 import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
 import { describeFirmware } from "@/constants/firmware";
 import { useKeyboard } from "@/contexts/KeyboardContext";
-import { OPEN_BACKUPS_EVENT } from "@/features/firmware/useHalvesDiffer";
 
 /**
  * Settings > Firmware: what the board runs, and the way into an install (the sheet, the
  * progress, the result). The update itself runs in FirmwareUpdateProvider, so its dialog
- * outlives this page. Backups have their own section; this card only says where they are.
+ * outlives this page. Backups have their own card, right below this one.
  */
 const FirmwareRow: React.FC = () => {
     const updates = useFirmwareUpdates();
@@ -53,16 +52,6 @@ const FirmwareRow: React.FC = () => {
                 checking={updates.checking}
                 heading={false}
             />
-            <p className="mt-4 text-sm text-muted-foreground" data-testid="firmware-backups-link">
-                Keybard backs up your layout before every update.{" "}
-                <button
-                    type="button"
-                    className="cursor-pointer font-medium text-kb-primary underline-offset-2 hover:underline"
-                    onClick={() => window.dispatchEvent(new CustomEvent(OPEN_BACKUPS_EVENT))}
-                >
-                    Open Backups
-                </button>
-            </p>
         </div>
     );
 };

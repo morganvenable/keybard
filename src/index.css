@@ -418,6 +418,15 @@ html.dark {
         @apply bg-kb-gray text-foreground;
     }
 
+    /* A native select's open list: options inherit the select's text color (light in dark mode), and a
+       select with a transparent background leaves the list white in Chromium, so light text on white.
+       Every option gets the popover colors, the same ones the app's own menus use. */
+    select option,
+    select optgroup {
+        background-color: var(--popover);
+        color: var(--popover-foreground);
+    }
+
     .hg-theme-default {
         background-color: white !important;
     }

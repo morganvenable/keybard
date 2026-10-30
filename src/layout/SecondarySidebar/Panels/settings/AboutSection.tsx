@@ -1,5 +1,5 @@
 import React from "react";
-import { PARANOID } from "@/lib/paranoid";
+import { MANUAL_URL } from "@/lib/manual";
 import { STABLE_URL } from "@/components/ChannelBanner";
 import { keybardVersion } from "@/utils/build-info";
 
@@ -28,9 +28,7 @@ const AboutSection: React.FC = () => {
                 </dd>
             </dl>
             <p className="flex flex-row flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                {!PARANOID && (
-                    <a href={`${import.meta.env.BASE_URL}manual/`} target="_blank" rel="noopener" className={linkClass}>Manual</a>
-                )}
+                <a href={MANUAL_URL} target="_blank" rel="noopener" className={linkClass}>Manual</a>
                 <a href={RELEASE_NOTES_URL} target="_blank" rel="noopener" className={linkClass}>Release notes</a>
                 <a href={COMMUNITY_URL} target="_blank" rel="noopener" className={linkClass}>Svalboard community</a>
             </p>

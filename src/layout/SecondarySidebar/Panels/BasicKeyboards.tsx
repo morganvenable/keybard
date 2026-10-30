@@ -509,6 +509,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                         className="font-semibold text-lg text-kb-ink bg-transparent border-none p-0 cursor-pointer outline-none focus:ring-0"
                         value={internationalLayout}
                         onChange={(e) => setInternationalLayout(e.target.value)}
+                        aria-label="Keyboard layout"
                     >
                         {Object.values(LAYOUTS).map((kb: any) => (
                             <option key={kb.value} value={kb.value}>

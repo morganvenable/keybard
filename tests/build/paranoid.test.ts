@@ -43,6 +43,18 @@ describe('Keybard Paranoid lockdown', () => {
         expect(() => lockDown(page('<style>a{background:url(data:image/png;base64,AA==)}</style><script>const s = "<img src=https://x.example>";</script>'))).not.toThrow();
     });
 
+    it('keeps the Manual (docs.svalboard.com/keybard/) without an allowance: drawn at run time, while every static external reference, the docs site included, still fails', () => {
+        const manual = 'https://docs.svalboard.com/keybard/';
+        expect(() => lockDown(page(`<script>const manual = "${manual}";</script>`))).not.toThrow();
+        for (const bad of [
+            `<a href="${manual}">Manual</a>`, '<a href="https://x.example/">x</a>',
+            '<img src="https://docs.svalboard.com/logo.png">', '<script src="https://docs.svalboard.com/a.js"></script>',
+            '<link rel="stylesheet" href="https://docs.svalboard.com/a.css">',
+        ]) {
+            expect(() => lockDown(page(bad)), bad).toThrow(/external resources/);
+        }
+    });
+
     it('only lets the page reach itself (the Keybard Overlay that serves it) or embedded data', () => {
         const policy = contentSecurityPolicy(['x']);
         expect(policy).toMatch(/connect-src 'self' data: blob:;/);

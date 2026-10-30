@@ -19,7 +19,8 @@
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
  * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
- *   Pointing Devices panel, where the auto mouse settings are. ?panel=firmware and
+ *   Pointing Devices panel, where the auto mouse settings are; ?panel=keyboard opens
+ *   Standard Keys. ?panel=firmware and
  *   ?panel=backups open Settings at that card.
  */
 import type { ResolvedTheme } from "@/lib/theme";
