@@ -12,10 +12,10 @@ Run with `npm run test:e2e:backups`.
   3. The reset notice's "Other backups" closes the notice and opens Backups.
   4. An "open Backups" request from anywhere (the event the update failures and
      the manual install send) opens Backups while another panel is showing.
-  5. The halves-differ banner's Finish update opens Firmware; Firmware's one line
-     about backups links to Backups.
+  5. The halves-differ banner's Finish update opens Firmware; the Backups card
+     right below it opens Backups.
   6. Firmware shows no backup list: no backups, no Back up now, no Import or
-     Export, only the line that says where backups are.
+     Export, and no line about backups.
   7. An install still takes the automatic backup: the update sheet says it was
      saved before the update, and the layout choice can keep it.
   8. One line: the Backups card at 390 and 1440 px, light and dark: no sideways
@@ -134,8 +134,10 @@ def flow_banner(browser, url):
     banner.get_by_role("button", name="Finish update").click()
     expect(page.locator(FIRMWARE)).to_be_visible(timeout=15000)
     page.wait_for_function("(sel) => document.querySelector(sel + '-title button')?.getAttribute('aria-expanded') === 'true'", arg=FIRMWARE, timeout=5000)
-    page.locator(f"{FIRMWARE} [data-testid='firmware-backups-link']").get_by_role("button", name="Open Backups").click()
-    expect_backups_open(page, "banner, then Firmware's link")
+    # Firmware says nothing about backups: the Backups card sits right below it.
+    expect(page.locator(f"{FIRMWARE} [data-testid='firmware-backups-link']")).to_have_count(0)
+    page.locator(f"{CARD}-title button").click()
+    expect_backups_open(page, "banner, then the Backups card below Firmware")
     assert not errors, errors
     context.close()
 
@@ -150,7 +152,8 @@ def flow_firmware_has_no_backups(browser, url):
     expect(fw.get_by_role("button", name="Back up now")).to_have_count(0)
     expect(fw.get_by_text("Import layout")).to_have_count(0)
     expect(fw.get_by_text("Export layout")).to_have_count(0)
-    expect(fw.get_by_test_id("firmware-backups-link")).to_have_text("Keybard backs up your layout before every update. Open Backups")
+    expect(fw.get_by_test_id("firmware-backups-link")).to_have_count(0)
+    expect(fw.get_by_role("button", name="Open Backups")).to_have_count(0)
     assert not errors, errors
     context.close()
 
@@ -212,7 +215,7 @@ def main() -> int:
         ("2. ?panel=backups lands on Backups, Firmware collapsed", flow_deep_link),
         ("3. the reset notice's Other backups opens Backups", flow_reset_notice),
         ("4. an open-Backups request opens Backups from another panel", flow_event),
-        ("5. the halves-differ banner opens Firmware; its line links to Backups", flow_banner),
+        ("5. the halves-differ banner opens Firmware; Backups is right below", flow_banner),
         ("6. Firmware shows no backup list", flow_firmware_has_no_backups),
         ("7. an install still takes the automatic backup", flow_install_backs_up),
         ("8. the Backups card on one line at 390 and 1440 px, light and dark", lambda b, u: flow_layout(b, u, shots)),
