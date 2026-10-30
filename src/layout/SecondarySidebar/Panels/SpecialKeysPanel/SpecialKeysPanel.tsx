@@ -1,6 +1,7 @@
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import AudioKeys from "./AudioKeys";
 import BacklightsKeys from "./BacklightsKeys";
+import InternationalKeys from "./InternationalKeys";
 import MediaKeys from "./MediaKeys";
 import OtherKeys from "./OtherKeys";
 import StenoKeys from "./StenoKeys";
@@ -21,6 +22,7 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
                 <AudioKeys variant="medium" />
                 <BacklightsKeys variant="medium" />
                 <StenoKeys variant="medium" />
+                <InternationalKeys variant="medium" />
             </div>
         );
     }
@@ -37,6 +39,7 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
             <AudioKeys />
             <BacklightsKeys />
             <StenoKeys />
+            <InternationalKeys />
         </div>
     );
 };

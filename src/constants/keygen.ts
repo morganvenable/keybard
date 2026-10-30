@@ -2435,109 +2435,109 @@ export const KEYMAP: KeyMap = {
     "code": 0x0087,
     "qmkid": "KC_RO",
     "str": "_\n\\",
-    "title": "JIS \\ and _"
+    "title": "Ro ろ (JIS \\ and _, International 1)"
   },
   "KC_KANA": {
     "code": 0x0088,
     "qmkid": "KC_KANA",
     "str": "\u30ab\u30bf\u30ab\u30ca\n\u3072\u3089\u304c\u306a",
-    "title": "JIS Katakana/Hiragana"
+    "title": "Kana かな (JIS Katakana/Hiragana, International 2)"
   },
   "KC_JYEN": {
     "code": 0x0089,
     "qmkid": "KC_JYEN",
     "str": "|\n\u00a5",
-    "title": "KC_JYEN"
+    "title": "Yen ¥ (JIS, International 3)"
   },
   "KC_HENK": {
     "code": 0x008a,
     "qmkid": "KC_HENK",
     "str": "\u5909\u63db",
-    "title": "JIS Henkan"
+    "title": "Henkan 変換 (JIS convert, International 4)"
   },
   "KC_MHEN": {
     "code": 0x008b,
     "qmkid": "KC_MHEN",
     "str": "\u7121\u5909\u63db",
-    "title": "JIS Muhenkan"
+    "title": "Muhenkan 無変換 (JIS no-convert, International 5)"
   },
   "KC_INTERNATIONAL_6": {
     "code": 0x008c,
     "qmkid": "KC_INTERNATIONAL_6",
-    "str": "KC_INTERNATIONAL_6",
-    "title": "KC_INTERNATIONAL_6"
+    "str": "JIS\nKP ,",
+    "title": "JIS numpad comma (International 6)"
   },
   "KC_INTERNATIONAL_7": {
     "code": 0x008d,
     "qmkid": "KC_INTERNATIONAL_7",
-    "str": "KC_INTERNATIONAL_7",
-    "title": "KC_INTERNATIONAL_7"
+    "str": "Int 7",
+    "title": "International 7"
   },
   "KC_INTERNATIONAL_8": {
     "code": 0x008e,
     "qmkid": "KC_INTERNATIONAL_8",
-    "str": "KC_INTERNATIONAL_8",
-    "title": "KC_INTERNATIONAL_8"
+    "str": "Int 8",
+    "title": "International 8"
   },
   "KC_INTERNATIONAL_9": {
     "code": 0x008f,
     "qmkid": "KC_INTERNATIONAL_9",
-    "str": "KC_INTERNATIONAL_9",
-    "title": "KC_INTERNATIONAL_9"
+    "str": "Int 9",
+    "title": "International 9"
   },
   "KC_LANG1": {
     "code": 0x0090,
     "qmkid": "KC_LANG1",
     "str": "\ud55c\uc601\n\u304b\u306a",
-    "title": "Korean Han/Yeong / JP Mac Kana"
+    "title": "Han/Yeong 한영 / Mac Kana かな (Language 1)"
   },
   "KC_LANG2": {
     "code": 0x0091,
     "qmkid": "KC_LANG2",
     "str": "\u6f22\u5b57\n\u82f1\u6570",
-    "title": "Korean Hanja / JP Mac Eisu"
+    "title": "Hanja 漢字 / Mac Eisu 英数 (Language 2)"
   },
   "KC_LANGUAGE_3": {
     "code": 0x0092,
     "qmkid": "KC_LANGUAGE_3",
-    "str": "KC_LANGUAGE_3",
-    "title": "KC_LANGUAGE_3"
+    "str": "カタカナ",
+    "title": "Katakana カタカナ (Language 3)"
   },
   "KC_LANGUAGE_4": {
     "code": 0x0093,
     "qmkid": "KC_LANGUAGE_4",
-    "str": "KC_LANGUAGE_4",
-    "title": "KC_LANGUAGE_4"
+    "str": "ひらがな",
+    "title": "Hiragana ひらがな (Language 4)"
   },
   "KC_LANGUAGE_5": {
     "code": 0x0094,
     "qmkid": "KC_LANGUAGE_5",
-    "str": "KC_LANGUAGE_5",
-    "title": "KC_LANGUAGE_5"
+    "str": "全角\n半角",
+    "title": "Zenkaku/Hankaku 全角/半角 (Language 5)"
   },
   "KC_LANGUAGE_6": {
     "code": 0x0095,
     "qmkid": "KC_LANGUAGE_6",
-    "str": "KC_LANGUAGE_6",
-    "title": "KC_LANGUAGE_6"
+    "str": "Lang 6",
+    "title": "Language 6"
   },
   "KC_LANGUAGE_7": {
     "code": 0x0096,
     "qmkid": "KC_LANGUAGE_7",
-    "str": "KC_LANGUAGE_7",
-    "title": "KC_LANGUAGE_7"
+    "str": "Lang 7",
+    "title": "Language 7"
   },
   "KC_LANGUAGE_8": {
     "code": 0x0097,
     "qmkid": "KC_LANGUAGE_8",
-    "str": "KC_LANGUAGE_8",
-    "title": "KC_LANGUAGE_8"
+    "str": "Lang 8",
+    "title": "Language 8"
   },
   "KC_LANGUAGE_9": {
     "code": 0x0098,
     "qmkid": "KC_LANGUAGE_9",
-    "str": "KC_LANGUAGE_9",
-    "title": "KC_LANGUAGE_9"
+    "str": "Lang 9",
+    "title": "Language 9"
   },
   "KC_ALTERNATE_ERASE": {
     "code": 0x0099,
