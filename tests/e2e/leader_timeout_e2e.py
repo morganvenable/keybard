@@ -2,7 +2,7 @@
 Browser test of the leader and combo timeouts against the simulated Svalboard.
 Run with `npm run test:e2e:leader-timeout`.
 
-  1. ?fakeBoard=leader0 is a board whose settings reset (before x4.3.2) stored
+  1. ?fakeBoard=leader0 is a board whose settings reset (before x4.3.3) stored
      a leader timeout of 0. The Leaders panel shows 300 ms, the value the
      firmware now uses in its place. Leaving the field and applying writes 300
      to the board, never 0.

@@ -4,21 +4,23 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
-## New in v4.3.2
+## New in x4.3.3
 
-This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.2. What changes since the last full release:
+This prerelease bundles the Keybard that next.keybard.svalboard.com runs, and goes with Svalboard firmware x4.3.3. What changes for you since the last full release:
 
-- **Test your keys without typing into other apps.** While Keybard's key tester is open, nothing you press reaches the computer. Typing comes back as soon as you close it. This needs firmware v4.3.2.
+- **Test your keys without typing into other apps.** While Keybard's key tester is open, nothing you press reaches the computer. Typing comes back as soon as you close it. The key tester also responds faster. This needs firmware x4.3.3.
 - **See every flicker.** The key tester shows each time a switch changes, even a bounce too short to type, with a count per key you can reset.
 - **Debounce switch in Scan Lab.** It is on by default, so typing is unchanged unless you turn it off.
-- **Scan timing in microseconds.** Your board keeps the timing it runs now. The mouse layer timeout is set in milliseconds, up to 2 seconds.
+- **Scan timing in microseconds.** Your board keeps the timing it runs now.
+- **Auto mouse and idle settings in milliseconds.** The mouse layer timeout is set in milliseconds, up to 2 seconds. The idle settings are listed in the order they happen, each in milliseconds.
+- **The leader key works out of the box.** The leader timeout is 300 ms, restarting after each key of a sequence. A timeout of 0, left by an older settings reset or an older layout, becomes 300 ms. The combo term, tapping term, Auto Shift timeout and mouse key interval are never set to 0 either. Settings you chose are kept.
 - **Backups has its own section in Settings.**
-- **Older layouts and backups load cleanly on v4.3.2 firmware.** Settings that v4.3.2 renamed are converted automatically when you load them.
+- **Older layouts and backups load cleanly.** Settings that newer firmware replaced are converted automatically when you load them, and Keybard lists each one.
 - **Japanese and other international keys.** Henkan, Muhenkan, Kana, Yen and the other International and Language keys are under **Special Keys > International**.
 - **Menus are readable in dark mode.**
 - **Manual opens the online docs** at [docs.svalboard.com/keybard](https://docs.svalboard.com/keybard/).
 - **The firmware update steps describe the lights as the keyboard shows them.**
-- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to v4.3.2 from Keybard.
+- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to x4.3.3 from Keybard.
 
 ## Also new since vLaunch2.3
 

@@ -45,7 +45,7 @@ const LeadersPanel: React.FC = () => {
     const isTimeoutSupported = keyboard?.settings?.[LEADER_TIMEOUT_QSID] !== undefined;
     const isPerKeySupported = keyboard?.settings?.[LEADER_PER_KEY_QSID] !== undefined;
     const storedTimeout = keyboard?.settings?.[LEADER_TIMEOUT_QSID];
-    // A stored 0 (older firmware's reset) shows as the 300 ms that x4.3.2 firmware
+    // A stored 0 (older firmware's reset) shows as the 300 ms that x4.3.3 firmware
     // puts in its place; saving the field writes it.
     const leaderTimeout = effectiveSetting(LEADER_TIMEOUT_QSID, storedTimeout) ?? ZERO_REPLACED_SETTINGS[LEADER_TIMEOUT_QSID];
     const perKeyTiming = (keyboard?.settings?.[LEADER_PER_KEY_QSID] ?? 0) !== 0;
