@@ -66,7 +66,7 @@ const STAGES: Array<[string, FlowState]> = [
     ["Sending the left half's firmware", flow("other-send", [{ hand: 0, stage: "sending", progress: 0.42 }, { hand: 1 }])],
     ["Copying over the split cable", flow("relay", [{ hand: 0, stage: "copying", progress: 0.63 }, { hand: 1 }])],
     ["Left half installs", flow("other-install", [{ hand: 0, stage: "installing", progress: null }, { hand: 1 }], { committed: [0] })],
-    ["Between the halves (red is expected)", flow("other-restart", [{ hand: 0, stage: "done", progress: 1 }, { hand: 1 }], { committed: [0] })],
+    ["Between the halves", flow("other-restart", [{ hand: 0, stage: "done", progress: 1 }, { hand: 1 }], { committed: [0] })],
     ["U3 Sending the right half's firmware", flow("self-send", [{ hand: 0, stage: "done", progress: 1 }, { hand: 1, stage: "sending", progress: 0.3 }], { committed: [0] })],
     ["Right half installs", flow("self-install", [{ hand: 0, stage: "done", progress: 1 }, { hand: 1, stage: "installing", progress: null }], { committed: [0, 1] })],
     ["U4 Restart and reconnect", flow("reconnect", [{ hand: 0, stage: "done", progress: 1 }, { hand: 1, stage: "reconnecting", progress: null }], { committed: [0, 1], stepAt: NOW - 9 })],

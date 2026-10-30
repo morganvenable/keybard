@@ -8,7 +8,7 @@ import path from "node:path";
 import { CARRIED_RELEASES, currentSite, matchPin, parseReleaseTag, releasesForSite, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { FirmwareSection } from "@/features/firmware/FirmwareSection";
 import { lightFor } from "@/features/firmware/lights";
-import { ConfirmView, ProgressView, overallProgress, stageLine, timeLeft } from "@/features/firmware/ProgressDialog";
+import { ConfirmView, LIGHTS_CHANGE, ProgressView, overallProgress, stageLine, timeLeft } from "@/features/firmware/ProgressDialog";
 import { UpdateDialog, resultTitle } from "@/features/firmware/UpdateDialog";
 import { UpdateSheet } from "@/features/firmware/UpdateSheet";
 import { useFirmwareUpdate, type FirmwareUiHost } from "@/features/firmware/useFirmwareUpdate";
@@ -94,11 +94,22 @@ describe("the lights, from the firmware's table (update-flow 5.3)", () => {
         expect(at("relay", 0)).toBe("rainbow");
         expect(at("relay", 1)).toBe("rainbow");
     });
-    it("magenta on both halves while the other half installs; red between the halves", () => {
+    it("magenta only on the half that writes; never red while waiting", () => {
         expect(at("other-install", 0)).toBe("magenta");
-        expect(at("other-install", 1)).toBe("magenta");
-        expect(at("other-restart", 1)).toBe("red-slow");
+        expect(at("other-install", 1)).toBe("rainbow");
+        expect(at("other-restart", 0)).toBe("rainbow");
+        expect(at("other-restart", 1)).toBe("rainbow");
+        expect(at("self-arm", 1)).toBe("rainbow");
         expect(at("self-install", 1)).toBe("magenta");
+        expect(at("self-install", 0)).toBe("rainbow");
+        expect(at("reconnect", 1)).toBe("rainbow");
+        const waiting: Step[] = ["start", "approve", "other-erase", "other-send", "other-verify", "relay", "other-install", "other-restart", "self-arm", "self-erase", "self-send", "self-verify", "self-install", "reconnect", "check-halves", "restore", "done"];
+        for (const step of waiting) for (const hand of [0, 1] as const) expect(at(step, hand)).not.toBe("red-slow");
+    });
+    it("red only for a failure, for 30 seconds", () => {
+        expect(lightFor(fs("failed", { stepAt: 0 }), 0, 1000)).toBe("red-slow");
+        expect(lightFor(fs("failed", { stepAt: 0 }), 1, 29_000)).toBe("red-slow");
+        expect(lightFor(fs("failed", { stepAt: 0 }), 1, 31_000)).toBe("layer");
     });
 });
 
@@ -126,8 +137,18 @@ describe("the running screens (5.1)", () => {
         const values = steps.map((step) => overallProgress(fs(step)));
         for (let i = 1; i < values.length; i++) expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
         expect(values[values.length - 1]).toBe(1);
-        expect(stageLine(fs("other-restart"))).toMatch(/stays red until it's updated too/);
         expect(timeLeft(fs("start"), 0)).toBe("About 2 minutes left");
+    });
+
+    it("the restart between the halves names no light color, only that the lights change", () => {
+        const line = stageLine(fs("other-restart"));
+        expect(line).toBe("The left half is restarting. The lights on the halves change while they update. Leave the keyboard plugged in until Keybard says it's done.");
+        expect(line).toContain(LIGHTS_CHANGE);
+        expect(line).not.toMatch(/\b(red|green|blue|white|magenta|rainbow)\b/i);
+        expect(stageLine(fs("other-restart", { target: 0 }))).toBe("The left half is restarting");
+        // No stage line names red: red on the keyboard only ever means a failure.
+        const steps: Step[] = ["start", "approve", "other-erase", "other-send", "other-verify", "relay", "other-install", "other-restart", "self-arm", "self-erase", "self-send", "self-verify", "self-install", "reconnect", "check-halves", "settings-reset", "restore", "done"];
+        for (const step of steps) expect(stageLine(fs(step))).not.toMatch(/\bred\b/i);
     });
 
     it("titles Done by what's installed", () => {
