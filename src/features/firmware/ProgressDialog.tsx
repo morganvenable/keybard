@@ -78,8 +78,8 @@ export function stageLine(s: FlowState): string {
         case "other-verify": return `Checking the ${o} half's firmware`;
         case "relay": return `Copying it to the ${o} half. Don't type on that half until it's done.`;
         case "other-install": return `Installing on the ${o} half`;
-        // No light color here: what each half shows depends on the board (the firmware on each half, the
-        // split link), and red only ever means a failure. See svalboard/qmk docs/updater.md, "LEDs".
+        // No light color here: while a half restarts the firmware isn't driving its lights, and red only
+        // ever means a failure. See svalboard/qmk docs/updater.md, "LEDs".
         case "other-restart": return s.target === "both" ? `The ${o} half is restarting. ${LIGHTS_CHANGE}` : `The ${o} half is restarting`;
         case "self-erase": return `Preparing the ${u} half`;
         case "self-send": return `Sending the firmware for the ${u} half`;

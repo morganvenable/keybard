@@ -11,6 +11,7 @@
 .fw-swatch[data-light="layer"] { background: var(--color-kb-green); opacity: 0.7; }
 .fw-swatch[data-light="default"] { background: #22c55e; }
 .fw-swatch[data-light="off"] { background: transparent; }
+.fw-swatch[data-light="not-driven"] { background: transparent; outline: 2px dashed currentColor; outline-offset: -2px; opacity: 0.5; }
 .fw-swatch[data-light="magenta"] { background: #d000d0; }
 .fw-swatch[data-light="blue-blink"] { background: #2060ff; animation: fw-blink 500ms steps(1, end) infinite; }
 .fw-swatch[data-light="red-slow"] { background: #e02020; animation: fw-blink 1000ms steps(1, end) infinite; }

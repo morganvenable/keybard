@@ -351,7 +351,7 @@ def main() -> int:
                 check(len(steps) == 5, f"{label}: five steps")
                 check(steps[0] == "Plug the USB cable into the left half's U port. Keep the split cable connected.", f"{label}: the left half first")
                 check(steps[3] == "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.", f"{label}: then the right half")
-                check(steps[4] == "Both halves turn rainbow. The first half glows steady magenta for a few seconds while it writes, then both flash green twice, about half a minute later.", f"{label}: what the lights do")
+                check(steps[4] == "The halves show a rainbow while they work, then both flash green twice, about half a minute later. While a half writes or restarts, its lights may freeze or show other colors until it's running again.", f"{label}: what the lights do")
                 check("either half" not in text and "updates by itself" not in text, f"{label}: never one half for both")
                 layout(page, f"{label} instructions")
                 if vp is PHONE and theme == "light":

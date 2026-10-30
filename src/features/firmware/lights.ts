@@ -1,4 +1,4 @@
-// What each half's light does at each step, from the firmware code (svalboard/qmk x4.3).
+// What each half's light does at each step, from the firmware (svalboard/qmk).
 // Derived from the flow state, never read from the board.
 
 import type { FlowState, Stage } from "@/services/updater/flow";
@@ -9,14 +9,19 @@ export type LightPattern =
     | "layer"
     /** Firmware default color after a restart (layer 0 green). */
     | "default"
-    /** Blue, blinking twice a second: hold the chord now. */
+    /** Blue, blinking: waiting for the chord. */
     | "blue-blink"
-    /** The rainbow: one slow continuous hue cycle, "busy". */
+    /** The rainbow: working. */
     | "rainbow"
-    /** Steady magenta: installing, don't unplug. */
+    /** Magenta: writing. */
     | "magenta"
-    /** Red, blinking once a second: it failed (red is only ever a failure). */
+    /** Red, blinking: a failure (red is only ever a failure). */
     | "red-slow"
+    /**
+     * While a half writes its firmware or restarts, the firmware isn't driving its lights, so they may
+     * freeze or show other colors until it's running again. No color is claimed.
+     */
+    | "not-driven"
     | "off";
 
 export const LIGHT_LABEL: Record<LightPattern, string> = {
@@ -24,21 +29,19 @@ export const LIGHT_LABEL: Record<LightPattern, string> = {
     default: "Default color",
     "blue-blink": "Blue, blinking",
     rainbow: "Rainbow",
-    magenta: "Magenta, steady",
-    "red-slow": "Red, blinking slowly",
+    magenta: "Magenta",
+    "red-slow": "Red, blinking",
+    "not-driven": "Not driven: may freeze or show other colors",
     off: "Off",
 };
 
 /**
- * The light on one half now, as svalboard/qmk x4.3 drives it (keyboards/svalboard/updater/updater.c,
- * led_mode() and own_light()). The half with USB sends its light to the other half on the 500 ms
- * presence ping (updater_split_light), so the other half shows the rainbow whenever the half with
- * USB does, except while the link is paused for the copy, when it shows its own (also the rainbow).
- * The chord's blue light and white flash are not sent: the other half keeps its layer color then.
+ * The light on one half now: only the states the firmware drives on purpose (svalboard/qmk
+ * keyboards/svalboard/updater). Blue blinking waits for the chord, the rainbow is working, magenta is
+ * writing, red is a failure. While either half writes or restarts, nothing is claimed for either half.
  */
 export function lightFor(state: FlowState, hand: Hand, now: number): LightPattern {
-    const usb = state.usbHand;
-    const isUsb = hand === usb;
+    const isUsb = hand === state.usbHand;
     const since = now - state.stepAt;
     switch (state.step) {
         case "start":
@@ -49,37 +52,27 @@ export function lightFor(state: FlowState, hand: Hand, now: number): LightPatter
         case "other-send":
         case "other-verify":
         case "relay":
-            return "rainbow";
-        case "other-install":
-            // Only the half that writes holds magenta; the half with USB keeps the rainbow.
-            return isUsb ? "rainbow" : "magenta";
-        case "other-restart":
-            // Both keep the rainbow until the halves match; waiting is never red.
-            return "rainbow";
-        case "self-arm":
-            return isUsb ? (state.target === "both" ? "rainbow" : "layer") : "rainbow";
         case "self-erase":
         case "self-send":
         case "self-verify":
             return "rainbow";
+        case "self-arm":
+            return isUsb && state.target !== "both" ? "layer" : "rainbow";
+        case "other-install":
+        case "other-restart":
         case "self-install":
-            return isUsb ? "magenta" : "rainbow";
         case "reconnect":
-            // The half with USB comes back from its own install showing the rainbow until the halves match.
-            return "rainbow";
         case "settings-reset":
-            return "default";
+            return "not-driven";
         case "sides":
             // A half without a side, or two on the same side, shows the default color and doesn't type.
             return "default";
         case "check-halves":
-            // Two green flashes once the halves match, then the default color.
             return state.committed.includes(hand) || state.target === "both" ? "default" : "layer";
         case "restore":
         case "done":
             return state.afterwards === "restore" ? "layer" : "default";
         case "failed":
-            // A refused or failed install: red, once a second, for 30 s on both halves, then the layer color.
             return since < 30_000 ? "red-slow" : "layer";
     }
 }

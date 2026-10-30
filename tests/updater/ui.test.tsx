@@ -94,15 +94,11 @@ describe("the lights, from the firmware's table (update-flow 5.3)", () => {
         expect(at("relay", 0)).toBe("rainbow");
         expect(at("relay", 1)).toBe("rainbow");
     });
-    it("magenta only on the half that writes; never red while waiting", () => {
-        expect(at("other-install", 0)).toBe("magenta");
-        expect(at("other-install", 1)).toBe("rainbow");
-        expect(at("other-restart", 0)).toBe("rainbow");
-        expect(at("other-restart", 1)).toBe("rainbow");
-        expect(at("self-arm", 1)).toBe("rainbow");
-        expect(at("self-install", 1)).toBe("magenta");
-        expect(at("self-install", 0)).toBe("rainbow");
-        expect(at("reconnect", 1)).toBe("rainbow");
+    it("claims no color for either half while one writes or restarts; never red while waiting", () => {
+        for (const step of ["other-install", "other-restart", "self-install", "reconnect", "settings-reset"] as Step[]) {
+            expect(at(step, 0)).toBe("not-driven");
+            expect(at(step, 1)).toBe("not-driven");
+        }
         const waiting: Step[] = ["start", "approve", "other-erase", "other-send", "other-verify", "relay", "other-install", "other-restart", "self-arm", "self-erase", "self-send", "self-verify", "self-install", "reconnect", "check-halves", "restore", "done"];
         for (const step of waiting) for (const hand of [0, 1] as const) expect(at(step, hand)).not.toBe("red-slow");
     });
