@@ -123,8 +123,8 @@ export interface IdleSettings {
 /** Starting points for the idle fields; every value stays editable. */
 export const IDLE_PRESETS: ReadonlyArray<{ name: string; hint: string } & IdleSettings> = [
     { name: "No idle", hint: "full rate always", idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 0, deepPeriodMs: 0 },
-    { name: "Idle", hint: "100 ms wake-up after 2 s", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
-    { name: "Deep idle", hint: "100 ms after 2 s, 1 s after 10 min", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
+    { name: "Idle", hint: "100 ms scan interval after 2000 ms", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 0, deepPeriodMs: 0 },
+    { name: "Deep idle", hint: "100 ms scan interval after 2000 ms; 1000 ms after 600000 ms", idleAfterMs: 2000, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 },
 ];
 
 export const SENSOR_MODE_NAMES = ["active", "power saving 1", "power saving 2", "power saving 3"] as const;

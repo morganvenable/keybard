@@ -395,6 +395,8 @@ export interface CustomUIMenuItem {
     options?: number[] | string[];               // [min, max] for range, or string[] for dropdown
     content?: (string | number)[] | CustomUIMenuItem[];  // Value ref [key, channel, id] or nested items
     showIf?: string;                             // Conditional visibility expression e.g. "{id_foo} == 1"
+    /** App-provided: shown units per stored unit (1000 shows stored seconds as ms). Options stay in stored units. */
+    displayScale?: number;
 }
 
 /**

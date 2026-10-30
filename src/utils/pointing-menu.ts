@@ -63,6 +63,23 @@ export function selectPointingMenu(items: CustomUIMenuItem[], section: PointingM
         const priority = (item: CustomUIMenuItem) =>
             item.content?.[0] === "id_scan_period_us" ? 0 : item.content?.[0] === "id_idle_cpu_sleep" ? 1 : 2;
         selected.sort((a, b) => priority(a) - priority(b));
+        return inIdleStageOrder(selected);
     }
     return selected;
+}
+
+/**
+ * The idle timings, per stage: when it starts, then its scan interval. Keybard
+ * owns this order (firmware menus list the idle interval first); the four keep
+ * the places they had among the other controls.
+ */
+export const IDLE_STAGE_ORDER = ["id_scan_idle_after_ms", "id_scan_idle_period_ms", "id_scan_deep_after_s", "id_scan_deep_period_ms"] as const;
+
+function inIdleStageOrder(items: CustomUIMenuItem[]): CustomUIMenuItem[] {
+    const rank = (item: CustomUIMenuItem) => (IDLE_STAGE_ORDER as readonly unknown[]).indexOf(item.content?.[0]);
+    const slots = items.flatMap((item, index) => (rank(item) >= 0 ? [index] : []));
+    const ordered = slots.map(index => items[index]).sort((a, b) => rank(a) - rank(b));
+    const out = [...items];
+    slots.forEach((slot, i) => { out[slot] = ordered[i]; });
+    return out;
 }

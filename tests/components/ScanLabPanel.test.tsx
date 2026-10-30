@@ -142,7 +142,7 @@ describe('ScanLabPanel', () => {
         fireEvent.change(screen.getByLabelText('Active scan interval · µs'), { target: { value: '2000' } });
         fireEvent.change(screen.getByLabelText('Enter idle after · ms'), { target: { value: '1500' } });
         fireEvent.change(screen.getByLabelText('Idle scan interval · ms'), { target: { value: '100' } });
-        fireEvent.change(screen.getByLabelText('Enter deep idle after · s'), { target: { value: '600' } });
+        fireEvent.change(screen.getByLabelText('Enter deep idle after · ms'), { target: { value: '600000' } });
         fireEvent.change(screen.getByLabelText('Deep idle scan interval · ms'), { target: { value: '1000' } });
         fireEvent.click(screen.getByTestId('apply-pacing'));
         await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(2000, { idleAfterMs: 1500, idlePeriodMs: 100, deepAfterS: 600, deepPeriodMs: 1000 }));
@@ -166,14 +166,36 @@ describe('ScanLabPanel', () => {
 
     it('flags pacing fields that differ from the board and applies on Enter', async () => {
         render(<ScanLabPanel />);
-        await waitFor(() => expect(screen.getByTestId('pacing-on-board')).toHaveTextContent('On board: period 1000 µs · idle 1 ms after 1 s · deep idle off'));
+        await waitFor(() => expect(screen.getByTestId('pacing-on-board')).toHaveTextContent('On board: period 1000 µs · idle 1 ms after 1000 ms · deep idle off'));
         expect(screen.getByTestId('apply-pacing')).toHaveTextContent('Apply pacing');
         expect(screen.getByTestId('apply-pacing')).not.toHaveTextContent('not on board');
-        fireEvent.change(screen.getByLabelText('Enter deep idle after · s'), { target: { value: '2' } });
+        fireEvent.change(screen.getByLabelText('Enter deep idle after · ms'), { target: { value: '2000' } });
         expect(screen.getByTestId('apply-pacing')).toHaveTextContent('not on board yet');
         expect(screen.getByTestId('pacing-on-board')).toHaveTextContent('differ');
-        fireEvent.keyDown(screen.getByLabelText('Enter deep idle after · s'), { key: 'Enter' });
+        fireEvent.keyDown(screen.getByLabelText('Enter deep idle after · ms'), { key: 'Enter' });
         await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(1000, { idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 2, deepPeriodMs: 0 }));
+    });
+
+    it('takes deep idle in ms, stores whole seconds and says when it rounded', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        const field = screen.getByLabelText('Enter deep idle after · ms');
+        fireEvent.change(field, { target: { value: '2500' } });
+        fireEvent.blur(field);
+        expect(field).toHaveValue(3000);
+        expect(screen.getByText('Rounded to whole seconds: 3000 ms')).toBeInTheDocument();
+        fireEvent.change(field, { target: { value: '4000' } });
+        fireEvent.blur(field);
+        expect(screen.queryByText(/Rounded to whole seconds/)).toBeNull();
+        fireEvent.click(screen.getByTestId('apply-pacing'));
+        await waitFor(() => expect(svc.applyPacing).toHaveBeenCalledWith(1000, { idleAfterMs: 1000, idlePeriodMs: 1, deepAfterS: 4, deepPeriodMs: 0 }));
+    });
+
+    it('lists the idle stages in order: idle start, its interval, deep idle start, its interval', async () => {
+        render(<ScanLabPanel />);
+        await waitFor(() => expect(svc.getPower).toHaveBeenCalled());
+        const labels = [...screen.getByTestId('idle-stage-fields').querySelectorAll('input')].map(i => i.labels?.[0]?.textContent?.trim());
+        expect(labels).toEqual(['Enter idle after · ms', 'Idle scan interval · ms', 'Enter deep idle after · ms', 'Deep idle scan interval · ms']);
     });
 
     it('offers the deep-idle clock choices and applies one', async () => {
@@ -190,7 +212,7 @@ describe('ScanLabPanel', () => {
         fireEvent.click(screen.getByText('Power tuning'));
         fireEvent.click(screen.getByRole('button', { name: 'Deep idle' }));
         expect(screen.getByLabelText('Idle scan interval · ms')).toHaveValue(100);
-        expect(screen.getByLabelText('Enter deep idle after · s')).toHaveValue(600);
+        expect(screen.getByLabelText('Enter deep idle after · ms')).toHaveValue(600000);
         expect(screen.getByLabelText('Deep idle scan interval · ms')).toHaveValue(1000);
     });
 

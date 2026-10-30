@@ -62,3 +62,29 @@ describe('Pointing / Developer control placement', () => {
         expect(selectPointingMenu([{ label: 'Advanced', content: [entries[2]] }], 'pointing')).toEqual([]);
     });
 });
+
+describe('idle stage order and units', () => {
+    // The firmware's own menu order (sval.json): the idle interval comes before its start.
+    const firmwareOrder = ['id_scan_prewait_us', 'id_scan_postwait_us', 'id_scan_period_us', 'id_scan_idle_period_ms',
+        'id_scan_idle_after_ms', 'id_scan_deep_after_s', 'id_scan_deep_period_ms', 'id_idle_pointer_rest', 'id_idle_rgb_dim', 'id_idle_cpu_sleep'];
+    const menu = (): CustomUIMenuItem[] => [{ label: 'Advanced', content: firmwareOrder.map((key, i) => ({ type: 'range', options: [0, key === 'id_scan_deep_after_s' ? 7200 : 60000], content: [key, 0, i] })) }];
+
+    it('groups each idle stage: its start, then its scan interval', () => {
+        const keys = controls(selectPointingMenu(menu(), 'developer')).map(item => item.content?.[0]);
+        const idle = keys.filter(key => String(key).match(/^id_scan_(idle|deep)_/));
+        expect(idle).toEqual(['id_scan_idle_after_ms', 'id_scan_idle_period_ms', 'id_scan_deep_after_s', 'id_scan_deep_period_ms']);
+        // The other controls keep their places.
+        expect(keys.slice(0, 4)).toEqual(['id_scan_period_us', 'id_idle_cpu_sleep', 'id_scan_prewait_us', 'id_scan_postwait_us']);
+        expect(keys.slice(-2)).toEqual(['id_idle_pointer_rest', 'id_idle_rgb_dim']);
+    });
+
+    it('labels every idle timing in ms; deep idle is shown in ms over its stored seconds', () => {
+        const items = controls(selectPointingMenu(menu(), 'developer'));
+        const idle = items.filter(item => String(item.content?.[0]).match(/^id_scan_(idle|deep)_/));
+        expect(idle.map(item => item.label)).toEqual(['Enter idle after · ms', 'Idle scan interval · ms', 'Enter deep idle after · ms', 'Deep idle scan interval · ms']);
+        const deep = idle.find(item => item.content?.[0] === 'id_scan_deep_after_s')!;
+        expect(deep.displayScale).toBe(1000);
+        expect(deep.options).toEqual([0, 7200]); // stored units, as the firmware reads and writes them
+        expect(idle.filter(item => item !== deep).every(item => item.displayScale === undefined)).toBe(true);
+    });
+});

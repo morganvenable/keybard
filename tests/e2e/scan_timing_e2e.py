@@ -19,6 +19,11 @@ layer timeout (ms entry, up to 2000) against the simulated Svalboard
      existing 0.15 s color fade on hover and focus; nothing here changes them.)
   5. Layout: the Tuning section and the auto mouse controls fit at phone and
      desktop widths, light and dark, with ink that differs from the page.
+  6. The idle settings read per stage (Enter idle after, Idle scan interval,
+     Enter deep idle after, Deep idle scan interval), all in ms, in Tuning and
+     in Scan Lab's Power tuning. Deep idle is shown in ms and stored in whole
+     seconds (2500 -> 3000, with a note). No number box cuts off 2000, 60000
+     or 7200000.
 
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. SHOT_DIR=path saves
 screenshots. Needs Python Playwright with Chromium. Exits 1 when a check fails.
@@ -203,6 +208,47 @@ def flow_layout(browser, url):
             context.close()
 
 
+IDLE_LABELS = ["Enter idle after · ms", "Idle scan interval · ms", "Enter deep idle after · ms", "Deep idle scan interval · ms"]
+
+
+def not_clipped(box, what: str):
+    """The number box shows its whole value: nothing scrolled out of sight."""
+    assert box.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), f"{what}: value {box.input_value()!r} is cut off"
+
+
+def flow_idle_order_units(browser, url):
+    for width, height in ((390, 844), (1440, 900)):
+        context, page, errors = open_page(browser, url, viewport=(width, height))
+        tuning = page.locator(TUNING)
+        expect(tuning).to_be_visible(timeout=15000)
+        boxes = [tuning.get_by_role("spinbutton", name=label, exact=True) for label in IDLE_LABELS]
+        for box in boxes:
+            box.scroll_into_view_if_needed()
+            expect(box).to_be_visible()
+        shown = tuning.evaluate("t => [...t.querySelectorAll('input[type=number]')].map(e => e.getAttribute('aria-label'))")
+        assert [label for label in shown if label in IDLE_LABELS] == IDLE_LABELS, f"{width}px: idle settings out of order: {shown}"
+        assert tuning.get_by_text(re.compile(r"· s$")).count() == 0, "a timing is still labeled in seconds"
+        for label, box, value in ((IDLE_LABELS[0], boxes[0], "2000"), (IDLE_LABELS[1], boxes[1], "60000"), (IDLE_LABELS[3], boxes[3], "60000"), (IDLE_LABELS[2], boxes[2], "7200000")):
+            box.fill(value)
+            not_clipped(box, f"{width}px {label}")
+        # Deep idle: shown in ms, stored in whole seconds.
+        boxes[2].fill("2500")
+        boxes[2].blur()
+        expect(boxes[2]).to_have_value("3000")
+        expect(tuning.get_by_text("Rounded to whole seconds: 3000 ms")).to_be_visible()
+        page.wait_for_function("(window.keybardFakeBoard.device.firmware.state.custom[46] | (window.keybardFakeBoard.device.firmware.state.custom[47] << 8)) === 3", timeout=5000)
+        # Scan Lab's own Power tuning fields: same order and units, nothing cut off.
+        page.get_by_text("Power tuning").click()
+        fields = page.locator("[data-testid='idle-stage-fields'] input")
+        labels = [fields.nth(i).evaluate("e => e.labels[0].firstChild.textContent.trim()") for i in range(fields.count())]
+        assert labels == IDLE_LABELS, labels
+        deep = page.locator("#scanlab-deep-after")
+        deep.fill("7200000")
+        not_clipped(deep, f"{width}px Scan Lab deep idle")
+        assert not errors, errors
+        context.close()
+
+
 def shots(browser, url, out):
     os.makedirs(out, exist_ok=True)
     for scheme in ("light", "dark"):
@@ -234,6 +280,7 @@ def main() -> int:
         ("3. auto mouse ms entry: 1234 -> 1230, 5000 -> 2000, 50 -> 100, read back, no timeout", flow_automouse),
         ("4. no animation, and no transition added", flow_no_animation),
         ("5. Tuning and auto mouse fit at phone and desktop widths, light and dark", flow_layout),
+        ("6. idle settings per stage, all in ms, no number box cuts off its value", flow_idle_order_units),
     ]
     failed = 0
     with app_url() as url, sync_playwright() as p:
