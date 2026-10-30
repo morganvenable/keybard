@@ -1,11 +1,14 @@
 /** App copy keyed by firmware value ID. Labels never alter values or protocol IDs. */
-export const developerSettingsCopy: Record<string, { label: string; description: string }> = {
+import { MS_PER_STORED_SECOND } from "./display-scale";
+
+/** displayScale: the firmware stores this one in seconds; Keybard shows and takes ms. */
+export const developerSettingsCopy: Record<string, { label: string; description: string; displayScale?: number }> = {
     id_scan_prewait_us: { label: "Sensor settling time · µs", description: "Waits before reading each key sensor row. Shorter waits scan faster. Both halves use it." },
     id_scan_postwait_us: { label: "Pause after sensor reading · µs", description: "Waits after reading each key sensor row. Shorter waits scan faster. Both halves use it." },
     id_scan_period_us: { label: "Key scan rate limit", description: "Maximum key scans per second. A limit allows the processor to sleep between scans. Unlimited disables keyboard idle stages." },
     id_scan_idle_after_ms: { label: "Enter idle after · ms", description: "Time without key or pointer activity before idle begins. Zero disables idle." },
     id_scan_idle_period_ms: { label: "Idle scan interval · ms", description: "Time between key scans while idle. A longer interval saves power but can delay the first response. Must exceed the active interval." },
-    id_scan_deep_after_s: { label: "Enter deep idle after · s", description: "Time without activity before deeper power saving begins. Measured from the last activity, not from entering idle. Zero disables deep idle." },
+    id_scan_deep_after_s: { label: "Enter deep idle after · ms", description: "Time without activity before deeper power saving begins, in whole seconds. Measured from the last activity, not from entering idle. Zero disables deep idle.", displayScale: MS_PER_STORED_SECOND },
     id_scan_deep_period_ms: { label: "Deep idle scan interval · ms", description: "Time between key scans in deep idle. A longer interval saves power but can delay the first response. Must exceed the active interval." },
     id_idle_pointer_rest: { label: "Trackball power saving", description: "Reduces sensor power while the ball is still. Movement wakes it automatically. Separate from the keyboard idle timers." },
     id_idle_rgb_dim: { label: "Dim lighting when idle", description: "Dims lighting in idle and turns it off in deep idle. Input restores the previous brightness." },

@@ -30,7 +30,7 @@ export const QMK_SETTINGS: QMKSettings = {
     {
       "name": "Tap-Hold",
       "fields": [
-        { "type": "integer", "title": "Tapping Term", "qsid": 7, "min": 0, "max": 10000, "width": 2 },
+        { "type": "integer", "title": "Tapping Term", "qsid": 7, "min": 50, "max": 10000, "width": 2 },
         { "type": "boolean", "title": "Permissive Hold", "qsid": 8, "bit": 0 },
         { "type": "boolean", "title": "Ignore Mod Tap Interrupt", "qsid": 8, "bit": 1 },
         { "type": "boolean", "title": "Tapping Force Hold", "qsid": 8, "bit": 2 },
@@ -51,7 +51,7 @@ export const QMK_SETTINGS: QMKSettings = {
       "fields": [
          { "type": "boolean", "title": "Enable", "qsid": 3, "bit": 0 },
         { "type": "boolean", "title": "Enable for modifiers", "qsid": 3, "bit": 1 },
-        { "type": "integer", "title": "Timeout", "qsid": 4, "min": 0, "max": 1000, "width": 2 },
+        { "type": "integer", "title": "Timeout", "qsid": 4, "min": 50, "max": 1000, "width": 2 },
         { "type": "boolean", "title": "Do not Auto Shift special keys", "qsid": 3, "bit": 2 },
         { "type": "boolean", "title": "Do not Auto Shift numeric keys", "qsid": 3, "bit": 3 },
         { "type": "boolean", "title": "Do not Auto Shift alpha characters", "qsid": 3, "bit": 4 },
@@ -62,7 +62,7 @@ export const QMK_SETTINGS: QMKSettings = {
     {
       "name": "Combo",
       "fields": [
-        { "type": "integer", "title": "Time out period for combos", "qsid": 2, "min": 0, "max": 10000, "width": 2 }
+        { "type": "integer", "title": "Time out period for combos", "qsid": 2, "min": 10, "max": 10000, "width": 2 }
       ]
     },
     {
@@ -76,7 +76,7 @@ export const QMK_SETTINGS: QMKSettings = {
       "name": "Mouse keys",
       "fields": [
         { "type": "integer", "title": "Delay between pressing a movement key and cursor movement", "qsid": 9, "min": 0, "max": 10000, "width": 2 },
-        { "type": "integer", "title": "Time between cursor movements in milliseconds", "qsid": 10, "min": 0, "max": 10000, "width": 2 },
+        { "type": "integer", "title": "Time between cursor movements in milliseconds", "qsid": 10, "min": 1, "max": 10000, "width": 2 },
         { "type": "integer", "title": "Step size", "qsid": 11, "min": 0, "max": 1000, "width": 2 },
         { "type": "integer", "title": "Maximum cursor speed at which acceleration stops", "qsid": 12, "min": 0, "max": 1000, "width": 2 },
         { "type": "integer", "title": "Time until maximum cursor speed is reached", "qsid": 13, "min": 0, "max": 1000, "width": 2 },
@@ -95,3 +95,51 @@ export const QMK_SETTINGS: QMKSettings = {
     }
   ]
 };
+
+export const COMBO_TERM_QSID = 2;
+export const LEADER_TIMEOUT_QSID = 28;
+export const LEADER_PER_KEY_QSID = 29;
+
+/**
+ * QMK settings that can't work at 0, with the default used in place of a 0: a
+ * combo term of 0 never fires a combo, a tapping term of 0 makes every tap-hold
+ * key a hold, an Auto Shift timeout of 0 shifts every key, a mouse key interval
+ * of 0 moves the cursor every scan, and a leader timeout of 0 ends every
+ * sequence at once. Firmware from x4.3.2 replaces a stored 0 with the same
+ * values (sval_qmk_settings.c), and so does an import. Settings where 0 means
+ * something (one-shot timeout, Flow Tap, quick tap term, tap code delay) aren't here.
+ */
+export const ZERO_REPLACED_SETTINGS: Readonly<Record<number, number>> = {
+  [COMBO_TERM_QSID]: 50,
+  4: 175,
+  7: 200,
+  10: 20,
+  [LEADER_TIMEOUT_QSID]: 300,
+};
+
+/** The firmware release that replaces a stored 0 in those settings. */
+export const ZERO_SETTINGS_RELEASE = "x4.3.2";
+
+/** The value a setting takes on the board: its default in place of a 0 that can't work. */
+export function effectiveSetting(qsid: number, value: number | undefined): number | undefined {
+  if (value === 0 && qsid in ZERO_REPLACED_SETTINGS) return ZERO_REPLACED_SETTINGS[qsid];
+  return value;
+}
+
+/** A setting's range in the settings table. */
+export function settingRange(qsid: number): { min: number; max: number } {
+  for (const tab of QMK_SETTINGS.tabs) {
+    for (const field of tab.fields) {
+      if (field.qsid === qsid && field.type === "integer") return { min: field.min, max: field.max };
+    }
+  }
+  return { min: 0, max: 65535 };
+}
+
+/** A typed value for a setting, clamped to its range; an empty or unreadable entry keeps the current value. */
+export function parseSettingInput(qsid: number, input: string, current: number): number {
+  const parsed = parseInt(input.trim(), 10);
+  if (Number.isNaN(parsed)) return current;
+  const { min, max } = settingRange(qsid);
+  return Math.max(min, Math.min(max, parsed));
+}

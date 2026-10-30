@@ -14,8 +14,10 @@
  *   firmware without them; ?fakeBoard=nopause simulates firmware that can't
  *   pause typing for the matrix tester; ?fakeBoard=turbo6 is this firmware
  *   on a board that ran turbo 6 with both scan waits at 0 before updating
- *   (its migration lands on 15 / 15 µs; it starts fresh on every load).
- *   Its settings stay in this browser across reloads (except turbo6).
+ *   (its migration lands on 15 / 15 µs; it starts fresh on every load);
+ *   ?fakeBoard=leader0 is firmware from before x4.3.2 whose settings reset
+ *   stored a leader timeout of 0 (fresh on every load).
+ *   Its settings stay in this browser across reloads (except turbo6 and leader0).
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
  * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
@@ -58,14 +60,14 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
  * "combo-names": this firmware (combo names, typing pause); "old": firmware
  * without combo names; "no-pause": firmware that can't pause typing.
  */
-export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6";
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0";
 
 /** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
     const v = value.trim().toLowerCase();
-    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : "combo-names";
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : "combo-names";
 }
 
 /** ?tester: open the matrix tester on start. */

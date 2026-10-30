@@ -27,6 +27,11 @@ export interface FakeSvalboardOptions {
      * migration runs each time.
      */
     seedTurbo?: number;
+    /**
+     * Firmware from before x4.3.2, whose settings reset stored a leader timeout
+     * of 0 with per-key timing off: seeded that way, fresh on every load.
+     */
+    seedLeaderZero?: boolean;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -124,7 +129,7 @@ export class FakeSvalboardDevice extends EventTarget {
         super();
         this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
         this.collections = [rawHidCollection(this.reportLength)];
-        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined);
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
@@ -133,6 +138,10 @@ export class FakeSvalboardDevice extends EventTarget {
                 const c = state.custom;
                 c[9 * 2] = options.seedTurbo;
                 c[13 * 2] = c[13 * 2 + 1] = c[14 * 2] = c[14 * 2 + 1] = 0;
+            }
+            if (options.seedLeaderZero) {
+                state.qmkSettings[40] = state.qmkSettings[41] = 0; // leader_timeout
+                state.qmkSettings[42] = 0; // leader_options
             }
             if (persist) storeBoard(state);
         }

@@ -1,4 +1,6 @@
 import { developerSettingsCopy } from "@/utils/developer-settings-copy";
+import { MS_PER_STORED_SECOND, fromDisplay, roundedNote, storesExactly, toDisplay } from "@/utils/display-scale";
+import { rangeInputWidth } from "@/components/CustomUI/controls/RangeControl";
 import { appStorage } from "@/utils/app-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -65,7 +67,6 @@ const mono = "font-mono tabular-nums";
  *   the sweep are part of the reference, so pressed states can be covered.
  * - Apply: write the pre/post-wait to the keyboard (both halves).
  */
-const fmtMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)} s` : `${ms} ms`);
 const fmtPeriod = (us: number) => (us >= 10000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`);
 
 /** The other half takes a debounce change from the presence ping, every 0.5 s: read both halves back after this. */
@@ -496,7 +497,7 @@ const ScanLabPanel = () => {
     const numberField = (label: string, value: number, set: (v: number) => void, id: string, onEnter?: () => void) => (
         <label className="flex flex-col text-[10px] text-muted-foreground gap-0.5">
             {label}
-            <Input id={id} type="number" value={value} onChange={(e) => set(Number(e.target.value))} className="h-7 w-20 text-xs" disabled={!!busy}
+            <Input id={id} type="number" value={value} onChange={(e) => set(Number(e.target.value))} className="h-7 text-xs" style={{ width: rangeInputWidth(0, 99999) }} disabled={!!busy}
                 onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined} />
         </label>
     );
@@ -590,7 +591,7 @@ const ScanLabPanel = () => {
         periodUs !== anyPower.periodUs || idle.idleAfterMs !== anyPower.idleAfterMs || idle.idlePeriodMs !== anyPower.idlePeriodMs ||
         idle.deepAfterS !== anyPower.deepAfterS || idle.deepPeriodMs !== anyPower.deepPeriodMs);
     const onBoard = anyPower
-        ? `On board: period ${anyPower.periodUs === 0 ? "unpaced" : `${anyPower.periodUs} µs`} · idle ${anyPower.idleAfterMs === 0 ? "off" : `${anyPower.idlePeriodMs} ms after ${fmtMs(anyPower.idleAfterMs)}`} · deep idle ${anyPower.deepAfterS === 0 ? "off" : `${anyPower.deepPeriodMs} ms after ${anyPower.deepAfterS} s`}`
+        ? `On board: period ${anyPower.periodUs === 0 ? "unpaced" : `${anyPower.periodUs} µs`} · idle ${anyPower.idleAfterMs === 0 ? "off" : `${anyPower.idlePeriodMs} ms after ${anyPower.idleAfterMs} ms`} · deep idle ${anyPower.deepAfterS === 0 ? "off" : `${anyPower.deepPeriodMs} ms after ${toDisplay(anyPower.deepAfterS, MS_PER_STORED_SECOND)} ms`}`
         : null;
 
     const powerSection = (
@@ -660,7 +661,8 @@ const ScanLabPanel = () => {
                             {numberField(developerSettingsCopy.id_scan_idle_period_ms.label, idle.idlePeriodMs, setIdleField("idlePeriodMs"), "scanlab-idle-period", handleApplyPacing)}
                         </div>
                         <div className="flex items-end gap-2">
-                            {numberField(developerSettingsCopy.id_scan_deep_after_s.label, idle.deepAfterS, setIdleField("deepAfterS"), "scanlab-deep-after", handleApplyPacing)}
+                            <SecondsAsMsField label={developerSettingsCopy.id_scan_deep_after_s.label} seconds={idle.deepAfterS} setSeconds={setIdleField("deepAfterS")}
+                                id="scanlab-deep-after" disabled={!!busy} onEnter={handleApplyPacing} />
                             {numberField(developerSettingsCopy.id_scan_deep_period_ms.label, idle.deepPeriodMs, setIdleField("deepPeriodMs"), "scanlab-deep-period", handleApplyPacing)}
                         </div>
                     </div>
@@ -757,3 +759,36 @@ const ScanLabPanel = () => {
 };
 
 export default ScanLabPanel;
+
+/**
+ * Deep idle's start, which the firmware stores in whole seconds, shown and typed
+ * in ms like the other idle timings. Each keystroke sets the rounded seconds (so
+ * Apply uses it); leaving the field shows the stored value, with a note when a
+ * typed value wasn't a whole second.
+ */
+export function SecondsAsMsField({ label, seconds, setSeconds, id, disabled, onEnter }: {
+    label: string; seconds: number; setSeconds: (seconds: number) => void; id: string; disabled?: boolean; onEnter?: () => void;
+}) {
+    const [draft, setDraft] = useState<string | null>(null);
+    const [note, setNote] = useState<string | null>(null);
+    return (
+        <label className="flex flex-col text-[10px] text-muted-foreground gap-0.5">
+            {label}
+            <Input id={id} type="number" min={0} step={MS_PER_STORED_SECOND} className="h-7 text-xs" style={{ width: rangeInputWidth(0, 7200000) }} disabled={disabled}
+                value={draft ?? String(toDisplay(seconds, MS_PER_STORED_SECOND))}
+                onChange={(e) => {
+                    setDraft(e.target.value);
+                    setNote(null);
+                    const ms = Number(e.target.value);
+                    if (e.target.value.trim() && Number.isFinite(ms) && ms >= 0) setSeconds(fromDisplay(ms, MS_PER_STORED_SECOND));
+                }}
+                onBlur={() => {
+                    const ms = Number(draft);
+                    if (draft !== null && draft.trim() && Number.isFinite(ms) && !storesExactly(ms, MS_PER_STORED_SECOND)) setNote(roundedNote(fromDisplay(ms, MS_PER_STORED_SECOND), MS_PER_STORED_SECOND));
+                    setDraft(null);
+                }}
+                onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); onEnter(); } } : undefined} />
+            {note && <span data-scanlab-rounded>{note}</span>}
+        </label>
+    );
+}
