@@ -165,6 +165,7 @@ describe("review params", () => {
         expect(pointingDemoFromSearch("")).toBeNull();
         expect(pointingDemoFromSearch("?sniper=1")).toMatchObject({ demo: false, sniper: true, left: undefined, motion: false });
         expect(pointingDemoFromSearch("?demo=pointing&panel=fragments")!.panel).toBe("fragments");
+        expect(pointingDemoFromSearch("?fakeBoard&panel=keyboard&theme=dark")!.panel).toBe("keyboard");
     });
 
     it("the demo script reports counts for the moving hand only", () => {

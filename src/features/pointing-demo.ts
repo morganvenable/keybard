@@ -74,7 +74,7 @@ export function pointingDemoFromSearch(search: string): PointingDemo | null {
     const left = kindParam(p.get("left")), right = kindParam(p.get("right"));
     const sniper = on(p.get("sniper")), boost = on(p.get("boost")), velocity = on(p.get("velocity"));
     const panelRaw = p.get("panel")?.trim().toLowerCase();
-    const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "pointing" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
+    const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "pointing" || panelRaw === "keyboard" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
     const contactsRaw = parseInt(p.get("contacts") ?? "", 10);
     const contacts = Number.isFinite(contactsRaw) && contactsRaw > 0 ? Math.min(MAX_CONTACTS, contactsRaw) : undefined;
     if (!demo && !left && !right && !sniper && !boost && !velocity && !p.has("motion") && !panel && !contacts) return null;

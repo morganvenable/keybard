@@ -10,7 +10,8 @@ import { requestSettingsSection, settingsSectionForPanel } from "@/layout/Second
  * QWERTY Example), so a review link lands on the Settings page. The old panel
  * names of what is now in Settings (?panel=typing, clusters, fragments, about) open
  * Settings at that section, as do ?panel=firmware and ?panel=backups. ?panel=scanlab opens the Scan Lab and ?panel=pointing
- * the Pointing Devices panel (its settings, auto mouse included). Once per page load.
+ * the Pointing Devices panel (its settings, auto mouse included), ?panel=keyboard the Standard
+ * Keys panel. Once per page load.
  */
 export default function PointingDeepLink() {
     const { keyboard } = useKeyboard();
@@ -20,7 +21,7 @@ export default function PointingDeepLink() {
         const panel = pointingDemo()?.panel;
         if (!keyboard || !panel || done.current) return;
         done.current = true;
-        if (panel === "scanlab" || panel === "pointing") {
+        if (panel === "scanlab" || panel === "pointing" || panel === "keyboard") {
             setActivePanel(panel);
             setPanelToGoBack(null);
             setItemToEdit(null);
