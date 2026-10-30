@@ -4,11 +4,11 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
-## New in x4.3.3
+## New in v4.3.3
 
-This prerelease bundles the Keybard that next.keybard.svalboard.com runs, and goes with Svalboard firmware x4.3.3. What changes for you since the last full release:
+This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.3. What changes for you since the last full release:
 
-- **Test your keys without typing into other apps.** While Keybard's key tester is open, nothing you press reaches the computer. Typing comes back as soon as you close it. The key tester also responds faster. This needs firmware x4.3.3.
+- **Test your keys without typing into other apps.** While Keybard's key tester is open, nothing you press reaches the computer. Typing comes back as soon as you close it. The key tester also responds faster. This needs firmware v4.3.3.
 - **See every flicker.** The key tester shows each time a switch changes, even a bounce too short to type, with a count per key you can reset.
 - **Debounce switch in Scan Lab.** It is on by default, so typing is unchanged unless you turn it off.
 - **Scan timing in microseconds.** Your board keeps the timing it runs now.
@@ -20,7 +20,7 @@ This prerelease bundles the Keybard that next.keybard.svalboard.com runs, and go
 - **Menus are readable in dark mode.**
 - **Manual opens the online docs** at [docs.svalboard.com/keybard](https://docs.svalboard.com/keybard/).
 - **The firmware update steps describe the lights as the keyboard shows them.**
-- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to x4.3.3 from Keybard.
+- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to v4.3.3 from Keybard.
 
 ## Also new since vLaunch2.3
 
