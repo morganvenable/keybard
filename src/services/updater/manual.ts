@@ -8,7 +8,7 @@
 // that comes back must still hold the backup, and put it back. Closing the dialog, or
 // the tab, forgets it; the pre-update snapshot and the downloaded file still hold the layout.
 
-import type { FlowHost } from "./flow";
+import type { FlowHost, RestoreReport } from "./flow";
 import { sidesNeedAnswer, type SideAssessment } from "../side-decision";
 import type { Hand } from "./protocol";
 
@@ -68,7 +68,7 @@ export interface ManualSession {
      */
     dismissed?: boolean;
     /** kept: the default layout chosen, but the install reset nothing (a reinstall of the same build). */
-    result: { layout: "restored" | "defaults" | "kept"; trimmed: string[] } | null;
+    result: ManualResult | null;
     error: string | null;
 }
 
@@ -202,15 +202,20 @@ export function manualPending(s: Pick<ManualSession, "only" | "usualHand">, chec
     return manualHalves(s.only, s.usualHand).filter((h) => check.halves[h]?.state !== "new");
 }
 
+/** Afterwards: the layout on the board, and what putting it back reported. */
+export interface ManualResult extends RestoreReport {
+    layout: "restored" | "defaults" | "kept";
+}
+
 /**
  * The layout choice, once the keyboard is back on the new firmware: Keep my layout puts
  * the backup back through the import path; the default layout keeps what the firmware
  * started with. Then the reset notice is cleared (0x2A), last, as the in-app update does.
  */
-export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<{ layout: "restored" | "defaults" | "kept"; trimmed: string[] }> {
-    let trimmed: string[] = [];
+export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<ManualResult> {
+    let report: RestoreReport = { trimmed: [] };
     const restore = s.afterwards === "restore" && s.backup?.state === "ok";
-    if (restore) trimmed = (await host.restoreLayout((s.backup as Extract<ManualBackup, { state: "ok" }>).svil)).trimmed;
+    if (restore) report = await host.restoreLayout((s.backup as Extract<ManualBackup, { state: "ok" }>).svil);
     // Firmware without the reset notice (or GET_INFO) has nothing to clear.
     // Cleared when the board reports the notice now, or reported it on this connection (a read
     // that fails or comes too early must not leave it for the generic reset dialog).
@@ -219,5 +224,5 @@ export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" |
     if (reset) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
     // The same build installed again resets nothing: say the layout is as it was, not "the default layout".
     const kept = !restore && flags !== null && !reset;
-    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed };
+    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed: report.trimmed, replaced: report.replaced ?? [], unavailable: report.unavailable ?? [] };
 }

@@ -29,7 +29,7 @@ describe('import preflight', () => {
         const review = prepareImport(board({ cols: 3, layers: 3, macro_count: 2, macros: [{ mid: 0, actions: [] }, { mid: 1, actions: [] }] }), board());
         expect(review.errors.join(' ')).toMatch(/Matrix mismatch/);
         expect(review.errors.join(' ')).toMatch(/3 layers/);
-        expect(review.errors.join(' ')).toMatch(/macros.*2 entries/);
+        expect(review.errors.join(' ')).toMatch(/The file has 2 macros; this keyboard holds 1\./);
     });
     it('blocks oversized and unrepresentable macros before any writes', () => {
         const review = prepareImport(board({ macros: [{ mid: 0, actions: [['text', 'é'.repeat(100)]] }] }), board());
@@ -41,8 +41,8 @@ describe('import preflight', () => {
         const review = prepareImport(board({ settings: { 1: 5, 99: 9 }, custom_values: [{ key: 'unknown', channel: 1, valueId: 1, data: [1] }], name: 'File board' }), current);
         expect(review.keyboard.settings).toEqual({ 1: 5 });
         expect(review.keyboard.name).toBe('Actual board');
-        expect(review.warnings.join(' ')).toMatch(/99.*skipped/);
-        expect(review.warnings.join(' ')).toMatch(/unknown.*skipped/);
+        expect(review.unavailable).toEqual(['QMK setting 99', 'Unknown']);
+        expect(review.warnings).toEqual([]);
     });
     it('restores alt-repeat keys and leaders from the file and keeps entries beyond its tables', () => {
         const ark = (arkid: number, keycode: string, alt_keycode: string) => ({ arkid, keycode, alt_keycode, allowed_mods: 0, options: 8 });
@@ -78,7 +78,7 @@ describe('import preflight', () => {
             leaders: [{ ldrid: 0, sequence: ['KC_A', 'KC_B', 'KC_C', 'KC_D', 'KC_E', 'KC_F'], output: 'KC_G', options: 70000 }],
         }), current);
         const errors = review.errors.join(' ');
-        expect(errors).toMatch(/alt_repeat_keys: file has 2 entries; keyboard supports 1/);
+        expect(errors).toMatch(/The file has 2 alt-repeat keys; this keyboard holds 1/);
         expect(errors).toMatch(/alt-repeat key contains an unrecognized keycode/);
         expect(errors).toMatch(/Alt-repeat key modifiers and options/);
         expect(errors).toMatch(/more than 5 keys/);

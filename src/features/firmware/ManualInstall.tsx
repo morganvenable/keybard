@@ -14,12 +14,13 @@ import { carriedFileUrl, type FirmwareReleasePin } from "@/constants/firmware-re
 import { SVALBOARD_FIRMWARE_URL } from "@/constants/firmware";
 import { PARANOID } from "@/lib/paranoid";
 import type { Afterwards } from "@/services/updater/flow";
-import { manualHalves, manualPending, type ManualCheck, type ManualHalfState } from "@/services/updater/manual";
+import { manualHalves, manualPending, type ManualCheck, type ManualHalfState, type ManualResult } from "@/services/updater/manual";
 import { handName, otherHand, type Hand } from "@/services/updater/protocol";
 import type { SideWrite } from "@/services/side-decision";
 import { LayoutChoice } from "./LayoutChoice";
 import { FwTitle, Problem, SectionLabel, Spinner } from "./parts";
 import { SideFix } from "./SideFix";
+import { ImportSettingsNotes } from "@/components/ImportSettingsNotes";
 
 /** The backup as the instructions show it. */
 export type ManualBackupView = { state: "pending" } | { state: "ok"; fileName: string } | { state: "failed"; error?: string };
@@ -27,7 +28,7 @@ export type ManualBackupView = { state: "pending" } | { state: "ok"; fileName: s
 /** After the check: putting the layout back, done, or the layout not put back. */
 export interface ManualOutcome {
     phase: "steps" | "restoring" | "done" | "failed";
-    result: { layout: "restored" | "defaults" | "kept"; trimmed: string[] } | null;
+    result: ManualResult | null;
     error: string | null;
 }
 
@@ -172,6 +173,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                         {outcome.result.trimmed.map((line) => <p key={line}>{line}</p>)}
                     </Problem>
                 )}
+                {outcome?.result && <ImportSettingsNotes replaced={outcome.result.replaced} unavailable={outcome.result.unavailable} done />}
                 <div className="flex flex-wrap justify-end gap-2">
                     {phase === "failed" && onOpenBackups && <Button variant="outline" onClick={onOpenBackups}>Open Backups</Button>}
                     <Button variant="kb-primary" onClick={onClose}>Done</Button>

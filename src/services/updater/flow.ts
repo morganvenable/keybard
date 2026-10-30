@@ -15,6 +15,7 @@
 
 import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
+import type { SettingReplacement } from "../settings-migrate";
 import {
     ARM_MODE_PAIR, ARM_MODE_SINGLE, CHUNK_PIECE_MAX, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
     handName, hex, otherHand, statusName, type Hand,
@@ -71,11 +72,22 @@ export interface FlowFileRef {
     fwVersion: number;
 }
 
+/** What putting a layout back reports: what the preflight trimmed, replaced and left out. */
+export interface RestoreReport {
+    trimmed: string[];
+    replaced?: SettingReplacement[];
+    unavailable?: string[];
+}
+
 export interface FlowResult {
     tags: Partial<Record<Hand, string>>;
     layout: "restored" | "defaults" | "blank";
     /** Lines the import preflight trimmed, e.g. "Combos: 6 of 8 (this firmware has 6)". */
     trimmed: string[];
+    /** Settings carried to their replacement on this firmware (applied; a note, not a problem). */
+    replaced?: SettingReplacement[];
+    /** Names of the layout's settings this firmware doesn't have (the keyboard kept its own). */
+    unavailable?: string[];
     /** One-image firmware: each half's side after the update (absent on per-hand builds). */
     sides?: SidesResult | null;
 }
@@ -160,7 +172,7 @@ export interface FlowHost {
     /** 0x2A: the reset notice was acted on. */
     clearStorageReset(): Promise<void>;
     /** Put the backup back through the import path; returns what the preflight trimmed. */
-    restoreLayout(svil: string): Promise<{ trimmed: string[] }>;
+    restoreLayout(svil: string): Promise<RestoreReport>;
     /** After a blank wipe (D44): every key on every layer reads KC_NO once the layout has loaded. */
     keymapBlank?(): Promise<boolean>;
     /** Hold a Web Lock and a Screen Wake Lock for the update; returns their release. */
@@ -1000,6 +1012,7 @@ export class UpdateFlow {
         trace(`storage flags 0x${flags.toString(16)}`, { tags });
         if (flags & 0x02) throw new Stop({ id: "F17" });
         let trimmed: string[] = [];
+        let notes: Omit<RestoreReport, "trimmed"> = {};
         // "Restore my layout" with the backup lost (a reload with storage full): never reset
         // instead. The pre-update snapshot and the downloaded file still hold the layout.
         if (this.state.afterwards === "restore" && !this.backupSvil) {
@@ -1009,7 +1022,9 @@ export class UpdateFlow {
             this.step("restore");
             this.row(usbHand, { stage: "restoring", progress: null });
             try {
-                trimmed = (await this.host.restoreLayout(this.backupSvil)).trimmed;
+                const report = await this.host.restoreLayout(this.backupSvil);
+                trimmed = report.trimmed;
+                notes = { replaced: report.replaced ?? [], unavailable: report.unavailable ?? [] };
             } catch (error) {
                 throw new Stop({ id: "F16", detail: error instanceof Error ? error.message : String(error) });
             }
@@ -1062,7 +1077,7 @@ export class UpdateFlow {
             phase: "result",
             step: "done",
             finishedAt: this.now(),
-            result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed, sides: this.sidesResult },
+            result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed, ...notes, sides: this.sidesResult },
         });
     }
 }
