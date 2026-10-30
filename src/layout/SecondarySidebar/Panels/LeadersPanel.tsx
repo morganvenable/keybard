@@ -8,6 +8,7 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { qmkService } from "@/services/qmk.service";
+import { LEADER_PER_KEY_QSID, LEADER_TIMEOUT_QSID, ZERO_REPLACED_SETTINGS, effectiveSetting, parseSettingInput } from "@/constants/qmk-settings";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -41,11 +42,12 @@ const LeadersPanel: React.FC = () => {
     const isHorizontal = layoutMode === "bottombar";
 
     // QMK Settings for Leader Key
-    const LEADER_TIMEOUT_QSID = 28;
-    const LEADER_PER_KEY_QSID = 29;
     const isTimeoutSupported = keyboard?.settings?.[LEADER_TIMEOUT_QSID] !== undefined;
     const isPerKeySupported = keyboard?.settings?.[LEADER_PER_KEY_QSID] !== undefined;
-    const leaderTimeout = keyboard?.settings?.[LEADER_TIMEOUT_QSID] ?? 300;
+    const storedTimeout = keyboard?.settings?.[LEADER_TIMEOUT_QSID];
+    // A stored 0 (older firmware's reset) shows as the 300 ms that x4.3.2 firmware
+    // puts in its place; saving the field writes it.
+    const leaderTimeout = effectiveSetting(LEADER_TIMEOUT_QSID, storedTimeout) ?? ZERO_REPLACED_SETTINGS[LEADER_TIMEOUT_QSID];
     const perKeyTiming = (keyboard?.settings?.[LEADER_PER_KEY_QSID] ?? 0) !== 0;
 
     // Sync local input state when keyboard state changes externally
@@ -57,10 +59,9 @@ const LeadersPanel: React.FC = () => {
 
     const handleTimeoutBlur = async () => {
         if (!isConnected) return;
-        const newVal = parseInt(timeoutInput) || 50;
-        const clamped = Math.max(50, Math.min(5000, newVal));
+        const clamped = parseSettingInput(LEADER_TIMEOUT_QSID, timeoutInput, leaderTimeout);
         setTimeoutInput(String(clamped));
-        if (clamped === leaderTimeout) return;
+        if (clamped === storedTimeout) return;
 
         setSavingTimeout(true);
         try {
@@ -315,6 +316,7 @@ const LeadersPanel: React.FC = () => {
                                 </div>
                                 <Input
                                     type="number"
+                                    aria-label="Leader Timeout"
                                     value={timeoutInput}
                                     min={50}
                                     max={5000}

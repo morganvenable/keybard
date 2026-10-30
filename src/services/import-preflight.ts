@@ -12,6 +12,7 @@ import { getClosestPresetColor } from '../utils/color-conversion';
 import { sameCombo } from '../utils/combo-names';
 import { boardMenuRefs, migrateCustomValues, type SettingReplacement } from './settings-migrate';
 import { customValueLabel, qmkSettingLabel } from '../utils/setting-labels';
+import { ZERO_REPLACED_SETTINGS, ZERO_SETTINGS_RELEASE } from '../constants/qmk-settings';
 
 export interface ImportReview {
     keyboard: KeyboardInfo;
@@ -26,6 +27,24 @@ export interface ImportReview {
 
 /** Table names as people say them, for the capacity errors. */
 const TABLE_NAMES = { macros: 'macros', combos: 'combos', tapdances: 'tap dances', key_overrides: 'key overrides', alt_repeat_keys: 'alt-repeat keys', leaders: 'leader sequences' } as const;
+
+/**
+ * A 0 in a setting that can't work at 0 (a leader timeout of 0 came from older
+ * firmware's settings reset, and Keybard's default layouts carried it) is
+ * imported as that setting's default, the value x4.3.2 firmware also stores in
+ * its place. Each one is listed in the replaced-settings note.
+ */
+function replaceZeroSettings(settings: Record<number, number>): SettingReplacement[] {
+    const replaced: SettingReplacement[] = [];
+    for (const [id, fallback] of Object.entries(ZERO_REPLACED_SETTINGS)) {
+        const qsid = Number(id);
+        if (settings[qsid] !== 0) continue;
+        settings[qsid] = fallback;
+        const label = qmkSettingLabel(qsid);
+        replaced.push({ from: `${label}: 0`, to: String(fallback), release: ZERO_SETTINGS_RELEASE });
+    }
+    return replaced;
+}
 
 /** Pure preflight: never queues commands or touches the device. */
 export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): ImportReview {
@@ -98,7 +117,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     const menuItems = new Map([...boardRefs].map(([key, { item }]) => [key, item]));
     // Settings a firmware release replaced land on their replacement, either way round.
     const migrated = migrateCustomValues(file.custom_values ?? [], boardRefs);
-    replaced = migrated.replaced;
+    replaced = [...replaceZeroSettings(next.settings), ...migrated.replaced];
     // Layer colors are custom values on the board; the file loader keeps them in layer_colors.
     const layerColorValues = (file.layer_colors ?? []).flatMap((color, layer) =>
         color && layer < (current.layers ?? 0) ? [{ key: `id_layer${layer}_color`, channel: 0, valueId: 0, data: [color.hue, color.sat] }] : []);

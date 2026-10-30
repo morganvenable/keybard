@@ -13,6 +13,7 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { qmkService } from "@/services/qmk.service";
+import { COMBO_TERM_QSID, ZERO_REPLACED_SETTINGS, effectiveSetting, parseSettingInput, settingRange } from "@/constants/qmk-settings";
 import { keyboardService } from "@/services/keyboard.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
@@ -90,9 +91,11 @@ const CombosPanel: React.FC = () => {
     };
 
     // QSID 2 = Combo timeout
-    const COMBO_TIMEOUT_QSID = 2;
+    const COMBO_TIMEOUT_QSID = COMBO_TERM_QSID;
     const isTimeoutSupported = keyboard.settings?.[COMBO_TIMEOUT_QSID] !== undefined;
-    const comboTimeout = keyboard.settings?.[COMBO_TIMEOUT_QSID] ?? 50;
+    const storedComboTimeout = keyboard.settings?.[COMBO_TIMEOUT_QSID];
+    const comboTimeout = effectiveSetting(COMBO_TIMEOUT_QSID, storedComboTimeout) ?? ZERO_REPLACED_SETTINGS[COMBO_TIMEOUT_QSID];
+    const comboRange = settingRange(COMBO_TIMEOUT_QSID);
 
     // Sync local input state when keyboard state changes externally
     useEffect(() => {
@@ -101,10 +104,9 @@ const CombosPanel: React.FC = () => {
 
     const handleTimeoutBlur = async () => {
         if (!isConnected) return;
-        const newVal = parseInt(timeoutInput) || 0;
-        const clamped = Math.max(0, Math.min(10000, newVal));
+        const clamped = parseSettingInput(COMBO_TIMEOUT_QSID, timeoutInput, comboTimeout);
         setTimeoutInput(String(clamped));
-        if (clamped === comboTimeout) return;
+        if (clamped === storedComboTimeout) return;
 
         setSaving(true);
         try {
@@ -292,13 +294,14 @@ const CombosPanel: React.FC = () => {
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">Combo Timeout</span>
-                                <span className="text-xs text-muted-foreground">0-10000 ms</span>
+                                <span className="text-xs text-muted-foreground">{comboRange.min}-{comboRange.max} ms</span>
                             </div>
                             <Input
                                 type="number"
+                                aria-label="Combo Timeout"
                                 value={timeoutInput}
-                                min={0}
-                                max={10000}
+                                min={comboRange.min}
+                                max={comboRange.max}
                                 onChange={(e) => setTimeoutInput(e.target.value)}
                                 onBlur={handleTimeoutBlur}
                                 disabled={saving}

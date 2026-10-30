@@ -134,8 +134,8 @@ function defaultQmkSettings(): Uint8Array {
     s[34] = 5; // tapping_toggle
     put16(s, 36, 200); // quick_tap_term = TAPPING_TERM
     put16(s, 38, 0); // flow_tap_term
-    put16(s, 40, 300); // leader_timeout
-    s[42] = 0; // leader_options
+    put16(s, 40, 300); // leader_timeout (SVAL_DEFAULT_LEADER_TIMEOUT)
+    s[42] = 1; // leader_options: per-key timing (SVAL_DEFAULT_LEADER_PER_KEY_TIMING)
     return s;
 }
 
