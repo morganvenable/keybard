@@ -30,7 +30,8 @@ export function FirmwareLink() {
 function ManualInstallButton({ fromVial, onConnect }: { fromVial: boolean; onConnect?: () => void }) {
     const [open, setOpen] = useState(false);
     const [afterwards, setAfterwards] = useState<Afterwards>("defaults");
-    const release = releasesForSite(currentSite())[0] ?? null;
+    // Keybard Paranoid carries no release (it fetches nothing), as in Settings > Firmware.
+    const release = PARANOID ? null : releasesForSite(currentSite())[0] ?? null;
     return (
         <>
             <Button size="sm" variant="kb-primary" className="self-start" onClick={() => setOpen(true)}>Install by hand</Button>
