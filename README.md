@@ -6,7 +6,7 @@ A modern Vite-based keyboard configuration UI built with React and TypeScript.
 
 ## User manual
 
-Keybard's manual is the Keybard section of the Svalboard docs site, [docs.svalboard.com/keybard/](https://docs.svalboard.com/keybard/) (source: [svalboard/docs](https://github.com/svalboard/docs)). Keybard's **Manual** links open it. The older bundled manual in [docs/manual](docs/manual/README.md) is no longer part of the build.
+Keybard's manual is the Keybard section of the Svalboard docs site, [docs.svalboard.com/keybard/](https://docs.svalboard.com/keybard/) (source: [svalboard/docs](https://github.com/svalboard/docs)). Keybard's **Manual** links open it.
 
 ## Quick Start
 
