@@ -17,7 +17,7 @@ describe('About', () => {
 
     it('links to the manual, release notes and community', () => {
         render(<AboutSection />);
-        expect(screen.getByRole('link', { name: 'Manual' })).toHaveAttribute('href', expect.stringMatching(/manual\/$/));
+        expect(screen.getByRole('link', { name: 'Manual' })).toHaveAttribute('href', 'https://docs.svalboard.com/keybard/');
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases');
         expect(screen.getByRole('link', { name: 'Svalboard community' })).toHaveAttribute('href', 'https://svalboard.com/discord');
     });

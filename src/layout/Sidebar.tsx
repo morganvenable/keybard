@@ -28,6 +28,7 @@ import {
 import { usePanels } from "@/contexts/PanelsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { cn } from "@/lib/utils";
+import { MANUAL_URL } from "@/lib/manual";
 import { PARANOID } from "@/lib/paranoid";
 import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
@@ -102,9 +103,9 @@ const layoutSidebarItems: SidebarItem[] = [
 
 const footerItems: SidebarItem[] = [
     { title: "Quick Start", url: "quickstart", icon: Rocket },
-    // The user manual is published beside the app (see build/manual.ts). Keybard
-    // Paranoid is a single offline file, so it has no manual to link to.
-    ...(PARANOID ? [] : [{ title: "Manual", url: "manual", icon: BookOpen, href: `${import.meta.env.BASE_URL}manual/` }]),
+    // The manual is the Keybard section of the docs site. Keybard Paranoid is a
+    // single offline file that never links out, so it has no Manual.
+    ...(PARANOID ? [] : [{ title: "Manual", url: "manual", icon: BookOpen, href: MANUAL_URL }]),
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
