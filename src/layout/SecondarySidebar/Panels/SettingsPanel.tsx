@@ -13,6 +13,10 @@ import BoardIdentitySection from "./BoardIdentitySection";
 import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import AboutSection from "./settings/AboutSection";
+import { TouchpadTuning } from "@/components/touchpad-tuning/TouchpadTuning";
+import { tuneLayoutFromSearch } from "@/lib/deepLinks";
+import { boardHasTouchpad } from "@/utils/touchpad-taps";
+import { hasPadTuning } from "@/utils/touchpad-tuning";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
 import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
@@ -57,7 +61,7 @@ function followWhileSettling(card: HTMLElement) {
  */
 const SettingsPanel = () => {
     const { getSetting, updateSetting, getSettingDefinition } = useSettings();
-    const { isConnected } = useKeyboard();
+    const { isConnected, keyboard } = useKeyboard();
     const { setActivePanel } = usePanels();
     const { navigateTo } = useNavigation();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +161,8 @@ const SettingsPanel = () => {
                 return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
+            case "touchpad":
+                return <TouchpadTuning layout={tuneLayoutFromSearch(window.location.search)} place="settings" />;
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
             case "about":
@@ -183,7 +189,10 @@ const SettingsPanel = () => {
         );
     };
 
-    const visibleSections = SETTINGS_PAGE.filter((section) => !matches || matches.has(section.id));
+    // Touchpad tuning shows only on a board with a touchpad and firmware that has the setting.
+    const touchpadShown = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
+    const pageSections = SETTINGS_PAGE.filter((section) => section.id !== "touchpad" || touchpadShown);
+    const visibleSections = pageSections.filter((section) => !matches || matches.has(section.id));
 
     const renderSection = (section: SettingsSection) => {
         const match = matches?.get(section.id);
@@ -270,7 +279,7 @@ const SettingsPanel = () => {
                     )}
                 </div>
                 <nav aria-label="Settings sections" className="flex flex-row flex-wrap gap-1.5">
-                    {SETTINGS_PAGE.map(({ id, chip }) => {
+                    {pageSections.map(({ id, chip }) => {
                         const dotted = firmwareDot && id === "firmware";
                         return (
                             <button

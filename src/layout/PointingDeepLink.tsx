@@ -4,6 +4,8 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { pointingDemo } from "@/features/pointing-demo";
 import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
+import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
+import { settingsSectionFromSearch, tuneFromSearch } from "@/lib/deepLinks";
 
 /**
  * ?panel=settings opens Settings once a layout is loaded (with ?demo, the
@@ -26,9 +28,11 @@ export default function PointingDeepLink() {
             setPanelToGoBack(null);
             setItemToEdit(null);
             openDetails();
+            if (panel === "pointing" && tuneFromSearch(window.location.search)) openTouchpadTuning();
             return;
         }
-        const section = settingsSectionForPanel(panel);
+        const named = panel === "settings" ? settingsSectionFromSearch(window.location.search) : null;
+        const section = settingsSectionForPanel(named ?? panel);
         if (section) requestSettingsSection(section);
         setActivePanel("settings");
         setPanelToGoBack(null);
