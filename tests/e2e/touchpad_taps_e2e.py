@@ -5,11 +5,11 @@ the simulated Svalboard. Run with `npm run test:e2e:touchpad-taps`.
 
   1. ?fakeBoard=touchpad (an Azoteq pad on each half): a Touchpad section with
      Tap to Click, Two-Finger Tap to Right Click and Press and Hold to Drag, all
-     on, Hold Time 20 ms, and the one-line note about Windows and Linux.
+     on, Hold Time 300 ms, and the one-line note about Windows and Linux.
   2. Each switch writes its value and saves; the board's setting follows, and
      turning it back on returns the board to the defaults.
-  3. Hold time: 480 is stored as 500 and read back; Press and Hold off hides
-     the hold time, and on shows it again with 500.
+  3. Hold time: 480 is stored as 500 and read back; Press and Hold off grays
+     the hold time out (still shown, unusable), and on enables it with 500.
   4. A board without a touchpad (?fakeBoard) and firmware without the setting
      (?fakeBoard=old) show no Touchpad section.
   5. The bottom bar shows the same switches.
@@ -84,7 +84,8 @@ def flow_defaults(browser, url):
     expect(page.get_by_text(NOTE)).to_be_visible()
     for label in (TAP, TWO, HOLD):
         assert is_on(page, label), f"{label} is not on"
-    expect(hold_field(page)).to_have_value("20")
+    expect(hold_field(page)).to_have_value("300")
+    expect(hold_field(page)).to_be_enabled()
     assert fw(page, "f.padSetting") == 0
     assert not errors, errors
     context.close()
@@ -116,9 +117,15 @@ def flow_hold_time(browser, url):
     expect(field).to_have_value("500", timeout=5000)
     page.wait_for_function("((window.keybardFakeBoard.device.firmware.padSetting >> 3) & 15) === 9", timeout=5000)
     toggle(page, HOLD).get_by_role("button", name="OFF", exact=True).click()
-    expect(hold_field(page)).to_have_count(0, timeout=5000)
+    expect(hold_field(page)).to_be_disabled(timeout=5000)
+    expect(hold_field(page)).to_have_value("500")
+    slider = page.get_by_role("slider", name=HOLD_MS)
+    assert slider.get_attribute("aria-disabled") == "true" or slider.get_attribute("data-disabled") is not None, "the slider is not disabled"
+    label = page.locator("[data-disabled]", has=hold_field(page)).get_by_text(HOLD_MS, exact=True)
+    assert "text-muted-foreground" in (label.get_attribute("class") or ""), "the label is not grayed out"
     toggle(page, HOLD).get_by_role("button", name="ON", exact=True).click()
-    expect(hold_field(page)).to_have_value("500", timeout=5000)
+    expect(hold_field(page)).to_be_enabled(timeout=5000)
+    expect(hold_field(page)).to_have_value("500")
     assert not errors, errors
     context.close()
 
@@ -192,9 +199,9 @@ def shots(browser, url, out):
 
 def main() -> int:
     flows = [
-        ("1. touchpad board: three switches on, hold 20 ms, the note", flow_defaults),
+        ("1. touchpad board: three switches on, hold 300 ms, the note", flow_defaults),
         ("2. each switch writes, saves, and back on is the defaults", flow_switches),
-        ("3. hold time 480 -> 500, hidden with press and hold off", flow_hold_time),
+        ("3. hold time 480 -> 500, grayed out with press and hold off", flow_hold_time),
         ("4. no touchpad, or older firmware: no Touchpad section", flow_hidden),
         ("5. bottom bar shows the switches", flow_bottom_bar),
         ("6. no animation added", flow_no_animation),

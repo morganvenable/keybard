@@ -3,7 +3,7 @@ import type { CustomUIMenuItem, KeyboardInfo } from '@/types/keyboard.types';
 import { selectPointingMenu } from '@/utils/pointing-menu';
 import { readBackKeys } from '@/utils/scan-timing';
 import {
-    boardHasTouchpad, hasPadGestures, PAD_HOLD_MS_KEY, PAD_KEYS, SVIL_FLAG3_PAD_GESTURES,
+    boardHasTouchpad, hasPadGestures, PAD_HOLD_DEFAULT_MS, PAD_HOLD_MS, PAD_HOLD_MS_KEY, PAD_KEYS, SVIL_FLAG3_PAD_GESTURES,
     TOUCHPAD_NOTE, TOUCHPAD_SECTION_LABEL, withTouchpadTaps,
 } from '@/utils/touchpad-taps';
 
@@ -75,6 +75,15 @@ describe('touchpad tap setting', () => {
         expect(shown.map(item => item.label)).toContain(TOUCHPAD_SECTION_LABEL);
         // Never in the developer tuning section.
         expect(keys(selectPointingMenu(items, 'developer'))).not.toContain('id_pad_tap');
+    });
+
+    it('holds for 300 ms by default, and grays the hold time out while press and hold is off', () => {
+        expect(PAD_HOLD_DEFAULT_MS).toBe(300);
+        expect(PAD_HOLD_MS).toContain(20);
+        const section = (withTouchpadTaps([pointing(0)], 0x10)[0].content as CustomUIMenuItem[])[2];
+        const hold = (section.content as CustomUIMenuItem[]).find(item => item.content?.[0] === PAD_HOLD_MS_KEY)!;
+        expect(hold.showIf).toBeUndefined();
+        expect(hold.disabledIf).toBe('{id_pad_hold} == 0');
     });
 
     it('reads the hold time back after a write', () => {

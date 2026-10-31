@@ -19,8 +19,13 @@ export const PAD_HOLD_KEY = "id_pad_hold";
 export const PAD_HOLD_MS_KEY = "id_pad_hold_ms";
 export const PAD_KEYS = [PAD_TAP_KEY, PAD_TWO_FINGER_KEY, PAD_HOLD_KEY, PAD_HOLD_MS_KEY] as const;
 
-/** The hold times the board stores (pad_gestures.c sval_pad_hold_ms); a write takes the nearest. */
-export const PAD_HOLD_MS = [20, 50, 100, 150, 200, 250, 300, 350, 400, 500, 600, 700, 800, 1000, 1200, 1500] as const;
+/**
+ * The hold times the board stores (pad_gestures.c sval_pad_hold_ms), the
+ * default first; a write takes the nearest.
+ */
+export const PAD_HOLD_MS = [300, 20, 50, 100, 150, 200, 250, 350, 400, 500, 600, 700, 800, 1000, 1200, 1500] as const;
+/** Press and hold's default hold time (firmware with the setting; older firmware held for 20 ms). */
+export const PAD_HOLD_DEFAULT_MS = PAD_HOLD_MS[0];
 
 export const TOUCHPAD_SECTION_LABEL = "Touchpad";
 export const TOUCHPAD_NOTE = "Windows and Linux use their own touchpad settings while the pads are in touchpad mode.";
@@ -49,10 +54,8 @@ export function touchpadSection(channel: number): CustomUIMenuItem {
             { label: "Tap to Click", type: "toggle", content: [PAD_TAP_KEY, channel, 51] },
             { label: "Two-Finger Tap to Right Click", type: "toggle", content: [PAD_TWO_FINGER_KEY, channel, 52] },
             { label: "Press and Hold to Drag", type: "toggle", content: [PAD_HOLD_KEY, channel, 53] },
-            {
-                showIf: `{${PAD_HOLD_KEY}} == 1`,
-                content: [{ label: "Hold Time (ms)", type: "range", options: [20, 1500, 10], content: [PAD_HOLD_MS_KEY, channel, 54] }],
-            },
+            // Grayed out, not hidden, while press and hold is off: it keeps its time.
+            { label: "Hold Time (ms)", type: "range", options: [20, 1500, 10], disabledIf: `{${PAD_HOLD_KEY}} == 0`, content: [PAD_HOLD_MS_KEY, channel, 54] },
         ],
     };
 }

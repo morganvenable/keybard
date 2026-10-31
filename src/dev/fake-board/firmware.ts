@@ -48,8 +48,8 @@ export const FLAG3_TYPING_PAUSE = 0x04;
 export const FLAG3_FLICKER_LATCH = 0x08;
 // flags3 bit 4: the touchpad tap setting (VIA values 51-54).
 export const FLAG3_PAD_GESTURES = 0x10;
-// pad_gestures.c sval_pad_hold_ms: the hold times the board stores.
-const PAD_HOLD_MS = [20, 50, 100, 150, 200, 250, 300, 350, 400, 500, 600, 700, 800, 1000, 1200, 1500];
+// pad_gestures.c sval_pad_hold_ms: the hold times the board stores, the default (300) first.
+const PAD_HOLD_MS = [300, 20, 50, 100, 150, 200, 250, 350, 400, 500, 600, 700, 800, 1000, 1200, 1500];
 const MATRIX_COLS = 6;
 const HALF_ROWS = 5;
 // keyboards/svalboard/typing_pause.h: the lease after the owner's last packet,
@@ -732,7 +732,11 @@ export class FakeSvalFirmware {
             this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
             if (valueId === 54) {
                 const ms = value[0] | (value[1] << 8);
-                const i = PAD_HOLD_MS.reduce((best, h, j) => (Math.abs(h - ms) < Math.abs(PAD_HOLD_MS[best] - ms) ? j : best), 0);
+                // Nearest; a tie takes the shorter (pad_gestures.c).
+                const i = PAD_HOLD_MS.reduce((best, h, j) => {
+                    const d = Math.abs(h - ms), b = Math.abs(PAD_HOLD_MS[best] - ms);
+                    return d < b || (d === b && h < PAD_HOLD_MS[best]) ? j : best;
+                }, 0);
                 this.padSetting = (this.padSetting & ~0x78) | (i << 3);
             } else {
                 this.padSetting = value[0] ? this.padSetting & ~bit : this.padSetting | bit;
