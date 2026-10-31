@@ -27,7 +27,7 @@ def pct(xs, p):
 
 
 def summary(xs):
-    return dict(n=len(xs), p50=round(pct(xs, 50), 2), p90=round(pct(xs, 90), 2), p99=round(pct(xs, 99), 2),
+    return dict(n=len(xs), p50=round(pct(xs, 50), 2), p90=round(pct(xs, 90), 2), p95=round(pct(xs, 95), 2), p99=round(pct(xs, 99), 2),
                 max=round(max(xs), 2), mean=round(statistics.mean(xs), 2)) if xs else None
 
 
@@ -158,7 +158,13 @@ class Bench:
                             term=int.from_bytes(e[10:12], "little")))
             i = idx + 1
 
-    def set_combo(self, idx, inputs, output, term=0):
+    def combo_raw(self, idx):
+        return bytes(self.relay.lead.sval(0x03, bytes([idx & 0xFF, idx >> 8]))[4:16])
+
+    def put_combo_raw(self, idx, e):
+        return self.relay.lead.sval(0x04, bytes([idx & 0xFF, idx >> 8]) + bytes(e))
+
+    def set_combo(self, idx, inputs, output, term=0x8000):  # bit 15: enabled; timing 0: the board's combo term
         e = b"".join(k.to_bytes(2, "little") for k in (inputs + [0, 0, 0, 0])[:4]) + output.to_bytes(2, "little") + term.to_bytes(2, "little")
         return self.relay.lead.sval(0x04, bytes([idx & 0xFF, idx >> 8]) + e)
 
@@ -238,16 +244,17 @@ def main():
 
         # ---- 1. latency: a follower letter, pressed and released n times
         fk = f_letters[0]
-        lat = dict(push=[], host=[], lead=[], est=[])
+        lat = dict(push=[], host=[], lead=[], est=[], total=[])
         for i in range(a.n):
             for down in (True, False):
                 t0 = time.perf_counter()
                 want = 1 << fk[1] if down else 0
                 b.follower_keys([fk] if down else [])
-                got = b.wait(lambda: min(((v[0], s) for s, v in b.pushes.items() if v[0] > t0 and (v[2][fk[0]] & (1 << fk[1])) == want), default=(0, None))[1], 1)
-                if got is None:
+                hit = b.wait(lambda: min(((v[0], s) for s, v in b.pushes.items() if v[0] > t0 and (v[2][fk[0]] & (1 << fk[1])) == want), default=None), 1)
+                if hit is None:
                     b.log("latency: no push", i, down)
                     continue
+                got = hit[1]
                 arrive, written, _ = b.pushes[got]
                 ap_ = b.wait(lambda: next((x for x in b.applied if x[0] > written and x[1] == got), None), 1)
                 if ap_ is None:
@@ -256,6 +263,7 @@ def main():
                 lat["push"].append((arrive - t0) * 1e3)
                 lat["host"].append((written - arrive) * 1e3)
                 lat["lead"].append((ap_[0] - written) * 1e3)
+                lat["total"].append((ap_[0] - t0) * 1e3)  # inject -> follower -> relay -> lead -> applied report back
                 # one way follower->host is about half its round trip; host->lead and its key handling about half the lead's
                 lat["est"].append(((arrive - t0) / 2 + (written - arrive) + (ap_[0] - written) / 2) * 1e3)
                 time.sleep(random.uniform(0.01, 0.03))
@@ -284,7 +292,7 @@ def main():
             m = b.mark()
             b.follower_keys([layer_key])
             time.sleep(0.35)  # past any tapping term: a held layer
-            layer_seen = b.applied[-1][2] if b.applied else None
+            layer_seen = b.applied[-1][2] if b.applied else None  # at the press: before the hold resolves
             tap_lead(lp)
             time.sleep(0.05)
             b.follower_keys([])
@@ -292,7 +300,9 @@ def main():
             got = {k for _, ks in b.keys_since(m) for k in ks}
             res["layer"] = dict(follower_key=list(layer_key), keycode=kc_name(k), layer=n, lead_key=list(lp),
                                 layer_state=layer_seen, expect=kc_name(expect), captured=sorted(kc_name(x) for x in got),
-                                ok=expect in got and bool(layer_seen and layer_seen & (1 << n)))
+                                base=kc_name(km[(0, l0 + lp[0], lp[1])]),
+                                note="layer_state is the lead's report when the press was applied, before the hold resolved",
+                                ok=expect in got and km[(0, l0 + lp[0], lp[1])] not in got)
             b.log("layer", res["layer"])
 
         # ---- 3. modifier held on the follower, letter tapped on the lead
@@ -349,6 +359,7 @@ def main():
             temp = next(i for i in range(256) if i not in used)
             fkc = km[(0, f0 + f_letters[1][0], f_letters[1][1])]
             lkc = km[(0, l0 + l_letters[1][0], l_letters[1][1])]
+            saved = b.combo_raw(temp)
             b.set_combo(temp, [fkc, lkc], 0x68)  # F13, captured, never typed
             span = dict(index=temp, inputs=[fkc, lkc], output=0x68, temporary=True)
         fin = next(x for x in span["inputs"] if (where[x][0] >= 5) == (f0 == 5))
@@ -368,16 +379,20 @@ def main():
                             ok=span["output"] in got and fin not in got and lin not in got)
         b.log("combo", res["combo"])
         if temp is not None:
-            b.set_combo(temp, [], 0)
-            res["combo"]["restored"] = not any(c["index"] == temp for c in b.combos())
+            b.put_combo_raw(temp, saved)
+            res["combo"]["restored"] = b.combo_raw(temp) == saved and not any(c["index"] == temp for c in b.combos())
 
         # ---- 6. pointer motion from the follower
         m = b.mark()
-        b.follower_keys([], dx=40, dy=-25)
-        time.sleep(0.2)
+        for _ in range(10):
+            b.follower_keys([], dx=40, dy=-25)
+            time.sleep(0.02)
+        time.sleep(0.3)
         mv = b.mouse_since(m)
-        res["pointer"] = dict(sent=[40, -25], captured_sum=[sum(x["x"] for x in mv), sum(x["y"] for x in mv)],
-                              reports=len(mv), note="raw counts after the follower's rotation; the lead applies its own scaling and modes")
+        res["pointer"] = dict(sent=[400, -250], steps=10, captured_xy=[sum(x["x"] for x in mv), sum(x["y"] for x in mv)],
+                              captured_hv=[sum(x["h"] for x in mv), sum(x["v"] for x in mv)], reports=len(mv),
+                              ok=any(x["x"] or x["y"] or x["h"] or x["v"] for x in mv),
+                              note="raw counts after the follower's rotation; the lead applies the follower hand's pointing mode (scroll, sniper) and scaling")
         b.log("pointer", res["pointer"])
 
         # ---- 7. the relay stops (hung or quit) with a follower key held
@@ -415,11 +430,12 @@ def main():
         t0 = time.perf_counter()
         b.capture_on = False
         b.relay.lead.send(OP_REBOOT)
-        time.sleep(0.4)
-        fst = b.relay.follower.request(OP_STATUS)
-        back = b.poll(lambda: b.relay.lead.alive and b.relay.follower.request(OP_STATUS)["role"] == "follower" and time.perf_counter(), 10)
-        res["lead_unplugged"] = dict(follower_role_after_0_4s=fst["role"],
-                                     paired_again_after_s=round(back - t0, 2) if back else None)
+        # The follower can miss a reply while the lead re-enumerates: poll, never one read.
+        own = b.poll(lambda: b.relay.follower.request(OP_STATUS)["role"] != "follower" and time.perf_counter(), 3)
+        back = b.poll(lambda: b.relay.lead.alive and b.relay.follower.request(OP_STATUS)["role"] == "follower" and time.perf_counter(), 15)
+        res["lead_unplugged"] = dict(follower_on_its_own_after_ms=round((own - t0) * 1e3, 1) if own else None,
+                                     paired_again_after_s=round(back - t0, 2) if back else None,
+                                     note="simulated by a reboot; the reboot fires 100 ms after the command")
         b.log("lead unplugged", res["lead_unplugged"])
     finally:
         b.stop()
