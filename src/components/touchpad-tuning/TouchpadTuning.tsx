@@ -8,16 +8,14 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { getPadTouch } from "@/services/pad-touch.service";
 import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY } from "@/utils/touchpad-taps";
 import {
-    EMPTY_BLOCK, formatMm, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_DEAD_ZONE_MM100,
+    contactRadius, EMPTY_BLOCK, formatMm, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_DEAD_ZONE_MM100,
     PAD_HEIGHT_MM100, PAD_SCROLL_KEY, PAD_SCROLL_MM100, PAD_TAP_DEFAULT_MS, PAD_TAP_MS, PAD_TAP_MS_KEY, PAD_WIDTH_MM100,
     steps, TouchTracker, type PadTouchBlock, type PadTouchReport, type TouchOutcome,
 } from "@/utils/touchpad-tuning";
 import { PadView, type PadTiming } from "./PadView";
 
-/** The three layouts under review (?tuneLayout=a|b|c). */
-export type TuningLayout = "a" | "b" | "c";
-
-const OUTCOMES = 5;
+/** Finished touches kept per pad, newest first, in the pad's scrolling list. */
+const OUTCOMES = 50;
 
 interface StepProps {
     label: string;
@@ -57,7 +55,7 @@ function StepControl({ label, value, table, format, onChange, disabled, note }: 
     );
 }
 
-interface PadLive { block: PadTouchBlock; events: number; trail: { x: number; y: number }[]; outcomes: TouchOutcome[] }
+interface PadLive { block: PadTouchBlock; events: number; trail: { x: number; y: number }[]; outcomes: TouchOutcome[]; count: number }
 
 interface LiveState {
     report: PadTouchReport | null;
@@ -68,8 +66,8 @@ interface LiveState {
 
 const NO_LIVE: LiveState = {
     report: null, readAt: 0,
-    left: { block: EMPTY_BLOCK, events: 0, trail: [], outcomes: [] },
-    right: { block: EMPTY_BLOCK, events: 0, trail: [], outcomes: [] },
+    left: { block: EMPTY_BLOCK, events: 0, trail: [], outcomes: [], count: 0 },
+    right: { block: EMPTY_BLOCK, events: 0, trail: [], outcomes: [], count: 0 },
 };
 
 /** Both pads, live, while the view is open. */
@@ -92,6 +90,7 @@ function useLiveTouch(enabled: boolean, keyboard: KeyboardInfo | null | undefine
                         events: t.touchEvents,
                         trail: t.trail,
                         outcomes: done ? [done, ...prev[side].outcomes].slice(0, OUTCOMES) : prev[side].outcomes,
+                        count: prev[side].count + (done ? 1 : 0),
                     };
                 }
                 return next;
@@ -103,7 +102,6 @@ function useLiveTouch(enabled: boolean, keyboard: KeyboardInfo | null | undefine
 }
 
 interface TouchpadTuningProps {
-    layout?: TuningLayout;
     /** Where it shows: the Settings card, or the dialog from Pointing Devices. */
     place: "settings" | "dialog";
 }
@@ -114,7 +112,7 @@ interface TouchpadTuningProps {
  * Shown only on firmware that has the setting and a board with a touchpad;
  * the live pads need the touch page as well.
  */
-export function TouchpadTuning({ layout = "a", place }: TouchpadTuningProps) {
+export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const { keyboard, isConnected } = useKeyboard();
     const menuIndex = pointingMenuIndex(keyboard?.menus);
     const menu = menuIndex >= 0 ? keyboard?.menus?.[menuIndex] : undefined;
@@ -139,7 +137,7 @@ export function TouchpadTuning({ layout = "a", place }: TouchpadTuningProps) {
     };
 
     const controls = (
-        <div className={cn("grid gap-2", layout === "a" ? "@lg:grid-cols-2" : "grid-cols-1")} data-tuning-controls>
+        <div className="grid gap-2 @lg:grid-cols-2 @5xl:grid-cols-4" data-tuning-controls>
             <StepControl label="Dead zone" value={deadZone} table={PAD_DEAD_ZONE_MM100} format={formatMm} onChange={(v) => setValue(PAD_DEAD_ZONE_KEY, v)}
                 note="How far a finger can move before a tap or a hold is canceled." />
             <StepControl label="Tap time" value={tapMs} table={PAD_TAP_MS} format={(v) => `${v} ms`} onChange={(v) => setValue(PAD_TAP_MS_KEY, v)}
@@ -154,28 +152,21 @@ export function TouchpadTuning({ layout = "a", place }: TouchpadTuningProps) {
     const pads = !liveOn ? (
         <p className="text-sm text-muted-foreground" data-live-absent>{isConnected ? "This firmware can't show the pads live. Update it to see each touch." : "Connect the board to see each touch."}</p>
     ) : (
-        <div className={cn("flex gap-4", layout === "b" ? "flex-col" : "flex-col @lg:flex-row")} data-pads>
+        <div className="flex flex-col gap-6 @3xl:flex-row sm:min-h-0 sm:flex-1" data-pads>
             {(["left", "right"] as const).map((side) => (
-                <div key={side} className="min-w-0 flex-1">
-                    <PadView side={side} block={live[side].block} readAt={live.readAt} touchEvents={live[side].events} trail={live[side].trail} timing={timing}
-                        outcomes={live[side].outcomes} timer={layout === "c" ? "bar" : "ring"} />
+                <div key={side} className="flex min-w-0 flex-1 flex-col sm:min-h-0">
+                    <PadView side={side} block={live[side].block} readAt={live.readAt} touchEvents={live[side].events} trail={live[side].trail} count={live[side].count} timing={timing}
+                        contactR={r ? contactRadius(live[side].block.area, r) : 0}
+                        outcomes={live[side].outcomes} />
                 </div>
             ))}
         </div>
     );
 
     return (
-        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : "")} data-touchpad-tuning={layout}>
-            {layout === "b" ? (
-                <div className="flex flex-col gap-4 @2xl:flex-row">
-                    <div className="@2xl:w-72 @2xl:shrink-0">{controls}</div>
-                    <div className="min-w-0 flex-1">{pads}</div>
-                </div>
-            ) : layout === "c" ? (
-                <>{pads}{controls}</>
-            ) : (
-                <>{controls}{pads}</>
-            )}
+        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : "sm:h-full")} data-touchpad-tuning>
+            {controls}
+            {pads}
         </div>
     );
 }

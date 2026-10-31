@@ -61,7 +61,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         id: "touchpad",
         title: "Touchpad tuning",
         chip: "Touchpad",
-        defaultOpen: false,
+        // One line and a button that opens the tuning dialog: always open, it is that small.
+        defaultOpen: true,
         // Only on a board with a touchpad and firmware that has the setting (SettingsPanel).
         rows: [{ block: "touchpad" }],
         summary: "Dead zone, tap and hold times, and each pad live",

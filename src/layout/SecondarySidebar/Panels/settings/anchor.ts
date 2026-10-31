@@ -41,8 +41,6 @@ export const PANELS_IN_SETTINGS: Record<string, string> = {
     firmware: "firmware",
     // Not an old panel either: Settings at Backups (?panel=backups).
     backups: "backups",
-    // Settings at Touchpad tuning (?panel=touchpad).
-    touchpad: "touchpad",
 };
 
 /** The Settings section an old panel name opens, if it is one. */

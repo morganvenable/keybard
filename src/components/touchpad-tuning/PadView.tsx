@@ -22,12 +22,16 @@ interface PadViewProps {
     trail: { x: number; y: number }[];
     timing: PadTiming;
     outcomes: TouchOutcome[];
-    /** "ring": a timer ring around the dead zone in the close-up; "bar": a timeline under the pad. */
-    timer: "ring" | "bar";
+    /** Touches finished since the view opened. */
+    count: number;
+    /** The finger's reported footprint as a circle radius, 0.01 mm (0: not reported, draw a dot). */
+    contactR: number;
 }
 
-/** The close-up's size on screen, CSS px. */
-const CLOSE_PX = 168;
+/** The close-up's size on screen, CSS px: phones, and wider screens (Tailwind sm). */
+const CLOSE_PX_PHONE = 240;
+const CLOSE_PX_WIDE = 304;
+const wide = () => typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 640px)").matches;
 
 /** An arc from fraction a to b of a full circle, clockwise from the top. */
 function arc(cx: number, cy: number, r: number, a: number, b: number): string {
@@ -59,12 +63,16 @@ function markOf(events: number): { text: string; tone: string; cancel: boolean }
  * the dead zone in time to cancel them. Redraws per frame only while a finger
  * is down, and only the timer.
  */
-export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, timer }: PadViewProps) {
+export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, count, contactR }: PadViewProps) {
     const progressRef = useRef<SVGPathElement>(null);
-    const cursorRef = useRef<HTMLDivElement>(null);
     const msRef = useRef<HTMLSpanElement>(null);
+    // Strength has no fixed scale (it follows the pad's sensitivity): shade against the strongest touch seen.
+    const strongest = useRef(1);
+    if (block.strength > strongest.current) strongest.current = block.strength;
+    const press = block.strength ? 0.15 + 0.35 * Math.min(1, block.strength / strongest.current) : 0.2;
     const total = timing.tapMs + (timing.holdOn ? timing.holdMs : 0);
-    const barSpan = Math.max(total * 1.25, timing.tapMs + 200);
+    // Past this nothing more can happen to the touch: the timer stops redrawing.
+    const timerSpan = Math.max(total * 1.25, timing.tapMs + 200);
     const { down } = block;
     const dz = Math.max(timing.deadZone, 10);
     // The close-up: the dead zone takes half its width, with the ring outside it.
@@ -75,7 +83,6 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
     useEffect(() => {
         const draw = (ms: number) => {
             if (progressRef.current) progressRef.current.setAttribute("d", arc(cx, cy, ringR, 0, Math.min(1, ms / total)));
-            if (cursorRef.current) cursorRef.current.style.left = `${Math.min(100, (ms / barSpan) * 100)}%`;
             if (msRef.current) msRef.current.textContent = `${Math.round(ms)} ms`;
         };
         if (!down) { draw(block.ms); return; }
@@ -83,12 +90,11 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
         const tick = () => {
             const ms = block.ms + (performance.now() - readAt);
             draw(ms);
-            // Past the bar's end nothing more can happen to this touch: stop redrawing.
-            if (ms < barSpan) frame = requestAnimationFrame(tick);
+            if (ms < timerSpan) frame = requestAnimationFrame(tick);
         };
         tick();
         return () => cancelAnimationFrame(frame);
-    }, [down, block.ms, readAt, cx, cy, ringR, total, barSpan]);
+    }, [down, block.ms, readAt, cx, cy, ringR, total, timerSpan]);
 
     const label = side === "left" ? "Left pad" : "Right pad";
     const shown = block.valid && (block.down || block.ms > 0);
@@ -96,24 +102,26 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
     const zoneTone = block.outside ? "var(--kb-touch-cancel)" : "var(--kb-touch-zone)";
     const path = trail.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" ");
     const mmWide = (2 * half) / 100;
-    const zoom = Math.round(CLOSE_PX / (mmWide * 3.7795));
+    const closePx = wide() ? CLOSE_PX_WIDE : CLOSE_PX_PHONE;
+    const zoom = Math.round(closePx / (mmWide * 3.7795));
 
     return (
-        <section aria-label={label} data-pad={side} className="flex min-w-0 flex-col gap-1.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <section aria-label={label} data-pad={side} data-touches={count} className="flex min-w-0 flex-col gap-1.5 sm:h-full">
+            <div className="flex h-5 items-baseline justify-between gap-x-2 overflow-hidden">
                 <h4 className="text-sm font-semibold text-kb-ink">{label}</h4>
                 {block.valid && (
-                    <span className="text-xs tabular-nums text-muted-foreground" data-pad-readout>
+                    <span className="min-w-0 truncate text-xs tabular-nums text-muted-foreground" data-pad-readout>
                         {block.down ? "down " : shown ? "last touch " : ""}<span ref={msRef} className={shown ? "" : "sr-only"} />
                         {shown && <> · moved {formatMm(block.farthest)} of {formatMm(timing.deadZone)}</>}
+                        {block.down && contactR > 0 && <> · contact {formatMm(contactR * 2)} across</>}
                     </span>
                 )}
             </div>
             {!block.valid ? (
-                <p className="text-xs text-muted-foreground" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
+                <p className="h-[27rem] text-xs text-muted-foreground sm:h-[21rem]" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
             ) : (
                 <>
-                    <div className="flex flex-wrap items-start gap-3">
+                    <div className="flex h-[27rem] shrink-0 flex-wrap content-start items-start gap-4 overflow-hidden sm:h-[21rem]" data-pad-drawings>
                         <svg
                             role="img"
                             aria-label={`${label} at true size, ${block.down ? `${block.fingers} finger${block.fingers === 1 ? "" : "s"} down` : "no finger"}`}
@@ -127,7 +135,8 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
                                 <g data-touch={block.down ? "down" : "up"}>
                                     <path d={path} fill="none" stroke="var(--kb-touch-zone)" strokeWidth={30} />
                                     <circle cx={cx} cy={cy} r={90} fill="none" stroke={zoneTone} strokeWidth={30} />
-                                    {block.down && <circle cx={block.x} cy={block.y} r={260} fill="var(--kb-touch-finger)" fillOpacity={0.2} data-finger />}
+                                    {block.down && <circle cx={block.x} cy={block.y} r={contactR || 260} fill="var(--kb-touch-finger)" fillOpacity={press}
+                                        stroke={contactR ? "var(--kb-touch-finger)" : "none"} strokeOpacity={0.5} strokeWidth={25} data-finger data-contact={contactR ? "sized" : "dot"} />}
                                     {block.down && <circle cx={block.x} cy={block.y} r={70} fill="var(--kb-touch-finger)" />}
                                     {mark && <text x={Math.min(block.x + 200, timing.width - 1300)} y={Math.max(block.y - 200, 330)} fontSize={280} fontWeight={600} fill={mark.tone} data-mark={mark.text}>{mark.text}</text>}
                                 </g>
@@ -138,16 +147,20 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
                                 role="img"
                                 aria-label={`${label} close-up of the dead zone, ${zoom} times`}
                                 viewBox={`${cx - half} ${cy - half} ${2 * half} ${2 * half}`}
-                                width={CLOSE_PX}
-                                height={CLOSE_PX}
+                                width={closePx}
+                                height={closePx}
                                 className="block overflow-hidden rounded-md border border-kb-gray-border"
                                 style={{ background: "var(--kb-touch-pad)" }}
                                 data-close-up
                             >
                                 {shown ? (
                                     <>
+                                        {block.down && contactR > 0 && (
+                                            <circle cx={block.x} cy={block.y} r={contactR} fill="var(--kb-touch-finger)" fillOpacity={press * 0.35}
+                                                stroke="var(--kb-touch-finger)" strokeOpacity={0.35} strokeWidth={dz * 0.03} data-contact-close />
+                                        )}
                                         <circle cx={cx} cy={cy} r={dz} fill="none" stroke={zoneTone} strokeWidth={dz * 0.06} data-dead-zone />
-                                        {timer === "ring" && (
+                                        {(
                                             <g data-timer-ring>
                                                 <path d={arc(cx, cy, ringR, 0, timing.tapMs / total)} fill="none" stroke="var(--kb-touch-tap)" strokeOpacity={0.4} strokeWidth={ringW} />
                                                 {timing.holdOn && <path d={arc(cx, cy, ringR, timing.tapMs / total, 1)} fill="none" stroke="var(--kb-touch-hold)" strokeOpacity={0.4} strokeWidth={ringW} />}
@@ -171,23 +184,10 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
                             <figcaption className="text-xs text-muted-foreground">Close-up, {zoom}× · dead zone {formatMm(timing.deadZone)}</figcaption>
                         </figure>
                     </div>
-                    {timer === "bar" && (
-                        <div className="relative h-3 w-full max-w-[22rem] overflow-hidden rounded-sm border border-kb-gray-border" data-timer-bar
-                            aria-label={`Tap within ${timing.tapMs} ms${timing.holdOn ? `, hold at ${total} ms` : ""}`} role="img">
-                            <div className="absolute inset-y-0 left-0 bg-kb-touch-tap/40" style={{ width: `${(timing.tapMs / barSpan) * 100}%` }} />
-                            {timing.holdOn && <div className="absolute inset-y-0 bg-kb-touch-hold/40" style={{ left: `${(timing.tapMs / barSpan) * 100}%`, width: `${(timing.holdMs / barSpan) * 100}%` }} />}
-                            {shown && <div ref={cursorRef} className="absolute inset-y-0 w-0.5 bg-kb-ink" />}
-                        </div>
-                    )}
-                    {timer === "bar" && (
-                        <div className="flex max-w-[22rem] justify-between text-[11px] tabular-nums text-muted-foreground">
-                            <span>tap until {timing.tapMs} ms</span>{timing.holdOn && <span>hold at {total} ms</span>}
-                        </div>
-                    )}
-                    {block.os && <p className="text-xs text-muted-foreground" data-pad-os>The computer has this pad as a touchpad now: these are the chip's decisions, but the computer's own touchpad settings make the clicks.</p>}
-                    <ol className="flex flex-col gap-0.5 text-xs" aria-label={`${label}: last touches`} data-outcomes>
+                    <p className={"h-8 shrink-0 text-xs text-muted-foreground" + (block.os ? "" : " invisible")} aria-hidden={!block.os} data-pad-os>The computer has this pad as a touchpad now: these are the chip's decisions, but the computer's own touchpad settings make the clicks.</p>
+                    <ol className="flex h-44 shrink-0 flex-col gap-0.5 overflow-y-auto sm:h-auto sm:min-h-44 sm:flex-1 rounded-md border border-kb-gray-border px-2 py-1.5 text-xs" aria-label={`${label}: last touches, newest first`} tabIndex={0} data-outcomes>
                         {outcomes.length === 0 && <li className="text-muted-foreground">Touch the pad: each touch shows here, with why it clicked or didn't.</li>}
-                        {outcomes.map((o, i) => <li key={outcomes.length - i} className={KIND_TONE[o.kind]} data-outcome={o.kind}>{o.text}</li>)}
+                        {outcomes.map((o, i) => <li key={count - i} className={KIND_TONE[o.kind]} data-outcome={o.kind}>{o.text}</li>)}
                     </ol>
                 </>
             )}

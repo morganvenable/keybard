@@ -216,6 +216,8 @@ export class FakeSvalFirmware {
     padTuning = { deadZone: PAD_DEAD_ZONE_MM100[0] as number, tapMs: PAD_TAP_MS[0] as number, scroll: 0 };
     /** Each pad plays TOUCH_SCRIPT through the chip model, the right pad half a loop behind the left. */
     private padPlayers: { model: ChipModel; fedTo: number; offset: number }[] | null = null;
+    /** Plays the scripted touches this many times faster (tests that need many touches). */
+    touchSpeed = 1;
     /** Every channel-0 custom value write ([id, bytes]), oldest first, for tests. */
     readonly customWrites: { id: number; value: number[] }[] = [];
     /**
@@ -769,7 +771,7 @@ export class FakeSvalFirmware {
 
     /** The touch page of 0x2D (docs/protocol.md "Touchpad touch"), from the scripted touches. */
     private touchPage(out: Uint8Array): void {
-        const now = this.now();
+        const now = this.now() * this.touchSpeed;
         if (!this.padPlayers) {
             this.padPlayers = [0, SCRIPT_MS / 2].map((offset) => ({ model: new ChipModel(() => this.chipSettings()), fedTo: now, offset }));
         }
@@ -785,7 +787,7 @@ export class FakeSvalFirmware {
         const c = this.chipSettings();
         out.set(packPadTouch({
             tapOn: c.tapOn, twoFingerOn: c.twoFingerOn, holdOn: c.holdOn, elapsedMs: 0,
-            deadZone: c.deadZone, tapMs: c.tapMs, holdMs: c.holdMs, width: PAD_WIDTH_MM100, height: PAD_HEIGHT_MM100,
+            deadZone: c.deadZone, tapMs: c.tapMs, holdMs: c.holdMs, width: PAD_WIDTH_MM100, height: PAD_HEIGHT_MM100, channelsX: 8, channelsY: 7,
             scrollStart: this.padTuning.scroll || FAKE_SCROLL_BUILD_MM100, left: blocks[0], right: blocks[1],
         }));
     }
@@ -1078,7 +1080,7 @@ export class FakeSvalFirmware {
             case 0x2d: { // POINTING_MOTION: format 0, no data; page 1 (DF 2D <reader> 01) is the touch page
                 const page = length > 3 ? data[3] : 0;
                 if (length > 2) data.subarray(2, length).fill(0);
-                if (page === 1 && this.padGestures && this.touchpad && length >= 2 + 48) this.touchPage(data.subarray(2, length));
+                if (page === 1 && this.padGestures && this.touchpad && length >= 2 + 56) this.touchPage(data.subarray(2, length));
                 break;
             }
             case 0x2f: // POINTING_CONTACTS (not advertised): format 0

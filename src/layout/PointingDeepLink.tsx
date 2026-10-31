@@ -5,7 +5,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { pointingDemo } from "@/features/pointing-demo";
 import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
-import { settingsSectionFromSearch, tuneFromSearch } from "@/lib/deepLinks";
+import { tuneFromSearch } from "@/lib/deepLinks";
 
 /**
  * ?panel=settings opens Settings once a layout is loaded (with ?demo, the
@@ -31,13 +31,17 @@ export default function PointingDeepLink() {
             if (panel === "pointing" && tuneFromSearch(window.location.search)) openTouchpadTuning();
             return;
         }
-        const named = panel === "settings" ? settingsSectionFromSearch(window.location.search) : null;
-        const section = settingsSectionForPanel(named ?? panel);
+        const section = settingsSectionForPanel(panel);
         if (section) requestSettingsSection(section);
         setActivePanel("settings");
         setPanelToGoBack(null);
         setItemToEdit(null);
         openDetails();
+        // ?panel=settings&tune=touchpad: Settings, with the Touchpad tuning dialog open.
+        if (panel === "settings" && tuneFromSearch(window.location.search)) {
+            requestSettingsSection("touchpad");
+            openTouchpadTuning();
+        }
     }, [keyboard, setActivePanel, openDetails, setPanelToGoBack, setItemToEdit]);
     return null;
 }

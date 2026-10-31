@@ -13,10 +13,10 @@ import BoardIdentitySection from "./BoardIdentitySection";
 import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import AboutSection from "./settings/AboutSection";
-import { TouchpadTuning } from "@/components/touchpad-tuning/TouchpadTuning";
-import { tuneLayoutFromSearch } from "@/lib/deepLinks";
+import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
+import { Button } from "@/components/ui/button";
 import { boardHasTouchpad } from "@/utils/touchpad-taps";
-import { hasPadTuning } from "@/utils/touchpad-tuning";
+import { hasPadTuning, TUNE_TOUCHPAD_LABEL } from "@/utils/touchpad-tuning";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
 import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
@@ -162,7 +162,12 @@ const SettingsPanel = () => {
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
             case "touchpad":
-                return <TouchpadTuning layout={tuneLayoutFromSearch(window.location.search)} place="settings" />;
+                return (
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2.5" data-touchpad-entry>
+                        <p className="text-sm text-muted-foreground">See each touch on the pads live, and set when a touch clicks.</p>
+                        <Button variant="outline" size="sm" onClick={openTouchpadTuning}>{TUNE_TOUCHPAD_LABEL}</Button>
+                    </div>
+                );
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
             case "about":

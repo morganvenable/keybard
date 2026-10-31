@@ -80,6 +80,9 @@ export interface PadTouchBlock {
     /** The farthest this touch has been from its down point, 0.01 mm. */
     farthest: number;
     tapPx: number;
+    /** The first finger's touch strength (sum of its channel deltas) and area (channels); 0 when not reported or no finger. */
+    strength: number;
+    area: number;
 }
 
 export interface PadTouchReport {
@@ -93,6 +96,9 @@ export interface PadTouchReport {
     width: number;
     height: number;
     scrollStart: number;
+    /** The channel grid the area counts in (0 when the firmware reports no finger size). */
+    channelsX: number;
+    channelsY: number;
     left: PadTouchBlock;
     right: PadTouchBlock;
 }
@@ -100,6 +106,8 @@ export interface PadTouchReport {
 export const PAD_TOUCH_PAGE = 1;
 export const PAD_TOUCH_FORMAT = 2;
 const PAGE_BYTES = 48;
+/** Firmware with finger sizes sends 56 (bytes 48-55). */
+const SIZED_PAGE_BYTES = 56;
 
 function block(view: DataView, o: number): PadTouchBlock {
     const f = view.getUint8(o);
@@ -108,45 +116,65 @@ function block(view: DataView, o: number): PadTouchBlock {
         valid: (f & 0x01) !== 0, down: (f & 0x02) !== 0, os: (f & 0x04) !== 0, outside: (f & 0x08) !== 0,
         fingers: (f >> 4) & 7, holding: (f & 0x80) !== 0, events: view.getUint8(o + 1),
         x: u16(2), y: u16(4), downX: u16(6), downY: u16(8), ms: u16(10), farthest: u16(12), tapPx: u16(14),
+        strength: 0, area: 0,
     };
 }
 
 /** The reply to DF 2D <reader> 01, from the command byte on. Null for anything but format 2. */
 export function parsePadTouch(reply: Uint8Array | null | undefined, cmd = 0x2d): PadTouchReport | null {
     if (!reply || reply.length < 1 + PAGE_BYTES || reply[0] !== cmd || reply[1] !== PAD_TOUCH_FORMAT) return null;
-    const view = new DataView(reply.buffer, reply.byteOffset + 1, PAGE_BYTES);
+    const sized = reply.length >= 1 + SIZED_PAGE_BYTES && (reply[1 + 3] & 1) !== 0;
+    const view = new DataView(reply.buffer, reply.byteOffset + 1, sized ? SIZED_PAGE_BYTES : PAGE_BYTES);
     const u16 = (k: number) => view.getUint16(k, true);
     const on = view.getUint8(1);
+    const left = block(view, 14), right = block(view, 30);
+    if (sized) {
+        if (left.valid) Object.assign(left, { strength: u16(48), area: view.getUint8(50) });
+        if (right.valid) Object.assign(right, { strength: u16(51), area: view.getUint8(53) });
+    }
     return {
         tapOn: (on & 1) !== 0, twoFingerOn: (on & 2) !== 0, holdOn: (on & 4) !== 0,
         elapsedMs: view.getUint8(2), deadZone: u16(4), tapMs: u16(6), holdMs: u16(8),
         width: u16(10) || PAD_WIDTH_MM100, height: u16(12) || PAD_HEIGHT_MM100, scrollStart: u16(46),
-        left: block(view, 14), right: block(view, 30),
+        channelsX: sized ? view.getUint8(54) : 0, channelsY: sized ? view.getUint8(55) : 0,
+        left, right,
     };
 }
 
 /** The 48 bytes of a touch page (for the simulated board and tests). */
 export function packPadTouch(r: PadTouchReport): Uint8Array {
-    const out = new Uint8Array(PAGE_BYTES);
+    const out = new Uint8Array(SIZED_PAGE_BYTES);
     const view = new DataView(out.buffer);
     const u16 = (k: number, v: number) => view.setUint16(k, Math.max(0, Math.min(0xffff, Math.round(v))), true);
     out[0] = PAD_TOUCH_FORMAT;
     out[1] = (r.tapOn ? 1 : 0) | (r.twoFingerOn ? 2 : 0) | (r.holdOn ? 4 : 0);
     out[2] = Math.min(255, r.elapsedMs);
+    if (r.channelsX) { out[3] = 1; out[54] = r.channelsX; out[55] = r.channelsY; }
     u16(4, r.deadZone); u16(6, r.tapMs); u16(8, r.holdMs); u16(10, r.width); u16(12, r.height); u16(46, r.scrollStart);
     for (const [o, b] of [[14, r.left], [30, r.right]] as const) {
         if (!b.valid) continue;
         out[o] = 0x01 | (b.down ? 0x02 : 0) | (b.os ? 0x04 : 0) | (b.outside ? 0x08 : 0) | ((b.fingers & 7) << 4) | (b.holding ? 0x80 : 0);
         out[o + 1] = b.events;
         u16(o + 2, b.x); u16(o + 4, b.y); u16(o + 6, b.downX); u16(o + 8, b.downY); u16(o + 10, b.ms); u16(o + 12, b.farthest); u16(o + 14, b.tapPx);
+        if (r.channelsX) { const k = o === 14 ? 48 : 51; u16(k, b.strength); out[k + 2] = b.area; }
     }
     return out;
 }
 
 export const EMPTY_BLOCK: PadTouchBlock = {
     valid: false, down: false, os: false, outside: false, fingers: 0, holding: false, events: 0,
-    x: 0, y: 0, downX: 0, downY: 0, ms: 0, farthest: 0, tapPx: 0,
+    x: 0, y: 0, downX: 0, downY: 0, ms: 0, farthest: 0, tapPx: 0, strength: 0, area: 0,
 };
+
+/**
+ * The radius of a circle with the finger's reported footprint, 0.01 mm: its
+ * area in channels times one channel's size. 0 when the firmware reports none.
+ */
+export function contactRadius(area: number, r: Pick<PadTouchReport, "width" | "height" | "channelsX" | "channelsY">): number {
+    if (!area || !r.channelsX || !r.channelsY) return 0;
+    const cell = (r.width / r.channelsX) * (r.height / r.channelsY);
+    return Math.round(Math.sqrt((area * cell) / Math.PI));
+}
 
 // ---------------------------------------------------------------- one touch's outcome
 
@@ -242,7 +270,7 @@ export interface ChipSettings {
 }
 
 /** One finger sample: time, position in 0.01 mm, fingers down. */
-export interface TouchSample { t: number; x: number; y: number; fingers: number }
+export interface TouchSample { t: number; x: number; y: number; fingers: number; strength?: number; area?: number }
 
 /**
  * The chip's tap and press-and-hold rules (IQS5xx-B000 datasheet 6.1-6.4),
@@ -268,6 +296,8 @@ export class ChipModel {
         }
         if (s.fingers > 0) {
             b.x = s.x; b.y = s.y;
+            b.strength = s.strength ?? 0;
+            b.area = s.area ?? 0;
             this.maxFingers = Math.max(this.maxFingers, s.fingers);
             const d = Math.round(Math.hypot(s.x - b.downX, s.y - b.downY));
             b.farthest = Math.max(b.farthest, d);
@@ -288,6 +318,8 @@ export class ChipModel {
             const elapsed = s.t - this.t0;
             b.down = false;
             b.holding = false;
+            b.strength = 0;
+            b.area = 0;
             b.ms = elapsed;
             b.events |= TOUCH_EV.up;
             if (!b.outside && elapsed < cfg.tapMs) {

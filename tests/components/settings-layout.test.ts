@@ -58,8 +58,8 @@ describe('Settings page declaration', () => {
         expect(SETTINGS_PAGE.find((s) => s.id === 'touchpad')!.rows).toEqual([{ block: 'touchpad' }]);
     });
 
-    it('opens only Hardware on a first visit', () => {
-        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware']);
+    it('opens only Hardware, and the one-line Touchpad tuning entry, on a first visit', () => {
+        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware', 'touchpad']);
     });
 
     it('remembers each card under its own setting, Hardware under the one it already used', () => {

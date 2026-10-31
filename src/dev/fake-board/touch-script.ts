@@ -50,7 +50,11 @@ export function scriptSample(t: number): TouchSample {
             // The last 10 ms sample of a touch is at its full travel.
             const k = Math.min(1, s.late ? Math.max(0, (u - (s.ms - s.late)) / (s.late - 10)) : u / ((s.by ?? s.ms) - 10));
             const w = 6 * wobble(i * 1000 + Math.floor(u / 10));
-            return { t, x: Math.round(s.x + s.dx * k + w), y: Math.round(s.y + s.dy * k - w), fingers: s.fingers };
+            // A finger presses in over its first 60 ms: its strength and footprint grow, then hold.
+            const press = Math.min(1, (u + 10) / 60);
+            const strength = Math.round((420 + 380 * press) * (1 + 0.05 * wobble(i * 7 + Math.floor(u / 30))));
+            const area = Math.max(1, Math.round((s.fingers > 1 ? 4 : 3) * press));
+            return { t, x: Math.round(s.x + s.dx * k + w), y: Math.round(s.y + s.dy * k - w), fingers: s.fingers, strength, area };
         }
         at += s.ms + s.gap;
         if (t < at) return { t, x: s.x + s.dx, y: s.y + s.dy, fingers: 0 };

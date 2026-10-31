@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SCRIPT_MS, scriptSample, TOUCH_SCRIPT } from "@/dev/fake-board/touch-script";
 import { withTouchpadTaps } from "@/utils/touchpad-taps";
 import {
-    ChipModel, EMPTY_BLOCK, formatMm, hasPadTouch, hasPadTuning, nearest, outcome, packPadTouch, PAD_DEAD_ZONE_MM100, PAD_SCROLL_MM100,
+    ChipModel, contactRadius, EMPTY_BLOCK, formatMm, hasPadTouch, hasPadTuning, nearest, outcome, packPadTouch, PAD_DEAD_ZONE_MM100, PAD_SCROLL_MM100,
     PAD_TAP_MS, parsePadTouch, steps, TOUCH_EV, TouchTracker, TUNE_TOUCHPAD_ACTION, type ChipSettings, type PadTouchBlock, type PadTouchReport,
 } from "@/utils/touchpad-tuning";
 
@@ -11,7 +11,7 @@ const SETTINGS: ChipSettings = { deadZone: 80, tapMs: 150, holdMs: 300, tapOn: t
 
 function report(left: Partial<PadTouchBlock> = {}, right: Partial<PadTouchBlock> = {}): PadTouchReport {
     return {
-        tapOn: true, twoFingerOn: true, holdOn: true, elapsedMs: 30, deadZone: 80, tapMs: 150, holdMs: 300, width: 4300, height: 4000, scrollStart: 105,
+        tapOn: true, twoFingerOn: true, holdOn: true, elapsedMs: 30, deadZone: 80, tapMs: 150, holdMs: 300, width: 4300, height: 4000, scrollStart: 105, channelsX: 8, channelsY: 7,
         left: { ...EMPTY_BLOCK, valid: true, ...left }, right: { ...EMPTY_BLOCK, ...right },
     };
 }
@@ -60,8 +60,8 @@ describe("touchpad tuning flags and tables", () => {
 describe("the touch page", () => {
     it("round-trips every field", () => {
         const r = report(
-            { down: true, outside: true, fingers: 2, holding: true, events: 0x55, x: 2150, y: 2000, downX: 2100, downY: 1990, ms: 432, farthest: 61, tapPx: 38 },
-            { valid: true, os: true, x: 1, y: 2, downX: 3, downY: 4, ms: 65535, farthest: 7, tapPx: 25 },
+            { down: true, outside: true, fingers: 2, holding: true, events: 0x55, x: 2150, y: 2000, downX: 2100, downY: 1990, ms: 432, farthest: 61, tapPx: 38, strength: 812, area: 3 },
+            { valid: true, os: true, x: 1, y: 2, downX: 3, downY: 4, ms: 65535, farthest: 7, tapPx: 25, strength: 0, area: 0 },
         );
         expect(parsePadTouch(reply(r))).toEqual(r);
     });
@@ -74,6 +74,24 @@ describe("the touch page", () => {
         expect(parsePadTouch(motion)).toBeNull();
         expect(parsePadTouch(bytes.slice(0, 30))).toBeNull();
         expect(parsePadTouch(null)).toBeNull();
+    });
+
+    it("reads a page from firmware without finger sizes (48 bytes, byte 3 clear) with no size", () => {
+        const full = reply(report({ down: true, fingers: 1, strength: 700, area: 3 }));
+        const old = full.slice(0, 1 + 48);
+        old[1 + 3] = 0;
+        const r = parsePadTouch(old)!;
+        expect(r.channelsX).toBe(0);
+        expect(r.left.strength).toBe(0);
+        expect(r.left.area).toBe(0);
+        expect(r.left.down).toBe(true);
+    });
+
+    it("turns the area into a footprint: channels times one channel's size", () => {
+        // One TPS43 channel: 43/8 x 40/7 mm = 30.7 mm2; 3 channels is 92 mm2, a circle 10.8 mm across.
+        expect(contactRadius(3, report())).toBe(542);
+        expect(contactRadius(0, report())).toBe(0);
+        expect(contactRadius(3, { ...report(), channelsX: 0 })).toBe(0);
     });
 
     it("reads an all-zero block as no pad", () => {

@@ -10,7 +10,7 @@ const KB = { feature_flags3: 0x70 } as KeyboardInfo;
 
 function report(down = false): PadTouchReport {
     return {
-        tapOn: true, twoFingerOn: true, holdOn: true, elapsedMs: 0, deadZone: 80, tapMs: 150, holdMs: 300, width: 4300, height: 4000, scrollStart: 105,
+        tapOn: true, twoFingerOn: true, holdOn: true, elapsedMs: 0, deadZone: 80, tapMs: 150, holdMs: 300, width: 4300, height: 4000, scrollStart: 105, channelsX: 8, channelsY: 7,
         left: { ...EMPTY_BLOCK, valid: true, down }, right: { ...EMPTY_BLOCK },
     };
 }

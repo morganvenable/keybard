@@ -24,13 +24,9 @@
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
  *   Pointing Devices panel, where the auto mouse settings are; ?panel=keyboard opens
  *   Standard Keys. ?panel=firmware and
- *   ?panel=backups open Settings at that card; ?panel=touchpad (or
- *   ?panel=settings&section=touchpad) opens Settings at Touchpad tuning.
- *   ?panel=pointing&tune=touchpad opens Pointing Devices with the Touchpad
- *   tuning dialog open.
- * - ?tuneLayout=a|b|c picks the Touchpad tuning layout under review: a, the
- *   controls above both pads with a timer ring (the default); b, the controls
- *   beside the pads; c, the pads first, with a timeline under each.
+ *   ?panel=backups open Settings at that card. ?panel=settings&tune=touchpad
+ *   opens Settings with the Touchpad tuning dialog open, and
+ *   ?panel=pointing&tune=touchpad Pointing Devices with it open.
  */
 import type { ResolvedTheme } from "@/lib/theme";
 
@@ -192,20 +188,7 @@ export function resetDeepLinksForTests() {
     testerStarted = false;
 }
 
-export const TUNE_LAYOUT_PARAM = "tuneLayout";
-
-/** ?tuneLayout=a|b|c; anything else is "a". */
-export function tuneLayoutFromSearch(search: string): "a" | "b" | "c" {
-    const v = param(search, TUNE_LAYOUT_PARAM)?.trim().toLowerCase();
-    return v === "b" || v === "c" ? v : "a";
-}
-
-/** ?tune=touchpad: open the Touchpad tuning dialog (with ?panel=pointing). */
+/** ?tune=touchpad: open the Touchpad tuning dialog (with ?panel=settings or ?panel=pointing). */
 export function tuneFromSearch(search: string): boolean {
     return param(search, "tune")?.trim().toLowerCase() === "touchpad";
-}
-
-/** ?section=NAME with ?panel=settings: the Settings section to open. */
-export function settingsSectionFromSearch(search: string): string | null {
-    return param(search, "section")?.trim().toLowerCase() || null;
 }
