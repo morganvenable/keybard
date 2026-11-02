@@ -7,6 +7,7 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { TOUCHPAD_NOTE } from "@/utils/touchpad-taps";
 import { PAD_MODE_AUTO, PAD_MODE_BUILTIN, PAD_MODE_KEY, PAD_MODE_LABELS } from "@/utils/touchpad-tuning";
 
 type SetValue = (key: string, value: number, opts?: { now?: boolean }) => Promise<boolean>;
@@ -78,9 +79,10 @@ export function useTouchpadModeChange(write: (mode: number) => void): { change: 
 }
 
 /**
- * The two modes side by side, for the top of the tuning dialog, with one line
- * under them about the mode in force: in Automatic, where taps and scrolling are
- * set (the system's touchpad settings); with built-in gestures, here.
+ * The two modes side by side, for the top of the tuning dialog, with what each
+ * computer uses (TOUCHPAD_NOTE, the dialog's one statement of it) and one line
+ * about the mode in force: in Automatic, where taps and scrolling are set (the
+ * system's touchpad settings); with built-in gestures, here.
  */
 export function TouchpadModeControl({ value, onChange, note }: { value: number; onChange: (mode: number) => void; note: ReactNode }) {
     return (
@@ -98,6 +100,7 @@ export function TouchpadModeControl({ value, onChange, note }: { value: number; 
                     ))}
                 </div>
             </div>
+            <span className="text-xs text-muted-foreground" data-touchpad-note>{TOUCHPAD_NOTE}</span>
             <span className="text-xs text-muted-foreground" data-mode-note>{note}</span>
         </div>
     );

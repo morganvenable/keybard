@@ -492,7 +492,9 @@ def flow_os_mode(browser, url):
     context, page, errors = open_page(browser, url, FROM_SETTINGS, board=PTP)
     note = page.locator("[data-os-mode-note]")
     expect(note).to_be_visible(timeout=15000)
-    expect(note).to_contain_text("Taps and scrolling follow your computer's touchpad settings")
+    expect(note).to_contain_text("Set taps and scrolling in")
+    # What each computer uses, said once on the screen, in these words.
+    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
     for label in CHIP_SETTINGS:
         expect(page.get_by_role("slider", name=label)).to_have_count(0)
     expect(page.get_by_role("slider", name="Palm rejection")).to_have_count(1)
@@ -523,6 +525,7 @@ def flow_os_mode(browser, url):
     expect(page.get_by_role("slider", name="Dead zone")).to_be_visible(timeout=15000)
     page.wait_for_timeout(500)
     assert not page.locator("[data-os-mode-note]").is_visible(), "the touchpad-mode line shows on built-in gestures"
+    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
     context.close()
     assert not (errors or errors2 or errors3 or errors4), errors + errors2 + errors3 + errors4
 

@@ -31,7 +31,7 @@ TAP = "Tap to Click"
 TWO = "Two-Finger Tap to Right Click"
 HOLD = "Press and Hold to Drag"
 HOLD_MS = "Hold Time (ms)"
-NOTE = "Windows and Linux use their own touchpad settings while the pads are in touchpad mode."
+NOTE = "Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq."
 
 
 def open_page(browser, url: str, board="fakeBoard=touchpad-gestures", viewport=(1440, 900), scheme="light", bottom_bar=False):

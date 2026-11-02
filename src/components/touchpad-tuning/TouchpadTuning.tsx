@@ -6,7 +6,7 @@ import { pointingMenuIndex, useMenuValues } from "@/hooks/useMenuValues";
 import { cn } from "@/lib/utils";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { getPadTouch } from "@/services/pad-touch.service";
-import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY } from "@/utils/touchpad-taps";
+import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY, TOUCHPAD_NOTE } from "@/utils/touchpad-taps";
 import {
     contactRadius, EMPTY_BLOCK, EMPTY_FINGERS, formatMm, formatPalm, hasPadMode, hasPadPalm, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_MODE_AUTO, PAD_MODE_KEY,
     PAD_DEAD_ZONE_MM100, PAD_HEIGHT_MM100, PAD_PALM_CHANNELS, PAD_PALM_KEY, PAD_SCROLL_KEY, PAD_SCROLL_MM100, PAD_TAP_DEFAULT_MS, PAD_TAP_MS,
@@ -214,15 +214,16 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const pending = liveOn && live.padsOs === null && !waited;
     const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
 
+    // Where taps and scrolling are set in the mode in force (what each computer uses is said once, above it).
     const osNote = (
         <span data-os-mode-note>
-            Taps and scrolling follow your computer's touchpad settings{windows ? " (Settings > Bluetooth & devices > Touchpad)" : ""}.
+            {windows ? "Set taps and scrolling in Settings > Bluetooth & devices > Touchpad." : "Set taps and scrolling in your computer's touchpad settings."}
         </span>
     );
-    const modeNote = osMode ? osNote : "Taps and scrolling come from the touchpad, set below.";
+    const modeNote = osMode ? osNote : "Taps and scrolling are set below.";
     const mode = modeOn
         ? <TouchpadModeControl value={modeValue} onChange={(m) => modeChange.change(m, modeValue)} note={modeNote} />
-        : osMode ? <p className="text-xs text-muted-foreground">{osNote}</p> : null;
+        : osMode ? <p className="flex flex-col text-xs text-muted-foreground"><span data-touchpad-note>{TOUCHPAD_NOTE}</span>{osNote}</p> : null;
     const palmControl = palmOn && (
         <StepControl label="Palm rejection" value={palmValue} table={palmTable} format={formatPalm} onChange={(v) => setNow(PAD_PALM_KEY, v)}
             note="Ignores a contact wider than this, like a resting palm." />
