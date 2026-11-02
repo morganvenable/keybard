@@ -125,8 +125,9 @@ class DeviceWorker(QThread):
                         self.status.emit(f"Connected · Sval v{version} · layout read from board; {mode}")
                     elif self.refresh_event.is_set() and self.clock() >= refresh_after:
                         self.refresh_event.clear()
+                        # As before a reload; outside the try, so a protocol failure here reconnects.
+                        self.state.emit(reader.layer_snapshot())
                         try:
-                            self.state.emit(reader.layer_snapshot())  # as before a reload
                             profile = reader.read_profile(uid, reuse_definition=True)
                         except ProtocolError as exc:
                             # Usually Keybard still writing: keep the shown layout and try again shortly.

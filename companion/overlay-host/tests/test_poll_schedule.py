@@ -280,6 +280,28 @@ class ReadLoopTests(unittest.TestCase):
         self.assertLessEqual(max(b - a for a, b in zip(layers, layers[1:])),
                              FakeReader.PROFILE + FakeReader.RTT + .001)   # no wider gap anywhere
 
+    def test_a_failed_layer_read_before_a_refresh_reconnects_rather_than_deferring(self):
+        statuses = []
+        self.worker.status.connect(statuses.append)
+        self.worker.set_press_tracking(False)
+        fail = []
+
+        def refresh_and_fail():
+            fail.append(True); self.worker.refresh()
+
+        original = FakeReader.layer_snapshot
+
+        def layer_snapshot(reader):
+            if fail and reader is FakeReader.instances[0]:
+                fail.clear()
+                raise worker_module.ProtocolError('Svalboard response timed out')
+            return original(reader)
+        with mock.patch.object(FakeReader, 'layer_snapshot', layer_snapshot):
+            self.run_loop(8.0, [(5.0, refresh_and_fail)])
+        self.assertFalse(any(s.startswith('Layout refresh deferred') for s in statuses))
+        self.assertTrue(any(s.startswith('Disconnected') for s in statuses))
+        self.assertEqual(len(FakeReader.instances), 2)                     # connected again
+
     def test_stop_ends_the_loop_at_once_even_while_idle(self):
         self.worker.set_press_tracking(False)
         stopped_at = []
