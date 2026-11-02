@@ -165,7 +165,8 @@ LATENCY_JS = """() => {
         if (down && downAt === null) downAt = performance.now() - ms;
         if (!down) downAt = null;
     };
-    const target = document.querySelector("[data-pad='left'] [data-pad-svg]");
+    // The pad's section stays across modes (its drawing is rebuilt when the mode changes).
+    const target = document.querySelector("[data-pad='left']");
     let shown = false;
     new MutationObserver(() => {
         const now = !!target.querySelector("[data-finger]");

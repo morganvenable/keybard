@@ -168,12 +168,13 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const liveOn = supported && isConnected && hasPadTouch(keyboard?.feature_flags3);
     const live = useLiveTouch(liveOn, keyboard, isConnected);
     // Each mode has its own layout, and the pads say which mode is in force. Until they first answer
-    // (a read or two), nothing shows, so the wrong layout never flashes; after a second, touchpad mode.
+    // (the first reads can come without a pad for up to a second), nothing shows, so the wrong layout
+    // never flashes; with no answer in 3 s, touchpad mode.
     const [waited, setWaited] = useState(false);
     useEffect(() => {
         setWaited(false);
         if (!liveOn) return;
-        const t = window.setTimeout(() => setWaited(true), 1000);
+        const t = window.setTimeout(() => setWaited(true), 3000);
         return () => window.clearTimeout(t);
     }, [liveOn]);
     // The touchpad mode takes effect at once: written, read back and shown from the board, never staged
