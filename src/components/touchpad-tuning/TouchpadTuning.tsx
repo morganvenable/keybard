@@ -107,6 +107,9 @@ function useLiveTouch(enabled: boolean, keyboard: KeyboardInfo | null | undefine
         if (!enabled) return;
         const service = getPadTouch();
         const release = service.acquire();
+        // A fresh start (opened, or the board back after an unplug): the mode is learned again from the
+        // pads, never kept from before (it may have changed while the board was away).
+        setLive((prev) => ({ ...prev, report: null, padsOs: null }));
         firstAt.current = Infinity;
         lastValid.current = { left: -Infinity, right: -Infinity };
         const unsubscribe = service.subscribe((report, at) => {
@@ -210,7 +213,9 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     // force (the firmware clears their touchpad bits with built-in gestures, even while the OS asks).
     // Until the pads first answer, touchpad mode (what ships): the chip's settings never show and then vanish.
     // Each mode has its own layout: a deliberate switch may move things, touches arriving never do.
-    const osMode = liveOn && (live.padsOs ?? true);
+    // Unplugged, the layout stays the last one the pads said (no sliders that don't apply); back, the
+    // pads are asked again (pending below).
+    const osMode = live.padsOs ?? liveOn;
     const pending = liveOn && live.padsOs === null && !waited;
     const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
 

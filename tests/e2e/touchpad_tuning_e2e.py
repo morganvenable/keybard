@@ -61,6 +61,17 @@ the chip's tap and press-and-hold rules. Run with
  18. Manual Updates: a Hold Time change queued in Pointing Devices, then
      the dialog's Hold time written at once: the queued change goes, and
      the board keeps the dialog's value after Apply.
+ 19. Each mode's own layout is filled: no empty band across 60% of the view
+     and 72 px tall, and touchpad mode's lists at most 60% empty with 4-5
+     touches; every screen of the dialog body, scrolled (390, 1440, light
+     and dark).
+ 20. Opening on built-in gestures never shows touchpad mode's layout,
+     sampled every 20 ms.
+ 21. Pads that never answer (invalidFrameEvery = 1): touchpad mode's layout
+     within 3 s, and the view never stays hidden.
+ 22. Unplugged in touchpad mode with the dialog open: the layout stays
+     touchpad mode's, no larger, with no chip sliders; reconnected, the pads
+     are asked again and the layout comes back without them.
 
 Flows 1-11 use ?fakeBoard=touchpad-gestures, where the chip's settings apply.
 
@@ -306,14 +317,14 @@ BOXES_JS = """() => {
 # content when it hits text, a control, a drawing or a list.
 EMPTY_JS = """() => {
     // The largest region of the tuning view, on screen, with nothing in it: sampled on a 12 px
-    // grid; a point is content when it hits text, a control, a drawing or a list.
+    // grid; a point is content when it hits text, a control (a slider row's whole box), a drawing or a list.
     const root = document.querySelector("[data-touchpad-tuning]");
     if (!root) return null;
     const b = root.getBoundingClientRect();
     const x0 = Math.max(0, b.left), y0 = Math.max(0, b.top);
     const x1 = Math.min(innerWidth, b.right), y1 = Math.min(innerHeight, b.bottom);
     const step = 12, cols = Math.floor((x1 - x0) / step), rows = Math.floor((y1 - y0) / step);
-    const CONTENT = "svg, button, input, [role=slider], [role=radio], li, ol, p, h1, h2, h3, h4, span, label, a, [data-slot=slider]";
+    const CONTENT = "svg, button, input, [role=slider], [role=radio], li, ol, p, h1, h2, h3, h4, span, label, a, [data-slot=slider], [data-step], [data-touchpad-mode]";
     const empty = [];
     for (let r = 0; r < rows; r++) {
         const row = [];
@@ -389,9 +400,92 @@ def flow_filled(browser, url):
             # Each list at a typical start: a few touches in it (the least-used one has 4).
             page.wait_for_function("""() => { const ls = [...document.querySelectorAll('[data-outcomes]')];
                 return ls.length > 0 && Math.min(...ls.map(l => l.querySelectorAll('li[data-outcome]').length)) >= 4; }""", timeout=60000)
-            assert_filled(page, f"{width}px {scheme} {board}{layout}")
+            # Every screen of the dialog's body, scrolled: what's below the fold at 390 px counts too.
+            body = page.locator("[data-touchpad-tuning-body]")
+            height, screen = body.evaluate("e => [e.scrollHeight, e.clientHeight]")
+            for top in range(0, max(1, height - screen + 1), max(1, screen - 48)):
+                body.evaluate(f"e => {{ e.scrollTop = {top}; }}")
+                page.wait_for_timeout(100)
+                assert_filled(page, f"{width}px {scheme} {board}{layout}, scrolled {top}")
+            if height > screen:
+                body.evaluate("e => { e.scrollTop = e.scrollHeight; }")
+                page.wait_for_timeout(100)
+                assert_filled(page, f"{width}px {scheme} {board}{layout}, scrolled to the end ({height} px in {screen})")
             assert not errors, errors
             context.close()
+
+
+# The view as it opens, every 20 ms: [ms, layout, visible, chip sliders shown].
+OPEN_SAMPLES_JS = """async (ms) => { const out = []; const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+        const v = document.querySelector('[data-touchpad-tuning]');
+        if (v) out.push([Math.round(performance.now() - t0), v.dataset.layout || '', getComputedStyle(v).visibility !== 'hidden',
+            [...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone')]);
+        await new Promise(r => setTimeout(r, 20)); }
+    return out; }"""
+
+
+def open_from_pointing(page: Page):
+    expect(page.get_by_role("button", name=LINK)).to_be_visible(timeout=15000)
+    page.get_by_role("button", name=LINK).click()
+
+
+def flow_open_no_flash(browser, url):
+    """A board on built-in gestures never shows touchpad mode's layout while the dialog opens."""
+    context, page, errors = open_page(browser, url, "panel=pointing")
+    open_from_pointing(page)
+    samples = page.evaluate(OPEN_SAMPLES_JS, 4000)
+    shown = [x for x in samples if x[2]]
+    assert shown, "the view never showed"
+    flash = [x for x in shown if x[1] != "gestures"]
+    assert not flash, f"touchpad mode's layout showed while opening: {flash[:3]}"
+    assert shown[0][0] <= 1500, f"first shown at {shown[0][0]} ms"
+    assert not errors, errors
+    context.close()
+
+
+def flow_open_no_answer(browser, url):
+    """Pads that never answer: touchpad mode's layout after at most 3 s, and the view never stays hidden."""
+    context, page, errors = open_page(browser, url, "panel=pointing", board=PTP)
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 1")
+    open_from_pointing(page)
+    samples = page.evaluate(OPEN_SAMPLES_JS, 5000)
+    shown = [x for x in samples if x[2]]
+    assert shown, "the view stayed hidden"
+    assert shown[0][0] <= 3300, f"first shown at {shown[0][0]} ms"
+    after = [x for x in samples if x[0] >= shown[0][0]]
+    assert all(x[2] for x in after), f"hidden again after showing: {[x for x in after if not x[2]][:3]}"
+    assert all(x[1] == "os" and not x[3] for x in after), f"not touchpad mode's layout: {[x for x in after if x[1] != 'os' or x[3]][:3]}"
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 0")
+    assert not errors, errors
+    context.close()
+
+
+def flow_unplug(browser, url):
+    """Touchpad mode, dialog open, the board unplugged: the layout stays touchpad mode's, compact, with no
+    sliders that don't apply. Back: the pads are asked again, and the layout comes back without a flash."""
+    context, page, errors = open_page(browser, url, FROM_POINTING, board=PTP)
+    expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
+    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+    before = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
+    page.evaluate("() => { const e = new Event('disconnect'); e.device = window.keybardFakeBoard.device; navigator.hid.dispatchEvent(e); }")
+    expect(page.locator("[data-live-absent]")).to_be_visible(timeout=5000)
+    page.wait_for_timeout(500)
+    assert page.evaluate("document.querySelector('[data-touchpad-tuning]').dataset.layout") == "os", "the layout changed on unplug"
+    for label in CHIP_SETTINGS:
+        expect(page.get_by_role("slider", name=label)).to_have_count(0)
+    after = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
+    assert after["height"] <= before["height"] + 1 and after["width"] <= before["width"] + 1, f"the dialog grew on unplug: {before} -> {after}"
+    assert_filled(page, "unplugged")
+    # Back: the page's own Connect (behind the dialog), then the normal wait for the pads.
+    page.evaluate("() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Connect').click()")
+    samples = page.evaluate(OPEN_SAMPLES_JS, 4000)
+    shown = [x for x in samples if x[2]]
+    assert shown and shown[-1][1] == "os", f"after reconnecting: {samples[-3:]}"
+    assert not [x for x in shown if x[3]], "the chip's sliders showed after reconnecting"
+    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+    assert not errors, errors
+    context.close()
 
 
 FINGERS_JS = "() => Math.max(0, ...[...document.querySelectorAll('[data-pad]')].map(p => p.querySelectorAll('[data-finger]').length))"
@@ -915,7 +1009,10 @@ def main() -> int:
         ("7. no animation beyond the live finger and timer", flow_no_animation),
         ("8. layout: 390 and 1440 px, light and dark, no overflow", flow_layout_checks),
         ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes)", flow_stable),
-        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches (390, 1440, light and dark; both modes)", flow_filled),
+        ("20. opening on built-in gestures never shows touchpad mode's layout (sampled every 20 ms)", flow_open_no_flash),
+        ("21. pads that never answer: touchpad mode's layout within 3 s, never left hidden", flow_open_no_answer),
+        ("22. unplugged in touchpad mode: the layout stays, compact, no sliders; back, the pads are asked again", flow_unplug),
+        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches, every screen scrolled (390, 1440, light and dark; both modes)", flow_filled),
         ("10. every finger: two with the scroll-start ring and a line, three with none; listed", flow_fingers),
         ("11. palm rejection: off, then wider than 20 mm writes and marks the resting palm", flow_palm),
         ("12. touchpad mode: the system line, chip settings and switches absent, fingers and palms only", flow_os_mode),
