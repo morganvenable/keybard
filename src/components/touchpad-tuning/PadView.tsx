@@ -11,7 +11,7 @@ export interface PadTiming {
     holdOn: boolean;
     width: number; // 0.01 mm
     height: number;
-    /** How far two fingers travel, on average, before the chip scrolls (0.01 mm). */
+    /** How far two fingers travel, on average, before the pad scrolls (0.01 mm). */
     scrollStart: number;
 }
 
@@ -42,7 +42,15 @@ interface PadViewProps {
     palm: number;
     /** The board is in touchpad mode (one mode for both pads, TouchpadTuning). */
     touchpadMode: boolean;
+    /**
+     * Touchpad mode's own layout (no close-up: its guides mean nothing there): the
+     * touch list beside the drawing or below it, or the drawing alone (one shared
+     * list elsewhere).
+     */
+    arrange?: OsArrange;
 }
+
+export type OsArrange = "beside" | "below" | "drawing";
 
 /** The close-up's size on screen, CSS px: phones, and wider screens (Tailwind sm). */
 const CLOSE_PX_PHONE = 240;
@@ -91,7 +99,7 @@ const WORDS = ["no", "one", "two", "three", "four", "five"];
  * the active gesture's guides show, faint once it has resolved. Redraws per
  * frame only while a finger is down, and only the timer.
  */
-export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, count, contactR, fingers, touch, twoTrail, radiusOf, palm, touchpadMode }: PadViewProps) {
+export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, count, contactR, fingers, touch, twoTrail, radiusOf, palm, touchpadMode, arrange = "below" }: PadViewProps) {
     const progressRef = useRef<SVGPathElement>(null);
     const msRef = useRef<HTMLSpanElement>(null);
     // Strength has no fixed scale (it follows the pad's sensitivity): shade against the strongest touch seen.
@@ -161,82 +169,117 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
             : <>{down ? "down " : "last touch "}<span ref={msRef} />{<> · moved {formatMm(block.farthest)} of {formatMm(timing.deadZone)}</>}
                 {down && contactR > 0 && <> · contact {formatMm(contactR * 2)} across</>}</>;
 
-    const caption = gesture === "os"
-        ? "Touchpad mode: contacts only"
-        : gesture === "two"
+    const caption = gesture === "two"
         ? `Close-up, ${zoom}× · scroll start ${formatMm(timing.scrollStart)}, average travel`
         : gesture === "many"
-            ? `${(WORDS[peak] ?? String(peak)).replace(/^./, (c) => c.toUpperCase())} fingers: no tap or scroll on the chip`
+            ? `${(WORDS[peak] ?? String(peak)).replace(/^./, (c) => c.toUpperCase())} fingers: no tap or scroll`
             : `Close-up, ${zoom}× · dead zone ${formatMm(timing.deadZone)}`;
+
+    const padSvg = (
+        <svg
+            role="img"
+            aria-label={`${label} at true size, ${n ? `${n} finger${n === 1 ? "" : "s"} down` : "no finger"}`}
+            viewBox={`0 0 ${timing.width} ${timing.height}`}
+            style={{ width: `${timing.width / 100}mm`, height: `${timing.height / 100}mm` }}
+            className="block shrink-0"
+            data-pad-svg
+        >
+            <rect x={20} y={20} width={timing.width - 40} height={timing.height - 40} rx={300} fill="var(--kb-touch-pad)" stroke="var(--kb-touch-edge)" strokeWidth={40} />
+            {shown && (
+                <g data-touch={block.down ? "down" : "up"}>
+                    {gesture === "one" && (
+                        <g opacity={guide}>
+                            <path d={path} fill="none" stroke="var(--kb-touch-zone)" strokeWidth={30} />
+                            <circle cx={block.downX} cy={block.downY} r={90} fill="none" stroke={zoneTone} strokeWidth={30} />
+                        </g>
+                    )}
+                    {two && touch?.hadTwo && (
+                        <g opacity={guide} data-two-guides>
+                            <circle cx={fingers.startX} cy={fingers.startY} r={ss} fill="none" stroke={scrolled ? "var(--kb-touch-tap)" : "var(--kb-touch-zone)"} strokeWidth={25} />
+                            {pair && <line x1={pair[0].x} y1={pair[0].y} x2={pair[1].x} y2={pair[1].y} stroke="var(--kb-touch-zone)" strokeWidth={20} data-two-line />}
+                        </g>
+                    )}
+                    {multi ? fingers.fingers.map((f) => {
+                        const r = radiusOf(f.area) || 260;
+                        const isPalmContact = isPalm(palm, f.area);
+                        return (
+                            <g key={f.slot} data-finger data-slot={f.slot} data-palm={isPalmContact || undefined} data-contact={radiusOf(f.area) ? "sized" : "dot"}>
+                                {isPalmContact ? (
+                                    <circle cx={f.x} cy={f.y} r={r} fill="none" stroke="var(--kb-touch-zone)" strokeWidth={30} strokeDasharray="90 70" />
+                                ) : (
+                                    <>
+                                        <circle cx={f.x} cy={f.y} r={r} fill="var(--kb-touch-finger)" fillOpacity={press}
+                                            stroke="var(--kb-touch-finger)" strokeOpacity={0.5} strokeWidth={25} />
+                                        <circle cx={f.x} cy={f.y} r={70} fill="var(--kb-touch-finger)" />
+                                    </>
+                                )}
+                                <text x={f.x + r * 0.72 + 40} y={f.y - r * 0.72 - 40} fontSize={220} fill="var(--kb-touch-zone)" data-finger-label>
+                                    {isPalmContact ? "palm" : f.slot + 1}
+                                </text>
+                            </g>
+                        );
+                    }) : block.down && (
+                        <>
+                            <circle cx={block.x} cy={block.y} r={contactR || 260} fill="var(--kb-touch-finger)" fillOpacity={press}
+                                stroke={contactR ? "var(--kb-touch-finger)" : "none"} strokeOpacity={0.5} strokeWidth={25} data-finger data-contact={contactR ? "sized" : "dot"} />
+                            <circle cx={block.x} cy={block.y} r={70} fill="var(--kb-touch-finger)" />
+                        </>
+                    )}
+                    {mark && gesture !== "os" && <text x={Math.min((centroid?.x ?? block.x) + 200, timing.width - 1600)} y={Math.max((centroid?.y ?? block.y) - 400, 330)} fontSize={280} fontWeight={600} fill={mark.tone} data-mark={mark.text}>{mark.text}</text>}
+                </g>
+            )}
+        </svg>
+    );
+    const list = (className: string) => (
+        <ol className={"flex flex-col gap-0.5 overflow-y-auto rounded-md border border-kb-gray-border px-2 py-1.5 text-xs " + className} aria-label={`${label}: last touches, newest first`} tabIndex={0} data-outcomes>
+            {outcomes.length === 0 && <li className="text-muted-foreground">No touches yet.</li>}
+            {outcomes.map((o, i) => <li key={count - i} className={KIND_TONE[o.kind]} data-outcome={o.kind} data-os={o.os || undefined}>{o.text}</li>)}
+        </ol>
+    );
+    const header = (
+        <div className="flex h-5 items-baseline justify-between gap-x-2 overflow-hidden">
+            <h4 className="text-sm font-semibold text-kb-ink">{label}</h4>
+            {block.valid && (
+                <span className="min-w-0 truncate text-xs tabular-nums text-muted-foreground" data-pad-readout>
+                    {readout ?? <span ref={msRef} className="sr-only" />}
+                </span>
+            )}
+        </div>
+    );
+
+    // Touchpad mode: the pad at its true size and its touches, nothing reserved for the chip's guides.
+    if (osPad) {
+        return (
+            <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} data-arrange={arrange} className="flex min-w-0 flex-col gap-1.5 sm:h-full">
+                {header}
+                {!block.valid ? (
+                    <p className="text-xs text-muted-foreground" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
+                ) : arrange === "drawing" ? (
+                    <div className="flex justify-center" data-pad-drawings>{padSvg}</div>
+                ) : arrange === "beside" ? (
+                    <div className="flex min-w-0 gap-3 sm:min-h-0 sm:flex-1" data-pad-drawings>
+                        {padSvg}
+                        {list("h-[40mm] min-w-0 flex-1 sm:h-auto sm:min-h-[40mm]")}
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex" data-pad-drawings>{padSvg}</div>
+                        {list("h-44 shrink-0 sm:h-auto sm:min-h-44 sm:flex-1")}
+                    </>
+                )}
+            </section>
+        );
+    }
 
     return (
         <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} className="flex min-w-0 flex-col gap-1.5 sm:h-full">
-            <div className="flex h-5 items-baseline justify-between gap-x-2 overflow-hidden">
-                <h4 className="text-sm font-semibold text-kb-ink">{label}</h4>
-                {block.valid && (
-                    <span className="min-w-0 truncate text-xs tabular-nums text-muted-foreground" data-pad-readout>
-                        {readout ?? <span ref={msRef} className="sr-only" />}
-                    </span>
-                )}
-            </div>
+            {header}
             {!block.valid ? (
                 <p className="h-[27rem] text-xs text-muted-foreground sm:h-[21rem]" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
             ) : (
                 <>
                     <div className="flex h-[27rem] shrink-0 flex-wrap content-start items-start gap-4 overflow-hidden sm:h-[21rem]" data-pad-drawings>
-                        <svg
-                            role="img"
-                            aria-label={`${label} at true size, ${n ? `${n} finger${n === 1 ? "" : "s"} down` : "no finger"}`}
-                            viewBox={`0 0 ${timing.width} ${timing.height}`}
-                            style={{ width: `${timing.width / 100}mm`, height: `${timing.height / 100}mm` }}
-                            className="block shrink-0"
-                            data-pad-svg
-                        >
-                            <rect x={20} y={20} width={timing.width - 40} height={timing.height - 40} rx={300} fill="var(--kb-touch-pad)" stroke="var(--kb-touch-edge)" strokeWidth={40} />
-                            {shown && (
-                                <g data-touch={block.down ? "down" : "up"}>
-                                    {gesture === "one" && (
-                                        <g opacity={guide}>
-                                            <path d={path} fill="none" stroke="var(--kb-touch-zone)" strokeWidth={30} />
-                                            <circle cx={block.downX} cy={block.downY} r={90} fill="none" stroke={zoneTone} strokeWidth={30} />
-                                        </g>
-                                    )}
-                                    {two && touch?.hadTwo && (
-                                        <g opacity={guide} data-two-guides>
-                                            <circle cx={fingers.startX} cy={fingers.startY} r={ss} fill="none" stroke={scrolled ? "var(--kb-touch-tap)" : "var(--kb-touch-zone)"} strokeWidth={25} />
-                                            {pair && <line x1={pair[0].x} y1={pair[0].y} x2={pair[1].x} y2={pair[1].y} stroke="var(--kb-touch-zone)" strokeWidth={20} data-two-line />}
-                                        </g>
-                                    )}
-                                    {multi ? fingers.fingers.map((f) => {
-                                        const r = radiusOf(f.area) || 260;
-                                        const isPalmContact = isPalm(palm, f.area);
-                                        return (
-                                            <g key={f.slot} data-finger data-slot={f.slot} data-palm={isPalmContact || undefined} data-contact={radiusOf(f.area) ? "sized" : "dot"}>
-                                                {isPalmContact ? (
-                                                    <circle cx={f.x} cy={f.y} r={r} fill="none" stroke="var(--kb-touch-zone)" strokeWidth={30} strokeDasharray="90 70" />
-                                                ) : (
-                                                    <>
-                                                        <circle cx={f.x} cy={f.y} r={r} fill="var(--kb-touch-finger)" fillOpacity={press}
-                                                            stroke="var(--kb-touch-finger)" strokeOpacity={0.5} strokeWidth={25} />
-                                                        <circle cx={f.x} cy={f.y} r={70} fill="var(--kb-touch-finger)" />
-                                                    </>
-                                                )}
-                                                <text x={f.x + r * 0.72 + 40} y={f.y - r * 0.72 - 40} fontSize={220} fill="var(--kb-touch-zone)" data-finger-label>
-                                                    {isPalmContact ? "palm" : f.slot + 1}
-                                                </text>
-                                            </g>
-                                        );
-                                    }) : block.down && (
-                                        <>
-                                            <circle cx={block.x} cy={block.y} r={contactR || 260} fill="var(--kb-touch-finger)" fillOpacity={press}
-                                                stroke={contactR ? "var(--kb-touch-finger)" : "none"} strokeOpacity={0.5} strokeWidth={25} data-finger data-contact={contactR ? "sized" : "dot"} />
-                                            <circle cx={block.x} cy={block.y} r={70} fill="var(--kb-touch-finger)" />
-                                        </>
-                                    )}
-                                    {mark && gesture !== "os" && <text x={Math.min((centroid?.x ?? block.x) + 200, timing.width - 1600)} y={Math.max((centroid?.y ?? block.y) - 400, 330)} fontSize={280} fontWeight={600} fill={mark.tone} data-mark={mark.text}>{mark.text}</text>}
-                                </g>
-                            )}
-                        </svg>
+                        {padSvg}
                         <figure className="m-0 flex shrink-0 flex-col gap-0.5" style={{ width: closePx }}>
                             <svg
                                 role="img"
@@ -289,20 +332,14 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
                                         })()}
                                         {mark && !mark.cancel && <circle cx={block.x} cy={block.y} r={dz * 0.16} fill="none" stroke={mark.tone} strokeWidth={dz * 0.07} />}
                                     </>
-                                ) : shown || osPad ? null : (
+                                ) : shown ? null : (
                                     <circle cx={cx} cy={cy} r={ref} fill="none" stroke="var(--kb-touch-edge)" strokeWidth={ref * 0.04} />
                                 )}
                             </svg>
                             <figcaption className="truncate text-xs text-muted-foreground" data-close-caption>{caption}</figcaption>
                         </figure>
                     </div>
-                    <p className={"h-8 shrink-0 overflow-hidden text-xs text-muted-foreground" + (osPad ? "" : " invisible")} aria-hidden={!osPad} data-pad-os>
-                        Touchpad mode on this pad: the list shows each touch's fingers and palms.
-                    </p>
-                    <ol className="flex h-44 shrink-0 flex-col gap-0.5 overflow-y-auto sm:h-auto sm:min-h-44 sm:flex-1 rounded-md border border-kb-gray-border px-2 py-1.5 text-xs" aria-label={`${label}: last touches, newest first`} tabIndex={0} data-outcomes>
-                        {outcomes.length === 0 && <li className="text-muted-foreground">Touch the pad: each touch shows here, with why it clicked or didn't.</li>}
-                        {outcomes.map((o, i) => <li key={count - i} className={KIND_TONE[o.kind]} data-outcome={o.kind} data-os={o.os || undefined}>{o.text}</li>)}
-                    </ol>
+                    {list("h-44 shrink-0 sm:h-auto sm:min-h-44 sm:flex-1")}
                 </>
             )}
         </section>

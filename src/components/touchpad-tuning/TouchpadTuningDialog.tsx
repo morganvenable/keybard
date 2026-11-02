@@ -20,7 +20,7 @@ export default function TouchpadTuningDialog() {
             >
                 <DialogHeader className="shrink-0">
                     <DialogTitle>Touchpad tuning</DialogTitle>
-                    <DialogDescription>Each touch on a pad shows here, with why it clicked or didn't.</DialogDescription>
+                    <DialogDescription>Touch a pad to see each touch as it happens.</DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-touchpad-tuning-body>
                     {open && <TouchpadTuning place="dialog" />}

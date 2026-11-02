@@ -77,8 +77,12 @@ export function useTouchpadModeChange(write: (mode: number) => void): { change: 
     return { change, confirm };
 }
 
-/** The two modes side by side, for the top of the tuning dialog. */
-export function TouchpadModeControl({ value, onChange }: { value: number; onChange: (mode: number) => void }) {
+/**
+ * The two modes side by side, for the top of the tuning dialog, with one line
+ * under them about the mode in force: in Automatic, where taps and scrolling are
+ * set (the system's touchpad settings); with built-in gestures, here.
+ */
+export function TouchpadModeControl({ value, onChange, note }: { value: number; onChange: (mode: number) => void; note: ReactNode }) {
     return (
         <div className="flex flex-col gap-1.5 rounded-md px-3 py-2 panel-layer-item" data-touchpad-mode>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -94,9 +98,7 @@ export function TouchpadModeControl({ value, onChange }: { value: number; onChan
                     ))}
                 </div>
             </div>
-            <span className="text-xs text-muted-foreground">
-                Automatic: a touchpad in Windows and Linux. Built-in gestures: the pad makes its own taps and scrolling, as it does on a Mac or in a BIOS.
-            </span>
+            <span className="text-xs text-muted-foreground" data-mode-note>{note}</span>
         </div>
     );
 }
