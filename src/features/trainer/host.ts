@@ -25,7 +25,11 @@ export interface HostSnapshot {
 /** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
 export interface HostBuild { version: string; keybardCommit: string | null }
 declare global { interface Window { __keybardNativeState?: boolean } }
-export function useHost() {
+/**
+ * The Keybard Overlay's state and commands. overlay: this page draws the overlay (?hostOverlay),
+ * so its polls tell the Overlay app that the layer and held keys are on show and worth reading fast.
+ */
+export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
     const [state, setState] = useState<HostSnapshot | null>(null);
     const [error, setError] = useState('');
     const token = useRef('');
@@ -83,7 +87,7 @@ export function useHost() {
         }
         async function poll() {
             try {
-                const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
+                const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}${overlay ? '&overlay=1' : ''}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
                 if (!r.ok) throw new Error('Connection to the overlay app lost');
                 receive(await r.json() as HostSnapshot);
             } catch {
@@ -102,7 +106,7 @@ export function useHost() {
             }
         })();
         return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
-    }, [attempt, base, local, bootstrap]);
+    }, [attempt, base, local, bootstrap, overlay]);
     /** Connect a hosted Keybard page to a running Keybard Overlay (user-initiated). */
     const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {

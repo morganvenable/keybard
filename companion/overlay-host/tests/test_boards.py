@@ -204,8 +204,9 @@ class FakeWorker:
         self.reloads = self.refreshes = 0
         FakeWorker.made.append(self)
 
-    def set_press_tracking(self, enabled, watch=False):
+    def set_press_tracking(self, enabled, watch=False, layer=False):
         self.press_tracking = (enabled, watch)
+        self.press_layer = layer
         self.generation += 1
         return self.generation
     def set_pointing_tracking(self, enabled, watch=False): self.pointing_tracking = (enabled, watch)
@@ -231,7 +232,7 @@ class HostBoardsTests(unittest.TestCase):
         Host = main.Host
         names = ('scan', 'start', 'retire', 'reap', 'board_of', 'connect', 'disconnect', 'follow', 'profile', 'layers',
                  'pressed', 'status', 'command', 'track_pointing', 'pointing_motion', 'forward_pointing', 'shown_board',
-                 'track_polling', 'held_shown', 'surface_shown', 'following')
+                 'track_polling', 'layer_shown', 'surface_shown', 'following')
         host = SimpleNamespace(state=self.state, auto_connect=True, devices={}, boards={}, board_order=0, retiring=[],
                                paused=None, follower=Follower(DAILY, None), shown_signature=None, demo=False,
                                pointing_pending=None, pointing_source=None, pointing_sides={}, pointing_sent=0.0,
@@ -402,9 +403,22 @@ class HostBoardsTests(unittest.TestCase):
         self.state.config['highlightPressed'] = False                      # held keys not highlighted
         for b in self.host.boards.values(): self.host.track_polling(b)
         self.assertEqual(self.plans(), {MULE: (False, False)})
+        self.assertTrue(self.worker(MULE).press_layer)                     # but the layer is on show: fast
         self.state.config['highlightPressed'] = True
         for b in self.host.boards.values(): self.host.track_polling(b)
         self.assertEqual(self.plans(), {MULE: (True, False)})
+
+    def test_highlight_off_keeps_layer_changes_fast_on_screen(self):
+        self.connect_all()
+        self.state.config['highlightPressed'] = False
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        # The shown board: no fast matrix, its layer fast, its held keys sampled to follow use.
+        self.assertEqual(self.plans(), {DAILY: (False, True), TOUCH: (False, True), MULE: (False, True)})
+        self.assertEqual({s: self.worker(s).press_layer for s in (DAILY, TOUCH, MULE)},
+                         {DAILY: True, TOUCH: False, MULE: False})
+        self.state.visible = False
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertFalse(self.worker(DAILY).press_layer)                   # hidden: slow again
 
     def test_a_keybard_page_polling_counts_as_showing_held_keys(self):
         self.present = [device(MULE, 'Mule')]
@@ -415,6 +429,7 @@ class HostBoardsTests(unittest.TestCase):
             self.state.polled_at = 499.5
             self.host.track_polling(board)
             self.assertEqual(board.worker.press_tracking, (True, False))
+            self.assertTrue(board.worker.press_layer)
         with mock.patch.object(main.time, 'monotonic', return_value=502.0):
             self.host.track_polling(board)                                  # the page stopped polling
             self.assertEqual(board.worker.press_tracking, (False, False))

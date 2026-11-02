@@ -152,7 +152,8 @@ class HostState:
         self.practice_target = None
         self.practice_at = 0
         self.visible = True
-        # When a page last polled /api/host/state (Keybard's Overlay dialog shows held keys from it).
+        # When a page drawing the overlay (Keybard's ?hostOverlay page, e.g. a stream capture) last
+        # polled /api/host/state with overlay=1. Keybard's Overlay dialog shows neither and doesn't send it.
         self.polled_at = 0.0
         self.session = secrets.token_hex(12)
         self.pointing_looks = {}

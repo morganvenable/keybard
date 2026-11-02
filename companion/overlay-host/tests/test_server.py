@@ -61,6 +61,13 @@ class RemoteOriginTests(ServerTests):
             self.assertEqual(r.status, 202); self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
         self.assertEqual(self.commands, [{'op': 'show', 'value': True}])
 
+    def test_only_a_page_drawing_the_overlay_marks_it_on_show(self):
+        # Keybard's Overlay dialog polls without the flag: it shows neither layer nor held keys.
+        with self.get('/api/host/state?layout=-1', {'Origin': self.PROD}): pass
+        self.assertEqual(self.state.polled_at, 0.0)
+        with self.get('/api/host/state?layout=-1&overlay=1', {'Origin': self.PROD}): pass
+        self.assertGreater(self.state.polled_at, 0.0)
+
     def test_preflight_allows_token_header_for_hosted_keybard_only(self):
         with urlopen(Request(self.base + '/api/host/command', method='OPTIONS', headers={'Origin': self.PROD, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Private-Network': 'true'})) as r:
             self.assertEqual(r.status, 204)

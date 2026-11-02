@@ -873,22 +873,24 @@ class Host(QObject):
         """Whether the board in use picks the board on show: several boards, none pinned."""
         return self.state.pinned is None and len(self.boards) > 1
 
-    # A page that polled /api/host/state this recently may be showing held keys (it polls every 80 ms).
+    # A page drawing the overlay polls /api/host/state with overlay=1 every 80 ms (about once a
+    # second in a background tab): one that polled this recently is taken as showing it.
     POLL_SHOWN = 1.5
 
-    def held_shown(self, now=None):
-        """Whether anything shows the shown board's held keys: the overlay on screen, or a
-        Keybard page polling the Overlay, with Highlight held keys on."""
+    def layer_shown(self, now=None):
+        """Whether anything shows the shown board's layer: the overlay on screen, or a page
+        drawing it (Keybard's ?hostOverlay page) polling the Overlay."""
         now = time.monotonic() if now is None else now
-        return self.state.config['highlightPressed'] and (self.surface_shown() or now - self.state.polled_at < self.POLL_SHOWN)
+        return self.surface_shown() or now - self.state.polled_at < self.POLL_SHOWN
 
     def track_polling(self, board):
         """How often a board's reader reads its layer and held keys (device/schedule.py): fast
-        while its held keys are shown; otherwise slowly, sampling held keys only while they pick
-        the board on show."""
+        while its layer is shown, with the matrix only while held keys are highlighted;
+        otherwise slowly, sampling held keys only while they pick the board on show."""
         if board.worker is None: return
-        held = board.key == self.follower.shown and self.held_shown()
-        plan = (held, not held and self.following())
+        on_show = board.key == self.follower.shown and self.layer_shown()
+        held = on_show and self.state.config['highlightPressed']
+        plan = (held, not held and self.following(), on_show)
         if plan != board.poll_plan:
             board.poll_plan = plan
             board.generation = board.worker.set_press_tracking(*plan)

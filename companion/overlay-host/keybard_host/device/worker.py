@@ -29,9 +29,13 @@ class DeviceWorker(QThread):
         self.press_lock = Lock()
         self.press_enabled = False
         self.press_watch = False
+        self.press_layer = False
         self.press_generation = 0
         self.pointing_enabled = False
         self.pointing_watch = False
+        # The read loop's clock and sleep; tests drive them with a fake clock.
+        self.clock = time.monotonic
+        self.wait_for_wake = self.wake_event.wait
 
     # About 60 reads a second; the firmware counts motion only while someone reads within 1.5 s.
     POINTING_INTERVAL = .016
@@ -49,14 +53,16 @@ class DeviceWorker(QThread):
         self.pointing_watch = bool(watch)
         if changed: self.wake_event.set()
 
-    def set_press_tracking(self, enabled, watch=False):
+    def set_press_tracking(self, enabled, watch=False, layer=False):
         """enabled: something shows this board's held keys; read the matrix fast. watch: they
-        aren't shown, but which board is in use matters; sample the matrix slowly. Neither: the
-        layer state only, about 4 times a second (schedule.py). Returns the generation that
-        tags the held keys read under this plan."""
+        aren't shown, but which board is in use matters; sample the matrix slowly. layer: the
+        overlay shows this board's layer; read it fast. Otherwise the layer state is read about
+        4 times a second (schedule.py). Returns the generation that tags the held keys read
+        under this plan."""
         with self.press_lock:
             self.press_enabled = bool(enabled)
             self.press_watch = bool(watch)
+            self.press_layer = bool(layer)
             self.press_generation += 1
             generation = self.press_generation
         self.wake_event.set()
@@ -102,21 +108,25 @@ class DeviceWorker(QThread):
                 refresh_after, refresh_failures = 0.0, 0
                 pointing_next, pointing_supported = 0.0, True
                 settle_next = 0.0
-                schedule = PollScheduler(time.monotonic())
+                schedule = PollScheduler(self.clock())
                 retry = .5
                 while not self.stop_event.is_set():
                     if self.reload_event.is_set():
                         self.reload_event.clear()
                         self.refresh_event.clear()
+                        # A profile read can take most of a second: a fresh layer state first, so
+                        # the overlay's 0.6 s staleness check (Host.tick) doesn't blank it meanwhile.
+                        self.state.emit(reader.layer_snapshot())
                         profile = reader.read_profile(uid, self.status.emit)
                         reader.checkpoint()
                         self.profile.emit(profile)
-                        schedule.read_now(time.monotonic())  # the new layout's layer state at once
+                        schedule.read_now(self.clock())  # the new layout's layer state at once
                         mode = "automatic defaults" if reader.feature_flags & DEFAULT_LAYER_STATE_FLAG else "manual default (older firmware)"
                         self.status.emit(f"Connected · Sval v{version} · layout read from board; {mode}")
-                    elif self.refresh_event.is_set() and time.monotonic() >= refresh_after:
+                    elif self.refresh_event.is_set() and self.clock() >= refresh_after:
                         self.refresh_event.clear()
                         try:
+                            self.state.emit(reader.layer_snapshot())  # as before a reload
                             profile = reader.read_profile(uid, reuse_definition=True)
                         except ProtocolError as exc:
                             # Usually Keybard still writing: keep the shown layout and try again shortly.
@@ -124,24 +134,25 @@ class DeviceWorker(QThread):
                             if refresh_failures > 3:
                                 raise
                             self.status.emit(f"Layout refresh deferred · {exc}")
-                            refresh_after = time.monotonic() + .5
+                            refresh_after = self.clock() + .5
                             self.refresh_event.set()
                         else:
                             refresh_failures = 0
                             reader.checkpoint()
                             self.profile.emit(profile)
-                            schedule.read_now(time.monotonic())
+                            schedule.read_now(self.clock())
                             self.status.emit(f"Connected · Sval v{version} · layout refreshed from board")
                     with self.press_lock:
-                        enabled, watch, generation = self.press_enabled, self.press_watch, self.press_generation
-                    now = time.monotonic()
-                    schedule.set_plan(enabled, watch, now)
+                        enabled, watch, layer, generation = (self.press_enabled, self.press_watch,
+                                                             self.press_layer, self.press_generation)
+                    now = self.clock()
+                    schedule.set_plan(enabled, watch, now, layer=layer)
                     if schedule.due(now):
                         # Timed from the read's start, so round trips don't stretch the interval.
                         snapshot = reader.layer_snapshot()
                         self.state.emit(snapshot)
                         positions = None
-                        if schedule.wants_matrix and generation != unavailable_generation:
+                        if schedule.reads_matrix(now) and generation != unavailable_generation:
                             try:
                                 positions = reader.pressed_keys()
                             except UnsupportedCommand:
@@ -154,14 +165,14 @@ class DeviceWorker(QThread):
                     # A half that hadn't reported its pointing module at the profile read, or
                     # reported none in the first 35 s (the firmware probes again until 30 s after
                     # power-on): look again each second, and re-read the profile once it changes.
-                    if reader.pointing_watching() and not self.refresh_event.is_set() and time.monotonic() >= settle_next:
-                        settle_next = time.monotonic() + self.SETTLE_INTERVAL
+                    if reader.pointing_watching() and not self.refresh_event.is_set() and self.clock() >= settle_next:
+                        settle_next = self.clock() + self.SETTLE_INTERVAL
                         if reader.pointing_settled():
                             self.refresh_event.set()
                     watching = (not self.pointing_enabled and self.pointing_watch
                                 and reader.feature_flags2 & POINTING_MOTION_READERS_FLAG2)
-                    if (self.pointing_enabled or watching) and pointing_supported and time.monotonic() >= pointing_next:
-                        pointing_next = time.monotonic() + (self.WATCH_INTERVAL if watching else self.POINTING_INTERVAL)
+                    if (self.pointing_enabled or watching) and pointing_supported and self.clock() >= pointing_next:
+                        pointing_next = self.clock() + (self.WATCH_INTERVAL if watching else self.POINTING_INTERVAL)
                         motion = None
                         try:
                             motion = reader.pointing_motion()
@@ -176,7 +187,7 @@ class DeviceWorker(QThread):
                     if (self.pointing_enabled or watching) and pointing_supported: wake_at = min(wake_at, pointing_next)
                     if reader.pointing_watching() and not self.refresh_event.is_set(): wake_at = min(wake_at, settle_next)
                     if self.refresh_event.is_set(): wake_at = min(wake_at, refresh_after)
-                    self.wake_event.wait(max(0, wake_at - time.monotonic()))
+                    self.wait_for_wake(max(0, wake_at - self.clock()))
                     self.wake_event.clear()
             except Cancelled:
                 return
