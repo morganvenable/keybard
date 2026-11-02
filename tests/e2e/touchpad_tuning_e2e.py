@@ -27,8 +27,7 @@ the chip's tap and press-and-hold rules. Run with
   9. No layout shift within a mode: with 50+ touches played, one, two and
      three fingers among them, the dialog, the controls, the pads and their
      close-ups keep their size and place, the touch lists scroll inside their
-     own boxes, and nothing scrolls sideways (390, 1440). Both modes, and each
-     touchpad-mode layout option.
+     own boxes, and nothing scrolls sideways (390, 1440). Both modes.
  10. Every finger (svalboard/qmk "Touchpad fingers", 0x2D page 2): two and
      three fingers drawn at once, numbered; two fingers get the scroll-start
      ring around their start centroid and a line between them, no dead zone;
@@ -397,7 +396,7 @@ def flow_filled(browser, url):
 FINGERS_JS = "() => Math.max(0, ...[...document.querySelectorAll('[data-pad]')].map(p => p.querySelectorAll('[data-finger]').length))"
 
 
-STABLE_CASES = (("fakeBoard=touchpad-gestures", ""), ("fakeBoard=touchpad", "&tuneLayout=a"), ("fakeBoard=touchpad", "&tuneLayout=b"), ("fakeBoard=touchpad", "&tuneLayout=c"))
+STABLE_CASES = (("fakeBoard=touchpad-gestures", ""), ("fakeBoard=touchpad", ""))
 
 
 def flow_stable(browser, url):
@@ -911,8 +910,8 @@ def main() -> int:
         ("6. no touchpad, or older firmware: no entry, no chip, no link", flow_hidden),
         ("7. no animation beyond the live finger and timer", flow_no_animation),
         ("8. layout: 390 and 1440 px, light and dark, no overflow", flow_layout_checks),
-        ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes, each option)", flow_stable),
-        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches (390, 1440, light and dark; each option)", flow_filled),
+        ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes)", flow_stable),
+        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches (390, 1440, light and dark; both modes)", flow_filled),
         ("10. every finger: two with the scroll-start ring and a line, three with none; listed", flow_fingers),
         ("11. palm rejection: off, then wider than 20 mm writes and marks the resting palm", flow_palm),
         ("12. touchpad mode: the system line, chip settings and switches absent, fingers and palms only", flow_os_mode),

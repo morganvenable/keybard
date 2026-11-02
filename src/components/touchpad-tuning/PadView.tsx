@@ -40,17 +40,13 @@ interface PadViewProps {
     radiusOf: (area: number) => number;
     /** The palm rejection threshold in force, channels; 0 off. */
     palm: number;
-    /** The board is in touchpad mode (one mode for both pads, TouchpadTuning). */
-    touchpadMode: boolean;
     /**
-     * Touchpad mode's own layout (no close-up: its guides mean nothing there): the
-     * touch list beside the drawing or below it, or the drawing alone (one shared
-     * list elsewhere).
+     * The board is in touchpad mode (one mode for both pads, TouchpadTuning): its own
+     * layout, the pad and its touch list side by side, with no close-up (its guides
+     * mean nothing there).
      */
-    arrange?: OsArrange;
+    touchpadMode: boolean;
 }
-
-export type OsArrange = "beside" | "below" | "drawing";
 
 /** The close-up's size on screen, CSS px: phones, and wider screens (Tailwind sm). */
 const CLOSE_PX_PHONE = 240;
@@ -99,7 +95,7 @@ const WORDS = ["no", "one", "two", "three", "four", "five"];
  * the active gesture's guides show, faint once it has resolved. Redraws per
  * frame only while a finger is down, and only the timer.
  */
-export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, count, contactR, fingers, touch, twoTrail, radiusOf, palm, touchpadMode, arrange = "below" }: PadViewProps) {
+export function PadView({ side, block, readAt, touchEvents, trail, timing, outcomes, count, contactR, fingers, touch, twoTrail, radiusOf, palm, touchpadMode }: PadViewProps) {
     const progressRef = useRef<SVGPathElement>(null);
     const msRef = useRef<HTMLSpanElement>(null);
     // Strength has no fixed scale (it follows the pad's sensitivity): shade against the strongest touch seen.
@@ -250,24 +246,16 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
     // Touchpad mode: the pad at its true size and its touches, nothing reserved for the chip's guides.
     if (osPad) {
         return (
-            <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} data-arrange={arrange} className="flex min-w-0 flex-col gap-1.5">
+            <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} className="flex min-w-0 flex-col gap-1.5">
                 {header}
                 {!block.valid ? (
                     <p className="text-xs text-muted-foreground" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
-                ) : arrange === "drawing" ? (
-                    <div className="flex justify-center" data-pad-drawings>{padSvg}</div>
-                ) : arrange === "beside" ? (
+                ) : (
                     <div className="flex min-w-0 gap-3" data-pad-drawings>
                         {padSvg}
                         {/* As tall as the pad: about 8 touches, then it scrolls inside. */}
                         {list("h-[40mm] min-w-0 flex-1")}
                     </div>
-                ) : (
-                    <>
-                        <div className="flex" data-pad-drawings>{padSvg}</div>
-                        {/* About 9 touches, then it scrolls inside. */}
-                        {list("h-44 shrink-0")}
-                    </>
                 )}
             </section>
         );

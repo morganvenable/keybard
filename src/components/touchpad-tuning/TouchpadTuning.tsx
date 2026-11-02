@@ -13,7 +13,7 @@ import {
     PAD_TAP_MS_KEY, PAD_WIDTH_MM100, steps, TouchTracker, type MultiTouch, type PadFingersBlock, type PadTouchBlock, type PadTouchReport,
     type TouchOutcome,
 } from "@/utils/touchpad-tuning";
-import { PadView, type OsArrange, type PadTiming } from "./PadView";
+import { PadView, type PadTiming } from "./PadView";
 import { TouchpadModeControl, useTouchpadModeChange, useWriteTouchpadMode } from "./TouchpadMode";
 
 /** Finished touches kept per pad, newest first, in the pad's scrolling list. */
@@ -82,15 +82,12 @@ interface LiveState {
     readAt: number;
     left: PadLive;
     right: PadLive;
-    /** Both pads' finished touches, newest first (one shared list). */
-    recent: { side: "left" | "right"; n: number; outcome: TouchOutcome }[];
 }
 
 const NO_LIVE: LiveState = {
     report: null, readAt: 0, padsOs: null,
     left: NO_PAD,
     right: NO_PAD,
-    recent: [],
 };
 
 /** Before the first report: each pad drawn empty, not as "no touchpad", so nothing changes when it answers. */
@@ -117,7 +114,7 @@ function useLiveTouch(enabled: boolean, keyboard: KeyboardInfo | null | undefine
             setLive((prev) => {
                 const valid = [report.left, report.right].filter((b) => b.valid);
                 const padsOs = valid.length ? valid.some((b) => b.os) : prev.padsOs;
-                const next: LiveState = { report, readAt: at, padsOs, left: prev.left, right: prev.right, recent: prev.recent };
+                const next: LiveState = { report, readAt: at, padsOs, left: prev.left, right: prev.right };
                 for (const side of ["left", "right"] as const) {
                     // A pad that answered within the last second keeps its last picture through a
                     // report without it (a fresh start, a missed split read): it never blinks to "no touchpad".
@@ -132,7 +129,6 @@ function useLiveTouch(enabled: boolean, keyboard: KeyboardInfo | null | undefine
                     // Each pad's touch is read in the board's one mode (padsOs), not its own flag.
                     const block = report[side].valid ? { ...report[side], os: !!padsOs } : report[side];
                     const done = t.take(block, report, report.fingers?.[side] ?? null, report.fingers?.palm ?? 0);
-                    if (done) next.recent = [{ side, n: prev[side].count + 1, outcome: done }, ...next.recent].slice(0, OUTCOMES);
                     next[side] = {
                         block,
                         events: t.touchEvents,
@@ -163,16 +159,6 @@ interface TouchpadTuningProps {
  * Shown only on firmware that has the setting and a board with a touchpad;
  * the live pads need the touch page as well.
  */
-/**
- * Touchpad mode's layout, while the options are reviewed: ?tuneLayout=a (the
- * default: each pad's list beside it), b (palm rejection under the mode, each
- * list under its pad) or c (both pads, then one shared list).
- */
-function osLayoutVariant(): "a" | "b" | "c" {
-    const v = typeof location !== "undefined" ? new URLSearchParams(location.search).get("tuneLayout") : null;
-    return v === "b" || v === "c" ? v : "a";
-}
-
 export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const { keyboard, isConnected } = useKeyboard();
     const menuIndex = pointingMenuIndex(keyboard?.menus);
@@ -226,7 +212,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const osMode = liveOn && (live.padsOs ?? true);
     const pending = liveOn && live.padsOs === null && !waited;
     const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
-    const variant = osLayoutVariant();
 
     const osNote = (
         <span data-os-mode-note>
@@ -247,7 +232,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const controls = osMode ? (
         <div className="flex flex-col gap-1.5">
             {/* Touchpad mode: the mode and palm rejection, the only settings that apply, together. */}
-            <div className={cn("grid gap-2", variant !== "b" && palmControl ? "@3xl:grid-cols-2" : "")} data-tuning-controls data-os-mode>
+            <div className={cn("grid gap-2", palmControl && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
                 {mode}
                 {palmControl}
             </div>
@@ -279,7 +264,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         outcomes: live[side].outcomes, fingers: live[side].fingers, touch: live[side].touch, twoTrail: live[side].twoTrail,
         radiusOf: (area: number) => (r ? contactRadius(area, r) : 0), palm, touchpadMode: osMode,
     });
-    const arrange: OsArrange = variant === "a" ? "beside" : variant === "c" ? "drawing" : "below";
 
     const pads = !liveOn ? (
         <p className="text-sm text-muted-foreground" data-live-absent>{isConnected ? "This firmware can't show the pads live. Update it to see each touch." : "Connect the board to see each touch."}</p>
@@ -288,26 +272,15 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
             <div className={cn("flex flex-col gap-6 @3xl:flex-row", !osMode && "sm:min-h-0 sm:flex-1")} data-pads>
                 {(["left", "right"] as const).map((side) => (
                     <div key={side} className="flex min-w-0 flex-1 flex-col sm:min-h-0">
-                        <PadView {...padProps(side)} arrange={arrange} />
+                        <PadView {...padProps(side)} />
                     </div>
                 ))}
             </div>
-            {osMode && variant === "c" && (
-                <ol className="flex h-44 shrink-0 flex-col gap-0.5 overflow-y-auto rounded-md border border-kb-gray-border px-2 py-1.5 text-xs"
-                    aria-label="Both pads: last touches, newest first" tabIndex={0} data-outcomes data-shared-list>
-                    {live.recent.length === 0 && <li className="text-muted-foreground">No touches yet.</li>}
-                    {live.recent.map((e) => (
-                        <li key={`${e.side}${e.n}`} className="text-muted-foreground" data-outcome={e.outcome.kind} data-os={e.outcome.os || undefined}>
-                            <span className="font-medium text-kb-ink">{e.side === "left" ? "Left" : "Right"}</span> · {e.outcome.text}
-                        </li>
-                    ))}
-                </ol>
-            )}
         </div>
     );
 
     return (
-        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : osMode ? "" : "sm:h-full", pending && "invisible")} aria-busy={pending || undefined} data-touchpad-tuning data-layout={osMode ? `os-${variant}` : "gestures"}>
+        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : osMode ? "" : "sm:h-full", pending && "invisible")} aria-busy={pending || undefined} data-touchpad-tuning data-layout={osMode ? "os" : "gestures"}>
             {controls}
             {pads}
         </div>
