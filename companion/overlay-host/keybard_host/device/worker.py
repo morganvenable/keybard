@@ -137,6 +137,7 @@ class DeviceWorker(QThread):
                     now = time.monotonic()
                     schedule.set_plan(enabled, watch, now)
                     if schedule.due(now):
+                        # Timed from the read's start, so round trips don't stretch the interval.
                         snapshot = reader.layer_snapshot()
                         self.state.emit(snapshot)
                         positions = None
@@ -149,7 +150,7 @@ class DeviceWorker(QThread):
                                 unavailable_generation = generation
                             else:
                                 self.pressed.emit((generation, positions, time.monotonic()))
-                        schedule.done(snapshot, positions, time.monotonic())
+                        schedule.done(snapshot, positions, now)
                     # A half that hadn't reported its pointing module at the profile read, or
                     # reported none in the first 35 s (the firmware probes again until 30 s after
                     # power-on): look again each second, and re-read the profile once it changes.
