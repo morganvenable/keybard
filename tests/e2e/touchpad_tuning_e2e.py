@@ -351,9 +351,34 @@ EMPTY_JS = """() => {
 EMPTY_MAX_SHARE, EMPTY_MAX_H = 0.6, 72
 
 
+LISTS_JS = """() => {
+    // Each touch list: its touches, and how much of its box they fill (0-1).
+    const view = document.querySelector("[data-touchpad-tuning]");
+    return {
+        layout: view ? view.dataset.layout || "" : "",
+        lists: [...document.querySelectorAll("[data-outcomes]")].map((ol) => {
+            const items = [...ol.querySelectorAll("li[data-outcome]")];
+            const cs = getComputedStyle(ol);
+            const inner = ol.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const used = items.reduce((h, li) => h + li.getBoundingClientRect().height, 0) + Math.max(0, items.length - 1) * parseFloat(cs.rowGap || "0");
+            return { n: items.length, filled: inner > 0 ? Math.round((used / inner) * 100) / 100 : 1, h: Math.round(ol.clientHeight) };
+        }),
+    };
+}"""
+
+# Touchpad mode's touch lists are sized for a handful of touches: with a typical few in one (4 or 5:
+# lists of 8-9 rows, as asked, are just over 60% empty with 3), at most this much of its box is
+# empty. (Built-in gestures keeps its larger panel, lists included.)
+LIST_MAX_EMPTY = 0.6
+
+
 def assert_filled(page: Page, what: str):
     gap = page.evaluate(EMPTY_JS)
     assert gap and not (gap["w"] >= EMPTY_MAX_SHARE * gap["viewW"] and gap["h"] >= EMPTY_MAX_H), f"{what}: an empty band {gap}"
+    lists = page.evaluate(LISTS_JS)
+    if lists["layout"].startswith("os"):
+        loose = [l for l in lists["lists"] if 4 <= l["n"] <= 5 and 1 - l["filled"] > LIST_MAX_EMPTY]
+        assert not loose, f"{what}: a touch list mostly empty with a few touches: {loose}"
 
 
 def flow_filled(browser, url):
@@ -361,8 +386,9 @@ def flow_filled(browser, url):
         for scheme in ("light", "dark"):
             context, page, errors = open_page(browser, url, FROM_POINTING + layout, board=board, viewport=(width, height), scheme=scheme)
             page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
-            page.locator("[data-outcome]").nth(3).wait_for(state="attached", timeout=40000)
-            page.wait_for_timeout(500)
+            # Each list at a typical start: a few touches in it (the least-used one has 4).
+            page.wait_for_function("""() => { const ls = [...document.querySelectorAll('[data-outcomes]')];
+                return ls.length > 0 && Math.min(...ls.map(l => l.querySelectorAll('li[data-outcome]').length)) >= 4; }""", timeout=60000)
             assert_filled(page, f"{width}px {scheme} {board}{layout}")
             assert not errors, errors
             context.close()
@@ -886,7 +912,7 @@ def main() -> int:
         ("7. no animation beyond the live finger and timer", flow_no_animation),
         ("8. layout: 390 and 1440 px, light and dark, no overflow", flow_layout_checks),
         ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes, each option)", flow_stable),
-        ("19. each mode's own layout has no large empty region (390, 1440, light and dark; each option)", flow_filled),
+        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches (390, 1440, light and dark; each option)", flow_filled),
         ("10. every finger: two with the scroll-start ring and a line, three with none; listed", flow_fingers),
         ("11. palm rejection: off, then wider than 20 mm writes and marks the resting palm", flow_palm),
         ("12. touchpad mode: the system line, chip settings and switches absent, fingers and palms only", flow_os_mode),

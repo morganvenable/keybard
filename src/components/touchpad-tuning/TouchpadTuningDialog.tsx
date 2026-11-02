@@ -13,9 +13,10 @@ export default function TouchpadTuningDialog() {
             {/* A diagnostic panel with a fixed size, set by the viewport and never by what the
                 pads report: most of the screen on a desktop, all of it on a phone. The body
                 scrolls inside it when the window is small, and only the touch lists grow
-                (inside their own fixed-height boxes). */}
+                (inside their own fixed-height boxes). Touchpad mode has less to show (the
+                pads and their touches): the panel fits it, in fixed-height boxes too. */}
             <DialogContent
-                className="flex h-dvh max-h-none w-screen max-w-none flex-col gap-3 overflow-hidden rounded-none p-4 sm:h-[min(60rem,calc(100dvh-4rem))] sm:w-[min(80rem,calc(100vw-4rem))] sm:max-w-none sm:rounded-lg sm:p-6"
+                className="flex h-dvh max-h-none w-screen max-w-none flex-col gap-3 overflow-hidden rounded-none p-4 sm:h-[min(60rem,calc(100dvh-4rem))] sm:w-[min(80rem,calc(100vw-4rem))] sm:max-w-none sm:rounded-lg sm:p-6 has-[[data-layout^=os]]:h-auto has-[[data-layout^=os]]:max-h-dvh sm:has-[[data-layout^=os]]:h-auto sm:has-[[data-layout^=os]]:max-h-[calc(100dvh-4rem)] sm:has-[[data-layout^=os]]:w-[min(60rem,calc(100vw-4rem))]"
                 data-touchpad-tuning-dialog
             >
                 <DialogHeader className="shrink-0">

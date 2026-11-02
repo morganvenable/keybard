@@ -250,21 +250,23 @@ export function PadView({ side, block, readAt, touchEvents, trail, timing, outco
     // Touchpad mode: the pad at its true size and its touches, nothing reserved for the chip's guides.
     if (osPad) {
         return (
-            <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} data-arrange={arrange} className="flex min-w-0 flex-col gap-1.5 sm:h-full">
+            <section aria-label={label} data-pad={side} data-touches={count} data-gesture={shown ? gesture : "none"} data-arrange={arrange} className="flex min-w-0 flex-col gap-1.5">
                 {header}
                 {!block.valid ? (
                     <p className="text-xs text-muted-foreground" data-pad-absent>No touchpad on this hand, or it isn't answering.</p>
                 ) : arrange === "drawing" ? (
                     <div className="flex justify-center" data-pad-drawings>{padSvg}</div>
                 ) : arrange === "beside" ? (
-                    <div className="flex min-w-0 gap-3 sm:min-h-0 sm:flex-1" data-pad-drawings>
+                    <div className="flex min-w-0 gap-3" data-pad-drawings>
                         {padSvg}
-                        {list("h-[40mm] min-w-0 flex-1 sm:h-auto sm:min-h-[40mm]")}
+                        {/* As tall as the pad: about 8 touches, then it scrolls inside. */}
+                        {list("h-[40mm] min-w-0 flex-1")}
                     </div>
                 ) : (
                     <>
                         <div className="flex" data-pad-drawings>{padSvg}</div>
-                        {list("h-44 shrink-0 sm:h-auto sm:min-h-44 sm:flex-1")}
+                        {/* About 9 touches, then it scrolls inside. */}
+                        {list("h-44 shrink-0")}
                     </>
                 )}
             </section>

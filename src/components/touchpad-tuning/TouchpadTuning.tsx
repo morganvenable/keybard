@@ -181,6 +181,15 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const supported = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
     const liveOn = supported && isConnected && hasPadTouch(keyboard?.feature_flags3);
     const live = useLiveTouch(liveOn, keyboard, isConnected);
+    // Each mode has its own layout, and the pads say which mode is in force. Until they first answer
+    // (a read or two), nothing shows, so the wrong layout never flashes; after a second, touchpad mode.
+    const [waited, setWaited] = useState(false);
+    useEffect(() => {
+        setWaited(false);
+        if (!liveOn) return;
+        const t = window.setTimeout(() => setWaited(true), 1000);
+        return () => window.clearTimeout(t);
+    }, [liveOn]);
     // The touchpad mode takes effect at once: written, read back and shown from the board, never staged
     // with the pending changes (Live Updating off), so Apply and Discard never touch it.
     // The dialog tunes against the live pads, so every control here writes to the board at once (board
@@ -215,6 +224,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     // Until the pads first answer, touchpad mode (what ships): the chip's settings never show and then vanish.
     // Each mode has its own layout: a deliberate switch may move things, touches arriving never do.
     const osMode = liveOn && (live.padsOs ?? true);
+    const pending = liveOn && live.padsOs === null && !waited;
     const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
     const variant = osLayoutVariant();
 
@@ -274,8 +284,8 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const pads = !liveOn ? (
         <p className="text-sm text-muted-foreground" data-live-absent>{isConnected ? "This firmware can't show the pads live. Update it to see each touch." : "Connect the board to see each touch."}</p>
     ) : (
-        <div className="flex flex-col gap-2 sm:min-h-0 sm:flex-1">
-            <div className={cn("flex flex-col gap-6 @3xl:flex-row", osMode && variant === "c" ? "" : "sm:min-h-0 sm:flex-1")} data-pads>
+        <div className={cn("flex flex-col gap-2", !osMode && "sm:min-h-0 sm:flex-1")}>
+            <div className={cn("flex flex-col gap-6 @3xl:flex-row", !osMode && "sm:min-h-0 sm:flex-1")} data-pads>
                 {(["left", "right"] as const).map((side) => (
                     <div key={side} className="flex min-w-0 flex-1 flex-col sm:min-h-0">
                         <PadView {...padProps(side)} arrange={arrange} />
@@ -283,7 +293,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
                 ))}
             </div>
             {osMode && variant === "c" && (
-                <ol className="flex h-44 shrink-0 flex-col gap-0.5 overflow-y-auto rounded-md border border-kb-gray-border px-2 py-1.5 text-xs sm:h-auto sm:min-h-44 sm:flex-1"
+                <ol className="flex h-44 shrink-0 flex-col gap-0.5 overflow-y-auto rounded-md border border-kb-gray-border px-2 py-1.5 text-xs"
                     aria-label="Both pads: last touches, newest first" tabIndex={0} data-outcomes data-shared-list>
                     {live.recent.length === 0 && <li className="text-muted-foreground">No touches yet.</li>}
                     {live.recent.map((e) => (
@@ -297,7 +307,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     );
 
     return (
-        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : "sm:h-full")} data-touchpad-tuning data-layout={osMode ? `os-${variant}` : "gestures"}>
+        <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : osMode ? "" : "sm:h-full", pending && "invisible")} aria-busy={pending || undefined} data-touchpad-tuning data-layout={osMode ? `os-${variant}` : "gestures"}>
             {controls}
             {pads}
         </div>
