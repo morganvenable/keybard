@@ -4,6 +4,7 @@ import hmac
 import os
 import re
 import socket
+import time
 import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -132,6 +133,7 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
             if path.path == '/api/host/state':
                 try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
+                state.polled_at = time.monotonic()  # a page may be showing held keys: read them fast
                 return self.reply(state.snapshot(revision))
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)

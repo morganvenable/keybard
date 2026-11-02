@@ -152,6 +152,8 @@ class HostState:
         self.practice_target = None
         self.practice_at = 0
         self.visible = True
+        # When a page last polled /api/host/state (Keybard's Overlay dialog shows held keys from it).
+        self.polled_at = 0.0
         self.session = secrets.token_hex(12)
         self.pointing_looks = {}
         # When Keybard last sent each uid's look, and the balls chosen in the Overlay per board

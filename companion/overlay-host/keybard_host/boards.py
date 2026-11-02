@@ -90,6 +90,7 @@ class Board:
     used: float = 0.0              # last held key or pointing motion
     moved: float = 0.0             # last pointing motion
     generation: int = 0
+    poll_plan: tuple | None = None  # (held, watch) last given to the reader (DeviceWorker.set_press_tracking)
     revision: int = 0              # bumped with each profile read
 
     @property
