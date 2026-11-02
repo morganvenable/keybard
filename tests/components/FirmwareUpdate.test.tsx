@@ -43,7 +43,7 @@ describe('UnsupportedFirmwareCard', () => {
         site.current = where;
         render(<UnsupportedFirmwareCard info={{ kind: 'unknown' }} />);
         fireEvent.click(screen.getByRole('button', { name: 'Install by hand' }));
-        expect(screen.getByRole('link', { name: /v4.3.4 for both halves/ })).toHaveAttribute('href', '/firmware/v4.3.4/svalboard_sval_v4.3.4.uf2');
+        expect(screen.getByRole('link', { name: /v4.3.5 for both halves/ })).toHaveAttribute('href', '/firmware/v4.3.5/svalboard_sval_v4.3.5.uf2');
     });
 
     it('sends other keyboards elsewhere without the Svalboard download', () => {
