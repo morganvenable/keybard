@@ -24,26 +24,27 @@ the chip's tap and press-and-hold rules. Run with
   7. No animation beyond the live finger and timer.
   8. Layout: no sideways overflow at 390 and 1440 px, light and dark, from
      both entries; ink unlike the page.
-  9. No layout shift: with 50+ touches played, one, two and three fingers
-     among them, the dialog, the controls, the pads and their close-ups keep
-     their size and place, the touch lists scroll inside their own boxes,
-     and nothing scrolls sideways (390, 1440).
+  9. No layout shift within a mode: with 50+ touches played, one, two and
+     three fingers among them, the dialog, the controls, the pads and their
+     close-ups keep their size and place, the touch lists scroll inside their
+     own boxes, and nothing scrolls sideways (390, 1440). Both modes.
  10. Every finger (svalboard/qmk "Touchpad fingers", 0x2D page 2): two and
      three fingers drawn at once, numbered; two fingers get the scroll-start
      ring around their start centroid and a line between them, no dead zone;
      three get no guides. The list says "Two-finger tap ✓" and "started
      after ... mm".
- 11. Palm rejection (VIA 58): off by default; set to 10 channels it writes,
+ 11. Palm rejection (VIA 58): off by default; set to 10 (wider than 20 mm) it writes,
      the resting palm is drawn as a palm and listed as one.
  12. Touchpad mode (?fakeBoard=touchpad, the shipped behavior on Windows
      and Linux): one line about the system's touchpad settings; dead zone,
      tap time, hold time, scroll start and the Pointing Devices switches are
-     absent; palm rejection stays; the pads show fingers and palms only.
+     absent; palm rejection stays; the pads show fingers and palms only, with
+     no close-ups.
      Built-in gestures (?fakeBoard=touchpad-gestures, as on a Mac) has them.
  13. The mode toggle (VIA 59): to built-in gestures asks first (Cancel is
      the default; Escape and Cancel write nothing), confirming writes it and
-     the chip settings come in live; back to Automatic writes at once; the
-     dialog doesn't move. The same from Pointing Devices' dropdown.
+     the chip settings come in live; back to Automatic writes at once. Each
+     mode has its own layout. The same from Pointing Devices' dropdown.
  14. The check fits at 390 and 1440 px, light and dark.
  15. The touchpad mode takes effect at once, also with Manual Updates
      (Live Updating off): the switch is on the board with no Apply, read
@@ -60,6 +61,17 @@ the chip's tap and press-and-hold rules. Run with
  18. Manual Updates: a Hold Time change queued in Pointing Devices, then
      the dialog's Hold time written at once: the queued change goes, and
      the board keeps the dialog's value after Apply.
+ 19. Each mode's own layout is filled: no empty band across 60% of the view
+     and 72 px tall, and touchpad mode's lists at most 60% empty with 4-5
+     touches; every screen of the dialog body, scrolled (390, 1440, light
+     and dark).
+ 20. Opening on built-in gestures never shows touchpad mode's layout,
+     sampled every 20 ms.
+ 21. Pads that never answer (invalidFrameEvery = 1): touchpad mode's layout
+     within 3 s, and the view never stays hidden.
+ 22. Unplugged in touchpad mode with the dialog open: the layout stays
+     touchpad mode's, no larger, with no chip sliders; reconnected, the pads
+     are asked again and the layout comes back without them.
 
 Flows 1-11 use ?fakeBoard=touchpad-gestures, where the chip's settings apply.
 
@@ -164,7 +176,8 @@ LATENCY_JS = """() => {
         if (down && downAt === null) downAt = performance.now() - ms;
         if (!down) downAt = null;
     };
-    const target = document.querySelector("[data-pad='left'] [data-pad-svg]");
+    // The pad's section stays across modes (its drawing is rebuilt when the mode changes).
+    const target = document.querySelector("[data-pad='left']");
     let shown = false;
     new MutationObserver(() => {
         const now = !!target.querySelector("[data-finger]");
@@ -296,16 +309,194 @@ BOXES_JS = """() => {
     });
     return { dialog: box("[data-touchpad-tuning-dialog]"), controls: box("[data-tuning-controls]"), steps: box("[data-step]"),
              pads: box("[data-pad-svg]"), closeUps: box("[data-close-up]"), captions: box("[data-close-caption]"), lists: box("[data-outcomes]"),
-             osLines: box("[data-pad-os]"), osNote: box("[data-os-mode-note]") };
+             osNote: box("[data-os-mode-note]") };
 }"""
+
+
+# The largest empty region of the tuning view on screen: sampled on a 12 px grid, a point is
+# content when it hits text, a control, a drawing or a list.
+EMPTY_JS = """() => {
+    // The largest region of the tuning view, on screen, with nothing in it: sampled on a 12 px
+    // grid; a point is content when it hits text, a control (a slider row's whole box), a drawing or a list.
+    const root = document.querySelector("[data-touchpad-tuning]");
+    if (!root) return null;
+    const b = root.getBoundingClientRect();
+    const x0 = Math.max(0, b.left), y0 = Math.max(0, b.top);
+    const x1 = Math.min(innerWidth, b.right), y1 = Math.min(innerHeight, b.bottom);
+    const step = 12, cols = Math.floor((x1 - x0) / step), rows = Math.floor((y1 - y0) / step);
+    const CONTENT = "svg, button, input, [role=slider], [role=radio], li, ol, p, h1, h2, h3, h4, span, label, a, [data-slot=slider], [data-step], [data-touchpad-mode]";
+    const empty = [];
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            const el = document.elementFromPoint(x0 + (c + 0.5) * step, y0 + (r + 0.5) * step);
+            const hit = el && el.closest(CONTENT);
+            row.push(!!el && root.contains(el) && !(hit && root.contains(hit)));
+        }
+        empty.push(row);
+    }
+    // Maximal empty rectangles (histogram method); the largest by area among them.
+    const height = new Array(cols).fill(0);
+    let best = { w: 0, h: 0, x: 0, y: 0 };
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) height[c] = empty[r][c] ? height[c] + 1 : 0;
+        const stack = [];
+        for (let c = 0; c <= cols; c++) {
+            const hc = c < cols ? height[c] : 0;
+            let start = c;
+            while (stack.length && stack[stack.length - 1][1] >= hc) {
+                const [s, hs] = stack.pop();
+                const w = (c - s) * step, h = hs * step;
+                if (w * h > best.w * best.h) best = { w, h, x: Math.round(x0 + s * step), y: Math.round(y0 + (r - hs + 1) * step) };
+                start = s;
+            }
+            stack.push([start, hc]);
+        }
+    }
+    return { ...best, viewW: Math.round(x1 - x0) };
+}"""
+
+# A mode's layout has no reserved, empty band: no region across this much of the view's width and
+# this tall with nothing in it. (Space beside a pad drawn at its true size is fine; a row of hidden
+# controls, or a block kept for them, is not.)
+EMPTY_MAX_SHARE, EMPTY_MAX_H = 0.6, 72
+
+
+LISTS_JS = """() => {
+    // Each touch list: its touches, and how much of its box they fill (0-1).
+    const view = document.querySelector("[data-touchpad-tuning]");
+    return {
+        layout: view ? view.dataset.layout || "" : "",
+        lists: [...document.querySelectorAll("[data-outcomes]")].map((ol) => {
+            const items = [...ol.querySelectorAll("li[data-outcome]")];
+            const cs = getComputedStyle(ol);
+            const inner = ol.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const used = items.reduce((h, li) => h + li.getBoundingClientRect().height, 0) + Math.max(0, items.length - 1) * parseFloat(cs.rowGap || "0");
+            return { n: items.length, filled: inner > 0 ? Math.round((used / inner) * 100) / 100 : 1, h: Math.round(ol.clientHeight) };
+        }),
+    };
+}"""
+
+# Touchpad mode's touch lists are sized for a handful of touches: with a typical few in one (4 or 5:
+# lists of 8-9 rows, as asked, are just over 60% empty with 3), at most this much of its box is
+# empty. (Built-in gestures keeps its larger panel, lists included.)
+LIST_MAX_EMPTY = 0.6
+
+
+def assert_filled(page: Page, what: str):
+    gap = page.evaluate(EMPTY_JS)
+    assert gap and not (gap["w"] >= EMPTY_MAX_SHARE * gap["viewW"] and gap["h"] >= EMPTY_MAX_H), f"{what}: an empty band {gap}"
+    lists = page.evaluate(LISTS_JS)
+    if lists["layout"].startswith("os"):
+        loose = [l for l in lists["lists"] if 4 <= l["n"] <= 5 and 1 - l["filled"] > LIST_MAX_EMPTY]
+        assert not loose, f"{what}: a touch list mostly empty with a few touches: {loose}"
+
+
+def flow_filled(browser, url):
+    for (width, height), (board, layout) in [(v, c) for v in ((390, 844), (1440, 1000)) for c in STABLE_CASES]:
+        for scheme in ("light", "dark"):
+            context, page, errors = open_page(browser, url, FROM_POINTING + layout, board=board, viewport=(width, height), scheme=scheme)
+            page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+            # Each list at a typical start: a few touches in it (the least-used one has 4).
+            page.wait_for_function("""() => { const ls = [...document.querySelectorAll('[data-outcomes]')];
+                return ls.length > 0 && Math.min(...ls.map(l => l.querySelectorAll('li[data-outcome]').length)) >= 4; }""", timeout=60000)
+            # Every screen of the dialog's body, scrolled: what's below the fold at 390 px counts too.
+            body = page.locator("[data-touchpad-tuning-body]")
+            height, screen = body.evaluate("e => [e.scrollHeight, e.clientHeight]")
+            for top in range(0, max(1, height - screen + 1), max(1, screen - 48)):
+                body.evaluate(f"e => {{ e.scrollTop = {top}; }}")
+                page.wait_for_timeout(100)
+                assert_filled(page, f"{width}px {scheme} {board}{layout}, scrolled {top}")
+            if height > screen:
+                body.evaluate("e => { e.scrollTop = e.scrollHeight; }")
+                page.wait_for_timeout(100)
+                assert_filled(page, f"{width}px {scheme} {board}{layout}, scrolled to the end ({height} px in {screen})")
+            assert not errors, errors
+            context.close()
+
+
+# The view as it opens, every 20 ms: [ms, layout, visible, chip sliders shown].
+OPEN_SAMPLES_JS = """async (ms) => { const out = []; const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+        const v = document.querySelector('[data-touchpad-tuning]');
+        if (v) out.push([Math.round(performance.now() - t0), v.dataset.layout || '', getComputedStyle(v).visibility !== 'hidden',
+            [...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone')]);
+        await new Promise(r => setTimeout(r, 20)); }
+    return out; }"""
+
+
+def open_from_pointing(page: Page):
+    expect(page.get_by_role("button", name=LINK)).to_be_visible(timeout=15000)
+    page.get_by_role("button", name=LINK).click()
+
+
+def flow_open_no_flash(browser, url):
+    """A board on built-in gestures never shows touchpad mode's layout while the dialog opens."""
+    context, page, errors = open_page(browser, url, "panel=pointing")
+    open_from_pointing(page)
+    samples = page.evaluate(OPEN_SAMPLES_JS, 4000)
+    shown = [x for x in samples if x[2]]
+    assert shown, "the view never showed"
+    flash = [x for x in shown if x[1] != "gestures"]
+    assert not flash, f"touchpad mode's layout showed while opening: {flash[:3]}"
+    assert shown[0][0] <= 1500, f"first shown at {shown[0][0]} ms"
+    assert not errors, errors
+    context.close()
+
+
+def flow_open_no_answer(browser, url):
+    """Pads that never answer: touchpad mode's layout after at most 3 s, and the view never stays hidden."""
+    context, page, errors = open_page(browser, url, "panel=pointing", board=PTP)
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 1")
+    open_from_pointing(page)
+    samples = page.evaluate(OPEN_SAMPLES_JS, 5000)
+    shown = [x for x in samples if x[2]]
+    assert shown, "the view stayed hidden"
+    assert shown[0][0] <= 3300, f"first shown at {shown[0][0]} ms"
+    after = [x for x in samples if x[0] >= shown[0][0]]
+    assert all(x[2] for x in after), f"hidden again after showing: {[x for x in after if not x[2]][:3]}"
+    assert all(x[1] == "os" and not x[3] for x in after), f"not touchpad mode's layout: {[x for x in after if x[1] != 'os' or x[3]][:3]}"
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 0")
+    assert not errors, errors
+    context.close()
+
+
+def flow_unplug(browser, url):
+    """Touchpad mode, dialog open, the board unplugged: the layout stays touchpad mode's, compact, with no
+    sliders that don't apply. Back: the pads are asked again, and the layout comes back without a flash."""
+    context, page, errors = open_page(browser, url, FROM_POINTING, board=PTP)
+    expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
+    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+    before = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
+    page.evaluate("() => { const e = new Event('disconnect'); e.device = window.keybardFakeBoard.device; navigator.hid.dispatchEvent(e); }")
+    expect(page.locator("[data-live-absent]")).to_be_visible(timeout=5000)
+    page.wait_for_timeout(500)
+    assert page.evaluate("document.querySelector('[data-touchpad-tuning]').dataset.layout") == "os", "the layout changed on unplug"
+    for label in CHIP_SETTINGS:
+        expect(page.get_by_role("slider", name=label)).to_have_count(0)
+    after = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
+    assert after["height"] <= before["height"] + 1 and after["width"] <= before["width"] + 1, f"the dialog grew on unplug: {before} -> {after}"
+    assert_filled(page, "unplugged")
+    # Back: the page's own Connect (behind the dialog), then the normal wait for the pads.
+    page.evaluate("() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Connect').click()")
+    samples = page.evaluate(OPEN_SAMPLES_JS, 4000)
+    shown = [x for x in samples if x[2]]
+    assert shown and shown[-1][1] == "os", f"after reconnecting: {samples[-3:]}"
+    assert not [x for x in shown if x[3]], "the chip's sliders showed after reconnecting"
+    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+    assert not errors, errors
+    context.close()
 
 
 FINGERS_JS = "() => Math.max(0, ...[...document.querySelectorAll('[data-pad]')].map(p => p.querySelectorAll('[data-finger]').length))"
 
 
+STABLE_CASES = (("fakeBoard=touchpad-gestures", ""), ("fakeBoard=touchpad", ""))
+
+
 def flow_stable(browser, url):
-    for width, height in ((390, 844), (1440, 1000)):
-        context, page, errors = open_page(browser, url, FROM_SETTINGS, viewport=(width, height))
+    for (width, height), (board, layout) in [(v, c) for v in ((390, 844), (1440, 1000)) for c in STABLE_CASES]:
+        context, page, errors = open_page(browser, url, FROM_SETTINGS + layout, board=board, viewport=(width, height))
         expect(view(page)).to_be_visible(timeout=15000)
         page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
         page.wait_for_timeout(500)
@@ -322,14 +513,18 @@ def flow_stable(browser, url):
         lists = page.locator("[data-outcomes]").evaluate_all("els => els.map(e => [e.children.length, e.scrollHeight > e.clientHeight])")
         side = page.evaluate("""[document.documentElement, document.querySelector('[data-touchpad-tuning-body]')]
             .map(e => e.scrollWidth - e.clientWidth)""")
-        assert touches >= 50, f"{width}px: only {touches} touches played"
-        assert {1, 2, 3} <= counts, f"{width}px: finger counts seen {sorted(counts)}"
-        assert not changes, f"{width}px: layout moved: {changes[0]}"
-        assert all(n > 5 and scrolls for n, scrolls in lists), f"{width}px: the lists don't scroll in place: {lists}"
-        assert max(side) <= 1, f"{width}px: sideways scroll {side}"
+        case = f"{width}px {board}{layout}"
+        assert touches >= 50, f"{case}: only {touches} touches played"
+        assert {1, 2, 3} <= counts, f"{case}: finger counts seen {sorted(counts)}"
+        assert not changes, f"{case}: layout moved: {changes[0]}"
+        # The lists keep their boxes (checked above with everything else), so a full one scrolls inside
+        # its box; a tall one may not be full yet.
+        boxes = page.locator("[data-outcomes]").evaluate_all("els => els.map(e => getComputedStyle(e).overflowY)")
+        assert all(n > 5 for n, _ in lists) and all(o == "auto" for o in boxes), f"{case}: the lists don't scroll in place: {lists} {boxes}"
+        assert max(side) <= 1, f"{case}: sideways scroll {side}"
         assert not errors, errors
         context.close()
-        print(f"     {width}px: {touches} touches, 1-3 fingers, nothing moved")
+        print(f"     {case}: {touches} touches, 1-3 fingers, nothing moved")
 
 
 def wait_fingers(page: Page, n: int, gesture: str, timeout=30000, extra=""):
@@ -370,9 +565,9 @@ def flow_palm(browser, url):
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 10", timeout=5000)
     page.wait_for_timeout(300)
     assert saves_after(page, 58) >= 1, "palm rejection not saved"
-    assert step_value(page, "Palm rejection") == "over 10 channels"
+    assert step_value(page, "Palm rejection") == "wider than 20 mm"
     page.locator("[data-pad] [data-palm]").first.wait_for(state="attached", timeout=30000)
-    page.locator("[data-pad] [data-outcome='palm']", has_text="Palm: 14 channels, over 10").first.wait_for(state="attached", timeout=30000)
+    page.locator("[data-pad] [data-outcome='palm']", has_text="Palm, 23 mm wide").first.wait_for(state="attached", timeout=30000)
     assert not errors, errors
     context.close()
 
@@ -391,7 +586,9 @@ def flow_os_mode(browser, url):
     context, page, errors = open_page(browser, url, FROM_SETTINGS, board=PTP)
     note = page.locator("[data-os-mode-note]")
     expect(note).to_be_visible(timeout=15000)
-    expect(note).to_contain_text("Windows or Linux decides taps and scrolling")
+    expect(note).to_contain_text("Set taps and scrolling in")
+    # What each computer uses, said once on the screen, in these words.
+    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
     for label in CHIP_SETTINGS:
         expect(page.get_by_role("slider", name=label)).to_have_count(0)
     expect(page.get_by_role("slider", name="Palm rejection")).to_have_count(1)
@@ -404,7 +601,7 @@ def flow_os_mode(browser, url):
     assert texts and all(re.match(r"^(One finger|(Two|Three|Four|Five) fingers), \d+ ms$|^Palm: ", t) for t in texts), texts
     guides = "[data-dead-zone], [data-scroll-ring], [data-timer-ring], [data-two-line], [data-mark], [data-path]"
     assert page.locator(guides).count() == 0, "gesture guides in touchpad mode"
-    expect(page.locator("[data-pad='left'] [data-pad-os]")).to_be_visible()
+    assert page.locator("[data-close-up], [data-close-caption]").count() == 0, "close-ups in touchpad mode"
     context.close()
     # Pointing Devices: the built-in gesture switches are absent; the mode is there.
     context, page, errors2 = open_page(browser, url, "panel=pointing", board=PTP)
@@ -422,6 +619,7 @@ def flow_os_mode(browser, url):
     expect(page.get_by_role("slider", name="Dead zone")).to_be_visible(timeout=15000)
     page.wait_for_timeout(500)
     assert not page.locator("[data-os-mode-note]").is_visible(), "the touchpad-mode line shows on built-in gestures"
+    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
     context.close()
     assert not (errors or errors2 or errors3 or errors4), errors + errors2 + errors3 + errors4
 
@@ -431,7 +629,7 @@ def flow_mode_toggle(browser, url):
     expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
     page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
     page.wait_for_timeout(500)
-    first = page.evaluate(BOXES_JS)
+    assert_filled(page, "Automatic")
     confirm = page.get_by_role("dialog", name="Use built-in gestures?")
     tuning = page.get_by_role("dialog", name=TITLE)
     built_in = page.get_by_role("radio", name="Built-in gestures")
@@ -439,6 +637,11 @@ def flow_mode_toggle(browser, url):
     built_in.click()
     expect(confirm).to_be_visible(timeout=5000)
     assert page.evaluate("document.activeElement && document.activeElement.hasAttribute('data-cancel')"), "Cancel is not the default"
+    # The body: plain sentences, the pads stay a touchpad device.
+    expect(confirm).to_contain_text("Your computer's touchpad features won't apply on Windows and Linux")
+    expect(confirm).to_contain_text("Macs work the same either way. We recommend Automatic.")
+    expect(confirm).not_to_contain_text("stop being a touchpad")
+    assert confirm.locator("ul, li, b, strong").count() == 0, "the body is not plain sentences"
     page.keyboard.press("Escape")
     expect(confirm).to_be_hidden(timeout=5000)
     expect(tuning).to_be_visible()
@@ -459,7 +662,7 @@ def flow_mode_toggle(browser, url):
     expect(page.get_by_role("slider", name="Dead zone")).to_be_visible(timeout=5000)
     expect(page.locator("[data-os-mode-note]")).to_be_hidden(timeout=5000)
     page.wait_for_timeout(500)
-    assert page.evaluate(BOXES_JS) == first, "the layout moved on the switch to built-in gestures"
+    assert_filled(page, "built-in gestures, after the switch")
     # Back to Automatic: no check, written at once.
     page.get_by_role("radio", name="Automatic").click()
     expect(confirm).to_be_hidden()
@@ -467,7 +670,7 @@ def flow_mode_toggle(browser, url):
     assert mode_writes(page) == [1, 0], mode_writes(page)
     expect(page.get_by_role("slider", name="Dead zone")).to_have_count(0, timeout=5000)
     page.wait_for_timeout(500)
-    assert page.evaluate(BOXES_JS) == first, "the layout moved on the switch back to Automatic"
+    assert_filled(page, "Automatic, after the switch back")
     assert not errors, errors
     context.close()
     # Pointing Devices: the same check from its dropdown; the switches come in after it.
@@ -518,7 +721,6 @@ def flow_mode_immediate(browser, url):
             if ([...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone' && !e.closest('[aria-hidden="true"]'))) n++; } return n; }""")
         assert blinks == 0, f"{query}: the gesture settings blinked in {blinks} times in Automatic"
         page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 0; window.keybardFakeBoard.device.firmware.leftOsDropEvery = 0")
-        first = page.evaluate(BOXES_JS)
         page.get_by_role("radio", name="Built-in gestures").click()
         page.get_by_role("dialog", name="Use built-in gestures?").get_by_role("button", name="Use built-in gestures").click()
         # On the board at once, with no Apply.
@@ -534,8 +736,7 @@ def flow_mode_immediate(browser, url):
         assert all(x[3] == 1 for x in samples), f"{query}: the board's mode changed back"
         assert mode_writes(page) == [1], f"{query}: writes {mode_writes(page)}"
         assert page.locator("[data-builtin-confirm]").count() == 0, "the confirmation came back"
-        now = page.evaluate(BOXES_JS)
-        assert now == first, f"{query}: the layout moved: {({k: (first[k], now[k]) for k in first if first[k] != now[k]})}"
+        assert_filled(page, f"{query}: after the switch")
         # The tuning steppers write at once too, with no pending change (the dialog covers Apply).
         press_slider(page, "Dead zone", "ArrowLeft", 1)  # 1.2 -> 1.0 mm
         page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 100", timeout=3000)
@@ -566,8 +767,7 @@ def flow_mode_immediate(browser, url):
             assert not errors, errors
             context.close()
             continue
-        now = page.evaluate(BOXES_JS)
-        assert now == first, f"{query}: the layout moved: {({k: (first[k], now[k]) for k in first if first[k] != now[k]})}"
+        assert_filled(page, f"{query}: after the switch")
         assert not errors, errors
         context.close()
 
@@ -601,7 +801,7 @@ def flow_errors_and_halves(browser, url):
     press_slider(page, "Palm rejection", "ArrowRight", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 4", timeout=5000)
     expect(page.locator("[data-write-error]")).to_have_count(0, timeout=5000)
-    page.locator("[data-pad] [data-palm]").first.wait_for(state="attached", timeout=30000)  # the resting palm, over 4 channels
+    page.locator("[data-pad] [data-palm]").first.wait_for(state="attached", timeout=30000)  # the resting palm, wider than 13 mm
     press_slider(page, "Palm rejection", "ArrowLeft", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 0", timeout=5000)
     page.wait_for_timeout(500)  # that write's read-back done before the next failure is armed
@@ -624,7 +824,7 @@ def flow_errors_and_halves(browser, url):
     press_slider(page, "Palm rejection", "ArrowRight", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 4", timeout=5000)
     expect(page.locator("[data-write-error]")).to_contain_text("couldn't read it back", timeout=5000)
-    expect(page.locator("[data-step='Palm rejection'] [data-step-value]")).to_have_text("over 4 channels")
+    expect(page.locator("[data-step='Palm rejection'] [data-step-value]")).to_have_text("wider than 13 mm")
     press_slider(page, "Palm rejection", "ArrowLeft", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 0", timeout=5000)
     page.wait_for_timeout(500)
@@ -808,11 +1008,15 @@ def main() -> int:
         ("6. no touchpad, or older firmware: no entry, no chip, no link", flow_hidden),
         ("7. no animation beyond the live finger and timer", flow_no_animation),
         ("8. layout: 390 and 1440 px, light and dark, no overflow", flow_layout_checks),
-        ("9. no layout shift over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440)", flow_stable),
+        ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes)", flow_stable),
+        ("20. opening on built-in gestures never shows touchpad mode's layout (sampled every 20 ms)", flow_open_no_flash),
+        ("21. pads that never answer: touchpad mode's layout within 3 s, never left hidden", flow_open_no_answer),
+        ("22. unplugged in touchpad mode: the layout stays, compact, no sliders; back, the pads are asked again", flow_unplug),
+        ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches, every screen scrolled (390, 1440, light and dark; both modes)", flow_filled),
         ("10. every finger: two with the scroll-start ring and a line, three with none; listed", flow_fingers),
-        ("11. palm rejection: off, then 10 channels writes and marks the resting palm", flow_palm),
+        ("11. palm rejection: off, then wider than 20 mm writes and marks the resting palm", flow_palm),
         ("12. touchpad mode: the system line, chip settings and switches absent, fingers and palms only", flow_os_mode),
-        ("13. the mode toggle: the check (Escape, Cancel write nothing), confirm writes, Automatic at once, nothing moves", flow_mode_toggle),
+        ("13. the mode toggle: the check (Escape, Cancel write nothing), confirm writes, Automatic at once, each mode filled", flow_mode_toggle),
         ("14. the check fits at 390 and 1440 px, light and dark", flow_confirm_layout),
         ("15. the mode switch writes at once with Manual Updates: no pending change, read back, the UI stays (both entries)", flow_mode_immediate),
         ("16. a failed write says so and shows the board's value; palm live; a missing half; no leave-page prompt", flow_errors_and_halves),

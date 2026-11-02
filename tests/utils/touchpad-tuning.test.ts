@@ -294,7 +294,7 @@ describe("the fingers page", () => {
         expect(isPalm(10, 10)).toBe(false);
         expect(isPalm(10, 11)).toBe(true);
         expect(formatPalm(0)).toBe("Off");
-        expect(formatPalm(12)).toBe("over 12 channels");
+        expect(formatPalm(12)).toBe("wider than 22 mm");
         expect(PAD_TUNING_KEYS).toContain(PAD_PALM_KEY);
     });
 });
@@ -355,14 +355,14 @@ describe("multi-finger touches, and what the chip made of them", () => {
         expect(new Set(seen.flatMap((f) => f.fingers.map((p) => p.slot)))).toEqual(new Set([0, 1, 2]));
         expect(seen.some((f) => f.two && f.fingers.length === 3)).toBe(false);
         expect(done.kind).toBe("multi");
-        expect(done.text).toMatch(/^Three fingers: no tap or scroll on the chip/);
+        expect(done.text).toMatch(/^Three fingers: no tap or scroll \(/);
     });
 
     it("a resting palm: plain with palm rejection off, a palm above the threshold", () => {
         expect(play("resting palm").done.kind).not.toBe("palm");
         const { done } = play("resting palm", {}, 10);
         expect(done.kind).toBe("palm");
-        expect(done.text).toMatch(/^Palm: 14 channels, over 10: the pad ignored it/);
+        expect(done.text).toMatch(/^Palm, 23 mm wide: the pad ignored it/);
         expect(play("resting palm", {}, 10, true).done.text).toMatch(/the computer ignores it/);
         expect(play("resting palm", {}, 20).done.kind).not.toBe("palm");
     });
@@ -372,7 +372,7 @@ describe("multi-finger touches, and what the chip made of them", () => {
         expect(play("two-finger tap", {}, 0, true).done.text).toMatch(/^Two fingers, \d+ ms$/);
         expect(play("quick tap", {}, 0, true).done.text).toMatch(/^One finger, \d+ ms$/);
         expect(play("three-finger touch", {}, 0, true).done.text).toMatch(/^Three fingers, \d+ ms$/);
-        expect(play("resting palm", {}, 10, true).done.text).toMatch(/^Palm: 14 channels, over 10: the computer ignores it/);
+        expect(play("resting palm", {}, 10, true).done.text).toMatch(/^Palm, 23 mm wide: the computer ignores it/);
         for (const name of ["two-finger scroll", "pointer move", "press and hold"]) expect(play(name, {}, 0, true).done.text).not.toMatch(/Chip|tap|scroll|hold/i);
     });
 

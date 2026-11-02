@@ -212,9 +212,13 @@ export const hasPadPalm = (flags4: number | undefined | null): boolean => ((flag
  * on the TPS43); 0 is off, the default. The board stores any 0-56.
  */
 export const PAD_PALM_CHANNELS = [0, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24, 30, 40] as const;
-/** A threshold in plain words. */
+/** One TPS43 channel's area, mm2 (43/8 x 40/7 mm). */
+const PALM_CHANNEL_MM2 = (43 / 8) * (40 / 7);
+/** A contact of this many channels as a width: the circle of the same area, whole mm. */
+export const palmWidthMm = (channels: number): number => Math.round(2 * Math.sqrt((channels * PALM_CHANNEL_MM2) / Math.PI));
+/** A threshold in plain words: how wide a contact must be to count as a palm. */
 export function formatPalm(channels: number): string {
-    return channels ? `over ${channels} channels` : "Off";
+    return channels ? `wider than ${palmWidthMm(channels)} mm` : "Off";
 }
 
 export const PAD_FINGERS_PAGE = 2;
@@ -380,12 +384,12 @@ export function outcome(events: number, maxFingers: number, b: PadTouchBlock,
     // Palm rejection is the firmware's, in both modes: said plainly, never as the chip's.
     if (multi && isPalm(multi.palm, multi.maxArea)) {
         const what = b.os ? "the computer ignores it" : "the pad ignored it";
-        return { kind: "palm", text: `Palm: ${multi.maxArea} channels, over ${multi.palm}: ${what} (${sec})`, ...base };
+        return { kind: "palm", text: `Palm, ${palmWidthMm(multi.maxArea)} mm wide: ${what} (${sec})`, ...base };
     }
     const fingers = Math.max(maxFingers, multi?.maxFingers ?? 0, 1);
     // Touchpad mode: the computer makes the taps and scrolls, so a touch is its fingers and how long it lasted.
     if (b.os) return { kind: "touch", text: `${capital(fingersWord(fingers))}, ${sec}`, ...base };
-    if (multi && fingers >= 3) return say("multi", `${capital(fingersWord(fingers))}: no tap or scroll on the chip (${sec})`);
+    if (multi && fingers >= 3) return say("multi", `${capital(fingersWord(fingers))}: no tap or scroll (${sec})`);
     if (multi?.twoTap || (events & TOUCH_EV.twoTap)) {
         return say("right", multi ? `Two-finger tap ✓ right click, ${sec}` : `Right click: two fingers, ${sec}`);
     }

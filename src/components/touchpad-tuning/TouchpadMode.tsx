@@ -7,6 +7,7 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { TOUCHPAD_NOTE } from "@/utils/touchpad-taps";
 import { PAD_MODE_AUTO, PAD_MODE_BUILTIN, PAD_MODE_KEY, PAD_MODE_LABELS } from "@/utils/touchpad-tuning";
 
 type SetValue = (key: string, value: number, opts?: { now?: boolean }) => Promise<boolean>;
@@ -32,9 +33,10 @@ export function useWriteTouchpadMode(setValue: SetValue): (mode: number) => Prom
 }
 
 /**
- * The check before the pads leave touchpad mode for their built-in gestures:
- * what changes on Windows and Linux. Cancel is the default (focused first, and
- * Escape or a click outside cancels); nothing is written until the user agrees.
+ * The check before the pads switch to their built-in gestures: which of the
+ * computer's touchpad features stop applying on Windows and Linux. Cancel is
+ * the default (focused first, and Escape or a click outside cancels); nothing
+ * is written until the user agrees.
  */
 export function BuiltinGesturesConfirm({ open, onCancel, onConfirm }: { open: boolean; onCancel: () => void; onConfirm: () => void }) {
     return (
@@ -43,14 +45,12 @@ export function BuiltinGesturesConfirm({ open, onCancel, onConfirm }: { open: bo
                 onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).querySelector<HTMLButtonElement>("[data-cancel]")?.focus(); }}>
                 <DialogHeader>
                     <DialogTitle>Use built-in gestures?</DialogTitle>
-                    <DialogDescription>On Windows and Linux, the pads stop being a touchpad:</DialogDescription>
+                    <DialogDescription className="flex flex-col gap-2 text-sm text-kb-ink">
+                        <span>Your computer's touchpad features won't apply on Windows and Linux: three- and four-finger swipes, pinch to zoom, and the system's tap, scroll and palm settings.</span>
+                        <span>Taps, two-finger scroll, right click and press and hold come from the touchpad itself, set here.</span>
+                        <span>Macs work the same either way. We recommend Automatic.</span>
+                    </DialogDescription>
                 </DialogHeader>
-                <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-kb-ink">
-                    <li>The system's touchpad settings and gestures no longer apply: three- and four-finger swipes and taps, pinch to zoom, and the Windows tap, scroll and palm settings.</li>
-                    <li>Taps, two-finger scroll, right click and press-and-hold drag come from the pad itself, tuned in this dialog.</li>
-                    <li>On a Mac and in a BIOS nothing changes: they use built-in gestures either way.</li>
-                    <li>Automatic is what we ship and recommend.</li>
-                </ul>
                 <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={onCancel} data-cancel>Cancel</Button>
                     <Button variant="kb-primary" onClick={onConfirm} data-confirm>Use built-in gestures</Button>
@@ -78,8 +78,13 @@ export function useTouchpadModeChange(write: (mode: number) => void): { change: 
     return { change, confirm };
 }
 
-/** The two modes side by side, for the top of the tuning dialog. */
-export function TouchpadModeControl({ value, onChange }: { value: number; onChange: (mode: number) => void }) {
+/**
+ * The two modes side by side, for the top of the tuning dialog, with what each
+ * computer uses (TOUCHPAD_NOTE, the dialog's one statement of it) and one line
+ * about the mode in force: in Automatic, where taps and scrolling are set (the
+ * system's touchpad settings); with built-in gestures, here.
+ */
+export function TouchpadModeControl({ value, onChange, note }: { value: number; onChange: (mode: number) => void; note: ReactNode }) {
     return (
         <div className="flex flex-col gap-1.5 rounded-md px-3 py-2 panel-layer-item" data-touchpad-mode>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -95,9 +100,8 @@ export function TouchpadModeControl({ value, onChange }: { value: number; onChan
                     ))}
                 </div>
             </div>
-            <span className="text-xs text-muted-foreground">
-                Automatic: a touchpad in Windows and Linux. Built-in gestures: the pad makes its own taps and scrolling, as it does on a Mac or in a BIOS.
-            </span>
+            <span className="text-xs text-muted-foreground" data-touchpad-note>{TOUCHPAD_NOTE}</span>
+            <span className="text-xs text-muted-foreground" data-mode-note>{note}</span>
         </div>
     );
 }

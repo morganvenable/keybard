@@ -46,7 +46,8 @@ export function padsInTouchpadMode(kbinfo: KeyboardInfo | null | undefined): boo
 }
 
 export const TOUCHPAD_SECTION_LABEL = "Touchpad";
-export const TOUCHPAD_NOTE = "Windows and Linux use their own touchpad settings while the pads are in touchpad mode.";
+/** What each computer uses, said once per screen: Pointing Devices' Touchpad section and the tuning dialog. */
+export const TOUCHPAD_NOTE = "Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.";
 
 /** sval_pointer_sensor / fragment id of an Azoteq pad in 0x18 (pointing_touchpad_azoteq). */
 const AZOTEQ_FRAGMENT_ID = 7;
