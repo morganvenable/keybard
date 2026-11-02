@@ -4,6 +4,19 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in v4.3.5
+
+This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.5. What changes for you since v4.3.4:
+
+- **See every finger on your touchpads.** Keybard's touchpad tuning view shows every finger on each pad as you touch it, with guides for two-finger scroll and two-finger tap.
+- **Choose how your touchpads work.** The new **Touchpad mode** setting has two choices. **Automatic**, the default, makes the pads a native touchpad on Windows and Linux, using their Precision Touchpad Protocol, so taps, scrolling and gestures follow your computer's touchpad settings. **Built-in gestures** keeps the pads on their own taps and scrolling everywhere. When Keybard restores your layout after a firmware update, it puts your touchpad mode back too.
+- **Palm rejection.** Turn it on and the pads ignore the heel of your hand resting on them. It is off by default.
+- **Key events print to the debug console only when you ask.** They appear there only while **Debug console** is on in Keybard's Settings, and it is off every time the board starts.
+- **A compact tuning layout on Windows and Linux.** In Automatic, the tuning view shows each pad at its true size beside its list of touches, and only the settings that apply.
+- **Update the firmware from Keybard.** A keyboard that runs x4 or later can update to v4.3.5 from Keybard.
+
+The manual's [Touchpad page](https://docs.svalboard.com/keybard/touchpad/) covers every setting.
+
 ## New in v4.3.4
 
 This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.4. What changes for you since v4.3.3:
