@@ -28,7 +28,7 @@ if sys.platform == 'win32':
     _flags = os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '').split()
     os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = ' '.join(_flags + [f for f in WINDOWS_CHROMIUM_FLAGS if f not in _flags])
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPointF
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPoint, QPointF
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -304,10 +304,24 @@ class OverlayControls(QWidget):
         if getattr(self, 'collapsed', False):
             self.surface.move(self.x() + self.width() - self.surface.width(), self.y() + self.height() + 4)
 
-    def reposition(self):
+    def anchor(self):
+        """Where the controls belong: above the overlay's top-right corner, kept on its screen."""
         screen = self.surface.screen() or QApplication.primaryScreen()
         area = screen.availableGeometry()
-        self.move(max(area.left(), min(self.surface.x() + self.surface.width() - self.width(), area.right() - self.width() + 1)), max(area.top(), self.surface.y() - self.height() - 4))
+        return QPoint(max(area.left(), min(self.surface.x() + self.surface.width() - self.width(), area.right() - self.width() + 1)), max(area.top(), self.surface.y() - self.height() - 4))
+
+    def reposition(self):
+        target = self.anchor()
+        if self.pos() != target: self.move(target)
+
+    def keep_anchored(self):
+        """Put the controls back over the overlay if something else moved them. Windows moves
+        each window on its own when displays change (a monitor waking or reconnecting), so the
+        small controls window could land elsewhere while the overlay stayed put, and only a move
+        of the overlay (Place at bottom) brought them back. Collapsed, the controls lead instead."""
+        if self.collapsed or self.pos() == self.anchor(): return False
+        self.reposition()
+        return True
 
 
 class Host(QObject):
@@ -359,7 +373,7 @@ class Host(QObject):
         self.sampling = False
         self.backdrop_timer = QTimer(self); self.backdrop_timer.timeout.connect(self.sample_backdrop); self.backdrop_timer.start(500)
         # Windows can stack the overlay under ordinary windows despite its always-on-top style; check and fix.
-        self.ontop_timer = QTimer(self); self.ontop_timer.timeout.connect(lambda: ontop.keep_on_top((self.surface, self.controls))); self.ontop_timer.start(1000)
+        self.ontop_timer = QTimer(self); self.ontop_timer.timeout.connect(self.keep_overlay); self.ontop_timer.start(1000)
         self.controls.show()
         self.icon_light_background = taskbar_is_light()
         icon = host_icon(self.icon_light_background)
@@ -393,6 +407,11 @@ class Host(QObject):
         QTimer.singleShot(0, self.scan)
         self.surface.windowHandle().screenChanged.connect(lambda screen: QTimer.singleShot(0, self.size_surface))
         app.aboutToQuit.connect(self.shutdown)
+
+    def keep_overlay(self):
+        """Once a second: the controls over the overlay, and both above ordinary windows."""
+        self.controls.keep_anchored()
+        ontop.keep_on_top((self.surface, self.controls))
 
     def shown_board(self):
         return self.boards.get(self.follower.shown)

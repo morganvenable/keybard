@@ -85,6 +85,35 @@ class OverlayControlsTest(unittest.TestCase):
         self.assertEqual(self.surface.x() + self.surface.width(), self.controls.x() + self.controls.width())
         self.assertEqual(self.surface.y(), self.controls.y() + self.controls.height() + 4)
 
+    def test_controls_moved_away_by_the_system_return_over_the_overlay(self):
+        # Windows moves each window on its own when displays change (a monitor waking): the
+        # controls landed elsewhere and stayed there until the overlay itself moved.
+        from types import SimpleNamespace
+        from keybard_host.__main__ import Host
+        self.surface.show(); self.controls.show()
+        self.surface.resize(400, 200); self.surface.move(200, 300); self.app.processEvents()
+        home = self.controls.pos()
+        self.assertEqual(home, QPoint(200 + 400 - self.controls.width(), 300 - self.controls.height() - 4))
+        self.controls.move(20, 20); self.app.processEvents()
+        Host.keep_overlay(SimpleNamespace(surface=self.surface, controls=self.controls))
+        self.app.processEvents()
+        self.assertEqual(self.controls.pos(), home)
+        self.assertFalse(self.controls.keep_anchored())   # in place: nothing to do
+
+    def test_collapsed_controls_are_not_pulled_back(self):
+        # Collapsed, the controls lead and the hidden overlay follows them.
+        self.surface.show(); self.controls.show()
+        self.surface.resize(400, 200); self.surface.move(200, 300); self.app.processEvents()
+        self.controls.set_collapsed(True); self.app.processEvents()
+        self.controls.move(50, 60); self.app.processEvents()
+        self.assertFalse(self.controls.keep_anchored())
+        self.assertEqual(self.controls.pos(), QPoint(50, 60))
+
+    def test_the_host_checks_the_controls_with_its_on_top_timer(self):
+        import inspect
+        from keybard_host.__main__ import Host
+        self.assertIn('self.ontop_timer.timeout.connect(self.keep_overlay)', inspect.getsource(Host.__init__))
+
     def test_handle_drags_surface_even_in_click_through(self):
         self.surface.pass_clicks_through()
         self.surface.move(100, 100)
