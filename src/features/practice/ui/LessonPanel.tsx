@@ -8,7 +8,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
 import { usePractice } from "../PracticeProvider";
 import type { PracticeController } from "../state/controller";
-import { effectiveLessonType, type Hints, layerUnderlinesFor, layerUnderlinesPatch, type PracticeSettings } from "../state/settings";
+import { effectiveLessonType, PRACTICE_LANGUAGES, type Hints, layerUnderlinesFor, layerUnderlinesPatch, type PracticeSettings } from "../state/settings";
 import { InputDot, inputPillState, PILL_TEXT } from "./InputStatus";
 import { AboutRow, ClickRow, GroupLabel, PanelFooter, Row, SliderRow } from "./panelRows";
 import { TypeSection } from "./TypeSections";
@@ -92,6 +92,18 @@ function LessonRows({ controller: c, horizontal }: { controller: PracticeControl
                     <Row title="Speed unit">
                         <SegmentedControl label="Speed unit" value={s.speedUnit} onChange={(speedUnit) => set({ speedUnit })}
                             options={[{ value: "wpm", label: "WPM" }, { value: "cpm", label: "CPM" }]} />
+                    </Row>
+                    <Row title="Practice language">
+                        <Select value={s.language} onValueChange={(language) => set({ language })}>
+                            <SelectTrigger aria-label="Practice language" className="min-w-40 max-w-full bg-kb-surface"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {PRACTICE_LANGUAGES.map((language) => (
+                                    <SelectItem key={language.id} value={language.id}>
+                                        {new Intl.DisplayNames(["en"], { type: "language" }).of(language.id) ?? language.id}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </Row>
                     {(type === "guided" || type === "words") && <SliderRow title="Repeat words" display={String(s.repeatWords)} value={s.repeatWords} min={1} max={10} onChange={(repeatWords) => slide({ repeatWords })} />}
                     {type !== "code" && type !== "numbers" && <SliderRow title="Lesson length" display={pct(s.length)} value={Math.round(s.length * 100)} min={0} max={100} onChange={(v) => slide({ length: v / 100 })} />}

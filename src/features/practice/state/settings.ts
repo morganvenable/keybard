@@ -7,8 +7,9 @@ import { OWNER_Q1_DEFAULT_UNLOCK_ORDER } from '@/constants/owner-decisions';
 import { appStorage } from '@/utils/app-storage';
 import type { LessonType } from '../types';
 import { lessonProps } from '../vendor/keybr/lesson/index.ts';
+import { Language } from '../vendor/keybr/keyboard/index.ts';
 import { Settings } from '../vendor/keybr/settings/index.ts';
-import { textInputProps } from '../vendor/keybr/textinput/index.ts';
+import { textDisplayProps, textInputProps } from '../vendor/keybr/textinput/index.ts';
 
 export const SETTINGS_KEY = 'keybard.practice.v1';
 
@@ -23,6 +24,8 @@ export type ChartAxis = 'lessons' | 'days';
 export type HeatMetricSetting = 'speed' | 'accuracy' | 'errors' | 'usage';
 
 export const LESSON_TYPES: readonly LessonType[] = ['guided', 'drill', 'words', 'custom', 'books', 'code', 'numbers'];
+export const PRACTICE_LANGUAGES = [...Language.ALL];
+export const PRACTICE_LANGUAGE_IDS = PRACTICE_LANGUAGES.map((language) => language.id);
 
 /** Lesson types this build can run (all four since M3). */
 export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = LESSON_TYPES;
@@ -75,6 +78,8 @@ export interface WordsSettings {
 }
 
 export interface PracticeSettings {
+    /** Keybr language/model used by Guided, Drill and Words. */
+    language: string;
     /** Lesson type (§5.2 type row). */
     type: LessonType;
     /** Guided unlock order (§6.3); new profiles start with OWNER_Q1. */
@@ -131,6 +136,7 @@ export interface PracticeSettings {
 }
 
 export const DEFAULT_SETTINGS: PracticeSettings = {
+    language: 'en',
     type: 'guided',
     order: OWNER_Q1_DEFAULT_UNLOCK_ORDER,
     targetSpeed: 175,
@@ -184,7 +190,7 @@ export type StartPreset = keyof typeof START_PRESETS;
 
 /** Settings that shape the lesson text: changing one regenerates the lesson (§5.5 "When settings apply"). */
 export const LESSON_SHAPING: readonly (keyof PracticeSettings)[] = [
-    'type', 'order', 'alphabetSize', 'recoverKeys', 'naturalWords', 'capitals', 'punctuators', 'length',
+    'language', 'type', 'order', 'alphabetSize', 'recoverKeys', 'naturalWords', 'capitals', 'punctuators', 'length',
     'repeatWords', 'targetSpeed', 'customText', 'stopOnError', 'forgiveErrors', 'spaceSkipsWords', 'drill', 'words', 'book', 'paragraph', 'bookLowercase', 'bookLettersOnly', 'syntax', 'codeFlags', 'numbersBenford',
 ];
 
@@ -254,6 +260,7 @@ export function practiceSettings(value: unknown): PracticeSettings {
     const words = data.words && typeof data.words === 'object' ? (data.words as Record<string, unknown>) : {};
     return {
         type: oneOf(data.type, LESSON_TYPES, d.type),
+        language: oneOf(data.language, PRACTICE_LANGUAGE_IDS, d.language),
         numbersBenford: bool(data.numbersBenford, true),
         book: oneOf(data.book, ['alice', 'wild', 'jekyll'] as const, 'alice'),
         paragraph: Math.floor(number(data.paragraph, 0, 10000, 0)),
@@ -342,6 +349,7 @@ export function toKeybrSettings(s: PracticeSettings): Settings {
         .set(lessonProps.customText.randomize, s.customText.randomize)
         .set(lessonProps.wordList.wordListSize, s.words.size)
         .set(lessonProps.wordList.longWordsOnly, s.words.longOnly)
+        .set(textDisplayProps.language, Language.ALL.get(s.language, Language.EN))
         .set(lessonProps.numbers.benford, s.type === "numbers" ? s.numbersBenford : s.drill.benford)
         .set(textInputProps.stopOnError, s.stopOnError)
         .set(textInputProps.forgiveErrors, s.forgiveErrors)

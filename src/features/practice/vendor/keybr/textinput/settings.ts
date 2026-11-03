@@ -1,5 +1,4 @@
-// Modified for Keybard: keybr's KeyboardOptions (keyboard settings) are not
-// vendored; Practice v1 is English only, so the display language is Language.EN.
+// Modified for Keybard: Practice supplies the selected language through Settings.
 import { Language } from "../keyboard/index.ts";
 import {
   booleanProp,
@@ -87,6 +86,7 @@ export const textDisplaySettings = {
 } as const satisfies TextDisplaySettings;
 
 export const textDisplayProps = {
+  language: itemProp("textDisplay.language", Language.ALL, Language.EN),
   font: itemProp("textDisplay.font", Font.ALL, Font.default),
   caretShapeStyle: enumProp(
     "textDisplay.caretShapeStyle",
@@ -109,7 +109,7 @@ export function toTextDisplaySettings(settings: Settings): TextDisplaySettings {
   const caretShapeStyle = settings.get(textDisplayProps.caretShapeStyle);
   const caretMovementStyle = settings.get(textDisplayProps.caretMovementStyle);
   const whitespaceStyle = settings.get(textDisplayProps.whitespaceStyle);
-  const language = Language.EN;
+  const language = settings.get(textDisplayProps.language);
   const fonts = Font.select(language);
   const font = Font.find(fonts, settings.get(textDisplayProps.font));
   return {

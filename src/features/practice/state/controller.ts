@@ -123,7 +123,7 @@ export interface ControllerDeps {
     loadSettings: () => PracticeSettings;
     saveSettings: (settings: PracticeSettings) => boolean;
     openStore: () => Promise<{ store: PracticeStore; persistent: boolean }>;
-    loadContent: () => Promise<PracticeContent>;
+    loadContent: (language?: string) => Promise<PracticeContent>;
     /** Wall clock for result time stamps. */
     now?: () => number;
     /** The DOM event clock (performance.now), for pauses. */
@@ -185,6 +185,7 @@ export class PracticeController {
     #resolved: { resolution: Awaited<ReturnType<typeof resolvePracticeKeymap>>['resolution']; fingerprint: string; keymap: PracticeKeymap } | null = null;
     #keymapSeq = 0;
     #profileSeq = 0;
+    #contentSeq = 0;
     #active = false;
     #focused = false;
     #visible = true;
@@ -357,7 +358,7 @@ export class PracticeController {
             await this.#loadProfile();
         }
         try {
-            this.content = await this.#deps.loadContent();
+            this.content = await this.#deps.loadContent(this.settings.language);
         } catch {
             if (this.#disposed) return;
             this.loadState = 'content-error';
@@ -577,6 +578,10 @@ export class PracticeController {
         const previous = this.settings;
         const next = { ...previous, ...patch };
         this.#write(next);
+        if (next.language !== previous.language) {
+            void this.#loadLanguage(next.language);
+            return;
+        }
         if (next.activeProfileId !== previous.activeProfileId) {
             void this.#loadProfile().then(() => this.#rebuild());
             return;
@@ -599,6 +604,24 @@ export class PracticeController {
     #write(next: PracticeSettings) {
         this.settings = next;
         this.settingsError = !this.#deps.saveSettings(next);
+    }
+
+    async #loadLanguage(language: string) {
+        const seq = ++this.#contentSeq;
+        this.#pause();
+        this.loadState = 'loading';
+        this.#emit();
+        try {
+            const content = await this.#deps.loadContent(language);
+            if (seq !== this.#contentSeq || this.#disposed) return;
+            this.content = content;
+            this.loadState = 'ready';
+            this.#rebuild();
+        } catch {
+            if (seq !== this.#contentSeq || this.#disposed) return;
+            this.loadState = 'content-error';
+            this.#emit();
+        }
     }
 
     // ---- Start (P2) and profiles

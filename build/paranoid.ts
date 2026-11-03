@@ -4,7 +4,7 @@
 // navigations; the contained-browser launchers handle that. See docs/paranoid.md.
 import { createHash } from "crypto";
 import { parse } from "parse5";
-import { readFileSync, renameSync, writeFileSync } from "fs";
+import { readdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import type { Plugin } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
@@ -29,15 +29,23 @@ export function bundledLayersPlugin(paranoid: boolean, root = process.cwd()): Pl
                 JSON.parse(json);
                 return `export default ${json};`;
             }
-            // Practice's English content (docs/practice/spec.md §7.5): Paranoid fetches only 'self',
-            // data: and blob:, so the model (base64) and the word list are compiled in. Other builds
+            // Practice content (docs/practice/spec.md §7.5): Paranoid fetches only 'self',
+            // data: and blob:, so every model and word list is compiled in. Other builds
             // load them as lazy assets and get null here.
             if (id === "\0" + PRACTICE) {
                 if (!paranoid) return "export default null;";
-                const model = readFileSync(path.join(root, PRACTICE_ASSETS, "model-en.data")).toString("base64");
-                const words = readFileSync(path.join(root, PRACTICE_ASSETS, "words-en.json"), "utf8");
-                JSON.parse(words);
-                return `export default { "model": ${JSON.stringify(model)}, "words": ${words.trim()} };`;
+                const content: Record<string, { model: string; words: unknown }> = {};
+                for (const name of readdirSync(path.join(root, PRACTICE_ASSETS))) {
+                    const match = /^model-(.+)\.data$/.exec(name);
+                    if (!match) continue;
+                    const id = match[1];
+                    const words = readFileSync(path.join(root, PRACTICE_ASSETS, `words-${id}.json`), "utf8");
+                    content[id] = {
+                        model: readFileSync(path.join(root, PRACTICE_ASSETS, name)).toString("base64"),
+                        words: JSON.parse(words),
+                    };
+                }
+                return `export default ${JSON.stringify({ languages: content, model: content.en.model, words: content.en.words })};`;
             }
             if (id === "\0" + FONTS) {
                 return paranoid ? `import ${JSON.stringify(path.join(root, "src/paranoid/fonts.css").replace(/\\/g, "/"))};` : "";

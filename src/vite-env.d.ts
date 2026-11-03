@@ -9,8 +9,12 @@ declare module "virtual:bundled-layers" {
     export default layers;
 }
 declare module "virtual:paranoid-fonts" {}
-/** Practice's English content: compiled in for Paranoid, null in other builds (docs/practice/spec.md §7.5). */
+/** Practice language content: compiled in for Paranoid, null in other builds (docs/practice/spec.md §7.5). */
 declare module "virtual:practice-content" {
-    const content: { model: string; words: string[] } | null;
+    const content: {
+        languages: Record<string, { model: string; words: string[] }>;
+        model: string;
+        words: string[];
+    } | null;
     export default content;
 }

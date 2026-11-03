@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { englishModelFromBase64, loadEnglishModel, loadEnglishWords } from '@/features/practice/content/loader';
+import { englishModelFromBase64, loadEnglishModel, loadEnglishWords, loadModel, loadWords } from '@/features/practice/content/loader';
 import { bytesToBase64 } from '@/features/practice/store/base64';
 import { Language } from '@/features/practice/vendor/keybr/keyboard/index.ts';
 
 const MODEL = resolve(__dirname, '../../../src/features/practice/content/assets/model-en.data');
+const MODEL_DE = resolve(__dirname, '../../../src/features/practice/content/assets/model-de.data');
 
 describe('English content loader (§7.1, §7.5)', () => {
     it('fetches the model from its Vite asset URL', async () => {
@@ -33,6 +34,20 @@ describe('English content loader (§7.1, §7.5)', () => {
         const words = await loadEnglishWords();
         expect(words.length).toBeGreaterThan(9000);
         expect(words[0]).toBe('the');
+    });
+
+    it('loads a non-English keybr model and word list', async () => {
+        const model = await loadModel(Language.DE, async (input) => {
+            expect(String(input)).toMatch(/model-de\.data/);
+            return new Response(readFileSync(MODEL_DE));
+        });
+        const words = await loadWords(Language.DE, async (input) => {
+            expect(String(input)).toMatch(/words-de\.json/);
+            return new Response(readFileSync(resolve(__dirname, '../../../src/features/practice/content/assets/words-de.json')));
+        });
+        expect(model.language).toBe(Language.DE);
+        expect(model.letters.some((letter) => letter.codePoint === 'ä'.codePointAt(0))).toBe(true);
+        expect(words.length).toBeGreaterThan(1000);
     });
 });
 

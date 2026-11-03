@@ -3,7 +3,7 @@
 // elsewhere in Keybard never trips it:
 // - the editor's initial chunk: gzip of the Practice modules rendered into the entry chunk;
 // - the practice lazy chunks (engine + UI): gzip of every non-entry chunk holding Practice modules;
-// - the English content: gzip of the word list chunk and the model asset;
+// - the Practice content: gzip of the word-list chunks and model assets;
 // - Paranoid: uncompressed length of the Practice modules (and their inlined content) in the one file.
 // The stats go to node_modules/.cache, never into the deployed dist.
 import { mkdirSync, writeFileSync } from "fs";
@@ -12,7 +12,7 @@ import type { Plugin } from "vite";
 import { gzipSync } from "zlib";
 
 export const PRACTICE_DIR = "/src/features/practice/";
-export const CONTENT_MODULES = /(words-en\.json|model-en\.data|virtual:practice-content)/;
+export const CONTENT_MODULES = /(words-[^/]+\.json|model-[^/]+\.data|virtual:practice-content)/;
 
 export interface BundleStats {
     mode: string;
@@ -20,7 +20,7 @@ export interface BundleStats {
     practiceInEntry: number;
     /** gzip bytes of the lazy chunks that hold Practice code (content excluded). */
     practiceLazy: number;
-    /** gzip bytes of the English content (word list chunk + model asset). */
+    /** gzip bytes of the Practice content (word list chunks + model assets). */
     contentEn: number;
     /** Uncompressed bytes of Practice code (minified share) and content across all chunks (the Paranoid file growth). */
     practiceRaw: number;
@@ -42,7 +42,7 @@ export function bundleStatsPlugin(mode: string, root = process.cwd()): Plugin {
             const stats: BundleStats = { mode, practiceInEntry: 0, practiceLazy: 0, contentEn: 0, practiceRaw: 0, chunks: [] };
             for (const output of Object.values(bundle)) {
                 if (output.type === "asset") {
-                    if (/model-en.*\.data$/.test(output.fileName)) {
+                    if (/(model|words)-[^/]+\.(data|json)$/.test(output.fileName)) {
                         const bytes = typeof output.source === "string" ? Buffer.from(output.source) : output.source;
                         stats.contentEn += gzip(bytes);
                         stats.chunks.push({ file: output.fileName, entry: false, gzip: gzip(bytes), practice: false, content: true });

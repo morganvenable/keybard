@@ -1,5 +1,5 @@
 import { loadBooks, type BookTexts } from './books';
-// English content loader (spec §7.1, §7.5): replaces keybr's
+// Language content loader (spec §7.1, §7.5): replaces keybr's
 // phonetic-model-loader (webpack asset URLs, @keybr/request) and the word-list
 // loader. The model is a Vite `?url` asset fetched on first use; the word list is
 // a lazy JSON chunk. Both load only when Practice first needs them.
@@ -21,47 +21,92 @@ export interface PracticeContent {
     books?: BookTexts;
 }
 
-/** Builds the English phonetic model from `model-en.data` bytes, with keybr's censoring. */
-export function englishModelFromBytes(bytes: Uint8Array): PhoneticModel {
-    return censor(makePhoneticModel(Language.EN, bytes));
+export const PRACTICE_LANGUAGES = [...Language.ALL];
+export const PRACTICE_LANGUAGE_IDS = PRACTICE_LANGUAGES.map((language) => language.id);
+
+const modelAssets = import.meta.glob('./assets/model-*.data', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
+const wordAssets = import.meta.glob('./assets/words-*.json', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
+
+export function modelFromBytes(language: Language, bytes: Uint8Array): PhoneticModel {
+    return censor(makePhoneticModel(language, bytes));
 }
 
-/** Builds the model from the base64 form Paranoid inlines (M1b). */
+/** Builds the English phonetic model from `model-en.data` bytes. */
+export function englishModelFromBytes(bytes: Uint8Array): PhoneticModel {
+    return modelFromBytes(Language.EN, bytes);
+}
+
+export function modelFromBase64(language: Language, base64: string): PhoneticModel {
+    return modelFromBytes(language, base64ToBytes(base64));
+}
+
+/** Builds the English model from the base64 form Paranoid inlines. */
 export function englishModelFromBase64(base64: string): PhoneticModel {
-    return englishModelFromBytes(base64ToBytes(base64));
+    return modelFromBase64(Language.EN, base64);
+}
+
+export async function loadModel(language: Language, fetchImpl: typeof fetch = (...args) => fetch(...args)): Promise<PhoneticModel> {
+    const loadUrl = modelAssets[`./assets/model-${language.id}.data`];
+    if (!loadUrl) throw new Error(`Practice: no model for ${language.id}`);
+    const url = await loadUrl();
+    const response = await fetchImpl(url);
+    if (!response.ok) throw new Error(`Practice: could not load the ${language.id} model (${response.status})`);
+    return modelFromBytes(language, new Uint8Array(await response.arrayBuffer()));
 }
 
 export async function loadEnglishModel(fetchImpl: typeof fetch = (...args) => fetch(...args)): Promise<PhoneticModel> {
-    const { default: url } = await import('./assets/model-en.data?url');
-    const response = await fetchImpl(url);
-    if (!response.ok) throw new Error(`Practice: could not load the English model (${response.status})`);
-    return englishModelFromBytes(new Uint8Array(await response.arrayBuffer()));
+    return loadModel(Language.EN, fetchImpl);
 }
 
 export async function loadEnglishWords(): Promise<WordList> {
     return (await import('./assets/words-en.json')).default as WordList;
 }
 
+export async function loadWords(language: Language, fetchImpl: typeof fetch = (...args) => fetch(...args)): Promise<WordList> {
+    const loadWords = wordAssets[`./assets/words-${language.id}.json`];
+    if (!loadWords) throw new Error(`Practice: no word list for ${language.id}`);
+    const response = await fetchImpl(await loadWords());
+    if (!response.ok) throw new Error(`Practice: could not load the ${language.id} word list (${response.status})`);
+    return (await response.json()) as WordList;
+}
+
+type InlinedLanguageContent = { model: string; words: string[] };
+type InlinedContent = Record<string, InlinedLanguageContent>;
+type LegacyInlinedContent = { model: string; words: string[] };
+type BundledInlinedContent = { languages: InlinedContent; model: string; words: string[] };
+
 /** The content compiled into the Paranoid file, or null in other builds. */
-export function inlinedContent(inlined: { model: string; words: string[] } | null = practiceContent): PracticeContent | null {
-    return inlined ? { model: englishModelFromBase64(inlined.model), words: inlined.words } : null;
+export function inlinedContent(inlined: InlinedContent | LegacyInlinedContent | BundledInlinedContent | null = practiceContent): InlinedContent | PracticeContent | null {
+    if (!inlined) return null;
+    if ('languages' in inlined) return (inlined as BundledInlinedContent).languages;
+    const model = (inlined as LegacyInlinedContent).model;
+    if (typeof model === 'string') {
+        return { model: englishModelFromBase64(model), words: (inlined as LegacyInlinedContent).words };
+    }
+    return inlined as InlinedContent;
 }
 
 const PARANOID_BUILD = import.meta.env.MODE === 'paranoid';
+const cached = new Map<string, Promise<PracticeContent>>();
 
-let cached: Promise<PracticeContent> | null = null;
-
-/** Loads (once) and caches the English model and word list. A failed load can be retried. */
-export function loadEnglishContent(): Promise<PracticeContent> {
-    if (!cached) {
-        cached = PARANOID_BUILD
+/** Loads (once per language) and caches the selected model, word list and books. */
+export function loadContent(languageId = Language.EN.id): Promise<PracticeContent> {
+    const language = Language.ALL.get(languageId, Language.EN);
+    let result = cached.get(language.id);
+    if (!result) {
+        result = PARANOID_BUILD
             ? Promise.resolve().then(async () => {
                 const content = inlinedContent();
-                if (!content) throw new Error('Practice: the Paranoid build has no inlined content');
-                return { ...content, books: await loadBooks() };
+                const selected = content && 'model' in content ? null : content?.[language.id];
+                if (!selected) throw new Error(`Practice: the Paranoid build has no ${language.id} content`);
+                return { model: modelFromBase64(language, selected.model), words: selected.words, books: await loadBooks() };
             })
-            : Promise.all([loadEnglishModel(), loadEnglishWords(), loadBooks()]).then(([model, words, books]) => ({ model, words, books }));
-        cached.catch(() => { cached = null; });
+            : Promise.all([loadModel(language), loadWords(language), loadBooks()]).then(([model, words, books]) => ({ model, words, books }));
+        cached.set(language.id, result);
+        result.catch(() => { if (cached.get(language.id) === result) cached.delete(language.id); });
     }
-    return cached;
+    return result;
 }
+
+/** Backwards-compatible English entry point for existing callers and fixtures. */
+export const loadEnglishContent = (languageId = Language.EN.id) => loadContent(languageId);
