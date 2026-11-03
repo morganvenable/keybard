@@ -7,7 +7,7 @@ import { useIsDark } from "@/lib/theme";
 import { setBall, useBalls } from "@/services/pointing-look.service";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { placeDevice, type KeyRect } from "@/utils/pointing-geometry";
-import { boostLabel, pointingFactors, sniperLabel } from "@/utils/pointing-multiplier";
+import { pillLabels } from "@/utils/pointing-multiplier";
 import { BallMenu } from "./BallMenu";
 import { PointingDevice } from "./PointingDevice";
 import { BALL_GLOSS, BALL_SPARKLE, type BallId } from "./webgl/materials";
@@ -56,8 +56,8 @@ export function PointingLayer({ keyboard, keys, unitPx }: Props) {
     const gloss = BALL_GLOSS;
     const sparkle = BALL_SPARKLE;
     const dark = useIsDark();
-    const factors = useMemo(() => pointingFactors(keyboard.keymap), [keyboard.keymap]);
-    const labels = useMemo(() => ({ sniper: sniperLabel(factors.sniperDivisor), boost: boostLabel(factors.boostFactor) }), [factors]);
+    // The factors the board reports; without them the pills show no number.
+    const labels = useMemo(() => pillLabels(live.factors), [live.factors]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const pillColors = useMemo(() => pillColorsFromTokens(false), [dark]);
     // eslint-disable-next-line react-hooks/exhaustive-deps

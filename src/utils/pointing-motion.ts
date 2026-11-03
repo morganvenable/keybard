@@ -4,6 +4,7 @@
 // keyboards/svalboard/docs/protocol.md, "Pointing motion".
 
 import type { PadContact } from "./pointing-contacts";
+import type { PointingFactors } from "./pointing-multiplier";
 import { parseVelocityScroll, type VelocityScrollState } from "./velocity-scroll";
 
 /** GET_INFO second feature byte: the board answers POINTING_MOTION (0x2D). */
@@ -70,7 +71,17 @@ export interface PointingMotionReport {
      * 64-byte reply with the block at 29-52). Absent: no pill, nothing drawn.
      */
     velocityScroll?: VelocityScrollState;
+    /**
+     * The sniper divisor and boost multiplier in force, on firmware that reports
+     * them (payload [53] = 'F', [54] and [55]; 1 when that mode's key is off).
+     * Absent: the pills show no number.
+     */
+    factors?: PointingFactors;
 }
+
+/** Payload [53]: 'F' when the factors follow at [54] (sniper divisor) and [55] (boost multiplier). */
+export const POINTING_FACTORS_MARK = 0x46;
+const FACTORS_AT = 53;
 
 const HALF_BYTES = 10;
 /** Command echo + 24 payload bytes. */
@@ -115,6 +126,10 @@ export function parsePointingMotion(reply: Uint8Array, cmd = 0x2d): PointingMoti
     const mode = view.getUint8(p + 1);
     const axis = view.getUint8(p + 23);
     const velocityScroll = parseVelocityScroll(view, p);
+    // Zero-filled on firmware without them; a 32-byte report has no room for them.
+    const factors = reply.length > p + FACTORS_AT + 2 && reply[p + FACTORS_AT] === POINTING_FACTORS_MARK
+        ? { sniperDivisor: Math.max(1, reply[p + FACTORS_AT + 1]), boostFactor: Math.max(1, reply[p + FACTORS_AT + 2]) }
+        : undefined;
     return {
         sniper: (mode & 0x01) !== 0,
         boost: (mode & 0x02) !== 0,
@@ -127,5 +142,6 @@ export function parsePointingMotion(reply: Uint8Array, cmd = 0x2d): PointingMoti
         left: withCpi(parseHalf(view, p + 3), view, p + 25),
         right: withCpi(parseHalf(view, p + 3 + HALF_BYTES), view, p + 27),
         ...(velocityScroll ? { velocityScroll } : {}),
+        ...(factors ? { factors } : {}),
     };
 }
