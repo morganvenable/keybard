@@ -7,7 +7,7 @@ import { adaptKeys, keyPad, type Backdrop } from './adaptiveContrast';
 import './trainer.css';
 import { PointingOverlayLayer } from './PointingOverlayLayer';
 export default function HostOverlay() {
-    const { state } = useHost();
+    const { state } = useHost({ overlay: true });
     const [changed, setChanged] = useState<Set<number>>(new Set());
     const previous = useRef<SurfaceKey[]>([]);
     const keys = useMemo(() => {

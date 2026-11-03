@@ -181,7 +181,7 @@ class QtHardeningTest(unittest.TestCase):
         self.assertEqual(host.tray.setIcon.call_count, 1)
 
     def test_showing_the_overlay_expands_it(self):
-        host = SimpleNamespace(state=self.state, surface=mock.Mock(), controls=mock.Mock(), show_action=mock.Mock(), publish_state=mock.Mock())
+        host = SimpleNamespace(state=self.state, surface=mock.Mock(), controls=mock.Mock(), show_action=mock.Mock(), publish_state=mock.Mock(), boards={})
         Host.command(host, {'op': 'show', 'value': True})
         host.controls.set_collapsed.assert_called_once_with(False)
         self.assertTrue(self.state.visible)

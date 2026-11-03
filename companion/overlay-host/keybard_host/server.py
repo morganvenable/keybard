@@ -4,6 +4,7 @@ import hmac
 import os
 import re
 import socket
+import time
 import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -130,8 +131,11 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 return self.reply({'error': 'Local origin required'}, 403)
             if path.path == '/api/host/bootstrap': return self.reply(dict(token=state.token, apiVersion=1, paranoid=paranoid, **build))
             if path.path == '/api/host/state':
-                try: revision = int(parse_qs(path.query).get('layout', ['-1'])[0])
+                query = parse_qs(path.query)
+                try: revision = int(query.get('layout', ['-1'])[0])
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
+                # A page drawing the overlay (?hostOverlay) shows the layer and held keys: read them fast.
+                if query.get('overlay') == ['1']: state.polled_at = time.monotonic()
                 return self.reply(state.snapshot(revision))
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)

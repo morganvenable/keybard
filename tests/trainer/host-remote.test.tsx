@@ -91,3 +91,17 @@ it('fetches a new token and retries when a restarted host refuses a write', asyn
     expect(bootstraps).toBe(2);
     unmount();
 });
+
+it('marks its state polls as drawing the overlay only on the overlay page', async () => {
+    document.documentElement.dataset.keybardHost = 'true';
+    const urls = () => fetchMock.mock.calls.map(c => String(c[0])).filter(u => u.includes('/api/host/state'));
+    const dialog = renderHook(() => useHost());
+    await waitFor(() => expect(urls().length).toBeGreaterThan(0));
+    expect(urls().every(u => !u.includes('overlay=1'))).toBe(true);
+    dialog.unmount();
+    fetchMock.mockClear();
+    const overlay = renderHook(() => useHost({ overlay: true }));
+    await waitFor(() => expect(urls().length).toBeGreaterThan(0));
+    expect(urls().every(u => u.endsWith('&overlay=1'))).toBe(true);
+    overlay.unmount();
+});

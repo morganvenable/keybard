@@ -661,8 +661,8 @@ class Host(QObject):
         if board.worker is not None: self.retire(board.worker)
         board.worker = worker = self.Worker(board.device)
         board.ready = board.valid = board.loading = False
-        # Held keys are always read: they tell which board is in use, shown or not.
-        board.generation = worker.set_press_tracking(True)
+        board.poll_plan = None
+        self.track_polling(board)
         worker.profile.connect(self.profile)
         worker.state.connect(self.layers)
         worker.pressed.connect(self.pressed)
@@ -752,7 +752,7 @@ class Host(QObject):
                     except OSError: pass
         if changed:
             self.pointing_pending = None; self.pointing_sides = {}
-            for board in self.boards.values(): self.track_pointing(board)
+            for board in self.boards.values(): self.track_pointing(board); self.track_polling(board)
             self.size_surface()
             self.publish_state()
 
@@ -815,6 +815,8 @@ class Host(QObject):
                 self.state.practice_hidden = []; self.state.practice_target = None
         self.reap()
         self.follow(now)
+        # What is on show changes outside follow() too: shown, collapsed, a page polling.
+        for board in self.boards.values(): self.track_pointing(board); self.track_polling(board)
         self.status_action.setText(self.state.status[:65])
         self.sync_menu()
         self.publish_state()
@@ -823,12 +825,13 @@ class Host(QObject):
         op = value['op']
         if op == 'configure':
             for board in self.boards.values():
-                board.pressed = []; self.track_pointing(board)
+                board.pressed = []; self.track_pointing(board); self.track_polling(board)
             with self.state.lock: self.state.pressed = []
             self.size_surface()
         elif op == 'show':
             if value['value']: self.controls.set_collapsed(False)
             self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value']); self.controls.setVisible(value['value'])
+            for board in self.boards.values(): self.track_pointing(board); self.track_polling(board)
         elif op == 'place': self.place()
         elif op == 'practice':
             with self.state.lock:
@@ -856,9 +859,41 @@ class Host(QObject):
         if board.worker is None: return
         config = self.state.config
         has_module = board.board is None or bool(kinds(board.board))
-        drawn = config['showPointing'] or config['pointingPills']
+        drawn = (config['showPointing'] or config['pointingPills']) and self.surface_shown()
         candidate = board.key in (self.follower.shown, self.follower.lender) or (board.board is not None and not board.keyed)
-        board.worker.set_pointing_tracking(has_module and drawn and candidate, watch=has_module)
+        # Watching motion only tells which board is in use: needed only while following one of several.
+        board.worker.set_pointing_tracking(has_module and drawn and candidate, watch=has_module and self.following())
+
+    def surface_shown(self):
+        """Whether the overlay is on screen: shown, and not collapsed to its controls."""
+        controls = getattr(self, 'controls', None)
+        return self.state.visible and not (controls is not None and controls.collapsed)
+
+    def following(self):
+        """Whether the board in use picks the board on show: several boards, none pinned."""
+        return self.state.pinned is None and len(self.boards) > 1
+
+    # A page drawing the overlay polls /api/host/state with overlay=1 every 80 ms (about once a
+    # second in a background tab): one that polled this recently is taken as showing it.
+    POLL_SHOWN = 1.5
+
+    def layer_shown(self, now=None):
+        """Whether anything shows the shown board's layer: the overlay on screen, or a page
+        drawing it (Keybard's ?hostOverlay page) polling the Overlay."""
+        now = time.monotonic() if now is None else now
+        return self.surface_shown() or now - self.state.polled_at < self.POLL_SHOWN
+
+    def track_polling(self, board):
+        """How often a board's reader reads its layer and held keys (device/schedule.py): fast
+        while its layer is shown, with the matrix only while held keys are highlighted;
+        otherwise slowly, sampling held keys only while they pick the board on show."""
+        if board.worker is None: return
+        on_show = board.key == self.follower.shown and self.layer_shown()
+        held = on_show and self.state.config['highlightPressed']
+        plan = (held, not held and self.following(), on_show)
+        if plan != board.poll_plan:
+            board.poll_plan = plan
+            board.generation = board.worker.set_press_tracking(*plan)
 
     def pointing_motion(self, motion):
         """Motion from a board (or the demo): to the overlay at up to 60 Hz, from the board on

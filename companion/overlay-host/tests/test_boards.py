@@ -199,10 +199,16 @@ class FakeWorker:
         self.profile, self.state, self.pressed, self.status, self.pointing = (FakeSignal() for _ in range(5))
         self.started = self.stopped = False
         self.pointing_tracking = None
+        self.press_tracking = None
+        self.generation = 0
         self.reloads = self.refreshes = 0
         FakeWorker.made.append(self)
 
-    def set_press_tracking(self, enabled): return 1
+    def set_press_tracking(self, enabled, watch=False, layer=False):
+        self.press_tracking = (enabled, watch)
+        self.press_layer = layer
+        self.generation += 1
+        return self.generation
     def set_pointing_tracking(self, enabled, watch=False): self.pointing_tracking = (enabled, watch)
     def start(self): self.started = True
     def stop(self): self.stopped = True
@@ -225,12 +231,13 @@ class HostBoardsTests(unittest.TestCase):
         self.present = [device(DAILY, 'Daily'), device(TOUCH, 'Touch'), device(MULE, 'Mule')]
         Host = main.Host
         names = ('scan', 'start', 'retire', 'reap', 'board_of', 'connect', 'disconnect', 'follow', 'profile', 'layers',
-                 'pressed', 'status', 'command', 'track_pointing', 'pointing_motion', 'forward_pointing', 'shown_board')
+                 'pressed', 'status', 'command', 'track_pointing', 'pointing_motion', 'forward_pointing', 'shown_board',
+                 'track_polling', 'layer_shown', 'surface_shown', 'following')
         host = SimpleNamespace(state=self.state, auto_connect=True, devices={}, boards={}, board_order=0, retiring=[],
                                paused=None, follower=Follower(DAILY, None), shown_signature=None, demo=False,
                                pointing_pending=None, pointing_source=None, pointing_sides={}, pointing_sent=0.0,
                                demo_pointing=None, Worker=FakeWorker, size_surface=mock.Mock(), publish_state=mock.Mock(),
-                               surface=mock.Mock(), _sender=None)
+                               surface=mock.Mock(), _sender=None, POLL_SHOWN=main.Host.POLL_SHOWN)
         for name in names: setattr(host, name, getattr(Host, name).__get__(host))
         host.sender = lambda: host._sender
         self.host = host
@@ -283,7 +290,7 @@ class HostBoardsTests(unittest.TestCase):
     def test_keys_on_another_board_switch_the_overlay_and_remember_it(self):
         self.connect_all()
         with mock.patch.object(main.time, 'monotonic', return_value=1000.0):
-            self.emit(self.worker(MULE), 'pressed', (1, frozenset({(6, 0)}), 1000.0))
+            self.emit(self.worker(MULE), 'pressed', (self.worker(MULE).generation, frozenset({(6, 0)}), 1000.0))
         self.assertEqual(self.shown(), MULE)
         self.assertEqual(self.state.pressed, [36])
         self.assertEqual(json.loads(self.state.path.read_text())['remembered']['serial'], MULE)
@@ -375,6 +382,88 @@ class HostBoardsTests(unittest.TestCase):
         self.assertEqual(worker.expected_uid, 1)
         import inspect
         self.assertNotIn('select it again', inspect.getsource(DeviceWorker.run))
+
+    # How often each board is read (device/schedule.py): held keys fast only while shown.
+
+    def plans(self):
+        return {b.serial: b.worker.press_tracking for b in self.host.boards.values()}
+
+    def test_one_board_reads_held_keys_only_while_they_show(self):
+        self.present = [device(MULE, 'Mule')]
+        self.host.scan(); self.read(MULE, pointing={'right': 'trackball'})
+        self.assertEqual(self.plans(), {MULE: (True, False)})
+        self.state.visible = False
+        self.host.track_polling(self.host.boards[next(iter(self.host.boards))])
+        self.assertEqual(self.plans(), {MULE: (False, False)})              # layer state only, slowly
+        self.state.visible = True
+        self.host.controls = SimpleNamespace(collapsed=True)               # collapsed to its controls
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertEqual(self.plans(), {MULE: (False, False)})
+        self.host.controls.collapsed = False
+        self.state.config['highlightPressed'] = False                      # held keys not highlighted
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertEqual(self.plans(), {MULE: (False, False)})
+        self.assertTrue(self.worker(MULE).press_layer)                     # but the layer is on show: fast
+        self.state.config['highlightPressed'] = True
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertEqual(self.plans(), {MULE: (True, False)})
+
+    def test_highlight_off_keeps_layer_changes_fast_on_screen(self):
+        self.connect_all()
+        self.state.config['highlightPressed'] = False
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        # The shown board: no fast matrix, its layer fast, its held keys sampled to follow use.
+        self.assertEqual(self.plans(), {DAILY: (False, True), TOUCH: (False, True), MULE: (False, True)})
+        self.assertEqual({s: self.worker(s).press_layer for s in (DAILY, TOUCH, MULE)},
+                         {DAILY: True, TOUCH: False, MULE: False})
+        self.state.visible = False
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertFalse(self.worker(DAILY).press_layer)                   # hidden: slow again
+
+    def test_a_keybard_page_polling_counts_as_showing_held_keys(self):
+        self.present = [device(MULE, 'Mule')]
+        self.host.scan(); self.read(MULE)
+        self.state.visible = False
+        board = next(iter(self.host.boards.values()))
+        with mock.patch.object(main.time, 'monotonic', return_value=500.0):
+            self.state.polled_at = 499.5
+            self.host.track_polling(board)
+            self.assertEqual(board.worker.press_tracking, (True, False))
+            self.assertTrue(board.worker.press_layer)
+        with mock.patch.object(main.time, 'monotonic', return_value=502.0):
+            self.host.track_polling(board)                                  # the page stopped polling
+            self.assertEqual(board.worker.press_tracking, (False, False))
+
+    def test_several_boards_sample_held_keys_to_follow_the_one_in_use(self):
+        self.connect_all()
+        self.assertEqual(self.plans(), {DAILY: (True, False), TOUCH: (False, True), MULE: (False, True)})
+        with mock.patch.object(main.time, 'monotonic', return_value=1000.0):
+            self.emit(self.worker(MULE), 'pressed', (self.worker(MULE).generation, frozenset({(6, 0)}), 1000.0))
+        self.assertEqual(self.shown(), MULE)
+        self.assertEqual(self.plans(), {DAILY: (False, True), TOUCH: (False, True), MULE: (True, False)})
+        # Pinned: nothing follows use, so the other boards read their layer state only.
+        mule = next(d['id'] for d in self.state.devices if d['serial'] == MULE)
+        self.host.command({'op': 'connect', 'id': mule})
+        for b in self.host.boards.values(): self.host.track_polling(b)
+        self.assertEqual(self.plans(), {DAILY: (False, False), TOUCH: (False, False), MULE: (True, False)})
+
+    def test_the_plan_is_sent_only_when_it_changes(self):
+        self.present = [device(MULE, 'Mule')]
+        self.host.scan(); self.read(MULE)
+        board = next(iter(self.host.boards.values()))
+        generation = board.generation
+        for _ in range(3): self.host.track_polling(board)
+        self.assertEqual(board.generation, generation)                     # held keys in flight still count
+        self.state.visible = False; self.host.track_polling(board)
+        self.assertGreater(board.generation, generation)
+
+    def test_pointing_is_read_fast_only_while_drawn(self):
+        self.present = [device(MULE, 'Mule')]
+        self.host.scan(); self.read(MULE, pointing={'right': 'trackball'})
+        worker = self.worker(MULE)
+        self.assertEqual(worker.pointing_tracking, (True, False))          # pills on by default; one board: no watch
+        self.state.visible = False; self.host.track_pointing(self.host.boards[next(iter(self.host.boards))])
+        self.assertEqual(worker.pointing_tracking, (False, False))
 
 
 
