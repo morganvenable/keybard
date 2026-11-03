@@ -178,7 +178,7 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
 
     // The flag for a term the board can't use: it says so and keeps the value shown.
     const termWarning = termUnusable ? (
-        <p id="tapdance-term-unusable" role="status" data-testid="tapdance-term-unusable" className="text-xs font-medium text-kb-warn-ink">
+        <p id="tapdance-term-unusable" role="status" data-testid="tapdance-term-unusable" className="w-fit rounded bg-kb-warn-bg px-2 py-1 text-xs font-medium text-kb-warn-ink">
             {`${tapMs} ms is too short for a tap dance to work. Enter ${MIN_TAPDANCE_TERM_MS} ms or more.`}
         </p>
     ) : null;

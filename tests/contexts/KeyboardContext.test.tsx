@@ -191,6 +191,25 @@ describe('KeyboardContext - File Loading', () => {
     expect(result.current.loadedFrom).toBe('Svalboard');
   });
 
+  it('clears the layer shown once the layer-state poll keeps failing, and shows it again when it answers', async () => {
+    vi.mocked(usbInstance.openDevice).mockResolvedValue(true);
+    vi.mocked(usbInstance.getDeviceName).mockReturnValue('Svalboard');
+    vi.mocked(keyboardService.init).mockResolvedValue(undefined);
+    vi.mocked(keyboardService.load).mockResolvedValue({ rows: 5, cols: 12, kbid: 'k' });
+    const layers = vi.mocked(keyboardService.getLayerIndexes);
+    layers.mockResolvedValue({ active: 2, defaultLayer: 0 });
+    const { result } = renderHook(() => useKeyboard(), { wrapper });
+    await act(async () => { await result.current.connect(); });
+    await act(async () => { await result.current.loadKeyboard(); });
+    await waitFor(() => expect(result.current.activeLayerIndex).toBe(2));
+    layers.mockRejectedValue(new Error('USB Command Timeout'));
+    await waitFor(() => expect(result.current.activeLayerIndex).toBeNull(), { timeout: 3000 });
+    expect(result.current.defaultLayerIndex).toBeNull();
+    layers.mockResolvedValue({ active: 1, defaultLayer: 0 });
+    await waitFor(() => expect(result.current.activeLayerIndex).toBe(1), { timeout: 3000 });
+    layers.mockResolvedValue({ active: 0, defaultLayer: null });
+  });
+
   it('file load after device connection updates loadedFrom to file name', async () => {
     // First connect a device
     const mockDeviceInfo: KeyboardInfo = {

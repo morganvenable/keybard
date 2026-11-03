@@ -201,7 +201,8 @@ def main() -> int:
         sheet.get_by_role("button", name="Update", exact=True).click()
         confirm = page.get_by_test_id("update-confirm")
         expect(confirm).to_be_visible(timeout=20000)
-        check("press M and , together and hold them for a second" in confirm.inner_text(), f"{label}: says what to press and how")
+        check("press the south keys of your index and middle fingers, lit above, together and hold them for a second" in confirm.inner_text(), f"{label}: says what to press and how, by key position")
+        check(confirm.get_by_test_id("chord-diagram").inner_text().strip() == "", f"{label}: the lit keys carry no letters")
         check("On the right half" in confirm.inner_text(), f"{label}: says which half")
         check(confirm.get_by_text("Firmware only changes when someone at the keyboard says so.").count() == 1, f"{label}: says why")
         if shots:
