@@ -10,7 +10,7 @@ import { TapdanceEntry } from "@/types/keyboard.types";
 import { DragItem } from "@/contexts/DragContext";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { isTapdanceKeycode } from "@/utils/keys";
-import { MAX_TAPDANCE_TERM_MS, MIN_TAPDANCE_TERM_MS, clampTapdanceTerm, isUnusableTapdanceTerm } from "@/utils/tapdance-term";
+import { MAX_TAPDANCE_TERM_MS, MIN_TAPDANCE_TERM_MS, clampTapdanceTerm, isUnusableTapdanceTerm, startTapdance, tapdanceInUse } from "@/utils/tapdance-term";
 
 import EditorKey from "./EditorKey";
 import { BAR_KEY_PX, BAR_KEY_SIZE, BAR_KEY_VARIANT, BarEnd, BarRow, BarSlot } from "./EditorBar";
@@ -47,7 +47,8 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
     // The term the board (or the file) holds; empty when there is none. A term the board
     // can't use is shown as it is and flagged, never replaced: only an edit writes a term.
     const tapMs = currTapDance?.tapping_term;
-    const termUnusable = tapMs !== undefined && isUnusableTapdanceTerm(tapMs);
+    // Flagged only on a tap dance in use: an empty slot gets the default term with its first key.
+    const termUnusable = tapMs !== undefined && isUnusableTapdanceTerm(tapMs) && tapdanceInUse(currTapDance);
     const [termDraft, setTermDraft] = useState<string | null>(null);
 
     useEffect(() => {
@@ -104,10 +105,10 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
         }
         const tapdances = [...keyboard.tapdances];
         if (tapdances[itemToEdit]) {
-            tapdances[itemToEdit] = {
+            tapdances[itemToEdit] = startTapdance(tapdances[itemToEdit], {
                 ...tapdances[itemToEdit],
                 [slot]: keycode
-            };
+            });
         }
         const updatedKeyboard = { ...keyboard, tapdances };
         setKeyboard(updatedKeyboard);

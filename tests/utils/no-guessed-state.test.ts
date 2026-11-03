@@ -13,6 +13,8 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { boardLayerColor } from "@/utils/color-conversion";
 import type { PointingMotionReport } from "@/utils/pointing-motion";
 import { evaluateCondition, evaluateShowIf } from "@/utils/show-if-evaluator";
+import { startTapdance, tapdanceInUse } from "@/utils/tapdance-term";
+import { timingWrites, withEffectiveTiming } from "@/utils/scan-timing";
 
 const text = (n: unknown) => (typeof n === "string" ? n : renderToStaticMarkup(n as ReactElement).replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'"));
 
@@ -94,6 +96,29 @@ describe("pointing pills when the board stops answering", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe("tap dance terms", () => {
+    const empty = { tap: "KC_NO", hold: "KC_NO", doubletap: "KC_NO", taphold: "KC_NO", tapping_term: 0 };
+    it("give an unused slot the default term with its first key, in the draft", () => {
+        expect(tapdanceInUse(empty)).toBe(false);
+        expect(startTapdance(empty, { ...empty, tap: "KC_A" }).tapping_term).toBe(200);
+    });
+    it("keep the term of a slot in use, even an unusable one", () => {
+        const used = { ...empty, tap: "KC_A", tapping_term: 5 };
+        expect(startTapdance(used, { ...used, hold: "KC_B" }).tapping_term).toBe(5);
+        expect(startTapdance({ ...empty, tapping_term: 300 }, { ...empty, tap: "KC_A", tapping_term: 300 }).tapping_term).toBe(300);
+    });
+});
+
+describe("scan waits with the turbo index not read", () => {
+    it("are shown as stored and the other wait isn't written", () => {
+        const values = new Map([["id_scan_prewait_us", 0], ["id_scan_postwait_us", 40]]);
+        expect(withEffectiveTiming(values).get("id_scan_prewait_us")).toBe(0);
+        expect(timingWrites("id_scan_postwait_us", 50, values)).toEqual([["id_scan_postwait_us", 50]]);
+        values.set("id_turbo_scan", 1);
+        expect(timingWrites("id_scan_postwait_us", 50, values)).toEqual([["id_scan_postwait_us", 50], ["id_scan_prewait_us", 60]]);
     });
 });
 

@@ -11,7 +11,7 @@ import { prepareOverrideForEdit } from "@/utils/key-override";
 import { startNewAltRepeat, startNewCombo, startNewLeader } from "@/utils/combo-edit";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
-import { DEFAULT_TAPDANCE_TERM_MS } from "@/utils/tapdance-term";
+import { DEFAULT_TAPDANCE_TERM_MS, startTapdance } from "@/utils/tapdance-term";
 import { useKeyboard } from "./KeyboardContext";
 import { matrixTesterOpen } from "@/lib/matrix-tester-lock";
 
@@ -395,7 +395,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const previousValue = tapdances[tapdanceId][tapdanceSlot];
 
                     const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
-                    tapdances[tapdanceId][tapdanceSlot] = keycodeName;
+                    const beforeEdit = tapdances[tapdanceId];
+                    tapdances[tapdanceId] = startTapdance(beforeEdit, { ...beforeEdit, [tapdanceSlot]: keycodeName });
 
                     // Capture tapdanceId for closure
                     const tdId = tapdanceId;

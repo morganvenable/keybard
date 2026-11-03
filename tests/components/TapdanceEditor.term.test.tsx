@@ -62,6 +62,13 @@ describe.each(['sidebar', 'bottombar'] as const)('tap dance term in %s mode', (m
         expect(written()).toBe(180);
     });
 
+    it("shows an empty slot's 0 ms without flagging it", () => {
+        state.keyboard = { tapdances: [td({ tap: 'KC_NO', tapping_term: 0, enabled: false })] };
+        render(<TapdanceEditor />);
+        expect(input().value).toBe('0');
+        expect(screen.queryByTestId('tapdance-term-unusable')).toBeNull();
+    });
+
     it('flags nothing for a usable term', () => {
         render(<TapdanceEditor />);
         expect(screen.queryByTestId('tapdance-term-unusable')).toBeNull();

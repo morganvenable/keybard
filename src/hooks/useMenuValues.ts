@@ -46,6 +46,12 @@ export function useMenuValues(menu: CustomUIMenuItem | undefined) {
         setError(null);
         try {
             if (keyboard?.custom_values) customValueService.populateCacheFromEntries(keyboard.custom_values);
+            // A value with no entry (never read, or an edit discarded or rolled back) is not
+            // known: it leaves the cache, so the control says "Not read" again.
+            const entries = new Set((keyboard?.custom_values ?? []).map((e) => e.key));
+            for (const { ref } of customValueService.extractAllItemsWithRefs([menu])) {
+                if (!entries.has(ref.key) && !inflight.current.has(ref.key)) customValueService.forget(ref.key);
+            }
             const shown = customValueService.getCache();
             for (const [k, v] of inflight.current) shown.set(k, v);
             setValues(shown);
