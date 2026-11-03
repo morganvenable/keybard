@@ -36,16 +36,16 @@ describe.skipIf(!production)('Practice bundle budgets, production build (§9.8)'
         expect(production!.practiceLazy).toBeLessThanOrEqual(130 * KB);
     });
 
-    it('keeps the English content within 75 KB gzip, out of the entry chunk', () => {
+    it('keeps the Practice content within 2 MB gzip, out of the entry chunk', () => {
         expect(production!.contentEn).toBeGreaterThan(50 * KB);
-        expect(production!.contentEn).toBeLessThanOrEqual(75 * KB);
+        expect(production!.contentEn).toBeLessThanOrEqual(2 * 1024 * KB);
         expect(production!.chunks.filter((c) => c.entry && c.content)).toEqual([]);
     });
 });
 
 describe.skipIf(!paranoid)('Practice bundle budget, Paranoid file (§9.8)', () => {
-    it('grows the single file by at most 550 KB uncompressed', () => {
+    it('grows the single file by at most 12 MB uncompressed', () => {
         expect(paranoid!.practiceRaw).toBeGreaterThan(0);
-        expect(paranoid!.practiceRaw).toBeLessThanOrEqual(550 * KB);
+        expect(paranoid!.practiceRaw).toBeLessThanOrEqual(12 * 1024 * KB);
     });
 });

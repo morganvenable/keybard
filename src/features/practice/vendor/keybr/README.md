@@ -28,7 +28,7 @@ Every changed file starts with `// Modified for Keybard: <reason>`. Files were c
 | `result-io` | `legacyjson.ts` (and its `errors.ts`) only, as a reference for Practice's own reader |
 | `content` | Word-list types only |
 
-Not vendored: `keybr-phonetic-model-loader`, `keybr-lesson-loader`, `keybr-result-loader` (rewritten as `../../content/loader.ts` and `../../store/`), and every UI, theme, intl, chart, code, book, sound and server package. The English model and word list are Practice assets in `../../content/assets/` (`model-en.data` from `keybr-phonetic-model/assets`, `words-en.json` from `keybr-content-words/lib/data`).
+Not vendored: `keybr-phonetic-model-loader`, `keybr-lesson-loader`, `keybr-result-loader` (rewritten as `../../content/loader.ts` and `../../store/`), and every UI, theme, intl, chart, code, book, sound and server package. The language models and word lists are Practice assets in `../../content/assets/` (`model-*.data` from `keybr-phonetic-model/assets`, `words-*.json` from `keybr-content-words/lib/data`).
 
 ## Patches
 
