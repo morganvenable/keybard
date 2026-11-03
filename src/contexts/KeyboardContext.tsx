@@ -4,10 +4,8 @@ import { svalService } from "../services/sval.service";
 
 import { fileService } from "../services/file.service";
 import { keyService } from "../services/key.service";
-import { qmkService } from "../services/qmk.service";
 import { SvilUSB, usbInstance } from "../services/usb.service";
-import { customValueService } from "../services/custom-value.service";
-import { getClosestPresetColor } from "../utils/color-conversion";
+import { readBoard } from "../services/board-read";
 import type { KeyboardInfo } from "../types/keyboard.types";
 import { seedComboNames } from "../utils/combo-names";
 import { boardStoresComboNames } from "@/utils/combo-name-storage";
@@ -296,64 +294,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setConnectionState("loading");
         const loadPromise = (async () => {
             try {
-                const kbinfo: KeyboardInfo = {
-                    rows: 0,
-                    cols: 0,
-                };
-                await keyboardService.init(kbinfo);
-                const loadedInfo = await keyboardService.load(kbinfo);
-
-                // Load QMK settings
-                console.log("[KeyboardContext] About to load QMK settings...");
-                try {
-                    await qmkService.get(loadedInfo);
-                    console.log("[KeyboardContext] QMK settings loaded:", loadedInfo.settings);
-                } catch (error) {
-                    console.warn("Failed to load QMK settings:", error);
-                }
-
-                // Load layer colors from keyboard using VIA custom values
-                console.log("[KeyboardContext] Loading layer colors from keyboard...");
-                try {
-                    const layerColors = await usbInstance.getAllLayerColors();
-                    // Convert to format with val (brightness) - default to max
-                    loadedInfo.layer_colors = layerColors.map(c => ({
-                        hue: c.hue,
-                        sat: c.sat,
-                        val: 255
-                    }));
-                    console.log("[KeyboardContext] Layer colors loaded:", loadedInfo.layer_colors);
-
-                    // Also update cosmetic.layer_colors with the closest preset color names
-                    // This is needed for the keyboard display to show correct colors
-                    if (!loadedInfo.cosmetic) {
-                        loadedInfo.cosmetic = { layer: {}, layer_colors: {} };
-                    }
-                    if (!loadedInfo.cosmetic.layer_colors) {
-                        loadedInfo.cosmetic.layer_colors = {};
-                    }
-                    layerColors.forEach((c, idx) => {
-                        const presetName = getClosestPresetColor(c.hue, c.sat, 255);
-                        loadedInfo.cosmetic!.layer_colors![idx.toString()] = presetName;
-                    });
-                    console.log("[KeyboardContext] Cosmetic layer colors:", loadedInfo.cosmetic.layer_colors);
-                } catch (error) {
-                    console.warn("Failed to load layer colors:", error);
-                }
-
-                // Load all VIA3 custom values (DPI, scroll mode, automouse, etc.)
-                if (loadedInfo.menus) {
-                    console.log("[KeyboardContext] Loading VIA3 custom values from keyboard...");
-                    try {
-                        // Drop any values cached from a previous connect so a stale
-                        // reading can't survive a reconnect within the same page session.
-                        customValueService.clearCache();
-                        loadedInfo.custom_values = await customValueService.loadAllMenuValues(loadedInfo.menus);
-                        console.log("[KeyboardContext] Custom values loaded:", loadedInfo.custom_values.length, "entries");
-                    } catch (error) {
-                        console.warn("Failed to load custom values:", error);
-                    }
-                }
+                const loadedInfo = await readBoard();
 
                 if (session !== sessionRef.current) return;
                 // Combo names Keybard kept for this board: the ones of a reload of

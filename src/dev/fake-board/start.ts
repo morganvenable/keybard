@@ -15,13 +15,18 @@ let ready: Promise<HIDDevice> | null = null;
 class FakeHid extends EventTarget {
     onconnect: ((ev: Event) => unknown) | null = null;
     ondisconnect: ((ev: Event) => unknown) | null = null;
+    /** Other permitted boards, listed before the simulated one (tests: several boards plugged in). */
+    others: HIDDevice[] = [];
 
     constructor(private readonly device: () => Promise<HIDDevice>) {
         super();
     }
 
     async getDevices(): Promise<HIDDevice[]> {
-        return [await this.device()];
+        const device = await this.device();
+        // A simulated restart (simulateFirmwareUpdate) takes it away for a moment.
+        const here = (d: HIDDevice) => (d as HIDDevice & { present?: boolean }).present !== false;
+        return [...this.others, device].filter(here);
     }
 
     async requestDevice(): Promise<HIDDevice[]> {

@@ -6,7 +6,7 @@ import { FAKE_BOARD_PRODUCT_NAME, FakeSvalboardDevice } from "./device";
 declare global {
     interface Window {
         /** The simulated board, for tests and the console. */
-        keybardFakeBoard?: { device: FakeSvalboardDevice; wipe: () => void };
+        keybardFakeBoard?: { device: FakeSvalboardDevice; wipe: () => void; addOtherBoard: () => FakeSvalboardDevice; firmwareHost?: unknown };
     }
 }
 
@@ -57,7 +57,13 @@ export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
         device.forgetSettings();
         window.location.reload();
     };
-    window.keybardFakeBoard = { device, wipe };
+    // A second permitted board, plugged in before this one: getDevices() lists it first.
+    const addOtherBoard = () => {
+        const other = new FakeSvalboardDevice({ persist: false, serial: [0x0e, 0x7e, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc], reportLength: current ? 64 : 32 });
+        (navigator as Navigator & { hid?: { others?: HIDDevice[] } }).hid?.others?.unshift(other.asHIDDevice());
+        return other;
+    };
+    window.keybardFakeBoard = { device, wipe, addOtherBoard };
     showBadge(choice, wipe);
     console.info(`[fake board] ${FAKE_BOARD_PRODUCT_NAME} (${choice === "old" ? "firmware without combo names" : choice === "no-pause" ? "firmware that can't pause typing" : "combo names on the board"}) in place of WebHID.`);
     return device.asHIDDevice();

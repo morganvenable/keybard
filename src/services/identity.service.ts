@@ -124,3 +124,26 @@ export class IdentityService {
 }
 
 export const identityService = new IdentityService(usbInstance);
+
+/** The board's own serial ("sval:…"), when its identity has one; null otherwise. */
+export function boardSerialOf(info: IdentityInfo | null): string | null {
+    if (!info || info.serialSource === SerialSource.None || !/^sval:[0-9A-F]+$/i.test(info.serial) || /^sval:0+$/.test(info.serial)) return null;
+    return info.serial;
+}
+
+/**
+ * The serial of a permitted device Keybard doesn't have open, read on a connection of its
+ * own (as SvilUSB.checkFirmware does), so a board that isn't the one being edited is never
+ * loaded into the editor. Null when it doesn't answer or has no identity.
+ */
+export async function probeBoardSerial(device: HIDDevice): Promise<string | null> {
+    const probe = new SvilUSB();
+    try {
+        await probe.openDevice(device);
+        return boardSerialOf(await new IdentityService(probe).getInfo());
+    } catch {
+        return null;
+    } finally {
+        await probe.close().catch(() => undefined);
+    }
+}

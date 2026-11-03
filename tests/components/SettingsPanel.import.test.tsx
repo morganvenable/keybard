@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SettingsPanel from '../../src/layout/SecondarySidebar/Panels/SettingsPanel';
 
-const mocks = vi.hoisted(() => ({ connected: true, instant: true, pending: {} as Record<string, unknown>, loadFromFile: vi.fn(), queue: vi.fn(), sync: vi.fn(), commit: vi.fn(), load: vi.fn(), setKeyboard: vi.fn(), keyboard: { rows: 1, cols: 1, layers: 1, keymap: [[4]], name: 'Test keyboard', macros: [], macro_count: 0, settings: {} } }));
+const mocks = vi.hoisted(() => ({ readBoard: vi.fn(), markAsSaved: vi.fn(), connected: true, instant: true, pending: {} as Record<string, unknown>, loadFromFile: vi.fn(), queue: vi.fn(), sync: vi.fn(), commit: vi.fn(), load: vi.fn(), setKeyboard: vi.fn(), keyboard: { rows: 1, cols: 1, layers: 1, keymap: [[4]], name: 'Test keyboard', macros: [], macro_count: 0, settings: {} } }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/ClustersPanel', () => ({ default: () => <p>Hardware rows</p> }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/TypingBehaviorPanel', () => ({ default: () => <p>Typing behavior rows</p> }));
-vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected, loadFromFile: mocks.loadFromFile, setIsImporting: vi.fn() }) }));
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: mocks.keyboard, setKeyboard: mocks.setKeyboard, isConnected: mocks.connected, loadFromFile: mocks.loadFromFile, setIsImporting: vi.fn(), markAsSaved: mocks.markAsSaved, getKeyboardSnapshot: () => structuredClone(mocks.keyboard) }) }));
+vi.mock('@/services/board-read', () => ({ readBoard: mocks.readBoard }));
 vi.mock('@/contexts/ChangesContext', () => ({ useChanges: () => ({ queue: mocks.queue, todo: mocks.pending, isInstant: mocks.instant, isSaving: false, commit: mocks.commit }) }));
 vi.mock('@/contexts/SettingsContext', () => ({ useSettings: () => ({ getSetting: vi.fn(), updateSetting: vi.fn(), getSettingDefinition: () => undefined }) }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ layoutMode: 'sidebar' }) }));
@@ -18,7 +19,7 @@ vi.mock('../../src/layout/SecondarySidebar/Panels/BoardIdentitySection', () => (
 vi.mock('../../src/layout/SecondarySidebar/Panels/BackupsSection', () => ({ default: () => null }));
 vi.mock('../../src/layout/SecondarySidebar/Panels/settings/FirmwareRow', () => ({ default: () => null }));
 
-beforeEach(() => { vi.clearAllMocks(); mocks.connected = true; mocks.instant = true; mocks.pending = {}; mocks.loadFromFile.mockResolvedValue(true); mocks.load.mockResolvedValue({ ...mocks.keyboard, keymap: [[5]] }); mocks.commit.mockResolvedValue(true); });
+beforeEach(() => { vi.clearAllMocks(); mocks.connected = true; mocks.instant = true; mocks.pending = {}; mocks.loadFromFile.mockResolvedValue(true); mocks.load.mockResolvedValue({ ...mocks.keyboard, keymap: [[5]] }); mocks.commit.mockResolvedValue(true); mocks.readBoard.mockImplementation(async () => structuredClone(mocks.keyboard)); });
 const chooseFile = (container: HTMLElement) => fireEvent.change(container.querySelector('input[type=file]')!, { target: { files: [new File(['{}'], 'layout.svil')] } });
 describe('import review', () => {
     it('does not write or replace the draft on file selection or cancellation', async () => {
@@ -65,6 +66,18 @@ describe('import review', () => {
         // The Apply button's pending count shows the staged state; no status text.
         expect(screen.queryByRole('status')).toBeNull();
         expect(mocks.commit).not.toHaveBeenCalled();
+    });
+    it('plans against the board as read when applying, not the copy the editor shows', async () => {
+        // The board reset its keys while the editor still shows the old layout.
+        mocks.readBoard.mockImplementation(async () => ({ ...structuredClone(mocks.keyboard), keymap: [[0]] }));
+        const { container } = render(<SettingsPanel />);
+        chooseFile(container);
+        fireEvent.click(await screen.findByRole('button', { name: 'Apply import' }));
+        await waitFor(() => expect(mocks.sync).toHaveBeenCalled());
+        expect(mocks.readBoard).toHaveBeenCalled();
+        expect(mocks.sync.mock.calls[0][1].keymap).toEqual([[0]]);
+        // What the board held is the saved state, so a revert never brings back the stale copy.
+        expect(mocks.markAsSaved).toHaveBeenCalledWith(expect.objectContaining({ keymap: [[0]] }));
     });
     it('uses the provider offline-loading path and does not claim success if cancelled', async () => {
         mocks.connected = false;

@@ -28,6 +28,8 @@ const board = (mode: number, deadZone: number): KeyboardInfo => ({
         { key: DZ_KEY, channel: CH, valueId: DZ_ID, data: [deadZone] },
     ],
 });
+/** The board as a fresh read finds it: the values it holds now. */
+const onBoardNow = async () => board(onBoard.get(MODE_ID) ?? 0, onBoard.get(DZ_ID) ?? 0);
 const modeOf = (kb: KeyboardInfo | null) => kb?.custom_values?.find(e => e.key === PAD_MODE_KEY)?.data[0];
 
 // What the board holds: VIA custom values by id.
@@ -84,7 +86,7 @@ describe.each([true, false])('Touchpad mode across an update (Live Updating %s)'
         const ed = editor(after);
         const ch = changes(live);
         customValueService.populateCacheFromEntries(after.custom_values!);
-        await restoreLayoutToBoard(svil, { keyboard: after, ...ed, queue: ch.queue, commit: ch.commit });
+        await restoreLayoutToBoard(svil, { readBoard: onBoardNow, ...ed, queue: ch.queue, commit: ch.commit });
 
         expect(onBoard.get(MODE_ID)).toBe(PAD_MODE_BUILTIN);
         expect(modeWrites).toBe(1);
@@ -121,7 +123,7 @@ describe('the restore of other backups', () => {
         const after = board(PAD_MODE_AUTO, 0);
         const ed = editor(after);
         const ch = changes(true);
-        await restoreLayoutToBoard(svil, { keyboard: after, ...ed, queue: ch.queue, commit: ch.commit });
+        await restoreLayoutToBoard(svil, { readBoard: onBoardNow, ...ed, queue: ch.queue, commit: ch.commit });
         expect(modeWrites).toBe(0);
         expect(onBoard.get(MODE_ID)).toBe(PAD_MODE_AUTO);
     });
@@ -133,9 +135,9 @@ describe('the restore of other backups', () => {
         const after = board(PAD_MODE_AUTO, 0);
         const ed = editor(after);
         const ch = changes(true);
-        await expect(restoreLayoutToBoard(svil, { keyboard: after, ...ed, queue: ch.queue, commit: ch.commit })).rejects.toThrow(/Your layout is back, but not Touchpad mode. It was Built-in gestures before the update/);
+        await expect(restoreLayoutToBoard(svil, { readBoard: onBoardNow, ...ed, queue: ch.queue, commit: ch.commit })).rejects.toThrow(/Your layout is back, but not Touchpad mode. It was Built-in gestures before the update/);
         // The error carries the layout restore's report, for the update's Done screen.
-        const again = await restoreLayoutToBoard(svil, { keyboard: after, ...ed, queue: ch.queue, commit: ch.commit }).catch((e) => e);
+        const again = await restoreLayoutToBoard(svil, { readBoard: onBoardNow, ...ed, queue: ch.queue, commit: ch.commit }).catch((e) => e);
         expect(again.report?.trimmed).toEqual([]);
         expect(modeOf(ed.e.draft)).toBe(PAD_MODE_AUTO);
         expect(modeOf(ed.e.loaded)).toBe(PAD_MODE_AUTO);

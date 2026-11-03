@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useKeyboard } from '@/contexts/KeyboardContext';
@@ -7,13 +7,41 @@ import { fileService } from '@/services/file.service';
 import { prepareImport, type ImportReview } from '@/services/import-preflight';
 import type { KeyboardInfo } from '@/types/keyboard.types';
 import { ImportSettingsNotes } from '@/components/ImportSettingsNotes';
+import { readBoard } from '@/services/board-read';
+import { landLayout, LayoutNotLanded, planWrites } from '@/features/firmware/restore';
+
+const NOT_SAVED = 'Some imported changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.';
 
 export function useLayoutImport() {
-    const { keyboard, setKeyboard, isConnected, setIsImporting, loadFromFile } = useKeyboard();
-    const { queue, todo, isInstant, commit, isSaving } = useChanges();
-    const [review, setReview] = useState<{ plan: ImportReview; target: KeyboardInfo | null; connected: boolean; filename: string; file: File } | null>(null);
+    const { keyboard, setKeyboard, isConnected, setIsImporting, loadFromFile, markAsSaved, getKeyboardSnapshot } = useKeyboard();
+    const { queue, todo, isInstant, commit, isSaving, error: changesError } = useChanges();
+    const [review, setReview] = useState<{ plan: ImportReview; imported: KeyboardInfo; target: KeyboardInfo | null; connected: boolean; filename: string; file: File } | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
     const [applying, setApplying] = useState(false);
+
+    // Manual updates: once Apply has written a staged import, read the board back and compare.
+    const verifyAfterApply = useRef(false);
+    const wasSaving = useRef(false);
+    useEffect(() => {
+        const finished = wasSaving.current && !isSaving;
+        wasSaving.current = isSaving;
+        if (!verifyAfterApply.current) return;
+        const pending = Object.keys(todo).length;
+        // Discarded: nothing left to check.
+        if (!pending && !isSaving && !finished) { verifyAfterApply.current = false; return; }
+        if (!finished || pending || changesError) return;
+        verifyAfterApply.current = false;
+        const wanted = getKeyboardSnapshot();
+        if (!wanted) return;
+        void (async () => {
+            try {
+                await landLayout(wanted, await readBoard(), { queue, commit, readBoard });
+            } catch (error) {
+                if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); }
+                setFileError(error instanceof Error ? error.message : String(error));
+            }
+        })();
+    }, [isSaving, todo, changesError, getKeyboardSnapshot, queue, commit, setKeyboard, markAsSaved]);
 
     const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -32,7 +60,7 @@ export function useLayoutImport() {
         setIsImporting(true);
         try {
             const imported = await fileService.uploadFile(file);
-            setReview({ plan: prepareImport(imported, isConnected && keyboard ? keyboard : undefined), target: keyboard, connected: isConnected, filename: file.name, file });
+            setReview({ plan: prepareImport(imported, isConnected && keyboard ? keyboard : undefined), imported, target: keyboard, connected: isConnected, filename: file.name, file });
         } catch (error) {
             setFileError(error instanceof Error ? error.message : String(error));
         } finally { setIsImporting(false); }
@@ -47,15 +75,30 @@ export function useLayoutImport() {
         setApplying(true);
         setFileError(null);
         try {
-            const next = review.plan.keyboard;
             if (!isConnected) {
                 if (await loadFromFile(review.file) === false) return;
             } else if (keyboard) {
-                setKeyboard(next);
-                const { importService } = await import('@/services/import.service');
-                const { keyboardService } = await import('@/services/keyboard.service');
-                await importService.syncWithKeyboard(next, keyboard, (desc, cb, metadata) => queue(desc, cb, { ...metadata, deferCommit: true }), { keyboardService });
-                if (isInstant && !await commit()) throw new Error('Some imported changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.');
+                // Planned against the board as read now, never the editor's copy: after an update
+                // or a reset the board holds its defaults, whatever the editor last showed.
+                const board = await readBoard();
+                const plan = prepareImport(review.imported, board);
+                if (plan.errors.length) throw new Error(plan.errors.join(' '));
+                markAsSaved(board);
+                setKeyboard(plan.keyboard);
+                const target = { queue, commit, readBoard };
+                if (isInstant) {
+                    try {
+                        await landLayout(plan.keyboard, board, target);
+                    } catch (error) {
+                        if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); throw error; }
+                        throw new Error(NOT_SAVED);
+                    }
+                } else {
+                    // Manual updates: staged now; read back once Apply has written them.
+                    const writes = await planWrites(plan.keyboard, board);
+                    await Promise.all(writes.map(w => queue(w.desc, w.cb, { ...w.metadata, deferCommit: true })));
+                    verifyAfterApply.current = writes.length > 0;
+                }
             }
             setReview(null);
         } catch (error) {
