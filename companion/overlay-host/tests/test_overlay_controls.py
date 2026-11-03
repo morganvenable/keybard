@@ -109,10 +109,13 @@ class OverlayControlsTest(unittest.TestCase):
         self.assertFalse(self.controls.keep_anchored())
         self.assertEqual(self.controls.pos(), QPoint(50, 60))
 
-    def test_the_host_checks_the_controls_with_its_on_top_timer(self):
-        import inspect
-        from keybard_host.__main__ import Host
-        self.assertIn('self.ontop_timer.timeout.connect(self.keep_overlay)', inspect.getsource(Host.__init__))
+    def test_controls_stay_on_screen_when_the_overlay_is_stranded_below_it(self):
+        # A display change can leave the overlay below every screen: its controls stay reachable.
+        self.surface.show(); self.controls.show()
+        area = self.surface.screen().availableGeometry()
+        self.surface.resize(400, 200); self.surface.move(200, area.bottom() + 500); self.app.processEvents()
+        self.controls.keep_anchored(); self.app.processEvents()
+        self.assertLessEqual(self.controls.geometry().bottom(), area.bottom())
 
     def test_handle_drags_surface_even_in_click_through(self):
         self.surface.pass_clicks_through()

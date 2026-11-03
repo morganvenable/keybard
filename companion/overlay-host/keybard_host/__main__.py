@@ -307,8 +307,10 @@ class OverlayControls(QWidget):
     def anchor(self):
         """Where the controls belong: above the overlay's top-right corner, kept on its screen."""
         screen = self.surface.screen() or QApplication.primaryScreen()
+        if screen is None: return self.pos()  # displays mid-change: stay put until one is back
         area = screen.availableGeometry()
-        return QPoint(max(area.left(), min(self.surface.x() + self.surface.width() - self.width(), area.right() - self.width() + 1)), max(area.top(), self.surface.y() - self.height() - 4))
+        return QPoint(max(area.left(), min(self.surface.x() + self.surface.width() - self.width(), area.right() - self.width() + 1)),
+                      max(area.top(), min(self.surface.y() - self.height() - 4, area.bottom() - self.height() + 1)))
 
     def reposition(self):
         target = self.anchor()
@@ -410,8 +412,8 @@ class Host(QObject):
 
     def keep_overlay(self):
         """Once a second: the controls over the overlay, and both above ordinary windows."""
-        self.controls.keep_anchored()
         ontop.keep_on_top((self.surface, self.controls))
+        self.controls.keep_anchored()
 
     def shown_board(self):
         return self.boards.get(self.follower.shown)
