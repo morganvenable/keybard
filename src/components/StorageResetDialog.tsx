@@ -13,6 +13,7 @@ import { serializeForBackup, useBackups } from "@/contexts/BackupContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { restoreLayoutToBoard } from "@/features/firmware/restore";
+import { readBoard } from "@/services/board-read";
 import { fingerprintSvil } from "@/services/backup/codec";
 import { getBackupService, type SnapshotMeta } from "@/services/backup/backup.service";
 import { backupLine } from "@/services/backup/describe";
@@ -258,7 +259,8 @@ function ResetDialog({ keyboard, firmware, onAcknowledged }: { keyboard: Keyboar
             // The touchpad mode only from the backup of the update that just reset the board: an
             // older one's mode may since have been changed on purpose. Its layout still comes back.
             const boardState = isRecentPreUpdate(newest, Date.now()) ? { applyBoardState } : {};
-            await restoreLayoutToBoard(svil, { keyboard, setKeyboard, queue, commit, markSaved: markAsSaved, ...boardState });
+            // Planned against the board as read now: it holds its defaults, whatever the editor showed.
+            await restoreLayoutToBoard(svil, { readBoard, setKeyboard, queue, commit, markSaved: markAsSaved, ...boardState });
             await acknowledgeReset();
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));

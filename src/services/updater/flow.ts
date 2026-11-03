@@ -77,6 +77,15 @@ export interface RestoreReport {
     trimmed: string[];
     replaced?: SettingReplacement[];
     unavailable?: string[];
+    /** Settings the board adjusted or didn't keep after they were written, by name. */
+    notKept?: string[];
+    /** Settings written that Keybard couldn't read back to check, by name. */
+    unchecked?: string[];
+}
+
+/** The read-back's notes of a restore, only when there are any. */
+export function checkNotes(report?: Pick<RestoreReport, "notKept" | "unchecked">): Pick<RestoreReport, "notKept" | "unchecked"> {
+    return { ...(report?.notKept?.length ? { notKept: report.notKept } : {}), ...(report?.unchecked?.length ? { unchecked: report.unchecked } : {}) };
 }
 
 export interface FlowResult {
@@ -88,6 +97,10 @@ export interface FlowResult {
     replaced?: SettingReplacement[];
     /** Names of the layout's settings this firmware doesn't have (the keyboard kept its own). */
     unavailable?: string[];
+    /** Settings the board adjusted or didn't keep after they were written. */
+    notKept?: string[];
+    /** Settings written that Keybard couldn't read back to check. */
+    unchecked?: string[];
     /** One-image firmware: each half's side after the update (absent on per-hand builds). */
     sides?: SidesResult | null;
     /** The layout is back but the touchpad mode isn't: what to do (one line). */
@@ -124,6 +137,11 @@ export interface FlowState {
     version: 1;
     id: string;
     phase: "running" | "result" | "failed" | "cancelled";
+    /**
+     * The serial of the board connected at Start (null: it has none). Kept with the state, so
+     * after a reload the board that comes back is still checked before anything is written.
+     */
+    boardSerial?: string | null;
     target: Target;
     usbHand: Hand;
     title: string;
@@ -177,6 +195,14 @@ export interface FlowHost {
     restoreLayout(svil: string): Promise<RestoreReport>;
     /** After a blank wipe (D44): every key on every layer reads KC_NO once the layout has loaded. */
     keymapBlank?(): Promise<boolean>;
+    /**
+     * Why the board connected now isn't the one being updated (`serial`, or the one this host
+     * remembered), or null when it is or nothing says otherwise. Nothing is reset or written
+     * on another board.
+     */
+    otherBoard?(serial?: string | null): Promise<string | null>;
+    /** The serial of the board connected now, or null when it has none. */
+    currentBoard?(): Promise<string | null>;
     /** Hold a Web Lock and a Screen Wake Lock for the update; returns their release. */
     holdLocks?(): Promise<() => void>;
     /** SIDE (0x33): each half's side on the one-image firmware. Absent: never checked. */
@@ -496,7 +522,10 @@ export class UpdateFlow {
         try {
             if (this.state.phase !== "running") return this.state;
             trace(this.state.step === "start" ? "start" : `resume at ${this.state.step}`, { target: this.state.target, afterwards: this.state.afterwards, toTag: this.state.toTag });
-            if (this.state.step === "start") await this.install();
+            if (this.state.step === "start") {
+                if (this.state.boardSerial === undefined && this.host.currentBoard) this.update({ boardSerial: await this.host.currentBoard().catch(() => null) });
+                await this.install();
+            }
             else await this.resume();
             await this.after();
         } catch (error) {
@@ -974,6 +1003,9 @@ export class UpdateFlow {
         // First what the half with USB runs: everything after reads the new firmware.
         const wantFirst = this.state.files[this.state.usbHand];
         if (wantFirst && this.state.committed.includes(this.state.usbHand)) await this.confirmUsbVersion(wantFirst, this.usbRestartSeen);
+        // Before any SIDE write, reset, restore or 0x2A: the board back is the one updated.
+        const other = await this.host.otherBoard?.(this.state.boardSerial ?? undefined);
+        if (other) throw new Stop({ id: this.state.afterwards === "blank" ? "F20" : this.state.afterwards === "restore" ? "F16" : "F21", detail: other });
         await this.checkSides();
         const { usbHand, target } = this.state;
         const o = otherHand(usbHand);
@@ -1027,14 +1059,14 @@ export class UpdateFlow {
             try {
                 const report = await this.host.restoreLayout(this.backupSvil);
                 trimmed = report.trimmed;
-                notes = { replaced: report.replaced ?? [], unavailable: report.unavailable ?? [] };
+                notes = { replaced: report.replaced ?? [], unavailable: report.unavailable ?? [], ...checkNotes(report) };
             } catch (error) {
                 // The layout is back and only the touchpad mode isn't: the update finishes as a
                 // restore, with the layout's notes, and the Done screen says where to set the mode.
                 const partial = error instanceof Error && error.name === "TouchpadModeNotRestored" ? error as Error & { hint?: string; report?: RestoreReport } : null;
                 if (!partial) throw new Stop({ id: "F16", detail: error instanceof Error ? error.message : String(error) });
                 trimmed = partial.report?.trimmed ?? [];
-                notes = { replaced: partial.report?.replaced ?? [], unavailable: partial.report?.unavailable ?? [] };
+                notes = { replaced: partial.report?.replaced ?? [], unavailable: partial.report?.unavailable ?? [], ...checkNotes(partial.report) };
                 touchpadMode = partial.hint ?? partial.message;
             }
         } else if (this.state.afterwards === "blank") {

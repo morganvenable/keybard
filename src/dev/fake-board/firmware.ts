@@ -119,6 +119,8 @@ export interface FakeFirmwareOptions {
      * it, VIA's keymap reset answers as unhandled.
      */
     factoryKeymap?: Uint8Array;
+    /** The board's identity serial, 8 bytes (the RP2040 unique ID on a real board). */
+    serial?: number[];
     /** Firmware with the typing pause (Sval 0x3C, GET_INFO byte 20 bit 2). Default true. */
     typingPause?: boolean;
     /** Firmware with the flicker latch (Sval 0x3D, GET_INFO byte 20 bit 3). Default true. */
@@ -284,10 +286,16 @@ export class FakeSvalFirmware {
     private currentClient = 0;
     /** Live layer state (layer_state): never saved, as in QMK. */
     layerState = 0;
+    /**
+     * For tests: this many keymap writes (set keycode or set buffer) are acknowledged but
+     * not stored, as a board whose writes don't land.
+     */
+    dropKeymapWrites = 0;
     private idCounter: number;
     private readonly now: () => number;
     private readonly onChange?: (state: FakeBoardState) => void;
     private readonly factoryKeymap?: Uint8Array;
+    private readonly serial: number[];
     /** The identity name staged by OP_NAME writes until OP_COMMIT. */
     private stagedName = new Uint8Array(IDENTITY_NAME_MAX_BYTES);
 
@@ -305,6 +313,7 @@ export class FakeSvalFirmware {
         this.onChange = options.onChange;
         if (this.timingUsOnly) this.migrateTiming();
         this.factoryKeymap = options.factoryKeymap;
+        this.serial = options.serial ?? IDENTITY_SERIAL;
         const start = Date.now();
         this.now = options.now ?? (() => Date.now() - start);
         // client_wrapper_init(): the counter is seeded from the timer
@@ -642,6 +651,7 @@ export class FakeSvalFirmware {
             }
             case 0x05: { // id_dynamic_keymap_set_keycode
                 const [layer, row, col] = [cd[0], cd[1], cd[2]];
+                if (this.dropKeymapWrites > 0) { this.dropKeymapWrites--; break; }
                 if (layer < LAYERS && row < ROWS && col < COLS) {
                     const o = ((layer * ROWS + row) * COLS + col) * 2;
                     s.keymap[o] = cd[3];
@@ -689,6 +699,7 @@ export class FakeSvalFirmware {
                 const offset = (cd[0] << 8) | cd[1];
                 const size = this.viaBufferSize(cd[2], length, wrapped);
                 const out = cd.subarray(3);
+                if (data[0] === 0x13 && this.dropKeymapWrites > 0) { this.dropKeymapWrites--; break; }
                 for (let i = 0; i < size; i++) {
                     const at = offset + i;
                     if (data[0] === 0x12) out[i] = at < s.keymap.length ? s.keymap[at] : 0;
@@ -981,7 +992,7 @@ export class FakeSvalFirmware {
             v[2] = name.length;
             v[3] = IDENTITY_NAME_MAX_BYTES;
             v[4] = 2; // serial source: random
-            v.set(IDENTITY_SERIAL, 5);
+            v.set(this.serial, 5);
         } else if (cmd === 0x08 && op === 1) {
             const off = v[0];
             const n = off < name.length ? Math.min(chunk, name.length - off) : 0;
@@ -1420,6 +1431,20 @@ export class FakeSvalFirmware {
         s.qmkSettings.set(value.subarray(0, d.size), d.offset);
         this.changed();
         return 0;
+    }
+
+    /**
+     * The first boot of a different firmware build (D39): every stored setting goes back to
+     * the build's defaults (the factory keymap, empty tables and macros, default QMK settings,
+     * custom values and labels), and the board reports the reset (GET_INFO storage flags bit 2)
+     * until the host clears it (0x2A).
+     */
+    firstBootReset(flags = 0x04): void {
+        const fresh = blankBoard();
+        if (this.factoryKeymap) fresh.keymap.set(this.factoryKeymap);
+        fresh.storageFlags = flags;
+        Object.assign(this.state, fresh);
+        this.changed();
     }
 
     /**

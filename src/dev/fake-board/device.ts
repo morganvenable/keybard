@@ -48,6 +48,8 @@ export interface FakeSvalboardOptions {
     state?: FakeBoardState;
     /** Keep the settings in localStorage after every write. Default: true unless `state` is given. */
     persist?: boolean;
+    /** The identity serial, 8 bytes (a second simulated board needs its own). */
+    serial?: number[];
     /** How a reply is scheduled after a report goes out (a later task, as USB replies are). */
     schedule?: (fn: () => void) => void;
 }
@@ -168,6 +170,7 @@ export class FakeSvalboardDevice extends EventTarget {
             multiFinger: options.multiFinger ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
+            serial: options.serial,
         });
         this.schedule = options.schedule ?? defaultSchedule();
     }
@@ -176,6 +179,30 @@ export class FakeSvalboardDevice extends EventTarget {
     forgetSettings(): void {
         this.persisting = false;
         wipeFakeBoard();
+    }
+
+    /** False while the simulated board is "unplugged" (restarting): getDevices() leaves it out. */
+    present = true;
+
+    /**
+     * What a firmware update looks like from the page: the board goes away (its HID
+     * disconnect), restarts on a different build that resets every setting and reports
+     * the reset (firstBootReset), and comes back (its HID connect) after `goneMs`.
+     */
+    async simulateFirmwareUpdate(options: { goneMs?: number; flags?: number } = {}): Promise<void> {
+        const hid = typeof navigator !== "undefined" ? (navigator as Navigator & { hid?: EventTarget }).hid : undefined;
+        const announce = (type: "connect" | "disconnect") => {
+            const event = new Event(type);
+            Object.defineProperty(event, "device", { value: this });
+            hid?.dispatchEvent(event);
+        };
+        this.present = false;
+        this.isOpen = false;
+        announce("disconnect");
+        await new Promise((done) => setTimeout(done, options.goneMs ?? 1500));
+        this.firmware.firstBootReset(options.flags ?? 0x04);
+        this.present = true;
+        announce("connect");
     }
 
     asHIDDevice(): HIDDevice {

@@ -39,7 +39,7 @@ class Host extends FakeHost implements ManualHost {
     async makeBackup({ fromTag }: { fromTag: string }) {
         this.backups++;
         if (this.failBackup) throw new Error("Disk full.");
-        return { fileName: `Kip-${fromTag}-2026-10-21.svil`, svil: '{"layout":"mine"}' };
+        return { fileName: `Kip-${fromTag}-2026-10-21.svil`, svil: '{"layout":"mine"}', boardSerial: "sval:AAAA" };
     }
 }
 
@@ -442,5 +442,26 @@ describe("a board on updater protocol 3 (vNext1, x3.x)", () => {
         const summary = await readBoardSummary(board);
         expect(summary.updater).toBe(true);
         expect(summary.tag).toBe("v3");
+    });
+});
+
+describe("the manual install's board", () => {
+    it("keeps the backed-up board's serial in the session, so a reload still knows it", async () => {
+        const store = sessionManualStore(sessionStorage);
+        await opened({}, store);
+        expect(store.load()?.backup).toMatchObject({ state: "ok", boardSerial: "sval:AAAA" });
+        sessionStorage.clear();
+    });
+
+    it.each(["restore", "defaults"] as const)("writes nothing on another board (%s), even after a reload", async (afterwards) => {
+        const { board, host } = setup();
+        board.storageFlags = 0x04;
+        const asked: Array<string | null | undefined> = [];
+        host.otherBoard = async (serial?: string | null) => { asked.push(serial); return serial === "sval:AAAA" ? "Keybard is connected to another keyboard (sval:BBBB), not the one that was updated. Nothing was written." : null; };
+        const s = { ...newManualSession({ releaseTag: "x4", openKey: "p:1", connected: true }), afterwards, backup: { state: "ok" as const, fileName: "f.svil", svil: "{}", boardSerial: "sval:AAAA" } };
+        await expect(runManualAfterwards(host, s)).rejects.toThrow(/another keyboard \(sval:BBBB\)/);
+        expect(asked).toEqual(["sval:AAAA"]);
+        expect(host.restores).toBe(0);
+        expect(host.clears).toBe(0);
     });
 });

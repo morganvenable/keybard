@@ -166,4 +166,8 @@ describe('boardKeyFor', () => {
         expect(boardKeyFor(null, board())).toBe('uid:ABCDEF');
         expect(boardKeyFor({ ...identity, serialSource: SerialSource.None, serial: 'sval:0000000000000000' }, board())).toBe('uid:ABCDEF');
     });
+    it('takes a random serial only where the identity region keeps it', () => {
+        expect(boardKeyFor({ ...identity, serialSource: SerialSource.Random, available: false }, board())).toBe('uid:ABCDEF');
+        expect(boardKeyFor({ ...identity, serialSource: SerialSource.Random, available: true }, board())).toBe('sval:E46498769F365934');
+    });
 });

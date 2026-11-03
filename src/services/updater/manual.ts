@@ -8,7 +8,7 @@
 // that comes back must still hold the backup, and put it back. Closing the dialog, or
 // the tab, forgets it; the pre-update snapshot and the downloaded file still hold the layout.
 
-import type { FlowHost, RestoreReport } from "./flow";
+import { checkNotes, type FlowHost, type RestoreReport } from "./flow";
 import { sidesNeedAnswer, type SideAssessment } from "../side-decision";
 import type { Hand } from "./protocol";
 
@@ -17,7 +17,8 @@ export type ManualAfterwards = "restore" | "defaults";
 
 export type ManualBackup =
     | { state: "pending" }
-    | { state: "ok"; fileName: string; snapshotId?: string; svil: string }
+    /** boardSerial: the backed-up board's serial, so a restore after a reload still checks the board. */
+    | { state: "ok"; fileName: string; snapshotId?: string; svil: string; boardSerial?: string | null }
     | { state: "failed"; error: string };
 
 /** What one half runs, as read on Connect. */
@@ -212,7 +213,11 @@ export interface ManualResult extends RestoreReport {
  * the backup back through the import path; the default layout keeps what the firmware
  * started with. Then the reset notice is cleared (0x2A), last, as the in-app update does.
  */
-export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<ManualResult> {
+export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset" | "otherBoard">, s: ManualSession, o: { reportedReset?: () => boolean } = {}): Promise<ManualResult> {
+    // Nothing is restored or cleared on another board, even after a reload lost the host's memory of it.
+    const serial = s.backup?.state === "ok" ? s.backup.boardSerial ?? null : null;
+    const other = serial ? await host.otherBoard?.(serial) : null;
+    if (other) throw new Error(other);
     let report: RestoreReport = { trimmed: [] };
     const restore = s.afterwards === "restore" && s.backup?.state === "ok";
     if (restore) report = await host.restoreLayout((s.backup as Extract<ManualBackup, { state: "ok" }>).svil);
@@ -224,5 +229,5 @@ export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" |
     if (reset) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
     // The same build installed again resets nothing: say the layout is as it was, not "the default layout".
     const kept = !restore && flags !== null && !reset;
-    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed: report.trimmed, replaced: report.replaced ?? [], unavailable: report.unavailable ?? [] };
+    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed: report.trimmed, replaced: report.replaced ?? [], unavailable: report.unavailable ?? [], ...checkNotes(report) };
 }

@@ -17,14 +17,14 @@ describe("the update's layout restore", () => {
     it("marks the restored layout saved, even when nothing needed writing", async () => {
         const markSaved = vi.fn();
         const setKeyboard = vi.fn();
-        await restoreLayoutToBoard("{}", { keyboard: { name: "board" } as KeyboardInfo, setKeyboard, queue: vi.fn(), commit: async () => true, markSaved });
+        await restoreLayoutToBoard("{}", { readBoard: async () => ({ name: "board" } as KeyboardInfo), setKeyboard, queue: vi.fn(), commit: async () => true, markSaved });
         expect(setKeyboard).toHaveBeenCalledWith(restored);
         expect(markSaved).toHaveBeenCalledWith(restored);
     });
 
     it("leaves it unsaved when the commit fails", async () => {
         const markSaved = vi.fn();
-        await expect(restoreLayoutToBoard("{}", { keyboard: { name: "board" } as KeyboardInfo, setKeyboard: vi.fn(), queue: vi.fn(), commit: async () => false, markSaved })).rejects.toThrow(/couldn't be written/);
+        await expect(restoreLayoutToBoard("{}", { readBoard: async () => ({ name: "board" } as KeyboardInfo), setKeyboard: vi.fn(), queue: vi.fn(), commit: async () => false, markSaved })).rejects.toThrow(/couldn't be written/);
         expect(markSaved).not.toHaveBeenCalled();
     });
 });

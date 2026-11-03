@@ -39,7 +39,9 @@ const NO_FOLDER: FolderStatus = { state: "none", name: null, error: null };
 
 /** The persistent serial when the firmware has one, otherwise the keyboard UID. */
 export function boardKeyFor(identity: IdentityInfo | null, keyboard: KeyboardInfo): string | null {
-    if (identity && identity.serialSource !== SerialSource.None && !/^sval:0+$/.test(identity.serial)) return identity.serial;
+    // A random serial lasts only where the identity region keeps it; otherwise it changes every boot.
+    const lasting = identity && !(identity.serialSource === SerialSource.Random && !identity.available);
+    if (identity && lasting && identity.serialSource !== SerialSource.None && !/^sval:0+$/.test(identity.serial)) return identity.serial;
     if (keyboard.kbid) return `uid:${keyboard.kbid.toUpperCase()}`;
     return null;
 }

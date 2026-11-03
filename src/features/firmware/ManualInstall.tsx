@@ -173,7 +173,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                         {outcome.result.trimmed.map((line) => <p key={line}>{line}</p>)}
                     </Problem>
                 )}
-                {outcome?.result && <ImportSettingsNotes replaced={outcome.result.replaced} unavailable={outcome.result.unavailable} done />}
+                {outcome?.result && <ImportSettingsNotes replaced={outcome.result.replaced} unavailable={outcome.result.unavailable} notKept={outcome.result.notKept} unchecked={outcome.result.unchecked} done />}
                 <div className="flex flex-wrap justify-end gap-2">
                     {phase === "failed" && onOpenBackups && <Button variant="outline" onClick={onOpenBackups}>Open Backups</Button>}
                     <Button variant="kb-primary" onClick={onClose}>Done</Button>

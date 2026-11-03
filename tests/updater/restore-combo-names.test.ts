@@ -39,8 +39,12 @@ async function restoreOnto(reset: KeyboardInfo) {
     const queued: Array<() => Promise<void>> = [];
     let shown: KeyboardInfo | null = null;
     let markedSaved: KeyboardInfo | null = null;
+    // The board as read: reset before the writes, holding the combos (and, where it stores
+    // them, their names) after.
+    let reads = 0;
+    const stored = { ...reset, combos: saved.combos, cosmetic: reset.feature_flags2 === 0x80 ? saved.cosmetic : reset.cosmetic };
     await restoreLayoutToBoard(svil, {
-        keyboard: reset,
+        readBoard: async () => structuredClone(reads++ === 0 ? reset : stored),
         setKeyboard: kb => { shown = kb; },
         queue: async (_desc, cb) => { queued.push(cb); },
         commit: async () => { for (const cb of queued) await cb(); return true; },
