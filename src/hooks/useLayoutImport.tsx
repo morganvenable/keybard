@@ -6,9 +6,9 @@ import { useChanges } from '@/contexts/ChangesContext';
 import { fileService } from '@/services/file.service';
 import { prepareImport, type ImportReview } from '@/services/import-preflight';
 import type { KeyboardInfo } from '@/types/keyboard.types';
-import { ImportSettingsNotes, UnavailableSettingsNote } from '@/components/ImportSettingsNotes';
+import { ImportSettingsNotes, NotKeptSettingsNote, UncheckedSettingsNote } from '@/components/ImportSettingsNotes';
 import { readBoard } from '@/services/board-read';
-import { landLayout, LayoutNotLanded, planWrites } from '@/features/firmware/restore';
+import { asLanded, landLayout, LayoutNotLanded, planWrites, type Landed } from '@/features/firmware/restore';
 
 const NOT_SAVED = 'Some imported changes could not be saved. They remain in pending changes. Retry Apply after restoring the connection.';
 
@@ -19,7 +19,13 @@ export function useLayoutImport() {
     const [fileError, setFileError] = useState<string | null>(null);
     const [applying, setApplying] = useState(false);
     // Settings the board didn't keep after the last import (the firmware clamps or ignores some).
-    const [notKept, setNotKept] = useState<string[]>([]);
+    const [checked, setChecked] = useState<Pick<Landed, 'notKept' | 'unchecked'>>({ notKept: [], unchecked: [] });
+    /** The read-back's notes; the editor shows and marks saved what the board holds. */
+    const landed = (planned: KeyboardInfo, result: Landed) => {
+        setChecked({ notKept: result.notKept, unchecked: result.unchecked });
+        const shown = asLanded(planned, result);
+        if (shown !== planned) { setKeyboard(shown); markAsSaved(shown); }
+    };
 
     // Manual updates: once Apply has written a staged import, read the board back and compare.
     const verifyAfterApply = useRef(false);
@@ -37,7 +43,7 @@ export function useLayoutImport() {
         if (!wanted) return;
         void (async () => {
             try {
-                setNotKept((await landLayout(wanted, await readBoard(), { queue, commit, readBoard })).notKept);
+                landed(wanted, await landLayout(wanted, await readBoard(), { queue, commit, readBoard }));
             } catch (error) {
                 if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); }
                 setFileError(error instanceof Error ? error.message : String(error));
@@ -76,7 +82,7 @@ export function useLayoutImport() {
         }
         setApplying(true);
         setFileError(null);
-        setNotKept([]);
+        setChecked({ notKept: [], unchecked: [] });
         try {
             if (!isConnected) {
                 if (await loadFromFile(review.file) === false) return;
@@ -91,7 +97,7 @@ export function useLayoutImport() {
                 const target = { queue, commit, readBoard };
                 if (isInstant) {
                     try {
-                        setNotKept((await landLayout(plan.keyboard, board, target)).notKept);
+                        landed(plan.keyboard, await landLayout(plan.keyboard, board, target));
                     } catch (error) {
                         if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); throw error; }
                         throw new Error(NOT_SAVED);
@@ -112,7 +118,8 @@ export function useLayoutImport() {
 
     const importReview = <>
         {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
-        <UnavailableSettingsNote names={notKept} done />
+        <NotKeptSettingsNote names={checked.notKept} />
+        <UncheckedSettingsNote names={checked.unchecked} />
         <Dialog open={!!review} onOpenChange={open => { if (!open && !applying) setReview(null); }}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                 <DialogHeader>

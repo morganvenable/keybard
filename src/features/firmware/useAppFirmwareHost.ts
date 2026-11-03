@@ -181,19 +181,25 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             await rememberBoard();
             const deadline = Date.now() + timeoutMs;
             // A board that doesn't answer (other firmware, the bootloader, busy) is asked again only
-            // every few seconds; the restarted board comes back as a new device and is asked at once.
+            // every few seconds.
+            // Only boards listed when the wait began are left alone: a device that appears during it
+            // (the restarted board, still starting) is asked on every pass until it answers.
             const missed = new Map<HIDDevice, number>();
+            let listedAtStart: Set<HIDDevice> | null = null;
             const probeHere = async (device: HIDDevice) => {
                 const at = missed.get(device);
                 if (at !== undefined && Date.now() - at < PROBE_RETRY_MS) return null;
                 const serial = await probe(device);
-                if (serial) missed.delete(device); else missed.set(device, Date.now());
+                if (serial) missed.delete(device);
+                else if (listedAtStart?.has(device)) missed.set(device, Date.now());
                 return serial;
             };
             while (Date.now() < deadline) {
                 // A board loaded meanwhile counts only when it is the one being updated.
                 if (keyboardLoaded() && usbInstance.isOpen() && !(await otherBoard())) return transport;
-                const device = await pickBoard(await listPermittedDevices(), boardSerial, (d) => usbInstance.hasDevice(d), probeHere);
+                const devices = await listPermittedDevices();
+                listedAtStart ??= new Set(devices);
+                const device = await pickBoard(devices, boardSerial, (d) => usbInstance.hasDevice(d), probeHere);
                 if (device) await ref.current.kb.connectDevice(device, { discardEdits: true }).catch(() => false);
                 await realClock.sleep(500);
             }
@@ -226,6 +232,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             return restoreLayoutToBoard(svil, { readBoard, setKeyboard: k.setKeyboard, queue: ch.queue, commit: ch.commit, markSaved: k.markAsSaved, applyBoardState: k.applyBoardState });
         },
         otherBoard,
+        currentBoard: rememberBoard,
         async keymapBlank() {
             // After the wipe's reconnect: wait for the load, then every key on every layer is KC_NO.
             const deadline = Date.now() + 20_000;

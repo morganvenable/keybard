@@ -157,6 +157,15 @@ describe.each([true, false])("settings on the read-back (Live Updating %s)", (li
         expect(landed.notKept).toEqual([]);
     });
 
+    it("a board whose settings couldn't be read gets the file's values, and says they weren't checked", async () => {
+        const ch = changes(live);
+        // Every read misses the custom values: the first one too, and the read-backs.
+        const unread = async () => { const kb = await read(); delete kb.custom_values; return kb; };
+        const landed = await landLayout(wanted(), await unread(), { queue: ch.queue, commit: () => ch.commit(), readBoard: unread });
+        expect(stored.dpi).toBe(1);
+        expect(landed.unchecked).toEqual(["Pointing: Left DPI"]);
+    });
+
     it("a read-back that fails once is read again", async () => {
         const ch = changes(live);
         const first = await read();
@@ -173,12 +182,17 @@ describe.each([true, false])("settings on the read-back (Live Updating %s)", (li
         expect(landed.notKept).toEqual(["Pointing: Left DPI"]);
     });
 
-    it("the restore lists it with the settings this firmware didn't take", async () => {
+    it("the restore reports it as kept differently, and marks saved what the board holds", async () => {
         stored.ignoreDpi = true;
         const ch = changes(live);
         const svil = fileService.kbinfoToSvil(structuredClone(wanted()), true);
-        const report = await restoreLayoutToBoard(svil, { readBoard: read, setKeyboard: () => {}, queue: ch.queue, commit: () => ch.commit(), markSaved: vi.fn() });
-        expect(report.unavailable).toContain("Pointing: Left DPI");
+        const markSaved = vi.fn();
+        const report = await restoreLayoutToBoard(svil, { readBoard: read, setKeyboard: () => {}, queue: ch.queue, commit: () => ch.commit(), markSaved });
+        expect(report.notKept).toEqual(["Pointing: Left DPI"]);
+        expect(report.unavailable ?? []).not.toContain("Pointing: Left DPI");
+        const saved = markSaved.mock.calls.at(-1)?.[0] as KeyboardInfo;
+        expect(saved.custom_values?.find((v) => v.key === "id_left_dpi")?.data).toEqual([0]);
+        expect(saved.keymap).toEqual([[4, 5], [6, 7]]);
     });
 });
 

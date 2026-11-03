@@ -115,32 +115,55 @@ function settingName(w: PlannedWrite, menus: KeyboardInfo["menus"]): string {
 export interface Landed {
     /** The board as last read. */
     board: KeyboardInfo;
-    /** Settings, custom values, names and hardware positions the board didn't keep, by name. */
+    /** Settings, custom values, names and hardware positions the board adjusted or didn't keep, by name. */
     notKept: string[];
+    /** Settings written from the file that the last read couldn't read back, by name. */
+    unchecked: string[];
 }
+
+/**
+ * The board to plan writes against: a part it couldn't read has nothing to compare with, so
+ * every value the file has for it is written (with no `settings`, the import would write none).
+ */
+const toPlanOn = (board: KeyboardInfo): KeyboardInfo => (board.settings === undefined ? { ...board, settings: {} } : board);
 
 /**
  * Make the board hold `wanted`, starting from `board` as just read: write what differs,
  * read the board back, write what still differs once more, and read it again. A read that
  * fails is tried once more. Throws LayoutNotLanded when keys, macros or tables are still
  * different, naming them, or an Error when a write itself fails. Settings and custom values
- * the board doesn't keep (the firmware clamps or ignores some) come back in `notKept`.
+ * the board adjusts or doesn't keep (the firmware clamps or ignores some) come back in
+ * `notKept`; ones the last read couldn't read come back in `unchecked`.
  */
 export async function landLayout(wanted: KeyboardInfo, board: KeyboardInfo, t: LandTarget): Promise<Landed> {
     const read = () => t.readBoard().catch(() => t.readBoard());
+    const done = (current: KeyboardInfo): Landed => ({ board: current, notKept: [], unchecked: [] });
     let current = board;
     for (let attempt = 0; attempt < 2; attempt++) {
-        const writes = (await planWrites(wanted, current)).filter(readIn(current));
-        if (attempt > 0 && !writes.some(changesSomething)) return { board: current, notKept: [] };
+        const writes = await planWrites(wanted, toPlanOn(current));
+        if (attempt > 0 && !writes.some(changesSomething)) return done(current);
         await Promise.all(writes.map((w) => t.queue(w.desc, w.cb, { ...w.metadata, deferCommit: true })));
         if (!(await t.commit())) throw new Error("Some of the layout couldn't be written.");
-        if (!writes.some(changesSomething)) return { board: current, notKept: [] };
+        if (!writes.some(changesSomething)) return done(current);
         current = await read();
     }
-    const left = (await planWrites(wanted, current)).filter(readIn(current)).filter(changesSomething);
+    // Only the final comparison leaves unread parts out: they are unchecked, not different.
+    const all = (await planWrites(wanted, toPlanOn(current))).filter(changesSomething);
+    const left = all.filter(readIn(current));
     const failed = left.filter(layoutPart);
     if (failed.length) throw new LayoutNotLanded(describeWrites(failed), current);
-    return { board: current, notKept: [...new Set(left.map((w) => settingName(w, wanted.menus ?? current.menus)))] };
+    const menus = wanted.menus ?? current.menus;
+    const names = (ws: PlannedWrite[]) => [...new Set(ws.map((w) => settingName(w, menus)))];
+    return { board: current, notKept: names(left), unchecked: names(all.filter((w) => !readIn(current)(w))) };
+}
+
+/**
+ * What the editor shows and marks saved after a landed layout: the keys and tables the board
+ * now holds (they equal the file), with the settings and custom values as read back.
+ */
+export function asLanded(planned: KeyboardInfo, landed: Landed): KeyboardInfo {
+    if (!landed.notKept.length) return planned;
+    return { ...planned, settings: landed.board.settings ?? planned.settings, custom_values: landed.board.custom_values ?? planned.custom_values };
 }
 
 export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Promise<RestoreReport> {
@@ -149,9 +172,9 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
     const plan = prepareImport(imported, board);
     if (plan.errors.length) throw new Error(plan.errors.join(" "));
     t.setKeyboard(plan.keyboard);
-    let notKept: string[];
+    let landed: Landed;
     try {
-        ({ notKept } = await landLayout(plan.keyboard, board, t));
+        landed = await landLayout(plan.keyboard, board, t);
     } catch (error) {
         // Show what the board holds, never a layout it didn't take.
         if (error instanceof LayoutNotLanded) {
@@ -160,8 +183,11 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
         }
         throw error;
     }
-    t.markSaved?.(plan.keyboard);
-    const report: RestoreReport = { trimmed: plan.warnings, replaced: plan.replaced, unavailable: [...new Set([...(plan.unavailable ?? []), ...notKept])] };
+    // Marked saved as read back: a setting the board adjusted is never left as an unsaved edit.
+    const shown = asLanded(plan.keyboard, landed);
+    if (shown !== plan.keyboard) t.setKeyboard(shown);
+    t.markSaved?.(shown);
+    const report: RestoreReport = { trimmed: plan.warnings, replaced: plan.replaced, unavailable: plan.unavailable, notKept: landed.notKept, unchecked: landed.unchecked };
     // The layout is back either way: a mode that didn't go back carries the layout's notes.
     if (t.applyBoardState) {
         const { keyboardService } = await import("@/services/keyboard.service");

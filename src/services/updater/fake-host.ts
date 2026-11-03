@@ -28,7 +28,9 @@ export class FakeHost implements FlowHost {
     /** SIDE on the mock board, when the setup gave it one. */
     sides?: SideHost;
     /** Set by a test: Keybard is connected to another board than the one updated. */
-    otherBoard?: () => Promise<string | null>;
+    otherBoard?: (serial?: string | null) => Promise<string | null>;
+    /** Set by a test: the serial of the board connected at Start. */
+    currentBoard?: () => Promise<string | null>;
 
     constructor(readonly board: FakeSvalboard, readonly clock: Clock, private o: FakeHostOptions = {}) {}
 

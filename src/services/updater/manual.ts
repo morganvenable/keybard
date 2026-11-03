@@ -8,7 +8,7 @@
 // that comes back must still hold the backup, and put it back. Closing the dialog, or
 // the tab, forgets it; the pre-update snapshot and the downloaded file still hold the layout.
 
-import type { FlowHost, RestoreReport } from "./flow";
+import { checkNotes, type FlowHost, type RestoreReport } from "./flow";
 import { sidesNeedAnswer, type SideAssessment } from "../side-decision";
 import type { Hand } from "./protocol";
 
@@ -229,5 +229,5 @@ export async function runManualAfterwards(host: Pick<FlowHost, "restoreLayout" |
     if (reset) await host.clearStorageReset().catch((e) => console.warn("[firmware] couldn't clear the reset notice", e));
     // The same build installed again resets nothing: say the layout is as it was, not "the default layout".
     const kept = !restore && flags !== null && !reset;
-    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed: report.trimmed, replaced: report.replaced ?? [], unavailable: report.unavailable ?? [] };
+    return { layout: restore ? "restored" : kept ? "kept" : "defaults", trimmed: report.trimmed, replaced: report.replaced ?? [], unavailable: report.unavailable ?? [], ...checkNotes(report) };
 }

@@ -96,4 +96,24 @@ describe("the app host's board", () => {
         await h.waitForDevice(2600);
         expect(hid.probes.get(MUTE) ?? 0).toBeLessThanOrEqual(1);
     });
+
+    it("asks a board that appears during the wait again soon, though it didn't answer at first", async () => {
+        const h = host();
+        await h.makeBackup({ fromTag: "x4.3", toTag: "v4.3.5" }).catch(() => undefined);
+        const BACK = { name: "A after its restart" };
+        hid.serials.set(BACK, null);
+        hid.open = null;
+        hid.devices = [B];
+        const connectDevice = connectsTo();
+        kb.current = { ...kb.current, isConnected: false, connectDevice };
+        rerender();
+        const waiting = h.waitForDevice(2500);
+        // A comes back, still starting: it answers from its second read on.
+        await new Promise((r) => setTimeout(r, 600));
+        hid.devices = [B, BACK];
+        const timer = setInterval(() => { if ((hid.probes.get(BACK) ?? 0) >= 1) hid.serials.set(BACK, "sval:AAAA"); }, 20);
+        await waiting;
+        clearInterval(timer);
+        expect(connectDevice).toHaveBeenCalledWith(BACK, expect.anything());
+    });
 });

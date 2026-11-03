@@ -53,12 +53,34 @@ export function UnavailableSettingsNote({ names, done }: { names: string[]; done
     );
 }
 
-/** Both notes, as an import or restore reports them. */
-export function ImportSettingsNotes({ replaced, unavailable, done }: { replaced?: SettingReplacement[]; unavailable?: string[]; done: boolean }) {
+/** Settings the board took but adjusted (clamped) or didn't keep, after they were written. */
+export function NotKeptSettingsNote({ names }: { names: string[] }) {
+    if (!names.length) return null;
+    return (
+        <div className={NOTE} data-testid="settings-not-kept">
+            <p>The keyboard adjusted or didn't keep: {names.join(", ")}.</p>
+        </div>
+    );
+}
+
+/** Settings written that Keybard couldn't read back from the keyboard to check. */
+export function UncheckedSettingsNote({ names }: { names: string[] }) {
+    if (!names.length) return null;
+    return (
+        <div className={NOTE} data-testid="settings-unchecked">
+            <p>These settings were written, but couldn't be checked: {names.join(", ")}.</p>
+        </div>
+    );
+}
+
+/** The notes an import or restore reports. */
+export function ImportSettingsNotes({ replaced, unavailable, notKept, unchecked, done }: { replaced?: SettingReplacement[]; unavailable?: string[]; notKept?: string[]; unchecked?: string[]; done: boolean }) {
     return (
         <>
             <ReplacedSettingsNote replaced={replaced ?? []} />
             <UnavailableSettingsNote names={unavailable ?? []} done={done} />
+            <NotKeptSettingsNote names={notKept ?? []} />
+            <UncheckedSettingsNote names={unchecked ?? []} />
         </>
     );
 }

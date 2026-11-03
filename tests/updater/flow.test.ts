@@ -469,3 +469,19 @@ describe("the board after the update", () => {
         expect(host.clears).toBe(0);
     });
 });
+
+describe("the updated board's serial", () => {
+    it.each(["defaults", "blank"] as const)("is saved at Start and checked after the update (%s), with no backup to carry it", async (afterwards) => {
+        const { board, host, plan: p } = await plan({ release: v3 });
+        if ("id" in p) throw new Error(`plan failed: ${p.id}`);
+        host.currentBoard = async () => "sval:AAAA";
+        const asked: Array<string | null | undefined> = [];
+        host.otherBoard = async (serial?: string | null) => { asked.push(serial); return serial === "sval:AAAA" ? "Keybard is connected to another keyboard (sval:BBBB)." : null; };
+        const store = memoryFlowStore();
+        const state = await UpdateFlow.create(host, store, { plan: p, afterwards, backup: null }).run();
+        expect(state.boardSerial).toBe("sval:AAAA");
+        expect(asked).toEqual(["sval:AAAA"]);
+        expect(state.phase).toBe("failed");
+        expect(board.requests.some((r) => r.op === Op.SETTINGS_RESET)).toBe(false);
+    });
+});
