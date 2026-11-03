@@ -7,6 +7,7 @@ import { usePointingSlots } from "@/hooks/usePointingSlots";
 import { keyboardService } from "@/services/keyboard.service";
 import { getPointingLive } from "@/services/pointing-live.service";
 import type { PointingMotionReport } from "@/utils/pointing-motion";
+import { sameFactors, type PointingFactors } from "@/utils/pointing-multiplier";
 
 export type DrawnKind = "trackball" | "touchpad";
 export type HandKinds = { left: DrawnKind | null; right: DrawnKind | null };
@@ -63,6 +64,8 @@ export interface PointingLive {
     feed: PointingFeed | null;
     sniper: boolean;
     boost: boolean;
+    /** The sniper and boost factors the board reports, or null (the pills show no number). */
+    factors: PointingFactors | null;
     /** Where the motion comes from: the board (0x2D), the demo script, or nothing. */
     source: "board" | "demo" | "none";
 }
@@ -79,6 +82,7 @@ export function usePointingLive(active: boolean): PointingLive {
     const supported = active && isConnected && keyboardService.hasPointingMotion(keyboard);
     const feed = useMemo(() => new ReportFeed(), []);
     const [modes, setModes] = useState({ sniper: false, boost: false });
+    const [factors, setFactors] = useState<PointingFactors | null>(null);
 
     useEffect(() => { live.setConnection(keyboard ?? null, isConnected, connectionSessionId); }, [live, keyboard, isConnected, connectionSessionId]);
 
@@ -88,6 +92,7 @@ export function usePointingLive(active: boolean): PointingLive {
         const off = live.subscribe((r, dt) => {
             feed.push(r, dt);
             setModes((m) => (m.sniper === r.sniper && m.boost === r.boost ? m : { sniper: r.sniper, boost: r.boost }));
+            setFactors((f) => (sameFactors(f, r.factors) ? f : r.factors ?? null));
         });
         return () => { off(); release(); };
     }, [supported, live, feed]);
@@ -102,6 +107,7 @@ export function usePointingLive(active: boolean): PointingLive {
         feed: supported || scripted ? feed : null,
         sniper: (supported && modes.sniper) || !!demo?.sniper,
         boost: (supported && modes.boost) || !!demo?.boost,
+        factors: supported ? factors : demo?.factors ?? null,
         source: supported ? "board" : scripted ? "demo" : "none",
     };
 }

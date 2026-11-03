@@ -5,6 +5,8 @@
 //                             trackball (the demo layout has no pointing instances)
 //   &left= &right=            trackball | touchpad | none, per hand (also works on a board)
 //   &sniper=1 &boost=1        hold sniper or boost on (simulated; a board reports its own)
+//   &sniperDiv=N &boostX=N    the factors the simulated board reports (1-255); without them
+//                             the pills show no number, as on firmware that doesn't report them
 //   &velocity=1               hold Velocity Scroll at the moving hand, with an offset that
 //                             moves (or holds still with &motion=0)
 //   &offset=x,y               the still offset in mm (+x right, +y toward the user)
@@ -48,6 +50,8 @@ export interface PointingDemo {
     panel?: string;
     /** &contacts=N: fingers the touchpads report through POINTING_CONTACTS (simulated). */
     contacts?: number;
+    /** &sniperDiv= and &boostX=: the factors the simulated board reports (both, or none). */
+    factors?: { sniperDivisor: number; boostFactor: number };
 }
 
 function kindParam(v: string | null): DemoKind | undefined {
@@ -77,6 +81,8 @@ export function pointingDemoFromSearch(search: string): PointingDemo | null {
     const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "pointing" || panelRaw === "keyboard" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
     const contactsRaw = parseInt(p.get("contacts") ?? "", 10);
     const contacts = Number.isFinite(contactsRaw) && contactsRaw > 0 ? Math.min(MAX_CONTACTS, contactsRaw) : undefined;
+    const factorParam = (k: string) => { const n = parseInt(p.get(k) ?? "", 10); return Number.isInteger(n) && n >= 1 && n <= 255 ? n : undefined; };
+    const sniperDivisor = factorParam("sniperDiv"), boostFactor = factorParam("boostX");
     if (!demo && !left && !right && !sniper && !boost && !velocity && !p.has("motion") && !panel && !contacts) return null;
     return {
         demo,
@@ -90,6 +96,7 @@ export function pointingDemoFromSearch(search: string): PointingDemo | null {
         motion: p.has("motion") ? on(p.get("motion")) : demo,
         panel,
         ...(contacts ? { contacts } : {}),
+        ...(sniperDivisor && boostFactor ? { factors: { sniperDivisor, boostFactor } } : {}),
     };
 }
 
@@ -220,6 +227,7 @@ export function demoReport(d: PointingDemo, t0: number, t1: number): PointingMot
         sniper: d.sniper, boost: d.boost, autoMouseLayer: false, axisLockEnabled: false, naturalScroll: false, scrollKey: false,
         elapsedMs: Math.round((t1 - t0) * 1000), axisLock: "free", left, right,
         ...(velocityScroll ? { velocityScroll } : {}),
+        ...(d.factors ? { factors: d.factors } : {}),
     };
     return d.contacts ? withPadContacts(report, parsePointingContacts(demoContactsReply(d, t1))) : report;
 }

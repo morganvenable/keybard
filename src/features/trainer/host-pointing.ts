@@ -82,7 +82,16 @@ export function hostPointingEvent(detail: unknown): PointingMotionReport | null 
         sniper: d.sniper === true, boost: d.boost === true, autoMouseLayer: false, axisLockEnabled: false, naturalScroll: false, scrollKey: false,
         elapsedMs: typeof d.elapsedMs === 'number' ? d.elapsedMs : 16, axisLock: 'free', left: half(d.left), right: half(d.right),
         ...(velocityScroll ? { velocityScroll } : {}),
+        ...(factorsFromJson(d.factors) ?? {}),
     };
+}
+
+/** The Host's { sniperDivisor, boostFactor } (as the board reported them), or nothing. */
+function factorsFromJson(v: unknown): { factors: { sniperDivisor: number; boostFactor: number } } | null {
+    if (!v || typeof v !== 'object') return null;
+    const o = v as Record<string, unknown>;
+    const ok = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 255;
+    return ok(o.sniperDivisor) && ok(o.boostFactor) ? { factors: { sniperDivisor: o.sniperDivisor, boostFactor: o.boostFactor } } : null;
 }
 
 const REMOTE_KEY = 'keybard-host-remote';

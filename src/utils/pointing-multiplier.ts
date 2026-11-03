@@ -1,32 +1,10 @@
-// The sniper and boost multipliers shown in the pills. POINTING_MOTION (0x2D)
-// says whether sniper or boost is on, not by how much: the factor comes from the
-// keys that turn them on (Svalboard QMK keymap_support.h, QK_USER_0 + n).
-//   SV_SNIPER_2/3/5 = 12/13/14, SV_SNIPER_2/3/5_TG = 21/22/23 (divide by 2, 3, 5)
-//   SV_BOOST_2/3/5 = 24/25/26, SV_BOOST_2/3/5_TG = 27/28/29 (multiply by 2, 3, 5)
-// If the keymap holds exactly one sniper factor, that one is shown; otherwise the
-// default (sniper x0.33, the default keymap's SV_SNIPER_3; boost x2).
-
-const QK_USER_0 = 0x7e40;
-const SNIPER: Record<number, number> = { 12: 2, 13: 3, 14: 5, 21: 2, 22: 3, 23: 5 };
-const BOOST: Record<number, number> = { 24: 2, 25: 3, 26: 5, 27: 2, 28: 3, 29: 5 };
-export const DEFAULT_SNIPER_DIVISOR = 3;
-export const DEFAULT_BOOST_FACTOR = 2;
+// The sniper and boost factors shown in the pills: only what the board reports.
+// POINTING_MOTION (0x2D) carries the factors in force on firmware that has them
+// (payload [53] = 'F', [54] the sniper divisor, [55] the boost multiplier; see
+// pointing-motion.ts). Without them the pill shows its name alone: Keybard
+// never guesses a factor from the keymap.
 
 export interface PointingFactors { sniperDivisor: number; boostFactor: number }
-
-/** The factors the keymap's sniper and boost keys use. */
-export function pointingFactors(keymap: number[][] | undefined | null): PointingFactors {
-    const sniper = new Set<number>(), boost = new Set<number>();
-    for (const layer of keymap ?? []) for (const code of layer ?? []) {
-        const n = Number(code) - QK_USER_0;
-        if (SNIPER[n]) sniper.add(SNIPER[n]);
-        if (BOOST[n]) boost.add(BOOST[n]);
-    }
-    return {
-        sniperDivisor: sniper.size === 1 ? [...sniper][0] : DEFAULT_SNIPER_DIVISOR,
-        boostFactor: boost.size === 1 ? [...boost][0] : DEFAULT_BOOST_FACTOR,
-    };
-}
 
 /** "×0.33" for a divisor of 3, "×0.5" for 2, "×0.2" for 5. */
 export function sniperLabel(divisor: number): string {
@@ -36,10 +14,22 @@ export function boostLabel(factor: number): string {
     return `×${factor}`;
 }
 
-/** The labels in effect for the modes that are on, sniper first. */
-export function multiplierLabels(modes: { sniper: boolean; boost: boolean }, f: PointingFactors): string[] {
+/** The number each pill shows: the reported factors, or nothing when the board doesn't report them. */
+export function pillLabels(f: PointingFactors | null | undefined): { sniper: string; boost: string } {
+    return f ? { sniper: sniperLabel(f.sniperDivisor), boost: boostLabel(f.boostFactor) } : { sniper: "", boost: "" };
+}
+
+/** The labels in effect for the modes that are on, sniper first (empty strings when not reported). */
+export function multiplierLabels(modes: { sniper: boolean; boost: boolean }, f: PointingFactors | null | undefined): string[] {
+    const labels = pillLabels(f);
     const out: string[] = [];
-    if (modes.sniper) out.push(sniperLabel(f.sniperDivisor));
-    if (modes.boost) out.push(boostLabel(f.boostFactor));
+    if (modes.sniper) out.push(labels.sniper);
+    if (modes.boost) out.push(labels.boost);
     return out;
+}
+
+/** Same factors (both absent counts as the same). */
+export function sameFactors(a: PointingFactors | null | undefined, b: PointingFactors | null | undefined): boolean {
+    if (!a || !b) return !a && !b;
+    return a.sniperDivisor === b.sniperDivisor && a.boostFactor === b.boostFactor;
 }
