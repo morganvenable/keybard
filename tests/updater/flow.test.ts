@@ -455,3 +455,17 @@ describe("a reload mid-update", () => {
         expect(state.failure?.id).toBe("F6");
     });
 });
+
+describe("the board after the update", () => {
+    it.each(["restore", "defaults", "blank"] as const)("on another board (%s): stops before any SIDE, SETTINGS_RESET, restore or 0x2A", async (afterwards) => {
+        const { board, host, plan: p } = await plan({ release: v3 });
+        if ("id" in p) throw new Error(`plan failed: ${p.id}`);
+        host.otherBoard = async () => "Keybard is connected to another keyboard (sval:BBBB), not the one that was updated. Nothing was written.";
+        const state = await UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards, backup: afterwards === "blank" ? null : { fileName: "f.svil", svil: "{}" } }).run();
+        expect(state.phase).toBe("failed");
+        expect(state.failure?.detail).toMatch(/another keyboard \(sval:BBBB\)/);
+        expect(board.requests.some((r) => r.op === Op.SETTINGS_RESET)).toBe(false);
+        expect(host.restores).toBe(0);
+        expect(host.clears).toBe(0);
+    });
+});

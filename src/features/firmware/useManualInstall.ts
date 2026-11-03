@@ -16,7 +16,7 @@ import {
 import type { Hand } from "@/services/updater/protocol";
 import type { UpdateBackup } from "./useFirmwareUpdate";
 
-export interface ManualHost extends Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset"> {
+export interface ManualHost extends Pick<FlowHost, "restoreLayout" | "readStorageFlags" | "clearStorageReset" | "otherBoard"> {
     makeBackup(info: { fromTag: string; toTag: string }): Promise<UpdateBackup>;
 }
 
@@ -73,7 +73,7 @@ export function useManualInstall(host: ManualHost | null, o: UseManualInstallOpt
         if (!connected) return;
         backingUp.add(s.id);
         void h!.makeBackup({ fromTag: o.fromTag, toTag: release?.tag ?? "" }).then(
-            (b) => patch(s.id, (x) => ({ ...x, backup: { state: "ok", fileName: b.fileName, snapshotId: b.snapshotId, svil: b.svil } })),
+            (b) => patch(s.id, (x) => ({ ...x, backup: { state: "ok", fileName: b.fileName, snapshotId: b.snapshotId, svil: b.svil, boardSerial: b.boardSerial ?? null } })),
             // Gentle, as on the sheet: warn, and switch Restore my layout to the default layout.
             (e) => patch(s.id, (x) => ({ ...x, backup: { state: "failed", error: e instanceof Error ? e.message : String(e) }, afterwards: "defaults" })),
         ).finally(() => backingUp.delete(s.id));

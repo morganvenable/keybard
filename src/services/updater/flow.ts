@@ -177,6 +177,12 @@ export interface FlowHost {
     restoreLayout(svil: string): Promise<RestoreReport>;
     /** After a blank wipe (D44): every key on every layer reads KC_NO once the layout has loaded. */
     keymapBlank?(): Promise<boolean>;
+    /**
+     * Why the board connected now isn't the one being updated (`serial`, or the one this host
+     * remembered), or null when it is or nothing says otherwise. Nothing is reset or written
+     * on another board.
+     */
+    otherBoard?(serial?: string | null): Promise<string | null>;
     /** Hold a Web Lock and a Screen Wake Lock for the update; returns their release. */
     holdLocks?(): Promise<() => void>;
     /** SIDE (0x33): each half's side on the one-image firmware. Absent: never checked. */
@@ -974,6 +980,9 @@ export class UpdateFlow {
         // First what the half with USB runs: everything after reads the new firmware.
         const wantFirst = this.state.files[this.state.usbHand];
         if (wantFirst && this.state.committed.includes(this.state.usbHand)) await this.confirmUsbVersion(wantFirst, this.usbRestartSeen);
+        // Before any SIDE write, reset, restore or 0x2A: the board back is the one updated.
+        const other = await this.host.otherBoard?.();
+        if (other) throw new Stop({ id: this.state.afterwards === "blank" ? "F20" : this.state.afterwards === "restore" ? "F16" : "F21", detail: other });
         await this.checkSides();
         const { usbHand, target } = this.state;
         const o = otherHand(usbHand);

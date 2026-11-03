@@ -139,6 +139,9 @@ export async function pickBoard(devices: HIDDevice[], serial: string | null, isO
     return null;
 }
 
+/** How long a permitted board that didn't answer the serial read is left alone. */
+const PROBE_RETRY_MS = 5_000;
+
 function createAppHost(ref: { current: AppState }): FirmwareUiHost {
     const transport = new WebHidUpdaterTransport(usbInstance);
     const live = (): UpdaterTransport | null => (usbInstance.isOpen() ? transport : null);
@@ -154,16 +157,21 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
         if (serial) serials.set(device, serial);
         return serial;
     };
+    /**
+     * The board this session edits. A board whose key isn't a serial (firmware without an
+     * identity) has none: never the serial of a board updated earlier in this tab.
+     */
     const rememberBoard = async () => {
         const key = ref.current.backups.board?.key;
-        if (key?.startsWith("sval:")) boardSerial = key;
-        else if (usbInstance.isOpen() && ref.current.kb.isConnected) boardSerial = boardSerialOf(await identityService.getInfo().catch(() => null)) ?? boardSerial;
+        if (key) boardSerial = key.startsWith("sval:") ? key : null;
+        else if (usbInstance.isOpen() && ref.current.kb.isConnected) boardSerial = boardSerialOf(await identityService.getInfo().catch(() => null));
+        return boardSerial;
     };
-    /** The board connected now is the one being updated (or nothing says otherwise). */
-    const sameBoard = async (): Promise<string | null> => {
-        if (!boardSerial) return null;
+    /** Why the board connected now isn't `serial` (the one being updated), or null when it is or nothing says otherwise. */
+    const otherBoard = async (serial: string | null = boardSerial): Promise<string | null> => {
+        if (!serial) return null;
         const now = boardSerialOf(await identityService.getInfo().catch(() => null));
-        return now && now !== boardSerial ? now : null;
+        return now && now !== serial ? `Keybard is connected to another keyboard (${now}), not the one that was updated. Nothing was written. Connect the updated keyboard and restore the backup from Backups.` : null;
     };
     return {
         clock: realClock,
@@ -172,9 +180,20 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             // The board this session edits, the one that is restarting.
             await rememberBoard();
             const deadline = Date.now() + timeoutMs;
+            // A board that doesn't answer (other firmware, the bootloader, busy) is asked again only
+            // every few seconds; the restarted board comes back as a new device and is asked at once.
+            const missed = new Map<HIDDevice, number>();
+            const probeHere = async (device: HIDDevice) => {
+                const at = missed.get(device);
+                if (at !== undefined && Date.now() - at < PROBE_RETRY_MS) return null;
+                const serial = await probe(device);
+                if (serial) missed.delete(device); else missed.set(device, Date.now());
+                return serial;
+            };
             while (Date.now() < deadline) {
-                if (keyboardLoaded() && usbInstance.isOpen()) return transport;
-                const device = await pickBoard(await listPermittedDevices(), boardSerial, (d) => usbInstance.hasDevice(d), probe);
+                // A board loaded meanwhile counts only when it is the one being updated.
+                if (keyboardLoaded() && usbInstance.isOpen() && !(await otherBoard())) return transport;
+                const device = await pickBoard(await listPermittedDevices(), boardSerial, (d) => usbInstance.hasDevice(d), probeHere);
                 if (device) await ref.current.kb.connectDevice(device, { discardEdits: true }).catch(() => false);
                 await realClock.sleep(500);
             }
@@ -202,10 +221,11 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             while (!keyboardLoaded() && Date.now() < deadline) await realClock.sleep(250);
             const { kb: k, changes: ch } = ref.current;
             if (!k.keyboard) throw new Error("The keyboard didn't finish loading.");
-            const other = await sameBoard();
-            if (other) throw new Error(`Keybard is connected to another keyboard (${other}), not the one that was updated. Nothing was written. Connect the updated keyboard and restore the backup from Backups.`);
+            const other = await otherBoard();
+            if (other) throw new Error(other);
             return restoreLayoutToBoard(svil, { readBoard, setKeyboard: k.setKeyboard, queue: ch.queue, commit: ch.commit, markSaved: k.markAsSaved, applyBoardState: k.applyBoardState });
         },
+        otherBoard,
         async keymapBlank() {
             // After the wipe's reconnect: wait for the load, then every key on every layer is KC_NO.
             const deadline = Date.now() + 20_000;
@@ -216,7 +236,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
         holdLocks: holdUpdateLocks,
         sides: usbSideHost(usbInstance),
         async makeBackup({ fromTag, toTag }): Promise<UpdateBackup> {
-            await rememberBoard();
+            const serial = await rememberBoard();
             const { kb: k, backups: b } = ref.current;
             if (!k.keyboard) throw new Error("No layout loaded.");
             // The layout plus the board's touchpad mode, which only the update's restore puts back.
@@ -235,7 +255,7 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
                 snapshotId = meta?.id;
             }
             downloadText(svil, fileName);
-            return { snapshotId, fileName, svil };
+            return { snapshotId, fileName, svil, boardSerial: serial };
         },
         async prepareRows() {
             await rememberBoard();

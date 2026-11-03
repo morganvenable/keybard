@@ -15,6 +15,8 @@ export interface UpdateBackup {
     snapshotId?: string;
     fileName: string;
     svil: string;
+    /** The backed-up board's serial, when it has one: a restore checks it is still that board. */
+    boardSerial?: string | null;
 }
 
 /** The flow host plus what the sheet needs from the app. */

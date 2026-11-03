@@ -128,6 +128,8 @@ export const identityService = new IdentityService(usbInstance);
 /** The board's own serial ("sval:…"), when its identity has one; null otherwise. */
 export function boardSerialOf(info: IdentityInfo | null): string | null {
     if (!info || info.serialSource === SerialSource.None || !/^sval:[0-9A-F]+$/i.test(info.serial) || /^sval:0+$/.test(info.serial)) return null;
+    // A random serial lasts only where the identity region keeps it; otherwise it changes every boot.
+    if (info.serialSource === SerialSource.Random && !info.available) return null;
     return info.serial;
 }
 

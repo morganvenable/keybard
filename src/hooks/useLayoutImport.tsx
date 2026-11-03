@@ -6,7 +6,7 @@ import { useChanges } from '@/contexts/ChangesContext';
 import { fileService } from '@/services/file.service';
 import { prepareImport, type ImportReview } from '@/services/import-preflight';
 import type { KeyboardInfo } from '@/types/keyboard.types';
-import { ImportSettingsNotes } from '@/components/ImportSettingsNotes';
+import { ImportSettingsNotes, UnavailableSettingsNote } from '@/components/ImportSettingsNotes';
 import { readBoard } from '@/services/board-read';
 import { landLayout, LayoutNotLanded, planWrites } from '@/features/firmware/restore';
 
@@ -18,6 +18,8 @@ export function useLayoutImport() {
     const [review, setReview] = useState<{ plan: ImportReview; imported: KeyboardInfo; target: KeyboardInfo | null; connected: boolean; filename: string; file: File } | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
     const [applying, setApplying] = useState(false);
+    // Settings the board didn't keep after the last import (the firmware clamps or ignores some).
+    const [notKept, setNotKept] = useState<string[]>([]);
 
     // Manual updates: once Apply has written a staged import, read the board back and compare.
     const verifyAfterApply = useRef(false);
@@ -35,7 +37,7 @@ export function useLayoutImport() {
         if (!wanted) return;
         void (async () => {
             try {
-                await landLayout(wanted, await readBoard(), { queue, commit, readBoard });
+                setNotKept((await landLayout(wanted, await readBoard(), { queue, commit, readBoard })).notKept);
             } catch (error) {
                 if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); }
                 setFileError(error instanceof Error ? error.message : String(error));
@@ -74,6 +76,7 @@ export function useLayoutImport() {
         }
         setApplying(true);
         setFileError(null);
+        setNotKept([]);
         try {
             if (!isConnected) {
                 if (await loadFromFile(review.file) === false) return;
@@ -88,7 +91,7 @@ export function useLayoutImport() {
                 const target = { queue, commit, readBoard };
                 if (isInstant) {
                     try {
-                        await landLayout(plan.keyboard, board, target);
+                        setNotKept((await landLayout(plan.keyboard, board, target)).notKept);
                     } catch (error) {
                         if (error instanceof LayoutNotLanded) { setKeyboard(error.board); markAsSaved(error.board); throw error; }
                         throw new Error(NOT_SAVED);
@@ -109,6 +112,7 @@ export function useLayoutImport() {
 
     const importReview = <>
         {fileError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{fileError}</p>}
+        <UnavailableSettingsNote names={notKept} done />
         <Dialog open={!!review} onOpenChange={open => { if (!open && !applying) setReview(null); }}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                 <DialogHeader>

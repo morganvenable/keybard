@@ -27,6 +27,8 @@ export class FakeHost implements FlowHost {
     readonly events: string[] = [];
     /** SIDE on the mock board, when the setup gave it one. */
     sides?: SideHost;
+    /** Set by a test: Keybard is connected to another board than the one updated. */
+    otherBoard?: () => Promise<string | null>;
 
     constructor(readonly board: FakeSvalboard, readonly clock: Clock, private o: FakeHostOptions = {}) {}
 

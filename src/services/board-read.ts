@@ -10,20 +10,27 @@ import { qmkService } from "./qmk.service";
 import { usbInstance } from "./usb.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 
-/** Read the whole board, as the editor loads it. Parts a board may not have only warn. */
+/** A read that fails is tried once more: one timed-out report must not drop a part. */
+const twice = <T>(read: () => Promise<T>): Promise<T> => read().catch(() => read());
+
+/**
+ * Read the whole board, as the editor loads it. A part that fails twice only warns and is
+ * left out (no `settings`, no `custom_values`): unread, which a comparison must not take
+ * for "different".
+ */
 export async function readBoard(): Promise<KeyboardInfo> {
     const kbinfo: KeyboardInfo = { rows: 0, cols: 0 };
     await keyboardService.init(kbinfo);
     const loaded = await keyboardService.load(kbinfo);
 
     try {
-        await qmkService.get(loaded);
+        await twice(() => qmkService.get(loaded));
     } catch (error) {
         console.warn("Failed to load QMK settings:", error);
     }
 
     try {
-        const layerColors = await usbInstance.getAllLayerColors();
+        const layerColors = await twice(() => usbInstance.getAllLayerColors());
         // Brightness isn't per layer: shown at full.
         loaded.layer_colors = layerColors.map((c) => ({ hue: c.hue, sat: c.sat, val: 255 }));
         // The keyboard display shows the closest preset color.
@@ -39,8 +46,8 @@ export async function readBoard(): Promise<KeyboardInfo> {
     if (loaded.menus) {
         try {
             // Values cached from an earlier read must not stand in for what the board holds now.
-            customValueService.clearCache();
-            loaded.custom_values = await customValueService.loadAllMenuValues(loaded.menus);
+            const menus = loaded.menus;
+            loaded.custom_values = await twice(() => { customValueService.clearCache(); return customValueService.loadAllMenuValues(menus); });
         } catch (error) {
             console.warn("Failed to load custom values:", error);
         }

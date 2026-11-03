@@ -12,6 +12,7 @@ import { prepareImport } from "@/services/import-preflight";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import type { PendingChange } from "@/services/changes.service";
 import type { RestoreReport } from "@/services/updater/flow";
+import { customValueLabel, qmkSettingLabel } from "@/utils/setting-labels";
 import { boardStateFromSvil, restoreBoardState, TouchpadModeNotRestored, type BoardStateTarget } from "./board-state";
 
 type Queue = (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => Promise<void>;
@@ -89,25 +90,57 @@ export function describeWrites(writes: PlannedWrite[]): string[] {
     return out;
 }
 
+/** The keymap, macros and tables: a restore that doesn't land these failed. */
+const layoutPart = (w: PlannedWrite) => KINDS.slice(0, 7).some(([test]) => test(w));
+
+/**
+ * A part the read missed (a QMK settings or custom values read that failed twice) is
+ * unread, never different: nothing about the board's values follows from it.
+ */
+const readIn = (board: KeyboardInfo) => (w: PlannedWrite) => {
+    const key = w.metadata?.writeKey ?? "";
+    if (key.startsWith("custom:") || key.startsWith("custom-save:")) return board.custom_values !== undefined;
+    if (key.startsWith("setting:")) return board.settings !== undefined;
+    return true;
+};
+
+/** What a setting the board didn't keep is called, for the notes. */
+function settingName(w: PlannedWrite, menus: KeyboardInfo["menus"]): string {
+    const key = w.metadata?.writeKey ?? "";
+    if (key.startsWith("setting:")) return qmkSettingLabel(Number(key.slice("setting:".length)));
+    if (key.startsWith("custom:")) return customValueLabel(key.slice("custom:".length), menus);
+    return describeWrites([w])[0] ?? w.desc;
+}
+
+export interface Landed {
+    /** The board as last read. */
+    board: KeyboardInfo;
+    /** Settings, custom values, names and hardware positions the board didn't keep, by name. */
+    notKept: string[];
+}
+
 /**
  * Make the board hold `wanted`, starting from `board` as just read: write what differs,
- * read the board back, write what still differs once more, and read it again. Returns the
- * board as last read. Throws LayoutNotLanded, naming what is still different, or an Error
- * when a write itself fails.
+ * read the board back, write what still differs once more, and read it again. A read that
+ * fails is tried once more. Throws LayoutNotLanded when keys, macros or tables are still
+ * different, naming them, or an Error when a write itself fails. Settings and custom values
+ * the board doesn't keep (the firmware clamps or ignores some) come back in `notKept`.
  */
-export async function landLayout(wanted: KeyboardInfo, board: KeyboardInfo, t: LandTarget): Promise<KeyboardInfo> {
+export async function landLayout(wanted: KeyboardInfo, board: KeyboardInfo, t: LandTarget): Promise<Landed> {
+    const read = () => t.readBoard().catch(() => t.readBoard());
     let current = board;
     for (let attempt = 0; attempt < 2; attempt++) {
-        const writes = await planWrites(wanted, current);
-        if (attempt > 0 && !writes.some(changesSomething)) return current;
+        const writes = (await planWrites(wanted, current)).filter(readIn(current));
+        if (attempt > 0 && !writes.some(changesSomething)) return { board: current, notKept: [] };
         await Promise.all(writes.map((w) => t.queue(w.desc, w.cb, { ...w.metadata, deferCommit: true })));
         if (!(await t.commit())) throw new Error("Some of the layout couldn't be written.");
-        if (!writes.some(changesSomething)) return current;
-        current = await t.readBoard();
+        if (!writes.some(changesSomething)) return { board: current, notKept: [] };
+        current = await read();
     }
-    const left = await planWrites(wanted, current);
-    if (left.some(changesSomething)) throw new LayoutNotLanded(describeWrites(left), current);
-    return current;
+    const left = (await planWrites(wanted, current)).filter(readIn(current)).filter(changesSomething);
+    const failed = left.filter(layoutPart);
+    if (failed.length) throw new LayoutNotLanded(describeWrites(failed), current);
+    return { board: current, notKept: [...new Set(left.map((w) => settingName(w, wanted.menus ?? current.menus)))] };
 }
 
 export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Promise<RestoreReport> {
@@ -116,8 +149,9 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
     const plan = prepareImport(imported, board);
     if (plan.errors.length) throw new Error(plan.errors.join(" "));
     t.setKeyboard(plan.keyboard);
+    let notKept: string[];
     try {
-        await landLayout(plan.keyboard, board, t);
+        ({ notKept } = await landLayout(plan.keyboard, board, t));
     } catch (error) {
         // Show what the board holds, never a layout it didn't take.
         if (error instanceof LayoutNotLanded) {
@@ -127,7 +161,7 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
         throw error;
     }
     t.markSaved?.(plan.keyboard);
-    const report: RestoreReport = { trimmed: plan.warnings, replaced: plan.replaced, unavailable: plan.unavailable };
+    const report: RestoreReport = { trimmed: plan.warnings, replaced: plan.replaced, unavailable: [...new Set([...(plan.unavailable ?? []), ...notKept])] };
     // The layout is back either way: a mode that didn't go back carries the layout's notes.
     if (t.applyBoardState) {
         const { keyboardService } = await import("@/services/keyboard.service");
