@@ -11,6 +11,15 @@
 // bounce of one scan between two reads still shows; without it, the debounced
 // VIA matrix state is read instead. Readings land in plain typed arrays and a
 // version number; the drawing loop takes them once per displayed frame.
+//
+// It reads only while Keybard is in front of you (mayRead: the window has focus
+// and the tab is visible), which is also when the board's typing is paused.
+// Away from it the board types into the other app, so nothing pressed then is
+// a test. Going away clears what shows down (suspend) and drops any read still
+// in flight. Coming back starts again from a fresh reading, as opening does:
+// the latch's backlog (everything pressed while away) is read and dropped and
+// only the raw rows are kept, so nothing that changed while away lights,
+// counts or shows as seen. Until that fresh reading lands, `live` is false.
 
 import type { FlickerCounts, FlickerRead } from "@/services/flicker-latch";
 import { pressesFrom } from "@/services/flicker-latch";
@@ -22,12 +31,14 @@ export interface TesterSource {
     readCounts: ((half: number) => Promise<FlickerCounts | null>) | null;
     /** VIA matrix state, rows of booleans (without the latch). */
     readMatrix: () => Promise<boolean[][]>;
-    /** False while reading must wait: the tab is hidden, or Paranoid and you aren't looking. */
+    /** False while Keybard isn't in front of you: the window lost focus, or the tab is hidden. */
     mayRead: () => boolean;
 }
 
 /** How often the change counts are read, with the latch. */
 export const COUNTS_EVERY_MS = 100;
+/** How often a suspended engine checks whether you are back (wake() is sooner). */
+export const AWAY_CHECK_MS = 100;
 
 export class TesterEngine {
     readonly rows: number;
@@ -48,10 +59,27 @@ export class TesterEngine {
     reads = 0;
     readStart = 0;
     lastRoundTripMs = 0;
+    /**
+     * True once a reading taken while you are looking has landed: false from
+     * opening until the first one, and from going away until the fresh reading
+     * after coming back. The exit hold counts only while live.
+     */
+    live = false;
+    /**
+     * The fresh reading taken on opening and on each return (the baseline
+     * everything after it is compared with), and a number that bumps with each
+     * one. A key down in it was down before this stretch of looking began.
+     */
+    readonly baseline: Uint8Array;
+    syncs = 0;
 
     private running = false;
     private countsBase: Uint8Array;
     private lastCounts = 0;
+    /** Bumps on every suspend; a reply to a request sent before it is dropped. */
+    private epoch = 0;
+    private suspended = false;
+    private wakeUp: (() => void) | null = null;
 
     constructor(rows: number, cols: number, private readonly source: TesterSource) {
         this.rows = rows;
@@ -61,6 +89,7 @@ export class TesterEngine {
         this.seen = new Uint8Array(rows);
         this.presses = new Uint16Array(rows * cols);
         this.countsBase = new Uint8Array(rows);
+        this.baseline = new Uint8Array(rows);
     }
 
     start(): void {
@@ -71,6 +100,29 @@ export class TesterEngine {
 
     stop(): void {
         this.running = false;
+        this.wake();
+    }
+
+    /**
+     * Keybard went out of view: nothing is known to be down any more. Clears
+     * what shows, drops any read in flight and waits for a fresh reading
+     * before anything shows again. Calling it again while away does nothing.
+     */
+    suspend(): void {
+        this.live = false;
+        if (this.suspended) return;
+        this.suspended = true;
+        this.epoch++;
+        this.current.fill(0);
+        this.latched.fill(0);
+        this.version++;
+    }
+
+    /** Keybard is back in view: stop waiting and read now. */
+    wake(): void {
+        const w = this.wakeUp;
+        this.wakeUp = null;
+        w?.();
     }
 
     clearSeen(): void {
@@ -132,17 +184,45 @@ export class TesterEngine {
         if (changed) this.countsVersion++;
     }
 
+    private sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => {
+            const t = setTimeout(() => { this.wakeUp = null; resolve(); }, ms);
+            this.wakeUp = () => { clearTimeout(t); resolve(); };
+        });
+    }
+
     /**
-     * Opening the tester starts the counts from zero. The board's latch keeps
-     * collecting while nobody reads it (its change counts saturate), so one
-     * latch read and one counts read per half go first and only the raw rows
-     * are kept: the keys held now show at once, but nothing from before counts.
+     * Opening the tester starts the counts from zero; coming back starts from
+     * now. The board's latch keeps collecting while nobody reads it (its change
+     * counts saturate), so one latch read and one counts read per half go first
+     * and only the raw rows are kept: the keys held now show at once, but
+     * nothing from before lights, counts or shows as seen. Without the latch
+     * there is no backlog, and one VIA read is the fresh reading. Returns
+     * false when Keybard went away again meanwhile.
      */
-    private async discardBacklog(): Promise<void> {
-        if (!this.source.readLatch) return;
+    private async discardBacklog(resetPresses: boolean): Promise<boolean> {
+        const epoch = this.epoch;
+        const gone = () => !this.running || epoch !== this.epoch;
+        if (resetPresses) {
+            this.presses.fill(0);
+            this.countsVersion++;
+        }
+        if (!this.source.readLatch) {
+            try {
+                const matrix = await this.source.readMatrix();
+                if (gone()) return false;
+                this.applyMatrix(matrix);
+            } catch (error) {
+                console.error("Matrix tester read failed:", error);
+                return false;
+            }
+            this.baseline.set(this.current);
+            this.syncs++;
+            return true;
+        }
         try {
             const read = await this.source.readLatch();
-            if (!this.running) return;
+            if (gone()) return false;
             if (read) {
                 for (let r = 0; r < this.rows && r < read.raw.length; r++) {
                     const block = r < this.rows / 2 ? 1 : 2;
@@ -156,7 +236,7 @@ export class TesterEngine {
             if (this.source.readCounts) {
                 for (const half of [0, 1]) {
                     await this.source.readCounts(half);
-                    if (!this.running) return;
+                    if (gone()) return false;
                 }
             }
         } catch (error) {
@@ -164,40 +244,66 @@ export class TesterEngine {
         }
         this.countsBase.set(this.current);
         this.lastCounts = performance.now();
-        this.presses.fill(0);
-        this.countsVersion++;
+        if (resetPresses) {
+            this.presses.fill(0);
+            this.countsVersion++;
+        }
+        this.baseline.set(this.current);
+        this.syncs++;
+        return true;
     }
 
     private async loop(): Promise<void> {
+        // Opening: a fresh start whether or not you are looking yet.
+        let resync: "open" | "back" | null = "open";
         this.presses.fill(0);
         this.countsVersion++;
-        await this.discardBacklog();
         this.readStart = performance.now();
         this.reads = 0;
         while (this.running) {
             if (!this.source.mayRead()) {
-                await new Promise((r) => setTimeout(r, 100));
+                this.suspend();
+                await this.sleep(AWAY_CHECK_MS);
                 continue;
             }
+            if (this.suspended) {
+                this.suspended = false;
+                if (resync !== "open") resync = "back";
+            }
+            if (resync) {
+                const opening = resync === "open";
+                if (!(await this.discardBacklog(opening))) continue; // away again, or stopped
+                if (opening) {
+                    this.readStart = performance.now();
+                    this.reads = 0;
+                }
+                resync = null;
+            }
+            const epoch = this.epoch;
             const t = performance.now();
             try {
                 if (this.source.readLatch) {
                     const read = await this.source.readLatch();
                     if (!this.running) return;
+                    if (epoch !== this.epoch) continue; // went away mid-read: drop it
                     if (read) this.applyLatch(read);
                     if (this.source.readCounts && t - this.lastCounts >= COUNTS_EVERY_MS) {
                         this.lastCounts = t;
                         for (const half of [0, 1]) {
                             const counts = await this.source.readCounts(half);
                             if (!this.running) return;
+                            if (epoch !== this.epoch) break;
                             if (counts) this.applyCounts(counts);
                         }
+                        if (epoch !== this.epoch) continue;
                     }
                 } else {
                     const matrix = await this.source.readMatrix();
                     if (!this.running) return;
+                    if (epoch !== this.epoch) continue;
                     this.applyMatrix(matrix);
                 }
+                this.live = true;
                 this.reads++;
                 this.lastRoundTripMs = performance.now() - t;
             } catch (error) {
