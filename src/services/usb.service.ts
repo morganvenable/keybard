@@ -14,6 +14,8 @@ import {
 const WRAPPER_PREFIX = 0xdd;
 const SVIL_PREFIX = 0xdf;
 const VIA_PREFIX = 0xfe;
+// Dev firmware builds only (sendDev)
+const DEV_PREFIX = 0xfc;
 
 // Framing in front of the data of a chunked transfer, counted from the start of
 // the report (wrapper included). The data room is the report length minus these.
@@ -910,6 +912,56 @@ export class SvilUSB {
       });
     });
 
+    this.queue = operation.then(() => undefined).catch(() => undefined);
+    return operation;
+  }
+
+  /**
+   * Send a dev protocol (0xFC) command via the wrapper and return the whole
+   * reply report (wrapper included), matched by the wrapper prefix, our client
+   * ID and protocol 0xFC. A wrapper error frame (protocol 0xFF, e.g. release
+   * firmware without the dev protocol) rejects with ClientIdRejectedError; an
+   * expired client ID is renewed and the command sent once more.
+   * Wraps: [0xDD][client_id:4][0xFC][payload...]
+   */
+  async sendDev(payload: number[], timeoutMs = 600): Promise<Uint8Array> {
+    try {
+      return await this.sendDevOnce(payload, timeoutMs);
+    } catch (e) {
+      if (e instanceof ClientIdRejectedError && e.code === CLIENT_ERR_INVALID_ID) {
+        this.clientId = 0;
+        this.clientIdExpiry = 0;
+        return await this.sendDevOnce(payload, timeoutMs);
+      }
+      throw e;
+    }
+  }
+
+  private async sendDevOnce(payload: number[], timeoutMs: number): Promise<Uint8Array> {
+    if (!this.device) throw new Error("USB device not connected");
+    await this.ensureClientId();
+    const message = this.buildWrappedMessage(DEV_PREFIX, payload);
+    const operation = this.queue.then(() => new Promise<Uint8Array>((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error("USB Command Timeout")), timeoutMs);
+      this.listener = (data: ArrayBuffer) => {
+        const u8 = new Uint8Array(data);
+        if (u8[0] !== WRAPPER_PREFIX) return;
+        const respClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
+        if (respClientId !== this.clientId) return;
+        if (u8[5] === CLIENT_ERROR_PROTOCOL) {
+          clearTimeout(timeoutId);
+          reject(new ClientIdRejectedError(u8[6]));
+          return;
+        }
+        if (u8[5] !== DEV_PREFIX) return;
+        clearTimeout(timeoutId);
+        resolve(new Uint8Array(u8));
+      };
+      this.device!.sendReport(0, message as BufferSource).catch((err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    }));
     this.queue = operation.then(() => undefined).catch(() => undefined);
     return operation;
   }

@@ -31,6 +31,8 @@ export interface FakeSvalboardOptions {
     hostTouchpad?: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode. Default true. */
     multiFinger?: boolean;
+    /** A dev firmware build: the 0xFC dev protocol (touchpad prototype config, reboot). Default false. */
+    devProto?: boolean;
     /**
      * A board that ran turbo TURBO with both waits at 0 before this firmware:
      * seeded that way, fresh on every load (not saved), so the firmware's boot
@@ -168,6 +170,8 @@ export class FakeSvalboardDevice extends EventTarget {
             touchpad: options.touchpad ?? false,
             hostTouchpad: options.hostTouchpad ?? false,
             multiFinger: options.multiFinger ?? true,
+            devProto: options.devProto ?? false,
+            onReboot: () => { void this.simulateRestart(); },
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
             serial: options.serial,
@@ -201,6 +205,29 @@ export class FakeSvalboardDevice extends EventTarget {
         announce("disconnect");
         await new Promise((done) => setTimeout(done, options.goneMs ?? 1500));
         this.firmware.firstBootReset(options.flags ?? 0x04);
+        this.present = true;
+        announce("connect");
+    }
+
+    /** How long a dev reboot (action 5) keeps the board off USB, in ms. */
+    restartGoneMs = 1200;
+
+    /**
+     * A restart on the same firmware (the dev reboot): the board goes away and
+     * comes back with its settings, the stored touchpad surface now in use.
+     */
+    async simulateRestart(goneMs = this.restartGoneMs): Promise<void> {
+        const hid = typeof navigator !== "undefined" ? (navigator as Navigator & { hid?: EventTarget }).hid : undefined;
+        const announce = (type: "connect" | "disconnect") => {
+            const event = new Event(type);
+            Object.defineProperty(event, "device", { value: this });
+            hid?.dispatchEvent(event);
+        };
+        this.present = false;
+        this.isOpen = false;
+        announce("disconnect");
+        await new Promise((done) => setTimeout(done, goneMs));
+        this.firmware.protoBoot();
         this.present = true;
         announce("connect");
     }

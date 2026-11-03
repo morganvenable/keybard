@@ -23,6 +23,9 @@ import { DEFINITION_BYTES, FRAGMENT_INSTANCE_COUNT, POINTING_AZOTEQ_FRAGMENT_ID,
 const WRAPPER_PREFIX = 0xdd;
 const SVAL_PREFIX = 0xdf;
 const VIA_PREFIX = 0xfe;
+// The dev protocol (dev firmware builds only): op 0x42, the touchpad prototype config.
+const DEV_PREFIX = 0xfc;
+const DEV_OP_PAD = 0x42;
 const CLIENT_ID_ERROR = 0xffffffff;
 const CLIENT_ERR_INVALID_ID = 0x01;
 const CLIENT_ERR_UNKNOWN_PROTO = 0x03;
@@ -147,6 +150,14 @@ export interface FakeFirmwareOptions {
     hostTouchpad?: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode (after v4.3.4). Default true. */
     multiFinger?: boolean;
+    /**
+     * A dev firmware build: the dev protocol (0xFC) with op 0x42, the touchpad
+     * prototype config (action 3) and reboot (action 5). Default false, as
+     * release builds: they answer 0xFC with a wrapper error frame.
+     */
+    devProto?: boolean;
+    /** Called when the board is asked to reboot (dev action 5), about 200 ms after its reply. */
+    onReboot?: () => void;
 }
 
 /** A Sval table (TABLE_SCAN ids 0-4): its storage, entry size and "in use" test. */
@@ -284,6 +295,18 @@ export class FakeSvalFirmware {
     private pausePaused = false;
     private pauseLastEnd = 0;
     private currentClient = 0;
+    /** A dev firmware build (devProto): the 0xFC dev protocol. */
+    readonly devProto: boolean;
+    private readonly onReboot?: () => void;
+    /**
+     * The touchpad prototype config (dev op 0x42 action 3): scroll, sniper and
+     * boost live; the surface stored, applying at the next boot.
+     */
+    proto = { scroll: 0, sniper: 0, boost: 0, surface: 0, surfaceActive: 0 };
+    /** The prototype supported mask: bit0 scroll takeover, bit1 takeover, bit2 scaling, bit3 large surface. */
+    protoSupported = 0x0f;
+    /** Every dev op 0x42 request ([action, args...]), oldest first, for tests. */
+    readonly protoRequests: number[][] = [];
     /** Live layer state (layer_state): never saved, as in QMK. */
     layerState = 0;
     /**
@@ -310,6 +333,8 @@ export class FakeSvalFirmware {
         this.touchpad = options.touchpad ?? false;
         this.hostTouchpad = options.hostTouchpad ?? false;
         this.multiFinger = options.multiFinger ?? true;
+        this.devProto = options.devProto ?? false;
+        this.onReboot = options.onReboot;
         this.onChange = options.onChange;
         if (this.timingUsOnly) this.migrateTiming();
         this.factoryKeymap = options.factoryKeymap;
@@ -592,7 +617,54 @@ export class FakeSvalFirmware {
             data[5] = protocol;
             return data;
         }
+        if (protocol === DEV_PREFIX && this.devProto) return this.devCommand(data, length);
         return this.sendError(clientId, CLIENT_ERR_UNKNOWN_PROTO, data);
+    }
+
+    /**
+     * Dev op 0x42: [6]=0x42 [7]=action [8..]=args. The reply: [6]=0xC2,
+     * [7]=status (0 ok, 2 refused: nothing changes), [8]=touch owner,
+     * [9]=flags (bit 4: the prototype block at 56-63, on every action 3 reply).
+     */
+    private devCommand(data: Uint8Array, length: number): Uint8Array {
+        const op = data[6];
+        const action = data[7];
+        const args = Array.from(data.subarray(8, 13));
+        this.protoRequests.push([action, ...args]);
+        data.fill(0, 6);
+        data[6] = op | 0x80;
+        if (op !== DEV_OP_PAD) { data[7] = 2; return data; }
+        let status = 0;
+        let block = false;
+        if (action === 3) {
+            block = true;
+            const [sub, scroll, sniper, boost, surface] = args;
+            if (sub === 1) {
+                const supported = this.protoSupported;
+                const allowed = scroll <= 1 && sniper <= 2 && boost <= 2 && surface <= 1
+                    && (scroll !== 1 || !!(supported & 0x01))
+                    && [sniper, boost].every((m) => (m !== 1 || !!(supported & 0x02)) && (m !== 2 || !!(supported & 0x04)))
+                    && (surface !== 1 || !!(supported & 0x08));
+                if (allowed) Object.assign(this.proto, { scroll, sniper, boost, surface });
+                else status = 2;
+            } else if (sub !== 0) status = 2;
+        } else if (action === 5) {
+            const reboot = this.onReboot;
+            if (reboot) setTimeout(reboot, 200);
+        } else status = 2;
+        data[7] = status;
+        data[8] = 0;
+        if (block && length >= 64) {
+            const p = this.proto;
+            data[9] = 0x10;
+            data.set([1, p.scroll, p.sniper, p.boost, p.surface, p.surfaceActive, this.protoSupported, 0], 56);
+        }
+        return data;
+    }
+
+    /** A restart: the stored surface comes into use; scroll, sniper and boost keep their values. */
+    protoBoot(): void {
+        this.proto.surfaceActive = this.proto.surface;
     }
 
     // ---- quantum/via.c --------------------------------------------------------

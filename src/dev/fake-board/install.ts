@@ -22,6 +22,7 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
         : choice === "leader0" ? `${FAKE_BOARD_PRODUCT_NAME}, leader timeout stored as 0`
         : choice === "touchpad" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads`
         : choice === "touchpad-gestures" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads on built-in gestures`
+        : choice === "touchpad-dev" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads, dev firmware`
         : choice === "touchpad-434" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads, v4.3.4 firmware` : FAKE_BOARD_PRODUCT_NAME;
     const reset = document.createElement("button");
     reset.type = "button";
@@ -46,13 +47,15 @@ export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
     // for touchpad mode (Input Mode 3) as Windows and Linux do; "touchpad-gestures" the same
     // board where it never asks (a Mac), so the pads run their built-in gestures.
     // "touchpad-434" is v4.3.4's firmware on that board: the touch page only.
-    const pads = choice === "touchpad" || choice === "touchpad-gestures" || choice === "touchpad-434";
+    // "touchpad-dev" is "touchpad" on a dev firmware build: the 0xFC dev protocol (the touchpad prototype config).
+    const pads = choice === "touchpad" || choice === "touchpad-gestures" || choice === "touchpad-434" || choice === "touchpad-dev";
     const current = choice === "combo-names" || choice === "turbo6" || choice === "leader0" || pads;
     // The debug console command (0x3E) came after v4.3.4.
     const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current,
         debugConsole: current && choice !== "touchpad-434", debounceSwitch: current,
         timingUsOnly: current, seedTurbo: choice === "turbo6" ? 6 : undefined, seedLeaderZero: choice === "leader0", reportLength: current ? 64 : 32,
-        padGestures: current, touchpad: pads, hostTouchpad: choice === "touchpad" || choice === "touchpad-434", multiFinger: choice !== "touchpad-434" });
+        padGestures: current, touchpad: pads, hostTouchpad: choice === "touchpad" || choice === "touchpad-434" || choice === "touchpad-dev", multiFinger: choice !== "touchpad-434",
+        devProto: choice === "touchpad-dev" });
     const wipe = () => {
         device.forgetSettings();
         window.location.reload();

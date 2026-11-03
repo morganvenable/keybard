@@ -14,6 +14,7 @@ import {
     type TouchOutcome,
 } from "@/utils/touchpad-tuning";
 import { PadView, type PadTiming } from "./PadView";
+import { PrototypeControls } from "./PrototypeControls";
 import { TouchpadModeControl, useTouchpadModeChange, useWriteTouchpadMode } from "./TouchpadMode";
 
 /** Finished touches kept per pad, newest first, in the pad's scrolling list. */
@@ -290,6 +291,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : osMode ? "" : "sm:h-full", pending && "invisible")} aria-busy={pending || undefined} data-touchpad-tuning data-layout={osMode ? "os" : "gestures"}>
             {controls}
             {pads}
+            <PrototypeControls />
         </div>
     );
 }
