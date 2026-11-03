@@ -27,17 +27,20 @@ export async function readBoard(): Promise<KeyboardInfo> {
         await twice(() => qmkService.get(loaded));
     } catch (error) {
         console.warn("Failed to load QMK settings:", error);
+        // Shown as not read: never as a board that has no such settings, nor as zeros.
+        delete loaded.settings;
+        loaded.settings_unread = true;
     }
 
     try {
         const layerColors = await twice(() => usbInstance.getAllLayerColors());
-        // Brightness isn't per layer: shown at full.
-        loaded.layer_colors = layerColors.map((c) => ({ hue: c.hue, sat: c.sat, val: 255 }));
-        // The keyboard display shows the closest preset color.
+        // Brightness isn't per layer: shown at full. A layer whose read failed is left unset.
+        loaded.layer_colors = layerColors.map((c) => (c ? { hue: c.hue, sat: c.sat, val: 255 } : undefined)) as KeyboardInfo["layer_colors"];
+        // The keyboard display shows the preset paired with the LED color (they differ on purpose).
         loaded.cosmetic ??= { layer: {}, layer_colors: {} };
         loaded.cosmetic.layer_colors ??= {};
         layerColors.forEach((c, idx) => {
-            loaded.cosmetic!.layer_colors![idx.toString()] = getClosestPresetColor(c.hue, c.sat, 255);
+            if (c) loaded.cosmetic!.layer_colors![idx.toString()] = getClosestPresetColor(c.hue, c.sat, 255);
         });
     } catch (error) {
         console.warn("Failed to load layer colors:", error);

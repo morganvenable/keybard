@@ -16,7 +16,7 @@ vi.mock('@/components/ui/select', () => ({
 }));
 vi.mock('@/services/keyboard.service', () => ({keyboardService: {
     getFragmentService: () => ({hasFragments: () => true, getSelectableInstances: () => [{idx: 0, instance: {id: 'left-test'}}],
-        getOptionIndex: () => 1, resolveFragment: () => 'old', getFragmentOptions: () => ['old', 'new'],
+        getOptionIndex: () => 1, resolveFragment: () => 'old', resolveFragmentWithSource: () => ({ fragment: 'old', source: 'board' }), getFragmentOptions: () => ['old', 'new'],
         getInstanceDisplayName: () => 'Test', getFragmentDisplayName: (_kb: unknown, name: string) => name}),
     getFragmentComposer: () => ({composeLayout: () => ({})}),
     updateFragmentSelection: mocks.update, saveSvil: mocks.save,

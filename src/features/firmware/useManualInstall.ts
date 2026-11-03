@@ -36,7 +36,8 @@ export interface UseManualInstallOptions {
     fromFw?: number | null;
     /** The board has no updater Keybard installs through. */
     once?: boolean;
-    usualHand?: Hand;
+    /** The half with USB as the board reported it; null or absent: not reported. */
+    usualHand?: Hand | null;
     /** The board on this connection says new firmware reset its settings. */
     buildReset?: boolean;
     store?: ManualStore;

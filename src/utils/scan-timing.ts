@@ -26,7 +26,8 @@ export function withEffectiveTiming(values: Map<string, number>): Map<string, nu
     let out: Map<string, number> | null = null;
     for (const key of TIMING_KEYS) {
         const stored = values.get(key);
-        if (stored === undefined || stored > 0) continue;
+        // With the turbo index not read, the wait a stored 0 runs isn't known: shown as stored.
+        if (stored === undefined || stored > 0 || turbo === undefined) continue;
         out ??= new Map(values);
         out.set(key, effectiveWaitUs(stored, turbo));
     }
@@ -43,7 +44,9 @@ export function timingWrites(key: string, value: number, values: Map<string, num
     const other = key === SCAN_PREWAIT_KEY ? SCAN_POSTWAIT_KEY : key === SCAN_POSTWAIT_KEY ? SCAN_PREWAIT_KEY : null;
     if (other) {
         const stored = values.get(other);
-        if (stored === 0) writes.push([other, effectiveWaitUs(0, values.get(TURBO_KEY))]);
+        // Only with the turbo index read: otherwise the wait it runs isn't known, and nothing is written for it.
+        const turbo = values.get(TURBO_KEY);
+        if (stored === 0 && turbo !== undefined) writes.push([other, effectiveWaitUs(0, turbo)]);
     }
     return writes;
 }

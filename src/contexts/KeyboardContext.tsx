@@ -69,6 +69,9 @@ interface KeyboardContextType {
     defaultLayerIndex: number | null;
 }
 
+/** Layer-state polls in a row that may fail before the layer shown is cleared as no longer known. */
+export const LAYER_POLL_MAX_ERRORS = 3;
+
 const serializeDraft = (value: unknown) => JSON.stringify(value, (_key, item) => item instanceof Map ? { __map: [...item.entries()] } : item);
 
 /**
@@ -163,6 +166,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [activeLayerIndex, setActiveLayerIndex] = useState<number | null>(null);
     const [defaultLayerIndex, setDefaultLayerIndex] = useState<number | null>(null);
     const activeLayerRef = useRef<number | null>(null);
+    const layerPollErrorsRef = useRef(0);
     const defaultLayerRef = useRef<number | null>(null);
     const isWebHIDSupported = KeyboardService.isWebHIDSupported();
 
@@ -431,6 +435,16 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     useEffect(() => {
         let isActive = true;
         let timeoutId: number | undefined;
+        // Polls in a row that failed (kept across draft edits, which restart this effect). After
+        // LAYER_POLL_MAX_ERRORS the layer shown is no longer the board's: it is cleared (not
+        // known) until a poll answers again.
+        const forget = () => {
+            if (activeLayerRef.current === null && defaultLayerRef.current === null) return;
+            activeLayerRef.current = null;
+            defaultLayerRef.current = null;
+            setActiveLayerIndex(null);
+            setDefaultLayerIndex(null);
+        };
 
         const pollLayerState = async () => {
             if (!isActive) return;
@@ -441,6 +455,7 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             } else if (isConnected && keyboard && usbInstance.getDeviceName()) {
                 try {
                     const { active, defaultLayer } = await keyboardService.getLayerIndexes(keyboard);
+                    layerPollErrorsRef.current = 0;
                     // Set only on a change: the poll runs about 8 times a second, and even an
                     // unchanged value makes React render and commit again.
                     if (isActive && active !== activeLayerRef.current) {
@@ -453,12 +468,11 @@ export const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     }
                 } catch (error) {
                     console.warn("Layer state polling error:", error);
+                    layerPollErrorsRef.current++;
+                    if (isActive && layerPollErrorsRef.current >= LAYER_POLL_MAX_ERRORS) forget();
                 }
-            } else if (isActive && (activeLayerRef.current !== null || defaultLayerRef.current !== null)) {
-                activeLayerRef.current = null;
-                defaultLayerRef.current = null;
-                setActiveLayerIndex(null);
-                setDefaultLayerIndex(null);
+            } else if (isActive) {
+                forget();
             }
 
             if (isActive) {

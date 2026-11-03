@@ -13,7 +13,6 @@ type SheetUi = Extract<UpdateUi, { kind: "sheet" }>;
 
 export interface UpdateSheetProps {
     ui: SheetUi;
-    chordLegends?: (hand: Hand) => [string, string];
     onAfterwards: (a: Afterwards) => void;
     onStart: () => void;
     onCancel: () => void;

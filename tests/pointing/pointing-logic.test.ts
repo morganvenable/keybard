@@ -7,7 +7,8 @@ import { BALL_GLOSS, BALL_SPARKLE, BALLS, bodyAt, coatAt, LIGHTNESS_DEFAULT, MAT
 import { _setWebGLDisabledForTest, drawDevice, rotFromEuler, unpremultiplyFlipped, webglAvailable } from "@/components/pointing-viz/webgl/renderer";
 import { demoReport, pointingDemoFromSearch } from "@/features/pointing-demo";
 import { freeCircle, MM_PER_U, placeDevice, placedKeyRects, type KeyRect } from "@/utils/pointing-geometry";
-import { boostLabel, multiplierLabels, pointingFactors, sniperLabel } from "@/utils/pointing-multiplier";
+import { drawPills, type PillItem } from "@/components/pointing-viz/overlay-draw";
+import { boostLabel, multiplierLabels, pillLabels, sniperLabel } from "@/utils/pointing-multiplier";
 import { KEYBARD_MOTION_READER, parsePointingMotion, SVIL_FLAG2_POINTING_MOTION, SVIL_FLAG2_POINTING_MOTION_READERS } from "@/utils/pointing-motion";
 
 const QK_USER_0 = 0x7e40;
@@ -101,25 +102,78 @@ describe("true-size placement", () => {
     });
 });
 
-describe("pills and multiplier", () => {
-    it("reads the factor from the keymap's sniper and boost keys", () => {
-        expect(pointingFactors([[QK_USER_0 + 13]])).toEqual({ sniperDivisor: 3, boostFactor: 2 });
-        expect(pointingFactors([[QK_USER_0 + 12, 4], [QK_USER_0 + 21]])).toEqual({ sniperDivisor: 2, boostFactor: 2 });
-        expect(pointingFactors([[QK_USER_0 + 14, QK_USER_0 + 25]])).toEqual({ sniperDivisor: 5, boostFactor: 3 });
-        // two different sniper factors: the default
-        expect(pointingFactors([[QK_USER_0 + 12, QK_USER_0 + 14]]).sniperDivisor).toBe(3);
-        expect(pointingFactors(undefined)).toEqual({ sniperDivisor: 3, boostFactor: 2 });
+describe("pills and multiplier: only the factors the board reports", () => {
+    /** A 64-byte report's 0x2D reply (the 6 wrapper bytes, 0xDF last, stripped: 58 bytes), with the factor bytes. */
+    const motion = (mode: number, factors?: [number, number, number]) => {
+        const buf = new Uint8Array(58);
+        buf[0] = 0x2d; buf[1] = 1; buf[2] = mode; buf[3] = 16;
+        if (factors) buf.set(factors, 1 + 53);
+        return parsePointingMotion(buf)!;
+    };
+    /** What drawPills writes for these items (canvas text calls). */
+    const pillText = (items: PillItem[]) => {
+        const text: string[] = [];
+        const ctx = new Proxy({ fillText: (t: string) => text.push(t), measureText: (t: string) => ({ width: t.length * 6 }) } as Record<string, unknown>, {
+            get: (o, k) => (k in o ? o[k as string] : () => undefined),
+            set: () => true,
+        }) as unknown as CanvasRenderingContext2D;
+        drawPills(ctx, items, { side: "right", r: 40, unitPx: 45, centered: false, host: false, colors: { bg: "#000", fg: "#fff" } });
+        return text.join(" ");
+    };
+    const pills = (r: ReturnType<typeof motion>) => {
+        const labels = pillLabels(r.factors);
+        return pillText([
+            { kind: "sniper", amount: r.sniper ? 1 : 0, mult: labels.sniper },
+            { kind: "boost", amount: r.boost ? 1 : 0, mult: labels.boost },
+        ]);
+    };
+
+    it("shows the boost factor the firmware reports, never one from the keymap", () => {
+        // The keymap holding SV_BOOST_2 and SV_BOOST_5 changes nothing: there is no keymap input any more.
+        const keymap = [[QK_USER_0 + 24, QK_USER_0 + 26]];
+        expect(keymap.length).toBe(1);
+        const r = motion(0b10, [0x46, 1, 5]);
+        expect(r.factors).toEqual({ sniperDivisor: 1, boostFactor: 5 });
+        expect(pills(r)).toBe("BOOST ×5");
     });
 
-    it("labels the pills ×0.33 and ×2 by default", () => {
+    it("shows the sniper divisor reported: 2, then 6", () => {
+        expect(pills(motion(0b01, [0x46, 2, 1]))).toBe("SNIPER ×0.5");
+        expect(pills(motion(0b01, [0x46, 6, 1]))).toBe("SNIPER ×0.17");
+    });
+
+    it("older firmware ([53] = 0): the pill has no number", () => {
+        const r = motion(0b10);
+        expect(r.factors).toBeUndefined();
+        expect(pills(r)).toBe("BOOST");
+        expect(pills(motion(0b11))).toBe("SNIPER BOOST");
+        expect(multiplierLabels({ sniper: true, boost: true }, r.factors)).toEqual(["", ""]);
+    });
+
+    it("a 32-byte report has no room for the factors", () => {
+        const buf = new Uint8Array(26); buf[0] = 0x2d; buf[1] = 1; buf[2] = 0b10; buf[23] = 0x46;
+        expect(parsePointingMotion(buf)!.factors).toBeUndefined();
+        const short = new Uint8Array(56); short[0] = 0x2d; short[1] = 1; short[54] = 0x46; short[55] = 2;
+        expect(parsePointingMotion(short)!.factors).toBeUndefined();
+    });
+
+    it("keeps the pill's wording for the number", () => {
         expect(sniperLabel(3)).toBe("×0.33");
-        expect(sniperLabel(2)).toBe("×0.5");
         expect(sniperLabel(5)).toBe("×0.2");
         expect(boostLabel(2)).toBe("×2");
-        const f = pointingFactors([]);
-        expect(multiplierLabels({ sniper: true, boost: false }, f)).toEqual(["×0.33"]);
-        expect(multiplierLabels({ sniper: true, boost: true }, f)).toEqual(["×0.33", "×2"]);
-        expect(multiplierLabels({ sniper: false, boost: false }, f)).toEqual([]);
+        expect(multiplierLabels({ sniper: true, boost: true }, { sniperDivisor: 3, boostFactor: 5 })).toEqual(["×0.33", "×5"]);
+        expect(multiplierLabels({ sniper: false, boost: false }, { sniperDivisor: 3, boostFactor: 5 })).toEqual([]);
+    });
+
+    it("no longer exports the keymap inference", async () => {
+        const mod = await import("@/utils/pointing-multiplier");
+        expect("pointingFactors" in mod).toBe(false);
+        expect("DEFAULT_BOOST_FACTOR" in mod).toBe(false);
+    });
+
+    it("the review demo reports factors only when given them", () => {
+        expect(pointingDemoFromSearch("?demo=pointing&boost=1")!.factors).toBeUndefined();
+        expect(pointingDemoFromSearch("?demo=pointing&boost=1&sniperDiv=2&boostX=5")!.factors).toEqual({ sniperDivisor: 2, boostFactor: 5 });
     });
 });
 

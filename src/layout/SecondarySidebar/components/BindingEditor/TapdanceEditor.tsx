@@ -10,7 +10,7 @@ import { TapdanceEntry } from "@/types/keyboard.types";
 import { DragItem } from "@/contexts/DragContext";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { isTapdanceKeycode } from "@/utils/keys";
-import { DEFAULT_TAPDANCE_TERM_MS, MAX_TAPDANCE_TERM_MS, MIN_TAPDANCE_TERM_MS, clampTapdanceTerm } from "@/utils/tapdance-term";
+import { MAX_TAPDANCE_TERM_MS, MIN_TAPDANCE_TERM_MS, clampTapdanceTerm, isUnusableTapdanceTerm, startTapdance, tapdanceInUse } from "@/utils/tapdance-term";
 
 import EditorKey from "./EditorKey";
 import { BAR_KEY_PX, BAR_KEY_SIZE, BAR_KEY_VARIANT, BarEnd, BarRow, BarSlot } from "./EditorBar";
@@ -44,7 +44,11 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
 
     // Holds what the user types and saves it on Enter or blur, so a partial
     // value isn't clamped to the minimum mid-edit.
-    const tapMs = currTapDance?.tapping_term ?? DEFAULT_TAPDANCE_TERM_MS;
+    // The term the board (or the file) holds; empty when there is none. A term the board
+    // can't use is shown as it is and flagged, never replaced: only an edit writes a term.
+    const tapMs = currTapDance?.tapping_term;
+    // Flagged only on a tap dance in use: an empty slot gets the default term with its first key.
+    const termUnusable = tapMs !== undefined && isUnusableTapdanceTerm(tapMs) && tapdanceInUse(currTapDance);
     const [termDraft, setTermDraft] = useState<string | null>(null);
 
     useEffect(() => {
@@ -101,10 +105,10 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
         }
         const tapdances = [...keyboard.tapdances];
         if (tapdances[itemToEdit]) {
-            tapdances[itemToEdit] = {
+            tapdances[itemToEdit] = startTapdance(tapdances[itemToEdit], {
                 ...tapdances[itemToEdit],
                 [slot]: keycode
-            };
+            });
         }
         const updatedKeyboard = { ...keyboard, tapdances };
         setKeyboard(updatedKeyboard);
@@ -160,7 +164,9 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
         if (!Number.isNaN(parsed)) void updateTapMs(parsed);
     };
     const termInputProps = {
-        value: termDraft ?? tapMs,
+        value: termDraft ?? tapMs ?? "",
+        "aria-invalid": termUnusable || undefined,
+        "aria-describedby": termUnusable ? "tapdance-term-unusable" : undefined,
         min: MIN_TAPDANCE_TERM_MS,
         max: MAX_TAPDANCE_TERM_MS,
         onChange: (e: ChangeEvent<HTMLInputElement>) => setTermDraft(e.target.value),
@@ -170,6 +176,13 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
             if (e.key === "Escape") setTermDraft(null);
         },
     };
+
+    // The flag for a term the board can't use: it says so and keeps the value shown.
+    const termWarning = termUnusable ? (
+        <p id="tapdance-term-unusable" role="status" data-testid="tapdance-term-unusable" className="w-fit rounded bg-kb-warn-bg px-2 py-1 text-xs font-medium text-kb-warn-ink">
+            {`${tapMs} ms is too short for a tap dance to work. Enter ${MIN_TAPDANCE_TERM_MS} ms or more.`}
+        </p>
+    ) : null;
 
     const renderTapdanceKey = (label: string, keycode: string, type: "tap" | "hold" | "doubletap" | "taphold") => {
         const isSelected = isSlotSelected(type);
@@ -278,6 +291,7 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
                     </BarSlot>
                     {barEnd}
                 </BarEnd>
+                {termWarning && <div className="basis-full">{termWarning}</div>}
             </BarRow>
         );
     }
@@ -304,6 +318,7 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
                         className="w-20 h-10 bg-kb-surface text-center text-base px-2"
                     />
                 </div>
+                {termWarning && <div className="basis-full">{termWarning}</div>}
             </div>
         );
     }
@@ -326,6 +341,7 @@ const TapdanceEditor: FC<Props> = ({ bar = false, barEnd }) => {
                     placeholder="Tap MS"
                 />
             </div>
+            {termWarning}
         </div>
     );
 };

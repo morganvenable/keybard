@@ -32,6 +32,9 @@ function safeMapGet<K extends string | number, V>(
     return (mapOrObj as Record<string, V>)[String(key)];
 }
 
+/** Where an instance's fragment came from: fixed by the definition, detected, chosen, stored on the board, or the definition's default. */
+export type FragmentSource = "fixed" | "hardware" | "selection" | "board" | "default";
+
 export class FragmentService {
     constructor(private usb: SvilUSB) { }
 
@@ -304,16 +307,39 @@ export class FragmentService {
         instanceIdx: number,
         instance: NonNullable<KeyboardInfo['composition']>['instances'][0]
     ): string {
+        return this.resolveFragmentWithSource(kbinfo, instanceIdx, instance).fragment;
+    }
+
+    /**
+     * The fragment drawn for an instance and where it came from. "default" means nothing
+     * said which one the board has (no detection, no stored or chosen selection): the
+     * definition's default is drawn, and the editor labels it as the default, not as the
+     * board's own.
+     */
+    resolveFragmentWithSource(
+        kbinfo: KeyboardInfo,
+        instanceIdx: number,
+        instance: NonNullable<KeyboardInfo['composition']>['instances'][0]
+    ): { fragment: string; source: FragmentSource } {
+        const fragment = this.resolveFragmentInner(kbinfo, instanceIdx, instance);
+        return { fragment: fragment.name, source: fragment.source };
+    }
+
+    private resolveFragmentInner(
+        kbinfo: KeyboardInfo,
+        instanceIdx: number,
+        instance: NonNullable<KeyboardInfo['composition']>['instances'][0]
+    ): { name: string; source: FragmentSource } {
         const state = kbinfo.fragmentState;
 
         // Fixed instance - no options
         if (instance.fragment) {
-            return instance.fragment;
+            return { name: instance.fragment, source: "fixed" };
         }
 
         const options = instance.fragment_options;
         if (!options || options.length === 0) {
-            return '';
+            return { name: '', source: "fixed" };
         }
 
         const allowOverride = instance.allow_override !== false;
@@ -327,7 +353,7 @@ export class FragmentService {
             if (hwFragmentName) {
                 const matchingOption = options.find(opt => opt.fragment === hwFragmentName);
                 if (matchingOption) {
-                    return matchingOption.fragment;
+                    return { name: matchingOption.fragment, source: "hardware" };
                 }
             }
         }
@@ -337,14 +363,14 @@ export class FragmentService {
         if (userSelection) {
             const matchingOption = options.find(opt => opt.fragment === userSelection);
             if (matchingOption) {
-                return matchingOption.fragment;
+                return { name: matchingOption.fragment, source: "selection" };
             }
         }
 
         // 3. EEPROM selection
         const eepromOptionIdx = safeMapGet(state?.eepromSelections, instanceIdx);
         if (eepromOptionIdx !== undefined && eepromOptionIdx < options.length) {
-            return options[eepromOptionIdx].fragment;
+            return { name: options[eepromOptionIdx].fragment, source: "board" };
         }
 
         // 4. Hardware detection (with override allowed)
@@ -353,13 +379,13 @@ export class FragmentService {
             if (hwFragmentName) {
                 const matchingOption = options.find(opt => opt.fragment === hwFragmentName);
                 if (matchingOption) {
-                    return matchingOption.fragment;
+                    return { name: matchingOption.fragment, source: "hardware" };
                 }
             }
         }
 
         // 5. Default (first option or one marked as default)
         const defaultOption = options.find(opt => opt.default) ?? options[0];
-        return defaultOption.fragment;
+        return { name: defaultOption.fragment, source: "default" };
     }
 }

@@ -7,6 +7,7 @@ import { usePointingSlots } from "@/hooks/usePointingSlots";
 import { keyboardService } from "@/services/keyboard.service";
 import { getPointingLive } from "@/services/pointing-live.service";
 import type { PointingMotionReport } from "@/utils/pointing-motion";
+import { sameFactors, type PointingFactors } from "@/utils/pointing-multiplier";
 
 export type DrawnKind = "trackball" | "touchpad";
 export type HandKinds = { left: DrawnKind | null; right: DrawnKind | null };
@@ -29,6 +30,15 @@ export function usePointingKinds(): HandKinds {
         }
         return out;
     }, [slots, demo]);
+}
+
+/**
+ * What the drawing gets when the board stopped answering: no mode, no Velocity Scroll, no
+ * motion and no fingers down, so nothing from the last report it answered stays drawn.
+ */
+export function staleReport(): PointingMotionReport {
+    const half = () => ({ valid: true, scrolling: false, saturated: false, autoMouse: false, touchValid: false, fingers: 0, dx: 0, dy: 0, h: 0, v: 0, buttons: 0, touchX: 0, touchY: 0, contacts: [] });
+    return { sniper: false, boost: false, autoMouseLayer: false, axisLockEnabled: false, naturalScroll: false, scrollKey: false, elapsedMs: 0, axisLock: "free", left: half(), right: half() };
 }
 
 /** A feed that replays reports to its listeners. */
@@ -63,6 +73,8 @@ export interface PointingLive {
     feed: PointingFeed | null;
     sniper: boolean;
     boost: boolean;
+    /** The sniper and boost factors the board reports, or null (the pills show no number). */
+    factors: PointingFactors | null;
     /** Where the motion comes from: the board (0x2D), the demo script, or nothing. */
     source: "board" | "demo" | "none";
 }
@@ -79,6 +91,7 @@ export function usePointingLive(active: boolean): PointingLive {
     const supported = active && isConnected && keyboardService.hasPointingMotion(keyboard);
     const feed = useMemo(() => new ReportFeed(), []);
     const [modes, setModes] = useState({ sniper: false, boost: false });
+    const [factors, setFactors] = useState<PointingFactors | null>(null);
 
     useEffect(() => { live.setConnection(keyboard ?? null, isConnected, connectionSessionId); }, [live, keyboard, isConnected, connectionSessionId]);
 
@@ -88,8 +101,15 @@ export function usePointingLive(active: boolean): PointingLive {
         const off = live.subscribe((r, dt) => {
             feed.push(r, dt);
             setModes((m) => (m.sniper === r.sniper && m.boost === r.boost ? m : { sniper: r.sniper, boost: r.boost }));
+            setFactors((f) => (sameFactors(f, r.factors) ? f : r.factors ?? null));
         });
-        return () => { off(); release(); };
+        // The board stopped answering: nothing from its last report stays drawn as if it held now.
+        const offStale = live.subscribeStale(() => {
+            feed.push(staleReport(), 0);
+            setModes((m) => (!m.sniper && !m.boost ? m : { sniper: false, boost: false }));
+            setFactors(null);
+        });
+        return () => { off(); offStale(); release(); };
     }, [supported, live, feed]);
 
     const scripted = active && !supported && !!(demo?.motion || demo?.velocity);
@@ -102,6 +122,7 @@ export function usePointingLive(active: boolean): PointingLive {
         feed: supported || scripted ? feed : null,
         sniper: (supported && modes.sniper) || !!demo?.sniper,
         boost: (supported && modes.boost) || !!demo?.boost,
+        factors: supported ? factors : demo?.factors ?? null,
         source: supported ? "board" : scripted ? "demo" : "none",
     };
 }

@@ -50,6 +50,31 @@ describe.each(['sidebar', 'bottombar'] as const)('tap dance term in %s mode', (m
         expect(written()).toBe(150);
     });
 
+    it('shows the term the board holds when it is unusable, flags it, and writes nothing until it is edited', () => {
+        state.keyboard = { tapdances: [td({ tapping_term: 0, enabled: false })] };
+        render(<TapdanceEditor />);
+        expect(input().value).toBe('0');
+        expect(input().getAttribute('aria-invalid')).toBe('true');
+        expect(screen.getByTestId('tapdance-term-unusable').textContent).toBe('0 ms is too short for a tap dance to work. Enter 20 ms or more.');
+        expect(state.persist).not.toHaveBeenCalled();
+        fireEvent.change(input(), { target: { value: '180' } });
+        fireEvent.blur(input());
+        expect(written()).toBe(180);
+    });
+
+    it("shows an empty slot's 0 ms without flagging it", () => {
+        state.keyboard = { tapdances: [td({ tap: 'KC_NO', tapping_term: 0, enabled: false })] };
+        render(<TapdanceEditor />);
+        expect(input().value).toBe('0');
+        expect(screen.queryByTestId('tapdance-term-unusable')).toBeNull();
+    });
+
+    it('flags nothing for a usable term', () => {
+        render(<TapdanceEditor />);
+        expect(screen.queryByTestId('tapdance-term-unusable')).toBeNull();
+        expect(input().getAttribute('aria-invalid')).toBeNull();
+    });
+
     it('has no on/off toggle', () => {
         render(<TapdanceEditor />);
         expect(screen.queryByRole('switch')).toBeNull();

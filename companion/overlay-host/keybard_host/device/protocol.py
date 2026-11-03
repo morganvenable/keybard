@@ -87,7 +87,16 @@ def parse_pointing_motion(data):
     velocity = parse_velocity_scroll(data)
     if velocity is not None:
         motion['velocityScroll'] = velocity
+    # The sniper divisor and boost multiplier in force: payload 53 is 'F', then 54 and 55.
+    # Firmware without them leaves 53 zero (and a 32-byte report has no room): no factors sent.
+    if len(data) > POINTING_FACTORS_OFF + 2 and data[POINTING_FACTORS_OFF] == 0x46:
+        motion['factors'] = dict(sniperDivisor=max(1, data[POINTING_FACTORS_OFF + 1]),
+                                 boostFactor=max(1, data[POINTING_FACTORS_OFF + 2]))
     return motion
+
+
+# The sniper and boost factors in a 0x2D payload: 'F' at 53, then the divisor and the multiplier.
+POINTING_FACTORS_OFF = 53
 
 
 # Velocity Scroll's block in a 0x2D payload: offsets 29-52, marked by 0x56 at 29.

@@ -24,6 +24,7 @@ export interface KeyboardInfo {
     leaders?: LeaderEntry[];                 // NEW: Svil feature
     one_shot?: OneShotSettings;              // NEW: Svil feature
     settings?: Record<number, number>;
+    settings_unread?: boolean;               // connected board: the QMK settings read failed, so `settings` is absent (not read, not "none")
     tapdance_count?: number;
     combo_count?: number;
     key_override_count?: number;

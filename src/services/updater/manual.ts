@@ -10,7 +10,7 @@
 
 import { checkNotes, type FlowHost, type RestoreReport } from "./flow";
 import { sidesNeedAnswer, type SideAssessment } from "../side-decision";
-import type { Hand } from "./protocol";
+import { otherHand, type Hand } from "./protocol";
 
 /** The manual install can't wipe to a blank board: that needs the in-app updater's SETTINGS_RESET. */
 export type ManualAfterwards = "restore" | "defaults";
@@ -33,6 +33,8 @@ export type ManualHalfState =
 
 export interface ManualCheck {
     halves: Partial<Record<Hand, ManualHalfState>>;
+    /** The half with USB, when the board didn't say which half it is (then both halves are unknown). */
+    plugged?: ManualHalfState;
     /** One-image firmware: a half has no side, or both claim one. Asked before the layout goes back. */
     sides?: SideAssessment | null;
 }
@@ -43,8 +45,8 @@ export interface ManualSession {
     /** The release offered for download (null: the firmware release page). */
     releaseTag: string | null;
     only?: Hand;
-    /** The half the user usually plugs in; the other goes first (U-Q5). */
-    usualHand: Hand;
+    /** The half the user usually plugs in; the other goes first (U-Q5). Null: the board didn't say which half it is. */
+    usualHand: Hand | null;
     /** Null: no keyboard was connected when it opened, so there's no backup. */
     backup: ManualBackup | null;
     afterwards: ManualAfterwards;
@@ -119,11 +121,11 @@ export function manualOwnsResetNotice(storage: Storage | null = typeof sessionSt
 
 export function newManualSession(o: {
     releaseTag: string | null; releaseFw?: number | null; fromTag?: string; fromFw?: number | null;
-    only?: Hand; usualHand?: Hand; openKey: string | null; connected: boolean; once?: boolean;
+    only?: Hand; usualHand?: Hand | null; openKey: string | null; connected: boolean; once?: boolean;
 }): ManualSession {
     return {
         version: 2, id: Math.random().toString(36).slice(2, 10), releaseTag: o.releaseTag, releaseFw: o.releaseFw ?? null,
-        fromTag: o.fromTag ?? "", fromFw: o.fromFw ?? null, once: !!o.once, only: o.only, usualHand: o.usualHand ?? 1,
+        fromTag: o.fromTag ?? "", fromFw: o.fromFw ?? null, once: !!o.once, only: o.only, usualHand: o.usualHand ?? null,
         backup: o.connected ? { state: "pending" } : null,
         // Restore my layout once the backup is saved; with no keyboard there is nothing to keep.
         afterwards: o.connected ? "restore" : "defaults",
@@ -131,9 +133,13 @@ export function newManualSession(o: {
     };
 }
 
-/** The halves the install covers, the other half first (U-Q5). */
-export function manualHalves(only: Hand | undefined, usualHand: Hand = 1): Hand[] {
-    return only !== undefined ? [only] : [(usualHand === 0 ? 1 : 0) as Hand, usualHand];
+/**
+ * The halves the install covers, the other half first (U-Q5). With the usual half not
+ * known the order means nothing: the steps then name no half.
+ */
+export function manualHalves(only: Hand | undefined, usualHand: Hand | null = null): Hand[] {
+    if (only !== undefined) return [only];
+    return usualHand === null ? [0, 1] : [otherHand(usualHand), usualHand];
 }
 
 /** Whether a connection is one to check: a new one since the dialog opened, not checked yet. */
@@ -147,7 +153,8 @@ export interface ManualBoardRead {
     /** The board didn't answer: what it runs is unknown. */
     unread?: boolean;
     legacyLabel: string | null;
-    usbHand: Hand;
+    /** Null: the board didn't say which half has USB. */
+    usbHand: Hand | null;
     tag: string;
     fwVersion: number;
     halves: Array<{ hand: Hand; answered: boolean; fwVersion: number; tag: string }>;
@@ -169,8 +176,11 @@ export function checkManual(s: Pick<ManualSession, "releaseFw" | "fromTag" | "fr
         return { halves, sides: board.sides };
     }
     if (!board.updater) {
-        halves[board.usbHand] = { state: "old", tag: name(board.fwVersion, board.legacyLabel ?? board.tag) };
-        halves[(board.usbHand === 0 ? 1 : 0) as Hand] = { state: "unknown" };
+        const old: ManualHalfState = { state: "old", tag: name(board.fwVersion, board.legacyLabel ?? board.tag) };
+        // The board didn't say which half it is: the half with USB runs old firmware, whichever it is.
+        if (board.usbHand === null) return { halves: { 0: { state: "unknown" }, 1: { state: "unknown" } }, plugged: old };
+        halves[board.usbHand] = old;
+        halves[otherHand(board.usbHand)] = { state: "unknown" };
         return { halves };
     }
     for (const h of board.halves) {

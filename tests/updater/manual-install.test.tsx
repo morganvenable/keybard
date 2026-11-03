@@ -54,8 +54,8 @@ function setup(o: { restoreFails?: boolean; trimmed?: string[]; sides?: FakeSide
 const flash = (board: FakeSvalboard, hand: 0 | 1) => board.flashByHand(hand, { fwVersion: release.fwVersion, tag: release.tag });
 
 /** The editor's part: the controller and the dialog, remounted on every reconnect like the app. */
-function Editor({ host, store, connectionKey, buildReset }: { host: Host; store: ManualStore; connectionKey: string | null; buildReset?: boolean }) {
-    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides, { clock: host.clock }), fromTag: "x3.1.3", fromFw: 2301, once: true, store, buildReset });
+function Editor({ host, store, connectionKey, buildReset, usualHand }: { host: Host; store: ManualStore; connectionKey: string | null; buildReset?: boolean; usualHand?: 0 | 1 | null }) {
+    const m = useManualInstall(host, { connectionKey, readBoard: () => readBoardSummary(host.board, null, host.sides, { clock: host.clock }), fromTag: "x3.1.3", fromFw: 2301, once: true, store, buildReset, usualHand });
     const s = m.session;
     // Closed before the keyboard came back: out of sight, as the app shows it.
     if (!s || s.dismissed) return <button onClick={() => m.open(release)}>Update to x4</button>;
@@ -74,12 +74,12 @@ function Editor({ host, store, connectionKey, buildReset }: { host: Host; store:
 
 const radio = (name: string) => screen.getByRole("radio", { name }) as HTMLInputElement;
 
-async function opened(o: Parameters<typeof setup>[0] = {}, store: ManualStore = memoryManualStore()) {
+async function opened(o: Parameters<typeof setup>[0] = {}, store: ManualStore = memoryManualStore(), usualHand: 0 | 1 | null = 1) {
     const s = setup(o);
-    const view = render(<Editor host={s.host} store={store} connectionKey="p:1" />);
+    const view = render(<Editor host={s.host} store={store} connectionKey="p:1" usualHand={usualHand} />);
     fireEvent.click(screen.getByRole("button", { name: "Update to x4" }));
     await waitFor(() => expect(screen.getByText("Kip-x3.1.3-2026-10-21.svil")).toBeTruthy());
-    const reconnect = async (key: string, buildReset = false) => { await act(async () => { view.rerender(<Editor host={s.host} store={store} connectionKey={key} buildReset={buildReset} />); }); };
+    const reconnect = async (key: string, buildReset = false) => { await act(async () => { view.rerender(<Editor host={s.host} store={store} connectionKey={key} buildReset={buildReset} usualHand={usualHand} />); }); };
     return { ...s, view, store, reconnect };
 }
 
@@ -110,6 +110,8 @@ describe("the manual install's state", () => {
         expect(checkManual(s, board([half(0, 0, false), half(1, 4000)])).halves[0]).toEqual({ state: "silent" });
         // The half with USB still on firmware without a protocol-4 updater: it can't be asked about the other half.
         expect(checkManual(s, { updater: false, legacyLabel: "x3.1.3", usbHand: 1, tag: "x3.1.3", fwVersion: 2301, halves: [] })).toEqual({ halves: { 1: { state: "old", tag: "x3.1.3" }, 0: { state: "unknown" } } });
+        // The board didn't say which half has USB: neither half is named, the plugged-in one runs the old firmware.
+        expect(checkManual(s, { updater: false, legacyLabel: "x3.1.3", usbHand: null, tag: "x3.1.3", fwVersion: 2301, halves: [] })).toEqual({ halves: { 0: { state: "unknown" }, 1: { state: "unknown" } }, plugged: { state: "old", tag: "x3.1.3" } });
         expect(manualPending({ usualHand: 1 }, { halves: { 0: { state: "old" }, 1: { state: "new" } } })).toEqual([0]);
         expect(manualPending({ only: 0, usualHand: 1 }, { halves: { 0: { state: "new" }, 1: { state: "old" } } })).toEqual([]);
     });
@@ -292,6 +294,20 @@ describe("Install by hand from Settings > Firmware", () => {
         expect(screen.getByRole("button", { name: "Connect keyboard" })).toBeTruthy();
     });
 
+    it("names no half when the board didn't report which half has USB", async () => {
+        await opened({}, memoryManualStore(), null);
+        const dialog = screen.getByTestId("manual-install");
+        const steps = [...screen.getByTestId("manual-steps").querySelectorAll("li")].map((li) => li.textContent);
+        expect(steps).toEqual([
+            "Plug the USB cable into either half's U port. Keep the split cable connected.",
+            "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
+            "Drag the file onto the drive. The half restarts and the drive closes.",
+            "Then the other half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
+            "The halves show a rainbow while they work, then both flash green twice, about half a minute later. While a half writes or restarts, its lights may freeze or show other colors until it's running again.",
+        ]);
+        expect(dialog.textContent).not.toMatch(/left half|right half|usual half/i);
+    });
+
     it("Connect with both halves on x4 puts the layout back and says it's done, across the reconnect remount", async () => {
         const store = sessionManualStore(sessionStorage);
         const { board, host, view } = await opened({}, store);
@@ -414,7 +430,7 @@ describe("a board from before the updater (vLaunch2)", () => {
         } as UpdaterTransport;
         const keyboard = { svil_proto: 3, feature_flags: 0, feature_flags2: 1, keycode_version_reported: 1, sval_firmware: "vLaunch2" } as unknown as KeyboardInfo;
         const summary = await readBoardSummary(echo, keyboard, undefined, { retryMs: [] });
-        expect(summary).toMatchObject({ updater: false, legacyLabel: "vLaunch2", handUnknown: true });
+        expect(summary).toMatchObject({ updater: false, legacyLabel: "vLaunch2", usbHand: null });
         expect(summary.unread).toBeFalsy();
     });
 });

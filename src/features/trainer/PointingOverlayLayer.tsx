@@ -5,7 +5,7 @@ import { pillColorsFromTokens, velocityColorsFromTokens } from '@/components/poi
 import { BALL_GLOSS, BALL_SPARKLE, DEFAULT_BALL } from '@/components/pointing-viz/webgl/materials';
 import { ReportFeed } from '@/hooks/usePointingDevices';
 import { placeDevice, type KeyRect } from '@/utils/pointing-geometry';
-import { boostLabel, pointingFactors, sniperLabel } from '@/utils/pointing-multiplier';
+import { pillLabels, sameFactors, type PointingFactors } from '@/utils/pointing-multiplier';
 import { hostPointingConfig, hostPointingEvent, hostPointingLook, type HostPointingConfig, type HostPointingLook } from './host-pointing';
 
 export type HandKind = 'trackball' | 'touchpad' | null;
@@ -17,10 +17,12 @@ interface Props {
     pointing?: { left?: string | null; right?: string | null } | null;
     config: unknown;
     look?: unknown;
+    /** Not read: the pills show only the factors the board reports, never ones taken from the keymap. */
     keymap?: number[][];
-    /** For the review demo: a feed and modes that don't come from the Host. */
+    /** For the review demo: a feed, modes and factors that don't come from the Host. */
     feed?: ReportFeed;
     modes?: { sniper: boolean; boost: boolean };
+    factors?: PointingFactors | null;
 }
 
 const kindOf = (v: unknown): HandKind => (v === 'trackball' || v === 'touchpad' ? v : null);
@@ -40,14 +42,16 @@ function surfaceFrame(keys: KeyRect[], w: number, h: number) {
  * it off, only the sniper and boost pills show, centered where the device would
  * be. Motion arrives from the Host as keybard-host-pointing events.
  */
-export function PointingOverlayLayer({ keys, pointing, config, look, keymap, feed: demoFeed, modes: demoModes }: Props) {
+export function PointingOverlayLayer({ keys, pointing, config, look, feed: demoFeed, modes: demoModes, factors: demoFactors }: Props) {
     const cfg: HostPointingConfig = hostPointingConfig(config);
     const balls: HostPointingLook = hostPointingLook(look);
     const [size, setSize] = useState(() => ({ w: typeof window !== 'undefined' ? window.innerWidth : 1000, h: typeof window !== 'undefined' ? window.innerHeight : 300 }));
     const ownFeed = useMemo(() => new ReportFeed(), []);
     const feed = demoFeed ?? ownFeed;
     const [modes, setModes] = useState({ sniper: false, boost: false });
-    const [moving, setMoving] = useState<'left' | 'right'>('right');
+    const [factors, setFactors] = useState<PointingFactors | null>(null);
+    // The hand that moved last carries the pills; null until one moves (then both show them).
+    const [moving, setMoving] = useState<'left' | 'right' | null>(null);
 
     useEffect(() => {
         const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight });
@@ -61,6 +65,7 @@ export function PointingOverlayLayer({ keys, pointing, config, look, keymap, fee
             if (!r) return;
             ownFeed.push(r, r.elapsedMs);
             setModes(m => (m.sniper === r.sniper && m.boost === r.boost ? m : { sniper: r.sniper, boost: r.boost }));
+            setFactors(f => (sameFactors(f, r.factors) ? f : r.factors ?? null));
         };
         window.addEventListener('keybard-host-pointing', on);
         return () => window.removeEventListener('keybard-host-pointing', on);
@@ -69,15 +74,15 @@ export function PointingOverlayLayer({ keys, pointing, config, look, keymap, fee
     const kinds = { left: kindOf(pointing?.left), right: kindOf(pointing?.right) };
     const frame = useMemo(() => (keys.length ? surfaceFrame(keys, size.w, size.h) : null), [keys, size.w, size.h]);
     const rel = useMemo(() => (frame ? keys.map(k => ({ x: k.x - frame.minX, y: k.y - frame.minY, w: k.w, h: k.h })) : []), [keys, frame]);
-    const factors = useMemo(() => pointingFactors(keymap), [keymap]);
-    const labels = { sniper: sniperLabel(factors.sniperDivisor), boost: boostLabel(factors.boostFactor) };
+    // The factors the board reports (through the Host); without them the pills show no number.
+    const labels = pillLabels(demoFeed ? demoFactors : factors);
     const pillColors = useMemo(() => pillColorsFromTokens(true), []);
     const velocityColors = useMemo(() => velocityColorsFromTokens(true), []);
     const m = demoModes ?? modes;
 
     if (!frame || (!kinds.left && !kinds.right) || (!cfg.showPointing && !cfg.pointingPills)) return null;
     const ghost = !cfg.showPointing;
-    const modesAt = kinds[moving] ? moving : kinds.right ? 'right' : 'left';
+    const modesAt = (side: 'left' | 'right') => moving === null || !kinds[moving] || moving === side;
     return (
         <div className="pointer-events-none" data-host-pointing={ghost ? 'pills' : 'devices'} style={{ position: 'fixed', inset: 0 }}>
             {(['left', 'right'] as const).map(side => {
@@ -99,7 +104,7 @@ export function PointingOverlayLayer({ keys, pointing, config, look, keymap, fee
                         feed={feed}
                         sniper={cfg.pointingPills && m.sniper}
                         boost={cfg.pointingPills && m.boost}
-                        showModes={modesAt === side}
+                        showModes={modesAt(side)}
                         labels={labels}
                         pillColors={pillColors}
                         velocityColors={velocityColors}

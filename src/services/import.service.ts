@@ -8,6 +8,8 @@ import { keyService } from "./key.service";
 import { NO_SELECTION } from "./fragment.service";
 import { NOT_LAYOUT_VALUES } from "../utils/touchpad-tuning";
 
+import { usableTapdanceTerm } from "../utils/tapdance-term";
+
 /** A keycode as the firmware stores it: entries read from a file hold names, the board's hold names or numbers. */
 const kc = (value: unknown): number => typeof value === "string" ? keyService.parse(value) : Number(value ?? 0);
 
@@ -19,8 +21,10 @@ const kc = (value: unknown): number => typeof value === "string" ? keyService.pa
  */
 const canonical: Record<string, (entry: any) => unknown> = {
     combos: c => [[0, 1, 2, 3].map(i => kc(c.keys?.[i] ?? 0)), kc(c.output), (c.options ?? 0) >>> 0],
-    // Every tap dance write turns it on, so `enabled` isn't compared.
-    tapdances: t => [kc(t.tap), kc(t.hold), kc(t.doubletap), kc(t.taphold), t.tapping_term ?? 200],
+    // Every tap dance write turns it on, so `enabled` isn't compared. The board's terms are
+    // read as stored (an unused slot reads 0) and a file's unusable term loads as 200: an
+    // unusable term compares as the 200 a file holds in its place, so neither is a change.
+    tapdances: t => [kc(t.tap), kc(t.hold), kc(t.doubletap), kc(t.taphold), usableTapdanceTerm(t.tapping_term)],
     key_overrides: o => [kc(o.trigger), kc(o.replacement), (o.layers ?? 0xFFFF) >>> 0, o.trigger_mods || 0, o.negative_mod_mask || 0, o.suppressed_mods || 0, o.options || 0],
     alt_repeat_keys: a => [kc(a.keycode), kc(a.alt_keycode), a.allowed_mods || 0, a.options || 0],
     // The board's reader drops empty sequence slots, so compare without them.

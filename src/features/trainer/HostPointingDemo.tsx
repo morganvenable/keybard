@@ -17,7 +17,8 @@ import './trainer.css';
  * pointing devices, without a Host or a board, for review. The QWERTY Example
  * with a left touchpad and a right trackball, scripted motion, and the Host's
  * pointing settings from the URL: &showDevices=1|0, &pills=0, &sniper=1, &boost=1,
- * &velocity=1 (Velocity Scroll held).
+ * &velocity=1 (Velocity Scroll held), &sniperDiv=N&boostX=N (the factors
+ * the simulated board reports; without them the pills show no number).
  */
 export default function HostPointingDemo() {
     const demo = pointingDemo();
@@ -44,7 +45,7 @@ export default function HostPointingDemo() {
                 changed={new Set()} held={new Set()} hidden={new Set()} />}
             {keys.length > 0 && <PointingOverlayLayer keys={keys} keymap={board?.keymap}
                 pointing={{ left: asKind(demo?.left), right: asKind(demo?.right) }}
-                config={config} look={balls} feed={feed} modes={{ sniper: !!demo?.sniper, boost: !!demo?.boost }} />}
+                config={config} look={balls} feed={feed} modes={{ sniper: !!demo?.sniper, boost: !!demo?.boost }} factors={demo?.factors ?? null} />}
         </div>
     );
 }

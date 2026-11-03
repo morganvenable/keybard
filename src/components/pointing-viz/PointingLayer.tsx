@@ -7,7 +7,7 @@ import { useIsDark } from "@/lib/theme";
 import { setBall, useBalls } from "@/services/pointing-look.service";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { placeDevice, type KeyRect } from "@/utils/pointing-geometry";
-import { boostLabel, pointingFactors, sniperLabel } from "@/utils/pointing-multiplier";
+import { pillLabels } from "@/utils/pointing-multiplier";
 import { BallMenu } from "./BallMenu";
 import { PointingDevice } from "./PointingDevice";
 import { BALL_GLOSS, BALL_SPARKLE, type BallId } from "./webgl/materials";
@@ -56,14 +56,16 @@ export function PointingLayer({ keyboard, keys, unitPx }: Props) {
     const gloss = BALL_GLOSS;
     const sparkle = BALL_SPARKLE;
     const dark = useIsDark();
-    const factors = useMemo(() => pointingFactors(keyboard.keymap), [keyboard.keymap]);
-    const labels = useMemo(() => ({ sniper: sniperLabel(factors.sniperDivisor), boost: boostLabel(factors.boostFactor) }), [factors]);
+    // The factors the board reports; without them the pills show no number.
+    const labels = useMemo(() => pillLabels(live.factors), [live.factors]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const pillColors = useMemo(() => pillColorsFromTokens(false), [dark]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const velocityColors = useMemo(() => velocityColorsFromTokens(false), [dark]);
     const demo = pointingDemo();
-    const [moving, setMoving] = useState<"left" | "right">(demo?.hand ?? (kinds.right ? "right" : "left"));
+    // The hand that moved last carries the pills (the modes are the board's, not a hand's).
+    // Null until a hand moves: then every drawn device shows them, none picked by default.
+    const [moving, setMoving] = useState<"left" | "right" | null>(demo?.motion ? demo.hand : null);
     const [menu, setMenu] = useState<{ side: "left" | "right"; x: number; y: number } | null>(null);
     const onMoved = useCallback((side: "left" | "right") => setMoving((m) => (m === side ? m : side)), []);
     const closeMenu = useCallback(() => setMenu(null), []);
@@ -82,8 +84,7 @@ export function PointingLayer({ keyboard, keys, unitPx }: Props) {
     }, [any, keyboard.kbid, balls.left, balls.right, gloss, sparkle]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!any) return null;
-    const moverHas = (side: "left" | "right") => !!placements[side];
-    const modesAt: "left" | "right" = moverHas(moving) ? moving : moverHas("right") ? "right" : "left";
+    const modesAt = (side: "left" | "right") => moving === null || !placements[moving] || moving === side;
 
     const pick = (side: "left" | "right", ball: BallId) => setBall(keyboard.kbid, side, ball);
 
@@ -104,7 +105,7 @@ export function PointingLayer({ keyboard, keys, unitPx }: Props) {
                         feed={live.feed}
                         sniper={live.sniper}
                         boost={live.boost}
-                        showModes={modesAt === side}
+                        showModes={modesAt(side)}
                         labels={labels}
                         pillColors={pillColors}
                         velocityColors={velocityColors}

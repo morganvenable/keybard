@@ -3,10 +3,12 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { fromDisplay, roundedNote, storesExactly, toDisplay } from "@/utils/display-scale";
+import { NOT_READ, NotReadNote } from "./NotRead";
 
 interface RangeControlProps {
     item: CustomUIMenuItem;
-    value: number;
+    /** Undefined: not read from the board (the box is empty; typing a value writes it). */
+    value: number | undefined;
     onChange: (value: number) => void;
     compact?: boolean;
     /** Shown but grayed out and unusable (CustomUIMenuItem.disabledIf). */
@@ -34,13 +36,14 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
     const min = toDisplay(storedMin, scale);
     const max = toDisplay(storedMax, scale);
     const step = toDisplay(storedStep, scale);
-    const shown = toDisplay(value, scale);
+    const unread = value === undefined;
+    const shownText = unread ? "" : String(toDisplay(value, scale));
 
-    const [draft, setDraft] = useState(String(shown));
+    const [draft, setDraft] = useState(shownText);
     const [note, setNote] = useState<string | null>(null);
-    useEffect(() => { setDraft(String(shown)); }, [shown]);
+    useEffect(() => { setDraft(shownText); }, [shownText]);
     const commit = (raw: string) => {
-        if (!raw.trim() || !Number.isFinite(Number(raw))) { setDraft(String(shown)); return; }
+        if (!raw.trim() || !Number.isFinite(Number(raw))) { setDraft(shownText); return; }
         const typed = Math.max(min, Math.min(max, Number(raw)));
         const stored = Math.max(storedMin, Math.min(storedMax, Math.round(fromDisplay(typed, scale) / storedStep) * storedStep));
         setNote(storesExactly(typed, step) ? null : roundedNote(stored, scale));
@@ -58,12 +61,13 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
             onChange={(e) => { setDraft(e.target.value); setNote(null); }}
             onBlur={(e) => commit(e.target.value)}
             onKeyDown={(e) => {
-                if (e.key === "Escape") { e.currentTarget.value = String(shown); setDraft(String(shown)); e.currentTarget.blur(); }
+                if (e.key === "Escape") { e.currentTarget.value = shownText; setDraft(shownText); e.currentTarget.blur(); }
                 if (e.key === "Enter") e.currentTarget.blur();
             }}
             className={className}
             style={width}
             disabled={disabled}
+            placeholder={unread ? NOT_READ : undefined}
             min={min}
             max={max}
             step={step}
@@ -75,12 +79,12 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
         // Compact: label on top, slider + input inline below
         return (
             <div className="flex flex-col gap-0.5 py-0.5" data-disabled={disabled || undefined}>
-                <span title={item.description} className={disabled ? "text-xs text-muted-foreground" : "text-xs"}>{item.label}</span>
+                <span className="flex items-center justify-between gap-2"><span title={item.description} className={disabled ? "text-xs text-muted-foreground" : "text-xs"}>{item.label}</span>{unread && <NotReadNote compact />}</span>
                 <div className="flex flex-row items-center gap-1.5">
                     <Slider
                         aria-label={item.label}
                         aria-description={item.description}
-                        value={[Number(draft) || min]}
+                        value={draft === "" ? [] : [Number(draft) || min]}
                         onValueChange={(values) => setDraft(String(values[0]))}
                         onValueCommit={(values) => commit(String(values[0]))}
                         min={min}
@@ -98,12 +102,12 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
 
     return (
         <div className="flex flex-col gap-2 p-2 panel-layer-item" data-disabled={disabled || undefined}>
-            <span title={item.description} className={disabled ? "text-md text-muted-foreground" : "text-md"}>{item.label}</span>
+            <span className="flex items-center justify-between gap-2"><span title={item.description} className={disabled ? "text-md text-muted-foreground" : "text-md"}>{item.label}</span>{unread && <NotReadNote />}</span>
             <div className="flex flex-row items-center gap-3">
                 <Slider
                     aria-label={item.label}
                     aria-description={item.description}
-                    value={[Number(draft) || min]}
+                    value={draft === "" ? [] : [Number(draft) || min]}
                     onValueChange={(values) => setDraft(String(values[0]))}
                     onValueCommit={(values) => commit(String(values[0]))}
                     min={min}

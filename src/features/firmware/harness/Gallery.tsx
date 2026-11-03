@@ -20,7 +20,6 @@ import { UpdateSheet } from "../UpdateSheet";
 import type { UpdateUi } from "../useFirmwareUpdate";
 
 const NOW = 1_760_000_100_000;
-const legends = (h: number): [string, string] => (h === 1 ? ["M", ","] : ["V", "C"]);
 
 const pin = (tag: string, fw: number): FirmwareReleasePin => ({
     tag, kind: tag.startsWith("x") ? "x" : "v", fwVersion: fw, updaterProtocol: 4,
@@ -33,7 +32,7 @@ const half = (hand: 0 | 1, tag: string, fw: number, usb: boolean) => ({ hand, us
 const BOARD: BoardSummary = { updater: true, legacyLabel: null, usbHand: 1, halves: [half(0, "v3", 8, false), half(1, "v3", 8, true)], differ: false, noChord: false, fwVersion: 8, tag: "v3" };
 const UP_TO_DATE: BoardSummary = { ...BOARD, halves: [half(0, "x4", 9, false), half(1, "x4", 9, true)], fwVersion: 9, tag: "x4" };
 const DIFFER: BoardSummary = { ...BOARD, halves: [half(0, "build 9", 9, false), half(1, "v3", 8, true)], differ: true };
-const LEGACY: BoardSummary = { updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", usbHand: 1, halves: [], differ: false, noChord: false, fwVersion: 0, tag: "" };
+const LEGACY: BoardSummary = { updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", usbHand: null, halves: [], differ: false, noChord: false, fwVersion: 0, tag: "" };
 
 const info0 = (o: Partial<Info0>): Info0 => ({
     status: 0, state: 0, answered: true, protocol: 4, slotBase: 0, slotSize: 0, maxImage: 0x160000, jedec: "ef4018", pointingId: 5, hand: 1,
@@ -111,7 +110,7 @@ export function Gallery() {
                 {show("B1w") && <Card id="B1w" title="With warnings"><UpdateSheet ui={sheet(plan({ title: "Install custom firmware", kind: "custom", warnings }))} onAfterwards={noop} onStart={noop} onCancel={noop} /></Card>}
                 {show("B1b") && <Card id="B1b" title="Backup failed"><UpdateSheet ui={sheet(plan(), "failed")} onAfterwards={noop} onStart={noop} onCancel={noop} onSaveManually={noop} /></Card>}
                 {show("F2") && <Card id="F2" title="Integrity refusal"><UpdateSheet ui={sheet(plan({ refusal: { id: "integrity", label: "The firmware file failed its check.", state: "refuse", detail: "Keybard won't install it. Reload Keybard and try again." } }))} onAfterwards={noop} onStart={noop} onCancel={noop} /></Card>}
-                {show("C") && <Card id="C" title="Confirm on your keyboard"><ConfirmView state={CONFIRM} legends={legends(1)} now={NOW} /></Card>}
+                {show("C") && <Card id="C" title="Confirm on your keyboard"><ConfirmView state={CONFIRM} now={NOW} /></Card>}
                 {STAGES.map(([title, s], i) => show(`P${i}`) && <Card key={i} id={`P${i}`} title={title}><ProgressView state={s} now={NOW} /></Card>)}
                 {show("A1") && <Card id="A1" title="Done"><ResultView state={RESULT} onDone={noop} /></Card>}
                 {show("A4") && <Card id="A4" title="Layout reset outside an update"><div className="flex flex-col gap-4"><DialogShell><ResetNoticeView firmware firmwareNow="x4 on both halves" backupLine="Backup saved before the update, today 10:42 AM" onDefaults={noop} onOtherBackups={noop} onPutBack={noop} /></DialogShell></div></Card>}

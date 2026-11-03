@@ -226,10 +226,10 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                                 </dd>,
                             ];
                         }) : [
-                            <dt key="t">{board.handUnknown ? "Plugged-in half" : HALF(board.usbHand)}</dt>,
-                            <dd key="d" data-half={board.handUnknown ? undefined : board.usbHand}>
+                            <dt key="t">{board.usbHand === null ? "Plugged-in half" : HALF(board.usbHand)}</dt>,
+                            <dd key="d" data-half={board.usbHand ?? undefined}>
                                 <span className="font-mono">{board.legacyLabel ?? "older firmware"}</span>
-                                {!board.handUnknown && <span className="text-muted-foreground"> · plugged in</span>}
+                                {board.usbHand !== null && <span className="text-muted-foreground"> · plugged in</span>}
                             </dd>,
                         ]}
                     </dl>

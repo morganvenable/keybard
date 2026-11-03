@@ -42,6 +42,12 @@ export interface FakeSvalboardOptions {
      * of 0 with per-key timing off: seeded that way, fresh on every load.
      */
     seedLeaderZero?: boolean;
+    /**
+     * A board that doesn't answer some reads: the QMK settings and custom values
+     * 0 (left DPI) and 7 (natural scroll) get no reply, and tap dance 1 holds the
+     * term of 0 that older firmware stored in unused slots. Fresh on every load.
+     */
+    seedUnread?: boolean;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -141,7 +147,7 @@ export class FakeSvalboardDevice extends EventTarget {
         super();
         this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
         this.collections = [rawHidCollection(this.reportLength)];
-        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero);
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero && !options.seedUnread);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
@@ -154,6 +160,12 @@ export class FakeSvalboardDevice extends EventTarget {
             if (options.seedLeaderZero) {
                 state.qmkSettings[40] = state.qmkSettings[41] = 0; // leader_timeout
                 state.qmkSettings[42] = 0; // leader_options
+            }
+            if (options.seedUnread) {
+                state.tapDance[1 * 10 + 8] = 0; // tap dance 1: term 0, stored off (an older firmware's unused slot)
+                state.tapDance[1 * 10 + 9] = 0;
+                state.tapDance[1 * 10 + 0] = 0x05; // tap: KC_B, so the slot is in use
+                state.tapDance[1 * 10 + 1] = 0;
             }
             if (persist) storeBoard(state);
         }
@@ -171,6 +183,7 @@ export class FakeSvalboardDevice extends EventTarget {
             onChange: (state) => { if (this.persisting) storeBoard(state); },
             factoryKeymap: seedKeymap(),
             serial: options.serial,
+            unread: options.seedUnread ? { qmkSettings: true, customIds: [0, 7] } : undefined,
         });
         this.schedule = options.schedule ?? defaultSchedule();
     }

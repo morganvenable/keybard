@@ -52,7 +52,6 @@ class DevFakeHost extends FakeHost implements FirmwareUiHost {
     }
     async prepareRows() { return []; }
     boardName() { return "Kip"; }
-    chordLegends(hand: Hand): [string, string] { return hand === HAND_RIGHT ? ["M", ","] : ["V", "C"]; }
 }
 
 interface Ready {
@@ -176,7 +175,8 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
                 sides, clock, running, noChord: p.has("nochord"), faults, usbHand: p.get("usb") === "left" ? HAND_LEFT : HAND_RIGHT,
                 chordAfterMs: chord === "never" ? "never" : chord ? Number(chord) : 3000,
                 otherRunning: p.has("differ") ? { tag: v2.tag, fwVersion: v2.fwVersion } : undefined,
-                half: p.get("proto") === "3" ? { protocol: 3 } : undefined,
+                // &proto=3: an updater Keybard does not install through; &proto=0: firmware before the updater (it echoes the request: no hand).
+                half: p.get("proto") === "3" ? { protocol: 3 } : p.get("proto") === "0" ? { protocol: 0 } : undefined,
             });
             // &othersilent=1: the half without USB doesn't answer from the start (it runs Vial or
             // firmware before the updater, which can't link to this one).

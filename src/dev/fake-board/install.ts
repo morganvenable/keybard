@@ -22,7 +22,8 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
         : choice === "leader0" ? `${FAKE_BOARD_PRODUCT_NAME}, leader timeout stored as 0`
         : choice === "touchpad" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads`
         : choice === "touchpad-gestures" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads on built-in gestures`
-        : choice === "touchpad-434" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads, v4.3.4 firmware` : FAKE_BOARD_PRODUCT_NAME;
+        : choice === "touchpad-434" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads, v4.3.4 firmware`
+        : choice === "unread" ? `${FAKE_BOARD_PRODUCT_NAME}, some reads unanswered` : FAKE_BOARD_PRODUCT_NAME;
     const reset = document.createElement("button");
     reset.type = "button";
     reset.textContent = "Reset";
@@ -47,11 +48,13 @@ export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
     // board where it never asks (a Mac), so the pads run their built-in gestures.
     // "touchpad-434" is v4.3.4's firmware on that board: the touch page only.
     const pads = choice === "touchpad" || choice === "touchpad-gestures" || choice === "touchpad-434";
-    const current = choice === "combo-names" || choice === "turbo6" || choice === "leader0" || pads;
+    // "unread" is this firmware on a board that doesn't answer the QMK settings, two custom
+    // values, and holds a tap dance with a term of 0.
+    const current = choice === "combo-names" || choice === "turbo6" || choice === "leader0" || choice === "unread" || pads;
     // The debug console command (0x3E) came after v4.3.4.
     const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current,
         debugConsole: current && choice !== "touchpad-434", debounceSwitch: current,
-        timingUsOnly: current, seedTurbo: choice === "turbo6" ? 6 : undefined, seedLeaderZero: choice === "leader0", reportLength: current ? 64 : 32,
+        timingUsOnly: current, seedTurbo: choice === "turbo6" ? 6 : undefined, seedLeaderZero: choice === "leader0", seedUnread: choice === "unread", reportLength: current ? 64 : 32,
         padGestures: current, touchpad: pads, hostTouchpad: choice === "touchpad" || choice === "touchpad-434", multiFinger: choice !== "touchpad-434" });
     const wipe = () => {
         device.forgetSettings();

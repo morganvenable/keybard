@@ -125,12 +125,12 @@ describe('connecting a board', () => {
         expect(p.pending()).toBe(0);
         expect(p.dirty).toBe(false);
         expect(writes()).toEqual([]);
-        // Unused slots read back with a usable term, so editing one writes it.
-        expect(p.kb.tapdances[200].tapping_term).toBe(200);
+        // Unused slots read back as the board holds them (term 0), never as a stand-in term.
+        expect(p.kb.tapdances[200].tapping_term).toBe(0);
         expect(p.kb.tapdances[0]).toMatchObject({ tap: 'KC_A', tapping_term: 200, enabled: true });
     });
 
-    it('still counts and writes an edit, with the usable term, after connect', async () => {
+    it('still counts and writes an edit after connect, keeping the term the board holds', async () => {
         vi.spyOn(SettingsService.prototype, 'load').mockReturnValue({ 'live-updating': false } as any);
         render(<App />);
         await waitFor(() => expect(h.connect).toBeTruthy());
@@ -151,7 +151,8 @@ describe('connecting a board', () => {
         expect(set).toHaveLength(1);
         // [index:2][tap:2][hold:2][doubletap:2][taphold:2][term|on:2]
         expect(set[0].args.slice(0, 2)).toEqual([200, 0]);
-        expect(set[0].args.slice(-2)).toEqual([200, 0x80]);
+        // Only the edited key changes: the term stays the 0 the board holds (the editor flags it).
+        expect(set[0].args.slice(-2)).toEqual([0, 0x80]);
         expect(h.probe.current!.pending()).toBe(0);
     });
 });

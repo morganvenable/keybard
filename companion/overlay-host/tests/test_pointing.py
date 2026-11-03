@@ -303,3 +303,24 @@ class LatePointingTests(unittest.TestCase):
         before = self.reads_0x18()
         self.assertFalse(self.reader.pointing_settled())
         self.assertEqual(self.reads_0x18(), before)
+
+
+class PointingFactorsTest(unittest.TestCase):
+    """The sniper and boost factors: only when the board reports them (payload 53 = 'F')."""
+
+    def payload(self, length, factors=None):
+        data = bytearray(length)
+        data[0] = 1
+        data[1] = 0b11
+        if factors:
+            data[53:56] = bytes(factors)
+        return bytes(data)
+
+    def test_reported(self):
+        from keybard_host.device.protocol import parse_pointing_motion
+        self.assertEqual(parse_pointing_motion(self.payload(57, [0x46, 3, 5]))['factors'], {'sniperDivisor': 3, 'boostFactor': 5})
+
+    def test_not_reported(self):
+        from keybard_host.device.protocol import parse_pointing_motion
+        self.assertNotIn('factors', parse_pointing_motion(self.payload(57)))
+        self.assertNotIn('factors', parse_pointing_motion(self.payload(24)))

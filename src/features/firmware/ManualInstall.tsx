@@ -36,8 +36,8 @@ export interface ManualInstallProps {
     release: FirmwareReleasePin | null;
     /** Recovery of one half (F10, F11): only its file and steps. */
     only?: Hand;
-    /** The half the person usually plugs in. */
-    usualHand?: Hand;
+    /** The half the person usually plugs in. Null or absent: the board didn't say, so the steps name no half. */
+    usualHand?: Hand | null;
     /** The first move onto firmware Keybard updates: say it's needed once. */
     once?: boolean;
     /** Null: no keyboard was connected, so there's no layout to keep. */
@@ -78,8 +78,11 @@ const DRAG = (release: FirmwareReleasePin | null) => release
     ? "Drag the file onto the drive. The half restarts and the drive closes."
     : "Drag that half's file onto the drive. The half restarts and the drive closes.";
 
-/** The steps on both halves, the first one first (the other half, then the usual one), or on one half that still needs the file. */
-function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release: FirmwareReleasePin | null }) {
+/**
+ * The steps on both halves, the first one first (the other half, then the usual one), or on
+ * one half that still needs the file. With the usual half unknown, no half is named.
+ */
+function Steps({ hand, halves, release, handKnown = true }: { hand?: Hand; halves: Hand[]; release: FirmwareReleasePin | null; handKnown?: boolean }) {
     if (hand !== undefined) {
         return (
             <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm marker:font-semibold marker:text-muted-foreground" data-testid="manual-steps">
@@ -91,11 +94,11 @@ function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release
     }
     const [first, second] = halves;
     return (
-        <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm marker:font-semibold marker:text-muted-foreground" data-testid="manual-steps">
-            <li>{`Plug the USB cable into the ${handName(first)} half's U port. Keep the split cable connected.`}</li>
+        <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm marker:font-semibold marker:text-muted-foreground" data-testid="manual-steps" data-hand-known={handKnown ? undefined : "false"}>
+            <li>{handKnown ? `Plug the USB cable into the ${handName(first)} half's U port. Keep the split cable connected.` : "Plug the USB cable into either half's U port. Keep the split cable connected."}</li>
             <li>{RESET}</li>
             <li>{DRAG(release)}</li>
-            <li>{`Then the ${handName(second)} half: move the USB cable to its U port, press its RESET button twice, and drag the ${release ? "same file" : "file for that half"} onto the drive.`}</li>
+            <li>{`Then ${handKnown ? `the ${handName(second)} half` : "the other half"}: move the USB cable to its U port, press its RESET button twice, and drag the ${release ? "same file" : "file for that half"} onto the drive.`}</li>
             <li>The halves show a rainbow while they work, then both flash green twice, about half a minute later. While a half writes or restarts, its lights may freeze or show other colors until it's running again.</li>
         </ol>
     );
@@ -104,6 +107,16 @@ function Steps({ hand, halves, release }: { hand?: Hand; halves: Hand[]; release
 const HALF_LABEL = (h: Hand) => (h === 0 ? "Left half" : "Right half");
 
 function Halves({ check, tag }: { check: ManualCheck; tag: string }) {
+    if (check.plugged) {
+        // The board didn't say which half it is: one row for the plugged-in half, no half named.
+        const s = check.plugged;
+        return (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm tabular-nums" data-testid="manual-halves">
+                <dt>Plugged-in half</dt>
+                <dd data-half="plugged" data-state={s.state} className="font-semibold text-kb-warn-ink">{s.state === "old" ? s.tag ?? "its old firmware" : "not checked"}</dd>
+            </dl>
+        );
+    }
     return (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm tabular-nums" data-testid="manual-halves">
             {([0, 1] as Hand[]).filter((h) => check.halves[h]).map((h) => {
@@ -120,7 +133,8 @@ function Halves({ check, tag }: { check: ManualCheck; tag: string }) {
 }
 
 /** One line on what the last Connect found, for the instructions screen. */
-function stillLine(check: ManualCheck, pending: Hand[], tag: string, usual: Hand): string {
+function stillLine(check: ManualCheck, pending: Hand[], tag: string, usual: Hand | null): string {
+    if (check.plugged?.state === "old") return `The plugged-in half still runs ${check.plugged.tag ?? "its old firmware"}. Install the file on both halves, then connect again.`;
     const st = (h: Hand) => check.halves[h] as ManualHalfState | undefined;
     if (pending.every((h) => st(h)?.state === "unknown")) return "Keybard couldn't read the keyboard's firmware yet. Connect again to check.";
     if (pending.length === 2 && pending.every((h) => st(h)?.state === "old")) return `Neither half runs ${tag} yet. Install the file, then connect again.`;
@@ -136,10 +150,11 @@ function stillLine(check: ManualCheck, pending: Hand[], tag: string, usual: Hand
         return `${say(usbOld)} Install the file on it, then connect again.`;
     }
     const lines = pending.map(say).filter(Boolean).join(" ");
-    return `${lines} Install the file on ${pending.length > 1 ? "both halves" : `the ${handName(pending[0] ?? usual)} half`}, then connect again.`;
+    const one = pending[0] ?? usual;
+    return `${lines} Install the file on ${pending.length > 1 ? "both halves" : one === null ? "the keyboard" : `the ${handName(one)} half`}, then connect again.`;
 }
 
-export function ManualInstall({ release, only, usualHand = 1, once = false, backup, afterwards, onAfterwards, check = null, outcome, onConnect, onClose, onOpenBackups, onSides, sidesBusy, sidesNote }: ManualInstallProps) {
+export function ManualInstall({ release, only, usualHand = null, once = false, backup, afterwards, onAfterwards, check = null, outcome, onConnect, onClose, onOpenBackups, onSides, sidesBusy, sidesNote }: ManualInstallProps) {
     const tag = release?.tag ?? "the newest firmware";
     const halves = manualHalves(only, usualHand);
     const phase = outcome?.phase ?? "steps";
@@ -213,7 +228,7 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
                     <Steps hand={one} halves={halves} release={release} />
                 </section>
                 <footer className="flex flex-col gap-3 border-t border-kb-gray-border pt-4">
-                    {one !== usualHand && <p className="text-sm text-muted-foreground">Then plug into your usual half.</p>}
+                    {usualHand !== null && one !== usualHand && <p className="text-sm text-muted-foreground">Then plug into your usual half.</p>}
                     <div className="flex justify-end"><Button variant="kb-primary" data-connect onClick={onConnect}>Connect again</Button></div>
                 </footer>
             </div>
@@ -252,11 +267,11 @@ export function ManualInstall({ release, only, usualHand = 1, once = false, back
 
             <section className="flex flex-col gap-2" aria-label={only !== undefined ? `Install on the ${handName(only)} half` : "Install"}>
                 <SectionLabel>{only !== undefined ? `Install on the ${handName(only)} half` : "Install"}</SectionLabel>
-                <Steps hand={only} halves={halves} release={release} />
+                <Steps hand={only} halves={halves} release={release} handKnown={usualHand !== null} />
             </section>
 
             <footer className="flex flex-col gap-3 border-t border-kb-gray-border pt-4">
-                <p className="text-sm text-muted-foreground">{only === undefined ? "After the green flashes, connect the keyboard." : "When it's done, plug into your usual half."}</p>
+                <p className="text-sm text-muted-foreground">{only === undefined ? "After the green flashes, connect the keyboard." : usualHand === null ? "When it's done, connect the keyboard." : "When it's done, plug into your usual half."}</p>
                 <div className="flex justify-end"><Button variant="kb-primary" data-connect onClick={onConnect}>{check ? "Connect again" : "Connect keyboard"}</Button></div>
             </footer>
         </div>

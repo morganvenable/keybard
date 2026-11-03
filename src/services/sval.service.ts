@@ -69,8 +69,7 @@ export class SvalService {
                     val: hsv[2],
                 };
             } catch (error) {
-                // Layer might not exist, continue
-                layer_colors[i] = { hue: 0, sat: 0, val: 0 };
+                // Not read (or the layer doesn't exist): left out, never a stand-in color.
             }
         }
 
