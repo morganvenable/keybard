@@ -124,9 +124,10 @@ export function useMenuValues(menu: CustomUIMenuItem | undefined) {
         // What the board was loaded with (or last read back), not the draft: a queued change just
         // cleared may have put its value in the draft, and nothing is left to apply it.
         const loaded = originalKeyboard?.custom_values ?? [];
-        const before: [string, number][] = keys.map(k => {
+        // A value never read stays unknown (undefined): it is not put back as 0.
+        const before: [string, number | undefined][] = keys.map(k => {
             const entry = loaded.find(e => e.key === k);
-            return [k, entry ? customValueService.bytesToInt(entry.data, entry.data.length) : customValueService.getCache().get(k) ?? 0];
+            return [k, entry ? customValueService.bytesToInt(entry.data, entry.data.length) : customValueService.getCache().get(k)];
         });
         const label = found.item.label ?? key;
         const message = (err: unknown) => err instanceof Error ? err.message : String(err);
@@ -156,8 +157,12 @@ export function useMenuValues(menu: CustomUIMenuItem | undefined) {
             try {
                 storeBoard(await readBack(keys));
             } catch {
-                for (const [k, v] of before) customValueService.setCached(k, v);
-                storeBoard(before);
+                const known = before.filter((p): p is [string, number] => p[1] !== undefined);
+                const unknown = before.filter(([, v]) => v === undefined).map(([k]) => k);
+                for (const [k, v] of known) customValueService.setCached(k, v);
+                for (const k of unknown) customValueService.forget(k);
+                storeBoard(known);
+                if (unknown.length) setValues(prev => { const next = new Map(prev); for (const k of unknown) next.delete(k); return next; });
             }
             setWriteError(`The board didn't take ${label}: ${message(err)}`);
             return false;

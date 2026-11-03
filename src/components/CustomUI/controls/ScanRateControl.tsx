@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
+import { NOT_READ } from "./NotRead";
 
 /** Present a rate limit while preserving the firmware's microsecond interval. */
 export function ScanRateControl({ item, value, onChange, compact = false }: {
-    item: CustomUIMenuItem; value: number; onChange: (value: number) => void; compact?: boolean;
+    /** value undefined: not read from the board (nothing is selected; choosing a rate writes it). */
+    item: CustomUIMenuItem; value: number | undefined; onChange: (value: number) => void; compact?: boolean;
 }) {
     const rate = (period: number) => period ? Math.round(1_000_000 / period * 100) / 100 : 0;
     const cancelEdit = useRef(false);
     const selectRef = useRef<HTMLSelectElement>(null);
     const [custom, setCustom] = useState(false);
-    const [draft, setDraft] = useState(String(rate(value)));
+    const unread = value === undefined;
+    const [draft, setDraft] = useState(unread ? "" : String(rate(value)));
     const [error, setError] = useState<string | null>(null);
-    useEffect(() => { setDraft(String(rate(value))); setError(null); }, [value]);
+    useEffect(() => { setDraft(value === undefined ? "" : String(rate(value))); setError(null); }, [value]);
     const maxPeriod = Number(item.options?.[1]) || 20000;
     const periods = [0, 20000, 8000, 4000, 2000, 1000, 500, 250, 125].filter(p => p <= maxPeriod);
-    if (!periods.includes(value)) periods.push(value);
+    if (value !== undefined && !periods.includes(value)) periods.push(value);
     const commit = () => {
         if (cancelEdit.current) return;
         const hz = Number(draft);
@@ -42,11 +45,12 @@ export function ScanRateControl({ item, value, onChange, compact = false }: {
                         }
                     }} />
                 <span className="text-xs">Hz</span>
-            </div> : <select ref={selectRef} aria-label={item.label} aria-description={item.description} title={item.description} value={String(value)}
+            </div> : <select ref={selectRef} aria-label={item.label} aria-description={item.description} title={item.description} value={unread ? "" : String(value)}
                 className="rounded-md border dark:border-input bg-kb-surface px-2 py-1.5 text-sm" onChange={e => {
-                    if (e.target.value === "custom") { cancelEdit.current = false; setDraft(String(rate(value) || 1000)); setCustom(true); }
+                    if (e.target.value === "custom") { cancelEdit.current = false; setDraft(String((value !== undefined && rate(value)) || 1000)); setCustom(true); }
                     else onChange(Number(e.target.value));
                 }}>
+                {unread && <option value="" disabled>{NOT_READ}</option>}
                 {periods.map(period => <option key={period} value={period}>{period === 0 ? "Unlimited" : `${rate(period)} Hz`}</option>)}
                 <option value="custom">Custom rate…</option>
             </select>}

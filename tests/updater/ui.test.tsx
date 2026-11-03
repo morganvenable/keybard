@@ -111,12 +111,22 @@ describe("the lights, from the firmware's table (update-flow 5.3)", () => {
 
 describe("the running screens (5.1)", () => {
     it("asks for the keys only while the board waits for them, naming the half and why", () => {
-        render(<ConfirmView state={fs("approve", { approveAt: 0 })} legends={["M", ","]} now={2_000} />);
+        render(<ConfirmView state={fs("approve", { approveAt: 0 })} now={2_000} />);
         expect(screen.getByRole("heading", { name: "Confirm on your keyboard" })).toBeTruthy();
         expect(screen.getByText("Firmware only changes when someone at the keyboard says so.")).toBeTruthy();
-        expect(screen.getByTestId("update-confirm").textContent).toContain("On the right half, press M and , together and hold them for a second.");
+        expect(screen.getByTestId("update-confirm").textContent).toContain("On the right half, press the south keys of your index and middle fingers, lit above, together and hold them for a second.");
         expect(screen.getByText("28 seconds left")).toBeTruthy();
-        expect(screen.getByRole("img", { name: "right half: press M and ," })).toBeTruthy();
+        expect(screen.getByRole("img", { name: "right half: index south and middle south lit" })).toBeTruthy();
+    });
+
+    it("shows the keys by position only, never a letter (left half too)", () => {
+        render(<ConfirmView state={fs("approve", { approveAt: 0, usbHand: 0 })} now={0} />);
+        const diagram = screen.getByTestId("chord-diagram");
+        // The lit keys carry no text at all: no legend from a keymap, no default layout's letters.
+        expect(diagram.textContent).toBe("");
+        expect([...diagram.querySelectorAll("[data-chord-key]")].map((k) => k.getAttribute("data-chord-key"))).toEqual(["middle south", "index south"]);
+        expect(screen.getByTestId("update-confirm").textContent).toContain("On the left half, press the south keys of your index and middle fingers");
+        expect(screen.getByTestId("update-confirm").textContent).not.toMatch(/[MVC,] and/);
     });
 
     it("Updating shows one bar, the stage now, and the time left", () => {
@@ -218,7 +228,7 @@ describe("the Firmware card (D2)", () => {
     });
 
     it("firmware before the updater names no half it can't tell", () => {
-        render(<FirmwareSection board={board({ updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", handUnknown: true, halves: [] })} releases={releases} onInstall={vi.fn()} onManual={vi.fn()} paranoid={false} />);
+        render(<FirmwareSection board={board({ updater: false, legacyLabel: "Svalboard QMK vLaunch2 or later", usbHand: null, halves: [] })} releases={releases} onInstall={vi.fn()} onManual={vi.fn()} paranoid={false} />);
         expect(screen.getByTestId("firmware-halves").textContent).toBe("Plugged-in halfSvalboard QMK vLaunch2 or later");
         expect(screen.getByRole("button", { name: "Update to x4" })).toBeTruthy();
     });

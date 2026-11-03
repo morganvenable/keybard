@@ -29,6 +29,7 @@ vi.mock('@/services/keyboard.service', () => ({ keyboardService: {
         hasFragments: () => true, getSelectableInstances: () => INSTANCES,
         getOptionIndex: (instance: any, name: string) => instance.fragment_options.findIndex((o: any) => o.fragment === name),
         resolveFragment: (_kb: unknown, _idx: number, instance: any) => mocks.current[instance.id] ?? 'none',
+        resolveFragmentWithSource: (_kb: unknown, _idx: number, instance: any) => ({ fragment: mocks.current[instance.id] ?? 'none', source: 'board' }),
         getFragmentOptions: (instance: any) => instance.fragment_options.map((o: any) => o.fragment),
         getInstanceDisplayName: (id: string) => id, getFragmentDisplayName: (_kb: unknown, name: string) => name,
     }),

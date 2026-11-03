@@ -12,6 +12,8 @@ import { handName, type Hand } from "@/services/updater/protocol";
 export type FailureAction = "retry" | "close" | "reload" | "finish" | "manual" | "download" | "keep-waiting" | "copy-command" | "reconnect" | "backups" | "keep-defaults";
 
 const half = (h: Hand | undefined) => (h === undefined ? "One half" : `${handName(h) === "left" ? "Left" : "Right"} half`);
+/** The half in a sentence: "the left half", or the neutral wording when Keybard doesn't know which one it is. */
+const theHalf = (h: Hand | undefined, unknown: string) => (h === undefined ? unknown : `the ${handName(h)} half`);
 
 interface FailureCopy {
     title: string;
@@ -33,9 +35,9 @@ export function failureCopy(f: Failure, o: { fromTag?: string; udevCommand?: str
         F6: { title: "Update didn't finish", body: "Nothing was changed.", actions: [{ action: "retry", label: "Try again", primary: true }, { action: "close", label: "Close" }] },
         F9: { title: "Halves differ", body: f.detail ? <>{both && <p>{both}</p>}<p>{f.detail}</p></> : both || "The halves run different firmware.", actions: [{ action: "finish", label: "Finish update", primary: true }] },
         F10: { title: `${half(f.hand)} needs its firmware installed by hand`, body: "A drive named RPI-RP2 opened.", actions: [{ action: "download", label: "Download the firmware file", primary: true }, { action: "manual", label: "Install by hand" }] },
-        F11: { title: `${half(f.hand)} needs its firmware installed by hand`, body: `Plug the USB cable into the ${handName(f.hand ?? 0)} half's U port. It opens as a drive named RPI-RP2.`, actions: [{ action: "download", label: "Download the firmware file", primary: true }, { action: "manual", label: "Install by hand" }] },
+        F11: { title: `${half(f.hand)} needs its firmware installed by hand`, body: `Plug the USB cable into ${theHalf(f.hand, "one half")}'s U port. It opens as a drive named RPI-RP2.`, actions: [{ action: "download", label: "Download the firmware file", primary: true }, { action: "manual", label: "Install by hand" }] },
         F12: { title: "Linux blocked the keyboard", body: "Run this command, then reconnect.", actions: [{ action: "copy-command", label: "Copy command" }, { action: "reconnect", label: "Reconnect", primary: true }] },
-        F14: { title: "Keyboard didn't come back", body: `If a drive named RPI-RP2 opened, the ${handName(f.hand ?? 1)} half needs its firmware installed by hand.`, actions: [{ action: "keep-waiting", label: "Keep waiting", primary: true }, { action: "manual", label: "Install by hand" }] },
+        F14: { title: "Keyboard didn't come back", body: `If a drive named RPI-RP2 opened, ${theHalf(f.hand, "one half")} needs its firmware installed by hand.`, actions: [{ action: "keep-waiting", label: "Keep waiting", primary: true }, { action: "manual", label: "Install by hand" }] },
         F16: { title: "Layout not fully put back", body: <>{f.detail && <p>{f.detail}</p>}<p>Your backup is safe in Backups and Downloads.</p></>, actions: [{ action: "retry", label: "Try again", primary: true }, { action: "backups", label: "Open Backups" }, { action: "keep-defaults", label: "Keep defaults" }] },
         F17: { title: "Your keyboard can't save its layout", body: "Updates from Keybard are off until this is fixed.", actions: [{ action: "manual", label: "Install by hand" }, { action: "close", label: "Close", primary: true }] },
         F18: { title: "This keyboard installs firmware by hand", body: "", actions: [{ action: "manual", label: "Install by hand", primary: true }] },

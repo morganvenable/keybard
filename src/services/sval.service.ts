@@ -1,5 +1,5 @@
 import { SvilUSB, usbInstance } from "./usb.service";
-import { getClosestPresetColor } from "../utils/color-conversion";
+import { boardLayerColor } from "../utils/color-conversion";
 
 // Svalboard-specific protocol service
 import type { KeyboardInfo } from "../types/keyboard.types";
@@ -69,8 +69,7 @@ export class SvalService {
                     val: hsv[2],
                 };
             } catch (error) {
-                // Layer might not exist, continue
-                layer_colors[i] = { hue: 0, sat: 0, val: 0 };
+                // Not read (or the layer doesn't exist): left out, never a stand-in color.
             }
         }
 
@@ -155,14 +154,11 @@ export class SvalService {
             kbinfo.cosmetic.layer_colors = {};
         }
 
-        // For each hardware layer color, find the closest preset and set it
+        // Each hardware layer color as the board holds it: a preset only when it is that preset's color exactly.
         for (let i = 0; i < kbinfo.layer_colors.length; i++) {
             const hwColor = kbinfo.layer_colors[i];
             if (hwColor && (hwColor.hue !== 0 || hwColor.sat !== 0 || hwColor.val !== 0)) {
-                const closestPreset = getClosestPresetColor(hwColor.hue, hwColor.sat, hwColor.val);
-                if (closestPreset) {
-                    kbinfo.cosmetic.layer_colors[i.toString()] = closestPreset;
-                }
+                kbinfo.cosmetic.layer_colors[i.toString()] = boardLayerColor(hwColor.hue, hwColor.sat);
             }
         }
     }

@@ -17,8 +17,6 @@ import { noteResetNoticeCleared } from "@/services/updater/flow";
 import { realClock, type UpdaterTransport } from "@/services/updater/transport";
 import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
 import { usbSideHost } from "@/services/side-host";
-import type { KeyboardInfo } from "@/types/keyboard.types";
-import { getKeyLabel } from "@/utils/layers";
 import { restoreLayoutToBoard } from "./restore";
 import { withBoardState } from "./board-state";
 import type { FirmwareUiHost, UpdateBackup } from "./useFirmwareUpdate";
@@ -75,28 +73,6 @@ async function pauseKeybardHost(): Promise<CheckRow | null> {
     } catch {
         return null;
     }
-}
-
-/** The chord keys by matrix position: Index South + Middle South (right [6,0]+[7,0], left [1,0]+[2,0]). */
-const CHORD_KEYS: Record<0 | 1, Array<[number, number]>> = { 1: [[6, 0], [7, 0]], 0: [[1, 0], [2, 0]] };
-
-/**
- * Layer-0 legends of the chord keys, from the board's own keymap. The default layout's
- * letters when the keymap isn't loaded; the key's place when it is empty (a blank board).
- */
-export function chordLegendsFor(keyboard: KeyboardInfo | null, hand: 0 | 1): [string, string] {
-    const fallback: [string, string] = hand === 1 ? ["M", ","] : ["V", "C"];
-    const layer0 = keyboard?.keymap?.[0];
-    const cols = keyboard?.cols;
-    if (!keyboard || !layer0 || !cols) return fallback;
-    const places = ["Index South", "Middle South"];
-    return CHORD_KEYS[hand].map(([row, col], i) => {
-        const code = layer0[row * cols + col];
-        if (code === undefined) return fallback[i];
-        if (code === 0) return places[i];
-        const label = getKeyLabel(keyboard, code).label?.replace(/\s+/g, " ").trim();
-        return label || fallback[i];
-    }) as [string, string];
 }
 
 type AppState = { kb: ReturnType<typeof useKeyboard>; changes: ReturnType<typeof useChanges>; backups: ReturnType<typeof useBackups> };
@@ -270,6 +246,5 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
             return row ? [row] : [];
         },
         boardName: () => ref.current.backups.board?.name ?? ref.current.kb.keyboard?.name ?? "Svalboard",
-        chordLegends: (hand) => chordLegendsFor(ref.current.kb.keyboard, hand),
     };
 }

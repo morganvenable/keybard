@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Afterwards, FlowState } from "@/services/updater/flow";
-import { handName, type Hand } from "@/services/updater/protocol";
+import { handName } from "@/services/updater/protocol";
 import { FailureView, type FailureAction } from "./failures";
 import { FwTitle, InFirmwareDialog, Problem } from "./parts";
 import { ImportSettingsNotes } from "@/components/ImportSettingsNotes";
@@ -57,7 +57,6 @@ export function ResultView({ state, onDone }: { state: FlowState; onDone: () => 
 export interface UpdateDialogProps {
     ui: UpdateUi;
     now: () => number;
-    chordLegends: (hand: Hand) => [string, string];
     cancellable: boolean;
     udevCommand?: string;
     onAfterwards: (a: Afterwards) => void;
@@ -145,7 +144,7 @@ export function UpdateDialog(p: UpdateDialogProps) {
                 {ui.kind === "flow" && ui.state.phase === "running" && !ui.state.sideAsk && (
                     <>
                         {awaitingConfirm(ui.state)
-                            ? <ConfirmView state={ui.state} legends={p.chordLegends(ui.state.usbHand as Hand)} now={now} />
+                            ? <ConfirmView state={ui.state} now={now} />
                             : <ProgressView state={ui.state} now={now} />}
                         {p.cancellable && <div className="flex justify-end"><Button variant="outline" onClick={p.onCancel}>Cancel</Button></div>}
                     </>

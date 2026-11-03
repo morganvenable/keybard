@@ -26,6 +26,8 @@ export interface PointingLiveDeps {
 }
 
 export type PointingReportListener = (report: PointingMotionReport, dtMs: number) => void;
+/** Called once when POINTING_LIVE_MAX_MISSES reads in a row failed: the last report is stale. */
+export type PointingStaleListener = () => void;
 
 export class PointingLiveService {
     private refs = 0;
@@ -33,6 +35,7 @@ export class PointingLiveService {
     private connected = false;
     private sessionId: number | null = null;
     private listeners = new Set<PointingReportListener>();
+    private staleListeners = new Set<PointingStaleListener>();
     private timer: ReturnType<typeof setTimeout> | undefined;
     private looping = false;
     private inFlight = false;
@@ -74,7 +77,16 @@ export class PointingLiveService {
         return () => { this.listeners.delete(listener); };
     }
 
-    /** The last report read, for the modes (sniper, boost) between motions. */
+    /**
+     * Told when the board stopped answering (POINTING_LIVE_MAX_MISSES reads in a row), so
+     * what was drawn from its last report (sniper, boost, Velocity Scroll) is cleared, not kept.
+     */
+    subscribeStale(listener: PointingStaleListener): () => void {
+        this.staleListeners.add(listener);
+        return () => { this.staleListeners.delete(listener); };
+    }
+
+    /** The last report read, for the modes (sniper, boost) between motions; null once it is stale. */
     latest(): PointingMotionReport | null {
         return this.last;
     }
@@ -152,7 +164,16 @@ export class PointingLiveService {
         const now = this.deps.now();
         const fallbackDt = this.lastReadAt === null ? POINTING_LIVE_INTERVAL_MS : Math.max(1, now - this.lastReadAt);
         this.lastReadAt = now;
-        if (!report) { this.misses++; return; }
+        if (!report) {
+            this.misses++;
+            if (this.misses === POINTING_LIVE_MAX_MISSES) {
+                this.last = null;
+                for (const l of [...this.staleListeners]) {
+                    try { l(); } catch (e) { console.warn("Pointing stale listener failed:", e); }
+                }
+            }
+            return;
+        }
         this.misses = 0;
         // Velocity Scroll held counts as motion: its speed changes while the pointer rests.
         const moved = !!report.velocityScroll?.held || (["left", "right"] as const).some((side) => report[side].dx !== 0 || report[side].dy !== 0 || (report[side].contacts?.length ?? 0) > 0);

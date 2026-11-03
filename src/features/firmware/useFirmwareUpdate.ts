@@ -26,8 +26,6 @@ export interface FirmwareUiHost extends FlowHost {
     /** Pause Keybard Overlay, close Scan Lab, Linux device access: extra check rows. */
     prepareRows?(): Promise<CheckRow[]>;
     boardName(): string;
-    /** The two chord keys' layer-0 legends on a half (Index South + Middle South). */
-    chordLegends(hand: Hand): [string, string];
 }
 
 export type BackupStatus = { state: "pending" } | { state: "ok"; fileName: string; backup: UpdateBackup } | { state: "failed"; error: string };

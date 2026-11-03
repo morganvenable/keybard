@@ -4,7 +4,7 @@ import { RangeControl } from "./RangeControl";
 import { DropdownControl } from "./DropdownControl";
 import { ButtonControl } from "./ButtonControl";
 import { ScanRateControl } from "./ScanRateControl";
-import { evaluateShowIf } from "@/utils/show-if-evaluator";
+import { evaluateCondition } from "@/utils/show-if-evaluator";
 
 interface CustomUIControlProps {
     item: CustomUIMenuItem;
@@ -33,8 +33,11 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
     }
 
     const valueKey = content[0] as string;
-    const currentValue = values.get(valueKey) ?? 0;
-    const disabled = item.disabledIf ? evaluateShowIf(item.disabledIf, values) : false;
+    // Undefined: the value wasn't read from the board. The control says so and never
+    // shows a stand-in such as 0 or Off; choosing a value still writes it.
+    const currentValue = values.get(valueKey);
+    // A disabledIf whose value wasn't read doesn't disable it: its own value can still be written.
+    const disabled = item.disabledIf ? evaluateCondition(item.disabledIf, values) ?? false : false;
 
     const handleChange = (value: number) => {
         onValueChange(valueKey, value);

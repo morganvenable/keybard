@@ -10,10 +10,11 @@
  */
 
 /**
- * Evaluate a showIf expression against cached values
- * Returns true if the expression evaluates to true, or if the expression is invalid
+ * Evaluate a condition such as "{id_automouse_enable} == 1" against the values read.
+ * Undefined when its value wasn't read (never a guess either way); true for a missing
+ * or malformed expression, which is a definition problem, not board state.
  */
-export function evaluateShowIf(expression: string, values: Map<string, number>): boolean {
+export function evaluateCondition(expression: string, values: Map<string, number>): boolean | undefined {
     if (!expression || typeof expression !== 'string') {
         return true; // No expression means always visible
     }
@@ -33,9 +34,9 @@ export function evaluateShowIf(expression: string, values: Map<string, number>):
         const compareValue = parseInt(valueStr, 10);
         const actualValue = values.get(key);
 
-        // If value is not in cache, default to visible
+        // Not read from the board: unknown, not true or false.
         if (actualValue === undefined) {
-            return true;
+            return undefined;
         }
 
         // Evaluate comparison
@@ -60,6 +61,15 @@ export function evaluateShowIf(expression: string, values: Map<string, number>):
         console.warn(`Error evaluating showIf expression "${expression}":`, error);
         return true; // Default to visible on error
     }
+}
+
+/**
+ * Whether a control with this showIf is shown. A control whose condition depends on a
+ * value that wasn't read stays hidden until that value is read: Keybard can't tell
+ * whether it applies.
+ */
+export function evaluateShowIf(expression: string, values: Map<string, number>): boolean {
+    return evaluateCondition(expression, values) ?? false;
 }
 
 /**

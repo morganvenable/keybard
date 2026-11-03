@@ -132,7 +132,7 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
         [readBoard],
     );
     const manual = useManualInstall(host, {
-        connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater && !board.unread, usualHand: board?.usbHand,
+        connectionKey, readBoard: readBoardNow, fromTag: board?.tag || board?.legacyLabel || "", fromFw: board ? board.fwVersion : null, once: !!board && !board.updater && !board.unread, usualHand: board?.usbHand ?? null,
         buildReset: !connection && !!kb.keyboard?.storage_build_reset,
     });
     const setManual = manual.open;
@@ -213,7 +213,6 @@ export function FirmwareUpdateProvider({ children, host: injected, readBoard, re
                 <UpdateDialog
                     ui={fw.ui}
                     now={() => host.clock.now()}
-                    chordLegends={(h) => host.chordLegends(h)}
                     cancellable={!!fw.flow?.cancellable}
                     onAfterwards={fw.setAfterwards}
                     onStart={fw.start}

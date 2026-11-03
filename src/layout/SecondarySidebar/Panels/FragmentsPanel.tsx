@@ -32,6 +32,9 @@ function safeMapGet<K extends string | number, V>(
  */
 type FragmentPreset = "default" | "six" | "fang";
 
+/** A cluster drawn as the definition's default because the connected board reported none. */
+const DEFAULT_NOT_REPORTED = "Default (not reported by the keyboard)";
+
 const PRESETS: Array<{ preset: FragmentPreset; label: string; description: string }> = [
     { preset: "default", label: "Default", description: "Restore default hardware selections" },
     { preset: "six", label: "6-key", description: "Use 6-key finger clusters" },
@@ -340,6 +343,9 @@ const FragmentsPanel: React.FC = () => {
                                     ? `Auto-detected: ${hwDisplayName}`
                                     : `Detected: ${hwDisplayName}`;
                             }
+                            // Nothing said which one the board has: the default is drawn, and labeled as such.
+                            const isDefault = !statusText && fragmentService.resolveFragmentWithSource(keyboard, idx, instance).source === "default";
+                            if (isDefault) statusText = isConnected ? DEFAULT_NOT_REPORTED : "Default";
 
                             return (
                                 <div
@@ -351,7 +357,7 @@ const FragmentsPanel: React.FC = () => {
                                             {instanceDisplayName}
                                         </Label>
                                         {statusText && (
-                                            <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                            <span className={`text-xs ${isDefault ? 'text-muted-foreground' : isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                                 {statusText}
                                             </span>
                                         )}
@@ -410,6 +416,9 @@ const FragmentsPanel: React.FC = () => {
                                     ? `Auto-detected: ${hwDisplayName}`
                                     : `Detected: ${hwDisplayName}`;
                             }
+                            // Nothing said which one the board has: the default is drawn, and labeled as such.
+                            const isDefault = !statusText && fragmentService.resolveFragmentWithSource(keyboard, idx, instance).source === "default";
+                            if (isDefault) statusText = isConnected ? DEFAULT_NOT_REPORTED : "Default";
 
                             return (
                                 <div
@@ -421,7 +430,7 @@ const FragmentsPanel: React.FC = () => {
                                             {instanceDisplayName}
                                         </Label>
                                         {statusText && (
-                                            <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                            <span className={`text-xs ${isDefault ? 'text-muted-foreground' : isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                                 {statusText}
                                             </span>
                                         )}
@@ -477,6 +486,9 @@ const FragmentsPanel: React.FC = () => {
                             ? `Auto-detected: ${hwDisplayName}`
                             : `Detected: ${hwDisplayName}`;
                     }
+                    // Nothing said which one the board has: the default is drawn, and labeled as such.
+                    const isDefault = !statusText && fragmentService.resolveFragmentWithSource(keyboard, idx, instance).source === "default";
+                    if (isDefault) statusText = isConnected ? DEFAULT_NOT_REPORTED : "Default";
 
                     return (
                         <div
@@ -488,7 +500,7 @@ const FragmentsPanel: React.FC = () => {
                                     {instanceDisplayName}
                                 </Label>
                                 {statusText && (
-                                    <span className={`text-xs ${isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                    <span className={`text-xs ${isDefault ? 'text-muted-foreground' : isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                         {statusText}
                                     </span>
                                 )}

@@ -119,6 +119,11 @@ export class CustomValueService {
         this.cache.set(key, value);
     }
 
+    /** Drop a value from the cache: it is not known (not read, or a write of it failed and it can't be read back). */
+    forget(key: string): void {
+        this.cache.delete(key);
+    }
+
     /**
      * Clear the cache
      */

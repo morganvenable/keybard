@@ -124,6 +124,17 @@ export function getClosestPresetColor(hue: number, sat: number, val: number): st
 }
 
 /**
+ * How Keybard shows a layer color the board holds (its LED hue and saturation; the board
+ * keeps one brightness for every layer, not one per layer). The preset whose LED color it
+ * is exactly, when exactly one preset is; otherwise the board's own hue and saturation as
+ * a hex color at full value. Never the nearest preset: presets are choices, not readings.
+ */
+export function boardLayerColor(hue: number, sat: number): string {
+    const exact = layerColors.filter(c => c.led.hue === hue && c.led.sat === sat);
+    return exact.length === 1 ? exact[0].name : hsvToHex(hue, sat, 255);
+}
+
+/**
  * Get the hex color for a preset color name
  */
 export function getPresetHex(colorName: string): string {

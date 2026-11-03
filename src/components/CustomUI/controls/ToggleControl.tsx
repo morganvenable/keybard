@@ -1,10 +1,12 @@
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import { cn } from "@/lib/utils";
+import { NotReadNote } from "./NotRead";
 
 interface ToggleControlProps {
     item: CustomUIMenuItem;
-    value: number;
+    /** Undefined: not read from the board (neither side is pressed; either one writes it). */
+    value: number | undefined;
     onChange: (value: number) => void;
     compact?: boolean;
 }
@@ -16,7 +18,9 @@ export const ToggleControl: React.FC<ToggleControlProps> = ({ item, value, onCha
             compact ? "py-0.5" : "p-2 panel-layer-item"
         )}>
             <span title={item.description} className={compact ? "text-xs" : "text-md"}>{item.label}</span>
+            {value === undefined && <NotReadNote compact={compact} className="ml-auto" />}
             <OnOffToggle
+                unknown={value === undefined}
                 label={item.label}
                 description={item.description}
                 value={value === 1}

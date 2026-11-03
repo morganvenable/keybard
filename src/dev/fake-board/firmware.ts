@@ -108,6 +108,8 @@ const put16 = (b: Uint8Array, o: number, v: number) => { b[o] = v & 0xff; b[o + 
 const put32 = (b: Uint8Array, o: number, v: number) => { b[o] = v & 0xff; b[o + 1] = (v >>> 8) & 0xff; b[o + 2] = (v >>> 16) & 0xff; b[o + 3] = (v >>> 24) & 0xff; };
 
 export interface FakeFirmwareOptions {
+    /** Reads the board never answers (browser tests of values Keybard couldn't read). */
+    unread?: { qmkSettings?: boolean; customIds?: number[] };
     /** Firmware with combo names (label type 3, GET_INFO flags2 bit 7). Default true. */
     comboLabels?: boolean;
     /** Called after every write that changes stored settings. */
@@ -299,8 +301,11 @@ export class FakeSvalFirmware {
     /** The identity name staged by OP_NAME writes until OP_COMMIT. */
     private stagedName = new Uint8Array(IDENTITY_NAME_MAX_BYTES);
 
+    private readonly unread: FakeFirmwareOptions["unread"];
+
     constructor(readonly state: FakeBoardState, options: FakeFirmwareOptions = {}) {
         this.comboLabels = options.comboLabels ?? true;
+        this.unread = options.unread;
         this.typingPause = options.typingPause ?? true;
         this.flickerLatch = options.flickerLatch ?? true;
         this.debugConsole = options.debugConsole ?? true;
@@ -577,6 +582,9 @@ export class FakeSvalFirmware {
         this.currentClient = clientId;
         if (this.typingPauseState() === "paused" && clientId === this.pauseOwner) this.pauseOwnerSeen = this.timer();
         const protocol = data[5];
+        // Reads this board never answers (FakeFirmwareOptions.unread).
+        if (protocol === SVAL_PREFIX && this.unread?.qmkSettings && (data[6] === 0x10 || data[6] === 0x11)) return null;
+        if (protocol === VIA_PREFIX && data[6] === 0x08 && data[7] === 0 && this.unread?.customIds?.includes(data[8])) return null;
         if (protocol === SVAL_PREFIX) {
             this.svalCommand(data.subarray(5), length - 5);
             return data;

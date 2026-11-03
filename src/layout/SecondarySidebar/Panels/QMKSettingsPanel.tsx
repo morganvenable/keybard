@@ -79,6 +79,15 @@ export const QmkSettingsSections: React.FC<QmkSettingsSectionsProps> = ({ sectio
 
     if (!keyboard) return null;
 
+    // The read failed: say so, never "no settings" and never a value in their place.
+    if (!keyboard.settings && keyboard.settings_unread) {
+        return (
+            <p className="text-sm text-muted-foreground" role="status" data-testid="qmk-settings-not-read">
+                Keybard couldn't read these settings from the keyboard. Reconnect it to try again.
+            </p>
+        );
+    }
+
     // Check if keyboard has QMK settings
     if (!keyboard.settings || Object.keys(keyboard.settings).length === 0) {
         return <>{emptyMessage}</>;

@@ -1,10 +1,9 @@
-// M3: Settings > Firmware is the entry to the update flow; the chord legends come from the board.
+// M3: Settings > Firmware is the entry to the update flow.
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BoardSummary } from "@/features/firmware/board-summary";
 import type { FirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
-import { chordLegendsFor } from "@/features/firmware/useAppFirmwareHost";
 import { KEYMAP } from "@/constants/keygen";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 
@@ -70,27 +69,6 @@ describe("Settings > Firmware", () => {
         ctx.updates = updates({ status: { newest: null, updateAvailable: true, dot: true, markSeen } });
         render(<FirmwareRow />);
         expect(markSeen).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe("chord legends", () => {
-    const kb = (layer0: number[]) => ({ rows: 10, cols: 6, keymap: [layer0] }) as unknown as KeyboardInfo;
-    const at = (row: number, col: number) => row * 6 + col;
-
-    it("come from the board's layer 0 at Index South and Middle South", () => {
-        const layer0 = new Array(60).fill(KEYMAP.KC_A.code);
-        layer0[at(6, 0)] = KEYMAP.KC_J.code;
-        layer0[at(7, 0)] = KEYMAP.KC_K.code;
-        layer0[at(1, 0)] = KEYMAP.KC_F.code;
-        layer0[at(2, 0)] = KEYMAP.KC_D.code;
-        expect(chordLegendsFor(kb(layer0), 1)).toEqual(["J", "K"]);
-        expect(chordLegendsFor(kb(layer0), 0)).toEqual(["F", "D"]);
-    });
-
-    it("name the place on a blank board, and fall back to the default letters with no keymap", () => {
-        expect(chordLegendsFor(kb(new Array(60).fill(0)), 1)).toEqual(["Index South", "Middle South"]);
-        expect(chordLegendsFor(null, 1)).toEqual(["M", ","]);
-        expect(chordLegendsFor(null, 0)).toEqual(["V", "C"]);
     });
 });
 

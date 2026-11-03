@@ -23,7 +23,7 @@ describe('tap dance save fidelity', () => {
     });
 });
 describe('tap dance read', () => {
-    it('reads an unusable stored term as the default and keeps the stored on bit', async () => {
+    it('reads every term as stored, unusable ones too, and keeps the stored on bit', async () => {
         const entry = (term: number) => { const d = new Uint8Array(10); d[0] = 4; d[8] = term & 255; d[9] = term >> 8; return d; };
         const stored = [entry(0), entry(5 | 0x8000), entry(350 | 0x8000), new Uint8Array(10)];
         const sendSvil = vi.fn(async (_cmd: number, args: number[]) => {
@@ -32,6 +32,6 @@ describe('tap dance read', () => {
         });
         const kb: KeyboardInfo = { rows: 1, cols: 1, tapdance_count: stored.length };
         await new TapdanceService({ sendSvil, svilProtocolVersion: 2 } as unknown as SvilUSB).get(kb);
-        expect(kb.tapdances!.map(t => [t.tapping_term, t.enabled])).toEqual([[200, false], [200, true], [350, true], [200, false]]);
+        expect(kb.tapdances!.map(t => [t.tapping_term, t.enabled])).toEqual([[0, false], [5, true], [350, true], [0, false]]);
     });
 });

@@ -1344,14 +1344,15 @@ export class SvilUSB {
    * Get all layer colors (for initial sync).
    * Returns array of 16 HSV values.
    */
-  async getAllLayerColors(): Promise<Array<{ hue: number; sat: number }>> {
-    const colors: Array<{ hue: number; sat: number }> = [];
+  /** Every layer's color; null for a layer whose read failed (not read, never a stand-in color). */
+  async getAllLayerColors(): Promise<Array<{ hue: number; sat: number } | null>> {
+    const colors: Array<{ hue: number; sat: number } | null> = [];
     for (let i = 0; i < 16; i++) {
       try {
         const color = await this.getLayerColor(i);
         colors.push(color);
       } catch {
-        colors.push({ hue: 0, sat: 0 });
+        colors.push(null);
       }
     }
     return colors;

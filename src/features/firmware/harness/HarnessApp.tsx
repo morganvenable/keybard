@@ -69,7 +69,6 @@ class HarnessFakeHost extends FakeHost implements FirmwareUiHost {
     }
     async prepareRows() { return []; }
     boardName() { return "Kip"; }
-    chordLegends(hand: Hand): [string, string] { return hand === HAND_RIGHT ? ["M", ","] : ["V", "C"]; }
 }
 
 function Page({ children, title }: { children: ReactNode; title: string }) {
@@ -101,7 +100,6 @@ function useDialogWiring(host: FirmwareUiHost | null, releases: FirmwareReleaseP
         <UpdateDialog
             ui={fw.ui}
             now={() => host.clock.now()}
-            chordLegends={(h) => host.chordLegends(h)}
             cancellable={!!fw.flow?.cancellable}
             onAfterwards={fw.setAfterwards}
             onStart={fw.start}

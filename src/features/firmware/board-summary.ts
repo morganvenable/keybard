@@ -28,9 +28,8 @@ export interface BoardSummary {
     unread?: boolean;
     /** For boards without one: what they run, as far as Keybard can tell. */
     legacyLabel: string | null;
-    /** Firmware before the updater: Keybard can't tell which half is plugged in. */
-    handUnknown?: boolean;
-    usbHand: Hand;
+    /** The half with USB, as the board reported it; null when it didn't say (firmware before the updater, a board that didn't answer, a half without a side). */
+    usbHand: Hand | null;
     halves: HalfSummary[];
     /** Presence or INFO bit5 say the halves run different firmware (F9 / Q17). */
     differ: boolean;
@@ -80,14 +79,14 @@ export interface BoardReadOptions {
 
 function legacySummary(keyboard?: KeyboardInfo | null): BoardSummary {
     return {
-        updater: false, legacyLabel: keyboard ? describeFirmware(keyboard) : null, handUnknown: true, usbHand: 1, halves: [], differ: false,
+        updater: false, legacyLabel: keyboard ? describeFirmware(keyboard) : null, usbHand: null, halves: [], differ: false,
         noChord: false, fwVersion: 0, tag: keyboard ? describeFirmware(keyboard) ?? "" : "",
     };
 }
 
 /** The board didn't answer: Keybard can't tell what it runs. */
 export function unreadSummary(): BoardSummary {
-    return { updater: false, unread: true, legacyLabel: null, usbHand: 1, halves: [], differ: false, noChord: false, fwVersion: 0, tag: "" };
+    return { updater: false, unread: true, legacyLabel: null, usbHand: null, halves: [], differ: false, noChord: false, fwVersion: 0, tag: "" };
 }
 
 /**
@@ -124,7 +123,7 @@ async function readBoardOnce(transport: UpdaterTransport, keyboard: KeyboardInfo
     if (usb.protocol === UPDATER_PROTOCOL && usb.hand === HAND_SELF) {
         // One-image firmware on a half with no side yet: it answers as hand 0xFF. Show the fix, no halves.
         return {
-            updater: true, legacyLabel: null, usbHand: 1, halves: [], differ: false, noChord: usb.noChord, fwVersion: usb.fwVersion,
+            updater: true, legacyLabel: null, usbHand: null, halves: [], differ: false, noChord: usb.noChord, fwVersion: usb.fwVersion,
             tag: (await c.info1().catch(() => null))?.tag ?? "", sides: sides ?? { kind: "unknown", halves: ["usb"], usb: "unknown", other: null, guess: {} },
         };
     }
@@ -138,7 +137,7 @@ async function readBoardOnce(transport: UpdaterTransport, keyboard: KeyboardInfo
         // An updater Keybard doesn't install through (protocol 3, vNext1 and x3.x): name what it
         // runs from INFO page 1, which every updater protocol answers.
         const label = await c.info1().then((p) => updaterVersionLabel(p.tag, p.fwVersion || usb.fwVersion)).catch(() => updaterVersionLabel("", usb.fwVersion));
-        return { ...legacy(), legacyLabel: label, tag: label, fwVersion: usb.fwVersion, usbHand: usb.hand === 0 ? 0 : 1, handUnknown: usb.hand !== 0 && usb.hand !== 1 };
+        return { ...legacy(), legacyLabel: label, tag: label, fwVersion: usb.fwVersion, usbHand: usb.hand === 0 || usb.hand === 1 ? (usb.hand as Hand) : null };
     }
     const usbHand = usb.hand as Hand;
     const tag = updaterVersionLabel((await c.info1()).tag, usb.fwVersion);

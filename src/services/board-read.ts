@@ -8,7 +8,7 @@ import { customValueService } from "./custom-value.service";
 import { keyboardService } from "./keyboard.service";
 import { qmkService } from "./qmk.service";
 import { usbInstance } from "./usb.service";
-import { getClosestPresetColor } from "../utils/color-conversion";
+import { boardLayerColor } from "../utils/color-conversion";
 
 /** A read that fails is tried once more: one timed-out report must not drop a part. */
 const twice = <T>(read: () => Promise<T>): Promise<T> => read().catch(() => read());
@@ -27,17 +27,22 @@ export async function readBoard(): Promise<KeyboardInfo> {
         await twice(() => qmkService.get(loaded));
     } catch (error) {
         console.warn("Failed to load QMK settings:", error);
+        // Shown as not read: never as a board that has no such settings, nor as zeros.
+        delete loaded.settings;
+        loaded.settings_unread = true;
     }
 
     try {
         const layerColors = await twice(() => usbInstance.getAllLayerColors());
-        // Brightness isn't per layer: shown at full.
-        loaded.layer_colors = layerColors.map((c) => ({ hue: c.hue, sat: c.sat, val: 255 }));
-        // The keyboard display shows the closest preset color.
+        // The board keeps hue and saturation per layer and one brightness for all of them
+        // (read on its own, as the LED brightness), so `val` is the full value of that hue,
+        // not a per-layer reading. A layer whose read failed is left out: not read.
+        loaded.layer_colors = layerColors.map((c) => (c ? { hue: c.hue, sat: c.sat, val: 255 } : undefined)) as KeyboardInfo["layer_colors"];
+        // The keyboard display shows the board's own color: a preset only when it is that preset's color exactly.
         loaded.cosmetic ??= { layer: {}, layer_colors: {} };
         loaded.cosmetic.layer_colors ??= {};
         layerColors.forEach((c, idx) => {
-            loaded.cosmetic!.layer_colors![idx.toString()] = getClosestPresetColor(c.hue, c.sat, 255);
+            if (c) loaded.cosmetic!.layer_colors![idx.toString()] = boardLayerColor(c.hue, c.sat);
         });
     } catch (error) {
         console.warn("Failed to load layer colors:", error);

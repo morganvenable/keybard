@@ -32,6 +32,15 @@ export function usePointingKinds(): HandKinds {
     }, [slots, demo]);
 }
 
+/**
+ * What the drawing gets when the board stopped answering: no mode, no Velocity Scroll, no
+ * motion and no fingers down, so nothing from the last report it answered stays drawn.
+ */
+export function staleReport(): PointingMotionReport {
+    const half = () => ({ valid: true, scrolling: false, saturated: false, autoMouse: false, touchValid: false, fingers: 0, dx: 0, dy: 0, h: 0, v: 0, buttons: 0, touchX: 0, touchY: 0, contacts: [] });
+    return { sniper: false, boost: false, autoMouseLayer: false, axisLockEnabled: false, naturalScroll: false, scrollKey: false, elapsedMs: 0, axisLock: "free", left: half(), right: half() };
+}
+
 /** A feed that replays reports to its listeners. */
 export class ReportFeed implements PointingFeed {
     private listeners = new Set<(r: PointingMotionReport, dtMs: number) => void>();
@@ -94,7 +103,13 @@ export function usePointingLive(active: boolean): PointingLive {
             setModes((m) => (m.sniper === r.sniper && m.boost === r.boost ? m : { sniper: r.sniper, boost: r.boost }));
             setFactors((f) => (sameFactors(f, r.factors) ? f : r.factors ?? null));
         });
-        return () => { off(); release(); };
+        // The board stopped answering: nothing from its last report stays drawn as if it held now.
+        const offStale = live.subscribeStale(() => {
+            feed.push(staleReport(), 0);
+            setModes((m) => (!m.sniper && !m.boost ? m : { sniper: false, boost: false }));
+            setFactors(null);
+        });
+        return () => { off(); offStale(); release(); };
     }, [supported, live, feed]);
 
     const scripted = active && !supported && !!(demo?.motion || demo?.velocity);

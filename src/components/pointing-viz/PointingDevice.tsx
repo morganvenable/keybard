@@ -272,6 +272,8 @@ export function PointingDevice(props: PointingDeviceProps) {
                     data-pointing-device={side}
                     data-pointing-kind={pl.kind}
                     data-ball={pl.kind === "ball" ? props.ball : undefined}
+                    // The mode pills this device shows, as drawn (for review and browser tests).
+                    data-pills={[props.showModes && props.sniper ? `SNIPER ${props.labels.sniper}`.trim() : "", props.showModes && props.boost ? `BOOST ${props.labels.boost}`.trim() : ""].filter(Boolean).join(" | ")}
                     className={menuable ? "pointer-events-auto" : "pointer-events-none"}
                     style={{
                         ...box(sizeCss),

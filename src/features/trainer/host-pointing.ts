@@ -78,6 +78,9 @@ export function hostPointingEvent(detail: unknown): PointingMotionReport | null 
         };
     };
     const velocityScroll = velocityScrollFromJson(d.velocityScroll);
+    // Only what the Host sent counts as on. A mode it didn't send is unknown, and an unknown
+    // mode draws nothing: no pill, never a pill or an "off" in its place. The other modes
+    // aren't drawn from Host events at all.
     return {
         sniper: d.sniper === true, boost: d.boost === true, autoMouseLayer: false, axisLockEnabled: false, naturalScroll: false, scrollKey: false,
         elapsedMs: typeof d.elapsedMs === 'number' ? d.elapsedMs : 16, axisLock: 'free', left: half(d.left), right: half(d.right),
