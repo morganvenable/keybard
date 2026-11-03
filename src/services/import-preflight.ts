@@ -124,7 +124,9 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     restoreFragments(file, current, next, warnings);
     next.settings = { ...current.settings };
     for (const [id, value] of Object.entries(file.settings ?? {})) {
-        if (Object.prototype.hasOwnProperty.call(current.settings ?? {}, id)) next.settings[Number(id)] = value;
+        // Settings the board's read missed are unread, not missing: the file's are kept, so they
+        // are written (and the restore's read-back says whether they could be checked).
+        if (current.settings === undefined || Object.prototype.hasOwnProperty.call(current.settings, id)) next.settings[Number(id)] = value;
         else unavailable.push(qmkSettingLabel(Number(id)));
     }
     // Before the one-shot block copies 5 and 6, so it gets the held value too.

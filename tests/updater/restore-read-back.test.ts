@@ -8,10 +8,12 @@ vi.mock("@/services/keyboard.service", () => ({
     keyboardService: {
         updateKey: vi.fn(async (l: number, r: number, c: number, code: number) => board.write(l, r * 2 + c, code)),
         updateCombo: vi.fn(async () => {}),
+        updateQMKSetting: vi.fn(async (kb: KeyboardInfo, qsid: number) => { qmkWrites.push([qsid, kb.settings![qsid]]); }),
         saveSvil: vi.fn(async () => {}),
     },
 }));
 
+import { qmkSettingLabel } from "@/utils/setting-labels";
 import { describeWrites, landLayout, LayoutNotLanded, restoreLayoutToBoard } from "@/features/firmware/restore";
 import { pickBoard } from "@/features/firmware/useAppFirmwareHost";
 import { fileService } from "@/services/file.service";
@@ -22,6 +24,9 @@ const layout = (keymap: number[][]): KeyboardInfo => ({
     rows: 1, cols: 2, layers: keymap.length, keymap, svil_proto: 3, macros: [], macro_count: 0, macros_size: 64,
     combos: [], combo_count: 0, tapdances: [], tapdance_count: 0, key_overrides: [], key_override_count: 0, cosmetic: {},
 });
+
+/** QMK settings written: [qsid, value]. */
+const qmkWrites: Array<[number, number]> = [];
 
 /** A board whose keymap writes can be dropped. */
 const board = {
@@ -164,6 +169,19 @@ describe.each([true, false])("settings on the read-back (Live Updating %s)", (li
         const landed = await landLayout(wanted(), await unread(), { queue: ch.queue, commit: () => ch.commit(), readBoard: unread });
         expect(stored.dpi).toBe(1);
         expect(landed.unchecked).toEqual(["Pointing: Left DPI"]);
+    });
+
+    it("a board whose QMK settings couldn't be read gets the file's settings, and says they weren't checked", async () => {
+        qmkWrites.length = 0;
+        const ch = changes(live);
+        // Every read misses the QMK settings: the one before the restore too, and the read-backs.
+        const noSettings = async () => { const kb = await read(); delete kb.settings; return kb; };
+        const file = { ...wanted(), settings: { 2: 230 } };
+        const svil = fileService.kbinfoToSvil(structuredClone(file), true);
+        const report = await restoreLayoutToBoard(svil, { readBoard: noSettings, setKeyboard: () => {}, queue: ch.queue, commit: () => ch.commit(), markSaved: vi.fn() });
+        expect(qmkWrites).toContainEqual([2, 230]);
+        expect(report.unchecked).toContain(qmkSettingLabel(2));
+        expect(report.unavailable ?? []).not.toContain(qmkSettingLabel(2));
     });
 
     it("a read-back that fails once is read again", async () => {
