@@ -14,12 +14,15 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useTypingPause } from "@/hooks/useTypingPause";
 import { setMatrixTesterOpen } from "@/lib/matrix-tester-lock";
-import { PARANOID, userIsLooking } from "@/lib/paranoid";
+import { userIsLooking } from "@/lib/paranoid";
 import { TesterEngine } from "@/lib/tester-engine";
 import { keyboardService } from "@/services/keyboard.service";
 import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { SpotlightScrim } from "@/layout/BindingSpotlight";
-import { EXIT_HOLD_MS, findTesterExitKey } from "@/utils/tester-exit-key";
+import { ExitHold, findTesterExitKey } from "@/utils/tester-exit-key";
+
+/** An Escape keydown this soon after the window gains focus, with no keyup first, is a held key. */
+const ESC_AFTER_FOCUS_MS = 150;
 
 const BUTTON_STYLES = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 bg-kb-surface shadow-lg flex items-center justify-center text-kb-ink focus:outline-none border border-gray-200 dark:border-neutral-700" as const;
 
@@ -100,6 +103,13 @@ const KeyGrid = memo(function KeyGrid({ keys, keyVariant }: { keys: PlacedKey[];
  * of the editor sits under the binding editors' spotlight scrim, dimmed and out
  * of reach; the canvas holding the tester is lifted above it (EditorLayout). Holding the
  * board's Esc key for 2 s, Escape from another keyboard, or Close ends it.
+ *
+ * It listens only while Keybard is in front of you (window focused, tab
+ * visible), as the typing pause does: away from it the board types into the
+ * other app. Leaving clears what shows; coming back starts again from a fresh
+ * reading (TesterEngine), so keys pressed or released while away never flash,
+ * and an Esc held across the change (on the board, or an auto-repeated Escape
+ * key event) never closes it: only a press that starts here does.
  */
 export const MatrixTester: FC = () => {
     testerRenders++;
@@ -183,11 +193,24 @@ export const MatrixTester: FC = () => {
     useLayoutEffect(() => {
         setMatrixTesterOpen(true);
         rootRef.current?.focus({ preventScroll: true });
+        // When the window last gained focus, and whether Esc has gone up since.
+        let focusAt = -Infinity, escUpSinceFocus = true;
+        const onWindowFocus = () => {
+            focusAt = performance.now();
+            escUpSinceFocus = false;
+        };
         const swallow = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && e.type === "keyup") escUpSinceFocus = true;
             if (e.type === "keydown" && e.key === "Escape") {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                closeRef.current();
+                // An Esc held from before is not a press: coming back to the window
+                // with it down delivers its auto-repeat here. Windows and macOS mark
+                // that repeat; where the browser works the flag out itself (Linux),
+                // the first one can arrive unmarked, so an Esc within
+                // ESC_AFTER_FOCUS_MS of focus with no keyup first is ignored too.
+                const carried = e.repeat || (!escUpSinceFocus && performance.now() - focusAt < ESC_AFTER_FOCUS_MS);
+                if (!carried) closeRef.current();
                 return;
             }
             // Tab stays here, and nothing reaches Keybard's shortcuts or the editor.
@@ -197,7 +220,9 @@ export const MatrixTester: FC = () => {
         window.addEventListener("keydown", swallow, true);
         window.addEventListener("keyup", swallow, true);
         window.addEventListener("keypress", swallow, true);
+        window.addEventListener("focus", onWindowFocus);
         return () => {
+            window.removeEventListener("focus", onWindowFocus);
             window.removeEventListener("keydown", swallow, true);
             window.removeEventListener("keyup", swallow, true);
             window.removeEventListener("keypress", swallow, true);
@@ -222,12 +247,13 @@ export const MatrixTester: FC = () => {
         const layoutEl = layoutRef.current;
         if (!isConnected || !kb || !layoutEl) return;
         const rows = matrixRows, cols = matrixCols;
+        let focused = document.hasFocus();
         const engine = new TesterEngine(rows, cols, {
             readLatch: hasLatch ? () => keyboardService.readFlickerLatch() : null,
             readCounts: hasLatch ? (half) => keyboardService.readFlickerCounts(half, kb) : null,
             readMatrix: () => keyboardService.pollMatrix(kb),
-            // Paranoid: never read key presses while you're typing in another window.
-            mayRead: () => document.visibilityState === "visible" && !(PARANOID && !userIsLooking()),
+            // Only while Keybard is in front of you: away, the board types into the other app.
+            mayRead: () => focused && userIsLooking(),
         });
         engineRef.current = engine;
 
@@ -245,7 +271,8 @@ export const MatrixTester: FC = () => {
         const shownDown = new Uint8Array(rows), shownSeen = new Uint8Array(rows);
         const shownCounts = new Uint16Array(rows * cols);
         let drawnVersion = -1, drawnCounts = -1;
-        let holdStart: number | null = null, shownStep = 0;
+        const hold = new ExitHold();
+        let shownStep = 0;
         let frame = 0, frames = 0, drawnFrames = 0;
 
         const setStep = (step: number) => {
@@ -300,33 +327,59 @@ export const MatrixTester: FC = () => {
                     el.hidden = n === 0;
                 }
             }
-            // The exit hold: a countdown in whole seconds, then close.
-            const held = exitKey.keys.length > 0 && exitKey.keys.every(({ row, col }) => ((engine.current[row] >> col) & 1) === 1);
-            if (held) {
-                if (holdStart === null) holdStart = now;
-                const left = EXIT_HOLD_MS - (now - holdStart);
-                if (left <= 0) {
-                    setStep(0);
-                    cancelAnimationFrame(frame);
-                    closeRef.current();
-                    return;
-                }
-                setStep(Math.ceil(left / 1000));
-            } else if (holdStart !== null) {
-                holdStart = null;
+            // The exit hold: a countdown in whole seconds, then close. It counts only
+            // from a fresh press while live (ExitHold), never from a key held across a focus change.
+            const isDown = ({ row, col }: { row: number; col: number }) => ((engine.current[row] >> col) & 1) === 1;
+            const held = exitKey.keys.length > 0 && exitKey.keys.every(isDown);
+            const downAtSync = exitKey.keys.some(({ row, col }) => ((engine.baseline[row] >> col) & 1) === 1);
+            const left = hold.update(engine.live, held, exitKey.keys.some(isDown), now, engine.syncs, downAtSync);
+            if (left === 0) {
                 setStep(0);
+                cancelAnimationFrame(frame);
+                closeRef.current();
+                return;
             }
+            setStep(left === null ? 0 : Math.ceil(left / 1000));
         };
 
         const startDrawing = () => {
             cancelAnimationFrame(frame);
             frame = requestAnimationFrame(draw);
         };
+        // Away: clear at once (a read in flight is dropped) and end any exit hold.
+        // Back: read again now; nothing shows until the fresh reading lands.
+        const goAway = () => {
+            engine.suspend();
+            hold.reset();
+            setStep(0);
+            // Unlit now, not on the next frame: a hidden tab draws no frames, and
+            // coming back would show the last one painted before the first new frame.
+            for (let r = 0; r < rows; r++) {
+                if (!shownDown[r]) continue;
+                for (let c = 0; c < cols; c++) if (shownDown[r] & (1 << c)) keyEls[r * cols + c]?.removeAttribute("data-down");
+                shownDown[r] = 0;
+            }
+        };
         const onVisibility = () => {
-            if (document.visibilityState === "visible") startDrawing();
-            else cancelAnimationFrame(frame);
+            if (document.visibilityState === "visible") {
+                startDrawing();
+                engine.wake();
+            } else {
+                goAway();
+                cancelAnimationFrame(frame);
+            }
+        };
+        const onBlur = () => {
+            focused = false;
+            goAway();
+        };
+        const onFocus = () => {
+            focused = true;
+            engine.wake();
         };
         document.addEventListener("visibilitychange", onVisibility);
+        window.addEventListener("blur", onBlur);
+        window.addEventListener("focus", onFocus);
         engine.start();
         startDrawing();
         window.keybardTester = {
@@ -339,6 +392,8 @@ export const MatrixTester: FC = () => {
             engine.stop();
             cancelAnimationFrame(frame);
             document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("blur", onBlur);
+            window.removeEventListener("focus", onFocus);
             engineRef.current = null;
             delete window.keybardTester;
             keyEls.forEach((el) => { el?.removeAttribute("data-down"); el?.removeAttribute("data-seen"); });

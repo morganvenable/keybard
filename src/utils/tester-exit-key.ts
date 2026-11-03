@@ -57,3 +57,54 @@ export function findTesterExitKey(keymap: number[][] | undefined | null, cols: n
 
 export const isExitHeld = (exit: TesterExitKey, pressed: (row: number, col: number) => boolean) =>
     exit.keys.length > 0 && exit.keys.every((k) => pressed(k.row, k.col));
+
+/**
+ * The exit hold, one call per drawn frame. A hold counts only while the tester
+ * is live (reading while Keybard is in front of you) and only for a press that
+ * started after the fresh reading taken on opening or on coming back: an Esc
+ * already down in that reading (held when focus left, or pressed while away)
+ * has to go up and down again. Going away (live false) ends any hold.
+ */
+export class ExitHold {
+    private armed = false;
+    private start: number | null = null;
+    private sync = 0;
+
+    reset(): void {
+        this.armed = false;
+        this.start = null;
+    }
+
+    /**
+     * `held`: every exit switch is down; `anyDown`: at least one is. `sync`
+     * numbers the fresh reading (TesterEngine.syncs) and `downAtSync` says
+     * whether any exit switch was down in it. Returns the ms left in the hold
+     * (0 = close now), or null when there is no hold.
+     */
+    update(live: boolean, held: boolean, anyDown: boolean, now: number, sync = 0, downAtSync = true): number | null {
+        if (sync !== this.sync) {
+            this.sync = sync;
+            this.armed = !downAtSync;
+            this.start = null;
+        }
+        if (!live) {
+            // Only the hold ends. Armed stays as the baseline set it: the first
+            // live read may land a frame after the baseline, and a press in
+            // between is fresh. Going away calls reset(), and each return brings
+            // a new sync before live turns true.
+            this.start = null;
+            return null;
+        }
+        if (!anyDown) {
+            this.armed = true;
+            this.start = null;
+            return null;
+        }
+        if (!held || !this.armed) {
+            this.start = null;
+            return null;
+        }
+        if (this.start === null) this.start = now;
+        return Math.max(0, EXIT_HOLD_MS - (now - this.start));
+    }
+}
