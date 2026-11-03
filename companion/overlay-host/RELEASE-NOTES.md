@@ -4,6 +4,15 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in v4.3.6
+
+This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.5. There is no new firmware: a keyboard on v4.3.5 is up to date. What changes for you since v4.3.5:
+
+- **Updates restore your layout to the right board.** With more than one Svalboard plugged in, Keybard reconnects to the board that just updated and restores your layout onto that board.
+- **Keybard checks every restore and import.** After an update or an import, Keybard reads the board again and tells you plainly if anything didn't take.
+- **The matrix tester stays calm when you come back to it.** Returning to the window no longer flashes keys, and a held Esc no longer closes the tester.
+- **Keybard Overlay uses much less CPU.** It checks for changes less often while nothing is happening, especially while it is hidden.
+
 ## New in v4.3.5
 
 This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.5. What changes for you since v4.3.4:
