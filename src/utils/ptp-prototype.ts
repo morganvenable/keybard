@@ -6,13 +6,14 @@
 // Request (absolute bytes of the report):
 //   [0]=0xDD [1..4]=client id [5]=0xFC [6]=0x42 [7]=action [8..]=args
 //   action 3, the prototype config: [8] 0 get, 1 set; a set writes all four:
-//     [9] scroll, [10] sniper, [11] boost, [12] surface (stored, applies at next boot)
+//     [9] scroll, [10] sniper, [11] boost (0 Off, 1 Takeover, 2 Scaling, 3 Frame), [12] surface (stored, applies at next boot)
 //   action 5: reboot the board about 200 ms after replying
 // Reply:
 //   [5]=0xFC [6]=0xC2 [7]=status (0 ok, 2 refused) [8]=touch owner [9]=flags
 //   flags bit 4: the prototype block is present:
 //   [56]=block version [57]=scroll [58]=sniper [59]=boost
 //   [60]=surface stored [61]=surface active [62]=supported mask [63]=debug
+//   supported mask: bit0 scroll takeover, bit1 takeover, bit2 scaling, bit3 large surface, bit4 frame
 
 export const DEV_PROTOCOL = 0xfc;
 export const DEV_OP_PAD = 0x42;
@@ -32,12 +33,14 @@ export const SUPPORT_SCROLL_TAKEOVER = 0x01;
 export const SUPPORT_TAKEOVER = 0x02; // sniper and boost
 export const SUPPORT_SCALING = 0x04; // sniper and boost
 export const SUPPORT_LARGE_SURFACE = 0x08;
+export const SUPPORT_FRAME = 0x10; // sniper and boost
 
 export const SCROLL_OFF = 0;
 export const SCROLL_TAKEOVER = 1;
 export const MODE_OFF = 0;
 export const MODE_TAKEOVER = 1;
 export const MODE_SCALING = 2;
+export const MODE_FRAME = 3;
 export const SURFACE_STANDARD = 0;
 export const SURFACE_LARGE = 1;
 
@@ -124,6 +127,7 @@ export const MODE_OPTIONS: readonly ProtoOption[] = [
     { value: MODE_OFF, label: "Off", needs: 0 },
     { value: MODE_TAKEOVER, label: "Takeover", needs: SUPPORT_TAKEOVER },
     { value: MODE_SCALING, label: "Scaling", needs: SUPPORT_SCALING },
+    { value: MODE_FRAME, label: "Frame", needs: SUPPORT_FRAME },
 ];
 export const SURFACE_OPTIONS: readonly ProtoOption[] = [
     { value: SURFACE_STANDARD, label: "Standard", needs: 0 },

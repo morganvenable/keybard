@@ -7,6 +7,8 @@ with `npm run test:e2e:touchpad-prototype`.
      with a wrapper error frame, and no Prototype group shows.
   2. Dev firmware (?fakeBoard=touchpad-dev): the group shows the board's
      state, read back when the dialog opens.
+  7. Frame (sniper and boost value 3, supported bit 4): Boost to Frame sends
+     [3,1,0,0,3,0] and reads back; without bit 4 Frame is disabled unless in use.
   3. Sniper to Scaling sends one set with all four values, and the UI shows
      the reply; a value the board refuses says so and keeps the board's value;
      an option the board doesn't support is disabled.
@@ -98,7 +100,7 @@ def flow_sniper_scaling(browser, url):
     assert sets == [[3, 1, 0, 2, 0, 0]], sets
     assert page.evaluate("window.keybardFakeBoard.device.firmware.proto.sniper") == 2
     # The board stops supporting scaling: its refusal shows, and the board's value stays.
-    page.evaluate("window.keybardFakeBoard.device.firmware.protoSupported = 0x0b")
+    page.evaluate("window.keybardFakeBoard.device.firmware.protoSupported = 0x1b")
     radio(page, "boost", "Scaling").click()
     expect(page.locator("[data-proto-error]")).to_have_text("The board didn't take that.", timeout=3000)
     assert checked(page, "boost") == "Off", checked(page, "boost")
@@ -106,6 +108,31 @@ def flow_sniper_scaling(browser, url):
     expect(radio(page, "boost", "Scaling")).to_be_disabled()
     expect(radio(page, "sniper", "Scaling")).to_be_enabled()
     assert not errors, errors
+    context.close()
+
+
+def flow_frame(browser, url):
+    context, page, errors = open_page(browser, url, DEV)
+    expect(page.locator(GROUP)).to_be_visible(timeout=15000)
+    for control in ("sniper", "boost"):
+        labels = page.locator(f"{GROUP} [data-proto-control='{control}'] [role=radio]").all_inner_texts()
+        assert labels == ["Off", "Takeover", "Scaling", "Frame"], labels
+    before = len(requests(page))
+    radio(page, "boost", "Frame").click()
+    expect(radio(page, "boost", "Frame")).to_have_attribute("aria-checked", "true", timeout=3000)
+    sets = [r for r in requests(page)[before:] if r[:2] == [3, 1]]
+    assert sets == [[3, 1, 0, 0, 3, 0]], sets
+    assert page.evaluate("window.keybardFakeBoard.device.firmware.proto.boost") == 3
+    context.close()
+    # Read back on a fresh open; then older dev firmware (bit 4 clear) disables Frame where it isn't in use.
+    context, page, errors2 = open_page(browser, url, DEV, query="panel=pointing")
+    page.evaluate("Object.assign(window.keybardFakeBoard.device.firmware.proto, {boost: 3}); window.keybardFakeBoard.device.firmware.protoSupported = 0x0f")
+    page.get_by_role("button", name="Tune touchpad…").click()
+    expect(page.locator(GROUP)).to_be_visible(timeout=15000)
+    assert checked(page, "boost") == "Frame", checked(page, "boost")
+    expect(radio(page, "sniper", "Frame")).to_be_disabled()
+    expect(radio(page, "boost", "Takeover")).to_be_enabled()
+    assert not errors and not errors2, errors + errors2
     context.close()
 
 
@@ -197,6 +224,7 @@ def main() -> int:
         ("1. release firmware: asked, wrapper error, no Prototype group", flow_hidden),
         ("2. dev firmware: the group reads back the board's state", flow_read_back),
         ("3. Sniper to Scaling: one full set, the reply shown; a refusal says so; unsupported disabled", flow_sniper_scaling),
+        ("7. Boost: Frame sends the set and reads back; Frame disabled without bit 4", flow_frame),
         ("4. stored surface differs from active: restart pending", flow_pending),
         ("5. Large: set, restart, Reconnect to apply, back with Large active", flow_large),
         ("6. layout: visible, not clipped, contrast (390, 1440, light and dark)", flow_layout),

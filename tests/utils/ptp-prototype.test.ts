@@ -5,7 +5,7 @@ import { seedBoard } from "@/dev/fake-board/seed";
 import { PtpPrototypeService } from "@/services/ptp-prototype.service";
 import {
     availableOptions, MODE_OPTIONS, parseProtoReply, protoGetPayload, protoRebootPayload, protoSetPayload, SURFACE_OPTIONS,
-    surfacePending, SUPPORT_SCALING, SUPPORT_TAKEOVER,
+    surfacePending, SUPPORT_FRAME, SUPPORT_SCALING, SUPPORT_TAKEOVER,
 } from "@/utils/ptp-prototype";
 
 function reply(fill: (r: Uint8Array) => void): Uint8Array {
@@ -21,6 +21,7 @@ describe("ptp prototype encoder", () => {
     it("builds get, set and reboot payloads (after the protocol byte)", () => {
         expect(protoGetPayload()).toEqual([0x42, 3, 0]);
         expect(protoSetPayload({ scroll: 1, sniper: 2, boost: 1, surface: 1 })).toEqual([0x42, 3, 1, 1, 2, 1, 1]);
+        expect(protoSetPayload({ scroll: 0, sniper: 0, boost: 3, surface: 0 })).toEqual([0x42, 3, 1, 0, 0, 3, 0]);
         expect(protoRebootPayload()).toEqual([0x42, 5]);
     });
 });
@@ -52,6 +53,10 @@ describe("ptp prototype parser", () => {
     it("keeps only supported options, plus the one in use", () => {
         expect(availableOptions(MODE_OPTIONS, SUPPORT_TAKEOVER, 0).map((o) => o.label)).toEqual(["Off", "Takeover"]);
         expect(availableOptions(MODE_OPTIONS, SUPPORT_SCALING, 1).map((o) => o.label)).toEqual(["Off", "Takeover", "Scaling"]);
+        expect(availableOptions(MODE_OPTIONS, SUPPORT_TAKEOVER | SUPPORT_SCALING | SUPPORT_FRAME, 0).map((o) => o.label)).toEqual(["Off", "Takeover", "Scaling", "Frame"]);
+        // Older dev firmware (bit 4 clear): no Frame, unless the board reports it in use.
+        expect(availableOptions(MODE_OPTIONS, 0x0f, 0).map((o) => o.label)).not.toContain("Frame");
+        expect(availableOptions(MODE_OPTIONS, 0x0f, 3).map((o) => o.label)).toContain("Frame");
         expect(availableOptions(SURFACE_OPTIONS, 0, 0).map((o) => o.label)).toEqual(["Standard"]);
     });
 });
@@ -88,7 +93,7 @@ describe("ptp prototype service with the simulated firmware", () => {
 
     it("reads back, sets all four, and refuses unsupported values without changing anything", async () => {
         const { fw, service } = harness(true);
-        expect(await service.get()).toMatchObject({ scroll: 0, sniper: 0, boost: 0, surface: 0, surfaceActive: 0, supported: 0x0f });
+        expect(await service.get()).toMatchObject({ scroll: 0, sniper: 0, boost: 0, surface: 0, surfaceActive: 0, supported: 0x1f });
         const set = await service.set({ scroll: 0, sniper: 2, boost: 0, surface: 0 });
         expect(set).toMatchObject({ ok: true, state: { sniper: 2 } });
         expect(fw.protoRequests.at(-1)).toEqual([3, 1, 0, 2, 0, 0]);
@@ -96,6 +101,20 @@ describe("ptp prototype service with the simulated firmware", () => {
         const refused = await service.set({ scroll: 0, sniper: 2, boost: 2, surface: 0 });
         expect(refused.ok).toBe(false);
         expect(refused.state).toMatchObject({ sniper: 2, boost: 0 });
+    });
+
+    it("sets Frame, and refuses it on dev firmware without bit 4", async () => {
+        const { fw, service } = harness(true);
+        const set = await service.set({ scroll: 0, sniper: 0, boost: 3, surface: 0 });
+        expect(set).toMatchObject({ ok: true, state: { boost: 3 } });
+        expect(fw.protoRequests.at(-1)).toEqual([3, 1, 0, 0, 3, 0]);
+        expect(await service.get()).toMatchObject({ boost: 3 });
+        fw.protoSupported = 0x0f;
+        const refused = await service.set({ scroll: 0, sniper: 3, boost: 3, surface: 0 });
+        expect(refused.ok).toBe(false);
+        expect(refused.state).toMatchObject({ sniper: 0, boost: 3, supported: 0x0f });
+        // Out of range (4) is refused too.
+        expect((await service.set({ scroll: 0, sniper: 4, boost: 0, surface: 0 })).ok).toBe(false);
     });
 
     it("stores the surface for the next boot", async () => {

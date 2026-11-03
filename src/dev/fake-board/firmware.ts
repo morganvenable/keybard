@@ -303,8 +303,8 @@ export class FakeSvalFirmware {
      * boost live; the surface stored, applying at the next boot.
      */
     proto = { scroll: 0, sniper: 0, boost: 0, surface: 0, surfaceActive: 0 };
-    /** The prototype supported mask: bit0 scroll takeover, bit1 takeover, bit2 scaling, bit3 large surface. */
-    protoSupported = 0x0f;
+    /** The prototype supported mask: bit0 scroll takeover, bit1 takeover, bit2 scaling, bit3 large surface, bit4 frame. */
+    protoSupported = 0x1f;
     /** Every dev op 0x42 request ([action, args...]), oldest first, for tests. */
     readonly protoRequests: number[][] = [];
     /** Live layer state (layer_state): never saved, as in QMK. */
@@ -641,9 +641,9 @@ export class FakeSvalFirmware {
             const [sub, scroll, sniper, boost, surface] = args;
             if (sub === 1) {
                 const supported = this.protoSupported;
-                const allowed = scroll <= 1 && sniper <= 2 && boost <= 2 && surface <= 1
+                const allowed = scroll <= 1 && sniper <= 3 && boost <= 3 && surface <= 1
                     && (scroll !== 1 || !!(supported & 0x01))
-                    && [sniper, boost].every((m) => (m !== 1 || !!(supported & 0x02)) && (m !== 2 || !!(supported & 0x04)))
+                    && [sniper, boost].every((m) => (m !== 1 || !!(supported & 0x02)) && (m !== 2 || !!(supported & 0x04)) && (m !== 3 || !!(supported & 0x10)))
                     && (surface !== 1 || !!(supported & 0x08));
                 if (allowed) Object.assign(this.proto, { scroll, sniper, boost, surface });
                 else status = 2;
