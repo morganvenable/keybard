@@ -17,6 +17,10 @@ Coming back, it starts again from a fresh reading of the board:
      Only a fresh press, started after coming back, counts down and closes.
      An auto-repeated Escape key event arriving on coming back does not close
      it either.
+  5. An Escape key event within 150 ms of the window regaining focus, with
+     no Escape keyup first, is a held key and does not close the tester, even
+     unmarked as a repeat (Chromium on Linux works the flag out itself). A
+     fresh press, after a keyup or later, closes it.
   4. Normal use: a press lights at once and counts, the release clears it, and
      holding Esc 2 s closes; Escape from another keyboard closes.
 
@@ -202,6 +206,38 @@ def flow_esc_held_while_leaving(browser, url, board, how, live):
     context.close()
 
 
+ESC_DOWN = "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))"
+ESC_UP = "window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', bubbles: true }))"
+
+
+def flow_escape_after_focus(browser, url, board, how, live):
+    """An Escape keydown right after the window regains focus, not marked as a
+    repeat (Linux works the flag out itself), is a held key: ignored. One after
+    a keyup, or later, is a press and closes."""
+    context, page, errors = start(browser, url, board, live)
+    away(page, "blur")
+    page.wait_for_timeout(200)
+    # Back with Esc held on another keyboard: the first keydown arrives unmarked.
+    page.evaluate(f"() => {{ window.__back('blur'); {ESC_DOWN}; }}")
+    page.wait_for_timeout(200)
+    expect(page.locator(TESTER)).to_be_visible()
+    # Released and pressed again right after focus: a fresh press closes.
+    away(page, "blur")
+    page.wait_for_timeout(200)
+    page.evaluate(f"() => {{ window.__back('blur'); {ESC_UP}; {ESC_DOWN}; }}")
+    expect(page.locator(TESTER)).to_have_count(0, timeout=1000)
+    # A press well after focus closes too.
+    open_tester(page)
+    away(page, "blur")
+    page.wait_for_timeout(200)
+    back(page, "blur")
+    page.wait_for_timeout(300)
+    page.evaluate(ESC_DOWN)
+    expect(page.locator(TESTER)).to_have_count(0, timeout=1000)
+    assert not errors, errors
+    context.close()
+
+
 def flow_normal_use(browser, url, board, how, live):
     context, page, errors = start(browser, url, board, live)
     if how == "hidden":  # once away and back first, then normal use must be unchanged
@@ -307,6 +343,8 @@ def main() -> int:
             for how in HOWS:
                 for live in (True, False):
                     flows.append((f"{name} [{label}, {how}, live {'on' if live else 'off'}]", fn, board, how, live))
+    for label, board in BOARDS:  # window focus only; Live Updating doesn't touch key events
+        flows.append((f"5. Escape key right after focus [{label}]", flow_escape_after_focus, board, "blur", True))
     only = os.environ.get("ONLY")
     if only:
         flows = [f for f in flows if only in f[0]]

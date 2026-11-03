@@ -88,7 +88,11 @@ export class ExitHold {
             this.start = null;
         }
         if (!live) {
-            this.reset();
+            // Only the hold ends. Armed stays as the baseline set it: the first
+            // live read may land a frame after the baseline, and a press in
+            // between is fresh. Going away calls reset(), and each return brings
+            // a new sync before live turns true.
+            this.start = null;
             return null;
         }
         if (!anyDown) {

@@ -11,7 +11,7 @@ function board(withLatch = true) {
     const raw = new Uint8Array(ROWS);
     const pressed = new Uint8Array(ROWS);
     const changes = new Uint8Array(ROWS * COLS);
-    const state = { looking: true, latchReads: 0 };
+    const state = { looking: true, latchReads: 0, failLatch: 0 };
     const down = (r: number, c: number) => {
         if (raw[r] & (1 << c)) return;
         raw[r] |= 1 << c;
@@ -25,6 +25,10 @@ function board(withLatch = true) {
     };
     const readLatch = async (): Promise<FlickerRead> => {
         await new Promise((r) => setTimeout(r, 1));
+        if (state.failLatch > 0) {
+            state.failLatch--;
+            throw new Error("timeout");
+        }
         state.latchReads++;
         const read = { halves: 3, raw: raw.slice(), pressed: pressed.slice(), released: new Uint8Array(ROWS) };
         pressed.fill(0);
@@ -197,6 +201,27 @@ describe("TesterEngine across focus changes", () => {
         });
     }
 
+    it("a latch read that fails on coming back is not a fresh start: the backlog never lights", async () => {
+        const { engine, state, down, up } = board(true);
+        const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+        engine.start();
+        await settle();
+        state.looking = false;
+        engine.suspend();
+        await settle();
+        down(2, 3); up(2, 3);
+        state.failLatch = 1; // the first read back times out once
+        state.looking = true;
+        engine.wake();
+        await settle();
+        expect(engine.live).toBe(true);
+        expect(bit(engine, engine.latched, 2, 3)).toBe(false);
+        expect(bit(engine, engine.seen, 2, 3)).toBe(false);
+        expect(engine.presses[2 * COLS + 3]).toBe(0);
+        engine.stop();
+        quiet.mockRestore();
+    });
+
     it("does not read while away", async () => {
         const { engine, state } = board(true);
         engine.start();
@@ -236,13 +261,16 @@ describe("ExitHold", () => {
 
     it("a hold carried across going away and coming back never closes", () => {
         const h = new ExitHold();
-        h.update(true, false, false, 0);
-        expect(h.update(true, true, true, 100)).toBe(EXIT_HOLD_MS);
-        expect(h.update(false, true, true, 500)).toBeNull(); // away
-        expect(h.update(true, true, true, 3000)).toBeNull(); // back, still held: no hold
-        expect(h.update(true, true, true, 9000)).toBeNull();
-        expect(h.update(true, false, false, 9100)).toBeNull(); // released
-        expect(h.update(true, true, true, 9200)).toBe(EXIT_HOLD_MS); // a fresh press
+        h.update(true, false, false, 0, 1, false);
+        expect(h.update(true, true, true, 100, 1, false)).toBe(EXIT_HOLD_MS);
+        h.reset(); // going away (MatrixTester's goAway)
+        expect(h.update(false, true, true, 500, 1, false)).toBeNull(); // away
+        // Back: the fresh reading still has Esc down (sync 2), so no hold.
+        expect(h.update(false, true, true, 2900, 2, true)).toBeNull();
+        expect(h.update(true, true, true, 3000, 2, true)).toBeNull();
+        expect(h.update(true, true, true, 9000, 2, true)).toBeNull();
+        expect(h.update(true, false, false, 9100, 2, true)).toBeNull(); // released
+        expect(h.update(true, true, true, 9200, 2, true)).toBe(EXIT_HOLD_MS); // a fresh press
     });
 
     it("the fallback pair: both must be up before a hold counts", () => {
@@ -272,6 +300,14 @@ describe("ExitHold", () => {
         expect(h.update(true, true, true, 9200, 2, true)).toBe(EXIT_HOLD_MS);
     });
 
+    it("a press between the baseline and the first live read counts", () => {
+        const h = new ExitHold();
+        // The baseline (Esc up) has landed; this frame runs before the first live read.
+        expect(h.update(false, false, false, 0, 1, false)).toBeNull();
+        // Esc goes down; the next frame is live.
+        expect(h.update(true, true, true, 10, 1, false)).toBe(EXIT_HOLD_MS);
+    });
+
     it("releasing ends the hold; reset disarms", () => {
         const h = new ExitHold();
         h.update(true, false, false, 0);
@@ -281,4 +317,29 @@ describe("ExitHold", () => {
         h.reset();
         expect(h.update(true, true, true, 800)).toBeNull();
     });
+});
+
+describe("TesterEngine read failures", () => {
+    for (const withLatch of [false, true]) {
+        it(`${withLatch ? "with the latch" : "VIA matrix state"}: a fresh-start read that fails at once still lets timers run`, async () => {
+            const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+            let calls = 0;
+            const fail = async () => {
+                calls++;
+                if (calls > 5000) engine.stop(); // a safety stop, so a frozen loop ends the test instead of hanging
+                throw new Error("USB device not connected");
+            };
+            const engine = new TesterEngine(ROWS, COLS, {
+                readLatch: withLatch ? fail : null,
+                readCounts: null,
+                readMatrix: fail,
+                mayRead: () => true,
+            });
+            engine.start();
+            const callsWhenTimerRan = await new Promise<number>((r) => setTimeout(() => r(calls), 0));
+            engine.stop();
+            quiet.mockRestore();
+            expect(callsWhenTimerRan).toBeLessThan(5);
+        });
+    }
 });

@@ -39,6 +39,12 @@ export interface TesterSource {
 export const COUNTS_EVERY_MS = 100;
 /** How often a suspended engine checks whether you are back (wake() is sooner). */
 export const AWAY_CHECK_MS = 100;
+/**
+ * The pause after a failed read before the next try. A read can fail at once
+ * without waiting on the board (after the device closes), so without it the
+ * loop would never yield and the tab would freeze.
+ */
+export const RETRY_MS = 50;
 
 export class TesterEngine {
     readonly rows: number;
@@ -198,7 +204,8 @@ export class TesterEngine {
      * and only the raw rows are kept: the keys held now show at once, but
      * nothing from before lights, counts or shows as seen. Without the latch
      * there is no backlog, and one VIA read is the fresh reading. Returns
-     * false when Keybard went away again meanwhile.
+     * false when Keybard went away again meanwhile, or a read failed: a failed
+     * latch read leaves the backlog on the board, so it isn't a fresh start.
      */
     private async discardBacklog(resetPresses: boolean): Promise<boolean> {
         const epoch = this.epoch;
@@ -241,6 +248,7 @@ export class TesterEngine {
             }
         } catch (error) {
             console.error("Matrix tester: clearing the board's latch failed:", error);
+            return false;
         }
         this.countsBase.set(this.current);
         this.lastCounts = performance.now();
@@ -272,7 +280,11 @@ export class TesterEngine {
             }
             if (resync) {
                 const opening = resync === "open";
-                if (!(await this.discardBacklog(opening))) continue; // away again, or stopped
+                if (!(await this.discardBacklog(opening))) {
+                    // Away again, stopped, or a read failed: pause before trying again.
+                    if (this.running && this.source.mayRead()) await this.sleep(RETRY_MS);
+                    continue;
+                }
                 if (opening) {
                     this.readStart = performance.now();
                     this.reads = 0;
@@ -308,7 +320,7 @@ export class TesterEngine {
                 this.lastRoundTripMs = performance.now() - t;
             } catch (error) {
                 console.error("Matrix tester read failed:", error);
-                await new Promise((r) => setTimeout(r, 50));
+                await this.sleep(RETRY_MS);
             }
         }
     }

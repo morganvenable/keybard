@@ -21,6 +21,9 @@ import { requestSettingsSection } from "@/layout/SecondarySidebar/Panels/setting
 import { SpotlightScrim } from "@/layout/BindingSpotlight";
 import { ExitHold, findTesterExitKey } from "@/utils/tester-exit-key";
 
+/** An Escape keydown this soon after the window gains focus, with no keyup first, is a held key. */
+const ESC_AFTER_FOCUS_MS = 150;
+
 const BUTTON_STYLES = "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 bg-kb-surface shadow-lg flex items-center justify-center text-kb-ink focus:outline-none border border-gray-200 dark:border-neutral-700" as const;
 
 /**
@@ -190,13 +193,24 @@ export const MatrixTester: FC = () => {
     useLayoutEffect(() => {
         setMatrixTesterOpen(true);
         rootRef.current?.focus({ preventScroll: true });
+        // When the window last gained focus, and whether Esc has gone up since.
+        let focusAt = -Infinity, escUpSinceFocus = true;
+        const onWindowFocus = () => {
+            focusAt = performance.now();
+            escUpSinceFocus = false;
+        };
         const swallow = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && e.type === "keyup") escUpSinceFocus = true;
             if (e.type === "keydown" && e.key === "Escape") {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                // A repeat is an Esc held from before: coming back to the window
-                // with it down delivers its auto-repeat here. Only a fresh press closes.
-                if (!e.repeat) closeRef.current();
+                // An Esc held from before is not a press: coming back to the window
+                // with it down delivers its auto-repeat here. Windows and macOS mark
+                // that repeat; where the browser works the flag out itself (Linux),
+                // the first one can arrive unmarked, so an Esc within
+                // ESC_AFTER_FOCUS_MS of focus with no keyup first is ignored too.
+                const carried = e.repeat || (!escUpSinceFocus && performance.now() - focusAt < ESC_AFTER_FOCUS_MS);
+                if (!carried) closeRef.current();
                 return;
             }
             // Tab stays here, and nothing reaches Keybard's shortcuts or the editor.
@@ -206,7 +220,9 @@ export const MatrixTester: FC = () => {
         window.addEventListener("keydown", swallow, true);
         window.addEventListener("keyup", swallow, true);
         window.addEventListener("keypress", swallow, true);
+        window.addEventListener("focus", onWindowFocus);
         return () => {
+            window.removeEventListener("focus", onWindowFocus);
             window.removeEventListener("keydown", swallow, true);
             window.removeEventListener("keyup", swallow, true);
             window.removeEventListener("keypress", swallow, true);
