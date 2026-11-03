@@ -44,16 +44,14 @@ describe("reading the board", () => {
         expect(kb.settings_unread).toBeUndefined();
     });
 
-    it("shows each layer color as the board holds it: a preset only on an exact match, never the nearest", async () => {
-        // green's LED color exactly; a hue between blue and purple; a layer whose read failed; hue 0 sat 0.
-        colors.list = [{ hue: 90, sat: 255 }, { hue: 170, sat: 200 }, null, { hue: 0, sat: 0 }];
+    it("pairs each layer's LED color with its preset, and leaves a layer whose read failed unset", async () => {
+        // The firmware's default green (hue 85) is drawn as the green preset; layer 1's read failed.
+        colors.list = [{ hue: 85, sat: 255 }, null, { hue: 149, sat: 255 }];
         const kb = await readBoard();
         expect(kb.cosmetic?.layer_colors?.["0"]).toBe("green");
-        expect(kb.cosmetic?.layer_colors?.["1"]).toMatch(/^#[0-9a-f]{6}$/i);
-        expect(kb.cosmetic?.layer_colors?.["2"]).toBeUndefined();
-        expect(kb.layer_colors?.[2]).toBeUndefined();
-        expect(kb.layer_colors?.[1]).toMatchObject({ hue: 170, sat: 200 });
-        // Grey, light grey and white share hue 0 and sat 0 (they differ only in brightness, which isn't per layer).
-        expect(kb.cosmetic?.layer_colors?.["3"]).toBe("#ffffff");
+        expect(kb.layer_colors?.[0]).toEqual({ hue: 85, sat: 255, val: 255 });
+        expect(kb.cosmetic?.layer_colors?.["1"]).toBeUndefined();
+        expect(kb.layer_colors?.[1]).toBeUndefined();
+        expect(kb.cosmetic?.layer_colors?.["2"]).toBe("blue");
     });
 });

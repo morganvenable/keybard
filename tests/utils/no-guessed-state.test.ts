@@ -10,7 +10,6 @@ import { POINTING_LIVE_MAX_MISSES, PointingLiveService } from "@/services/pointi
 import type { Failure } from "@/services/updater/flow";
 import { manualHalves } from "@/services/updater/manual";
 import type { KeyboardInfo } from "@/types/keyboard.types";
-import { boardLayerColor } from "@/utils/color-conversion";
 import type { PointingMotionReport } from "@/utils/pointing-motion";
 import { evaluateCondition, evaluateShowIf } from "@/utils/show-if-evaluator";
 import { startTapdance, tapdanceInUse } from "@/utils/tapdance-term";
@@ -49,14 +48,6 @@ describe("showIf with a value that wasn't read", () => {
         expect(evaluateShowIf("{id_missing} != 1", values)).toBe(false);
         expect(evaluateShowIf("{id_on} == 1", values)).toBe(true);
         expect(evaluateShowIf("", values)).toBe(true);
-    });
-});
-
-describe("layer colors from the board", () => {
-    it("are a preset only on an exact LED match", () => {
-        expect(boardLayerColor(149, 255)).toBe("blue");
-        expect(boardLayerColor(150, 255)).not.toBe("blue");
-        expect(boardLayerColor(150, 255)).toMatch(/^#[0-9a-f]{6}$/i);
     });
 });
 

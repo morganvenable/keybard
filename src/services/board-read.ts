@@ -8,7 +8,7 @@ import { customValueService } from "./custom-value.service";
 import { keyboardService } from "./keyboard.service";
 import { qmkService } from "./qmk.service";
 import { usbInstance } from "./usb.service";
-import { boardLayerColor } from "../utils/color-conversion";
+import { getClosestPresetColor } from "../utils/color-conversion";
 
 /** A read that fails is tried once more: one timed-out report must not drop a part. */
 const twice = <T>(read: () => Promise<T>): Promise<T> => read().catch(() => read());
@@ -34,15 +34,13 @@ export async function readBoard(): Promise<KeyboardInfo> {
 
     try {
         const layerColors = await twice(() => usbInstance.getAllLayerColors());
-        // The board keeps hue and saturation per layer and one brightness for all of them
-        // (read on its own, as the LED brightness), so `val` is the full value of that hue,
-        // not a per-layer reading. A layer whose read failed is left out: not read.
+        // Brightness isn't per layer: shown at full. A layer whose read failed is left unset.
         loaded.layer_colors = layerColors.map((c) => (c ? { hue: c.hue, sat: c.sat, val: 255 } : undefined)) as KeyboardInfo["layer_colors"];
-        // The keyboard display shows the board's own color: a preset only when it is that preset's color exactly.
+        // The keyboard display shows the preset paired with the LED color (they differ on purpose).
         loaded.cosmetic ??= { layer: {}, layer_colors: {} };
         loaded.cosmetic.layer_colors ??= {};
         layerColors.forEach((c, idx) => {
-            if (c) loaded.cosmetic!.layer_colors![idx.toString()] = boardLayerColor(c.hue, c.sat);
+            if (c) loaded.cosmetic!.layer_colors![idx.toString()] = getClosestPresetColor(c.hue, c.sat, 255);
         });
     } catch (error) {
         console.warn("Failed to load layer colors:", error);
