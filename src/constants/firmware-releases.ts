@@ -39,17 +39,17 @@ export interface FirmwareReleasePin {
 /** Releases pinned into this build. */
 export const CARRIED_RELEASES: FirmwareReleasePin[] = [
     {
-        tag: "v4.3.5",
-        kind: "v",
-        fwVersion: 18,
+        tag: "x4.4",
+        kind: "x",
+        fwVersion: 19,
         updaterProtocol: 4,
         svalProtocol: 3,
         file: {
-            uf2: "svalboard_sval_v4.3.5.uf2",
-            sha256: "80c7c14885af2d7887edb7a4894f44d28ee441904b6006b3f001b7b2a5f5da99",
-            size: 335872,
+            uf2: "svalboard_sval_x4.4.uf2",
+            sha256: "36b8a5458dfd4dfbf81a2caaba38b78e4fdd3b130a77d7b04761069ad293a45f",
+            size: 344064,
         },
-        notesUrl: "https://github.com/svalboard/qmk/releases/tag/v4.3.5",
+        notesUrl: "https://github.com/svalboard/qmk/releases/tag/x4.4",
     },
 ];
 
