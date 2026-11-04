@@ -222,7 +222,17 @@ def relay_process(exclude, res, log):
     """The real relay script as its own process, found by auto-detect, then killed hard."""
     here = Path(__file__).resolve().parent
     cmd = [sys.executable, "-u", str(here / "two_cable_relay.py")] + [x for s in exclude for x in ("--exclude", s)]
-    lead_s, follower_s, _ = detect("right", exclude, log=lambda *a: None, interactive=False)
+    # A half that just restarted (the bench's last step reboots the lead) takes a few
+    # seconds to enumerate again: wait until auto-detect sees both.
+    end = time.monotonic() + 30
+    while True:
+        try:
+            lead_s, follower_s, _ = detect("right", exclude, log=lambda *a: None, interactive=False)
+            break
+        except SystemExit:
+            if time.monotonic() > end:
+                raise
+            time.sleep(0.5)
     probes = [Half(lead_s, "lead-probe"), Half(follower_s, "follower-probe")]
     for h in probes:
         h.open()
@@ -517,7 +527,7 @@ def main():
         b.capture_on = False
         b.relay.lead.send(OP_REBOOT)
         # The follower can miss a reply while the lead re-enumerates: poll, never one read.
-        own = b.poll(lambda: b.relay.follower.request(OP_STATUS)["role"] != "follower" and time.perf_counter(), 3)
+        own = b.poll(lambda: b.relay.follower.request(OP_STATUS)["role"] != "follower" and time.perf_counter(), 8)
         back = b.poll(lambda: b.relay.lead.alive and b.relay.follower.request(OP_STATUS)["role"] == "follower" and time.perf_counter(), 15)
         res["lead_unplugged"] = dict(follower_on_its_own_after_ms=round((own - t0) * 1e3, 1) if own else None,
                                      paired_again_after_s=round(back - t0, 2) if back else None,

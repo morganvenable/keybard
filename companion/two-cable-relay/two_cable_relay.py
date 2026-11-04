@@ -286,6 +286,7 @@ class Relay:
         self.on_report = None
         self.relayed = 0
         self.cable = False           # the split cable works: the halves refuse the relay
+        self.lead_down = False       # a write to the lead failed: hold nothing until one succeeds
         self.follower.handlers[PUSH_ROWS] = self._rows
         self.follower.handlers[0x80 | OP_FOLLOW] = self._reply
         self.lead.handlers[0x80 | OP_LEAD] = self._reply
@@ -315,7 +316,7 @@ class Relay:
             self.lead.send(OP_LEAD, self._lead_packet(r[7], self.rows, bytes(r[14:21]), flags))
             self.relayed += 1
         except Gone:
-            pass
+            self._lead_unreachable()
         if self.on_rows:
             self.on_rows(r, t, time.perf_counter())
 
@@ -344,7 +345,12 @@ class Relay:
                         self.log(f"The {h.name} is connected ({h.serial}).")
                         h.last_error = None
                 except (Gone, NotTwoCable, OpenFailed) as e:
-                    msg = f"{h.name}: {e}"
+                    if isinstance(e, Gone):
+                        msg = f"The {h.name} isn't answering yet. Trying again."
+                    elif isinstance(e, NotTwoCable):
+                        msg = f"The {h.name} ({h.serial}) runs other firmware, not the two-cable firmware."
+                    else:
+                        msg = f"The {h.name}: {e}"
                     if msg != h.last_error:  # once, not every heartbeat
                         self.log(msg + ("\n" + open_hint() if isinstance(e, OpenFailed) else ""))
                         h.last_error = msg
@@ -362,11 +368,28 @@ class Relay:
                     pass
         if self.paused:
             return
-        if self.lead.alive and self.follower.alive:
+        if self.lead_down and self.lead.alive:
+            try:
+                self.lead.send(OP_STATUS)  # writes go through again: the lead is back
+                self.lead_down = False
+            except Gone:
+                pass
+        if self.lead.alive and self.follower.alive and not self.lead_down:
             try:
                 self.follower.send(OP_FOLLOW)  # the follower answers with its rows: that is the lead's heartbeat
             except Gone:
                 pass
+
+    def _lead_unreachable(self):
+        """A write to the lead failed: it has left USB, though the computer may say so only
+        seconds later. Stop holding the follower, so it types on its own at once."""
+        if self.lead_down:
+            return
+        self.lead_down = True
+        try:
+            self.follower.send(OP_RELEASE)
+        except Gone:
+            pass
 
     def run(self):
         while not self.stop.is_set():
