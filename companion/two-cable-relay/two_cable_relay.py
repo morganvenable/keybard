@@ -1,23 +1,32 @@
 #!/usr/bin/env python3
-"""Two-cable relay (prototype): one Svalboard, each half on its own USB cable.
+"""Svalboard two-cable relay (prototype): each half on its own USB cable.
 
-The relay makes one half the lead and the other the follower (firmware built
-with SVAL_TWO_CABLE=yes, keyboards/svalboard/two_cable.c in svalboard/qmk):
+Use it when the split cable between the halves isn't working. Plug each half
+into the computer with its own USB cable, then run this script and leave it
+running. Both halves need the two-cable firmware.
 
-  follower -> relay: its key rows and pointer motion, pushed on every change
-  relay -> lead:     those rows, which the lead runs through the keymap as the
-                     other half's, exactly where the split link puts them
+    python3 two_cable_relay.py              (Mac, Linux)
+    py -3 two_cable_relay.py                (Windows)
 
-So layers, modifiers, combos, tap-hold and the pointing modes work across the
-halves as they do over the split cable. Both roles are leases: if this relay
-stops, the lead lets go of the other half's keys within 0.5 s and the
+It finds the two halves by itself. The right half leads (it runs the keymap
+for both halves) and the left half follows (it sends its keys and trackball
+motion through this script). Press Ctrl+C to stop: within a second each half
+types on its own again.
+
+Options:
+    --lead left|right       which half runs the keymap (default: right)
+    list                    show the Svalboard halves on USB and stop
+    sides                   set which half is left and which is right again
+
+How it works: the follower pushes its key rows and pointer motion over raw
+HID; the relay hands them to the lead, which runs them through the keymap
+where the split cable would put them. So layers, modifiers, combos, tap-hold
+and the pointing modes work across the halves. Both roles are leases: if the
+relay stops, the lead lets go of the follower's keys within 0.5 s and the
 follower types on its own again within 0.6 s.
 
-    py -3 two_cable_relay.py list
-    py -3 two_cable_relay.py run --lead <serial> --follower <serial>
-
-Wire: 64-byte raw HID reports, [0xDD][client:4][0xFB][op] ... (two_cable.c).
-Needs hidapi (pip install hidapi).
+Wire: 64-byte raw HID reports, [0xDD][client:4][0xFB][op] ... (two_cable.c in
+svalboard/qmk). Needs hidapi: pip install hidapi.
 """
 import argparse
 import secrets
@@ -25,26 +34,67 @@ import sys
 import threading
 import time
 
-import hid
+try:
+    import hid
+except ImportError:
+    if sys.platform == "win32":
+        how = "py -3 -m pip install hidapi"
+    else:
+        how = "python3 -m venv sval-relay\n  sval-relay/bin/pip install hidapi\nthen run it with sval-relay/bin/python"
+    sys.exit("This needs the hidapi package. Install it with:\n  " + how)
+if not hasattr(hid, "device"):
+    sys.exit("A different Python package named 'hid' is installed, not hidapi.\n"
+             "Use a fresh virtual environment with only hidapi in it (see the instructions).")
 
 USAGE_PAGE, USAGE = 0xFF61, 0x62
 SIZE = 64
-WRAP, PROTO, VIA = 0xDD, 0xFB, 0xFE
+WRAP, PROTO, VIA, SVAL, ERR = 0xDD, 0xFB, 0xFE, 0xDF, 0xFF
 OP_FOLLOW, OP_LEAD, OP_RELEASE, OP_STATUS, OP_INJECT, OP_CAPTURE, OP_REBOOT = range(1, 8)
 PUSH_ROWS, PUSH_APPLIED, PUSH_REPORT = 0x90, 0x92, 0x93
+STATUS_CABLE = 3                     # the split cable works: FOLLOW and LEAD refused
+SIDE_CMD = 0x33                      # Sval side record: 0 GET, 1 SET
+SIDE_SRC_HOST = 2
 ROLE = {0: "none", 1: "lead", 2: "follower"}
 SIDE = {0: "left", 1: "right", 0xFF: "unknown"}
+SIDE_NUM = {"left": 0, "right": 1}
+SET_STATUS = {1: "the request was refused as invalid", 2: "this half has nowhere to keep it",
+              3: "writing it failed", 4: "this half's thumb wiring says it is the other side",
+              8: "this half runs a one-side build for the other side"}
 HEARTBEAT_S = 0.1
 RENEW_S = 60          # client IDs live 120 s on the board
 
 
-def boards():
-    return [d for d in hid.enumerate() if d.get("usage_page") == USAGE_PAGE and d.get("usage") == USAGE
-            and (d.get("serial_number") or "").startswith("sval:")]
-
-
 class Gone(Exception):
     pass
+
+
+class NotTwoCable(Exception):
+    pass
+
+
+class OpenFailed(Exception):
+    pass
+
+
+def boards():
+    """Svalboard halves answering on the raw HID interface (nothing is sent)."""
+    seen, out = set(), []
+    for d in hid.enumerate():
+        s = d.get("serial_number") or ""
+        if d.get("usage_page") == USAGE_PAGE and d.get("usage") == USAGE and s.startswith("sval:") and s not in seen:
+            seen.add(s)
+            out.append(d)
+    return out
+
+
+def open_hint():
+    if sys.platform == "darwin":
+        return ("Close Keybard and any other app that talks to the keyboard, then try again.\n"
+                "If it still fails: System Settings > Privacy & Security > Input Monitoring,\n"
+                "turn on Terminal, then quit Terminal and open it again.")
+    if sys.platform.startswith("linux"):
+        return "Close Keybard, then try again. On Linux the hidraw device also needs read/write access (a udev rule)."
+    return "Close Keybard and any other app that talks to the keyboard, then try again."
 
 
 class Half:
@@ -67,11 +117,18 @@ class Half:
         if len(m) != 1:
             return False
         dev = hid.device()
-        dev.open_path(m[0]["path"])
+        try:
+            dev.open_path(m[0]["path"])
+        except (OSError, IOError) as e:
+            raise OpenFailed(f"couldn't open {self.serial}: {e}") from e
         self.dev = dev
         self.alive = True
         threading.Thread(target=self._reader, daemon=True, name=f"read-{self.name}").start()
-        self.bootstrap()
+        try:
+            self.bootstrap()
+        except Gone:
+            self.close()
+            raise
         return True
 
     def close(self):
@@ -94,7 +151,7 @@ class Half:
                 n = self.dev.write(b"\0" + pkt)
             except (OSError, ValueError) as e:
                 raise Gone(self.name) from e
-            if n != SIZE + 1:
+            if n < SIZE:  # hidapi counts the report ID byte on every platform it ships for; allow either
                 raise Gone(self.name)
 
     def _reader(self):
@@ -107,7 +164,7 @@ class Half:
             if not r:
                 continue
             t = time.perf_counter()
-            if r[0] != WRAP:
+            if r[0] != WRAP or len(r) < 8:
                 continue
             cid = int.from_bytes(r[1:5], "little")
             if cid == 0:  # bootstrap reply: matched by nonce
@@ -117,6 +174,11 @@ class Half:
                 continue
             if cid not in self.cids:
                 continue  # another app's reply on the shared endpoint
+            if r[5] == ERR:  # the firmware didn't take the protocol (not a two-cable build)
+                with self.cond:
+                    self.replies[("err",)] = (r, t)
+                    self.cond.notify_all()
+                continue
             if r[5] == PROTO and r[6] in self.handlers:
                 self.handlers[r[6]](r, t)
                 continue
@@ -136,10 +198,13 @@ class Half:
         if h:
             h(self)
 
-    def _wait(self, key, timeout):
+    def _wait(self, key, timeout, err=False):
         end = time.monotonic() + timeout
         with self.cond:
             while key not in self.replies:
+                if err and ("err",) in self.replies:
+                    self.replies.pop(("err",))
+                    raise NotTwoCable(self.name)
                 left = end - time.monotonic()
                 if left <= 0 or not self.alive:
                     raise Gone(f"{self.name}: no reply")
@@ -164,8 +229,9 @@ class Half:
     def request(self, op, payload=b"", timeout=0.5):
         with self.cond:
             self.replies.pop((PROTO, 0x80 | op), None)
+            self.replies.pop(("err",), None)
         self.send(op, payload)
-        r, _ = self._wait((PROTO, 0x80 | op), timeout)
+        r, _ = self._wait((PROTO, 0x80 | op), timeout, err=True)
         return dict(status=r[8], role=ROLE.get(r[9], r[9]), side=SIDE.get(r[10], r[10]),
                     capture=bool(r[11]), lead_packets=int.from_bytes(r[12:16], "little"))
 
@@ -178,17 +244,27 @@ class Half:
 
     def sval(self, cmd, args=b"", timeout=0.5):
         with self.cond:
-            self.replies.pop((0xDF, cmd), None)
-        self.write(bytes([WRAP]) + self.cid.to_bytes(4, "little") + bytes([0xDF, cmd]) + bytes(args))
-        r, _ = self._wait((0xDF, cmd), timeout)
+            self.replies.pop((SVAL, cmd), None)
+        self.write(bytes([WRAP]) + self.cid.to_bytes(4, "little") + bytes([SVAL, cmd]) + bytes(args))
+        r, _ = self._wait((SVAL, cmd), timeout)
         return r[5:]
+
+    def side_info(self):
+        """Sval 0x33 GET: this half's side and where it came from."""
+        d = self.sval(SIDE_CMD, bytes([0]) + bytes(15))[2:]  # d[0] op, d[1] status, ...
+        return dict(side=SIDE.get(d[3], "unknown"), source=d[4], strap=d[5], build_side=d[15])
+
+    def set_side(self, side):
+        """Sval 0x33 SET this half's side (source HOST), then the half restarts."""
+        d = self.sval(SIDE_CMD, bytes([1, 0, SIDE_NUM[side], SIDE_SRC_HOST, 1]) + bytes(11))[2:]
+        return d[1]
 
 
 class Relay:
     """Carries the follower's rows to the lead; holds both leases."""
 
-    def __init__(self, lead, follower, log=print):
-        self.lead, self.follower = Half(lead, "lead"), Half(follower, "follower")
+    def __init__(self, lead, follower, log=print, names=("lead", "follower")):
+        self.lead, self.follower = Half(lead, names[0]), Half(follower, names[1])
         self.log = log
         self.rows = bytes(5)
         self.side = 0xFF
@@ -198,11 +274,21 @@ class Relay:
         self.on_applied = None
         self.on_report = None
         self.relayed = 0
+        self.cable = False           # the split cable works: the halves refuse the relay
         self.follower.handlers[PUSH_ROWS] = self._rows
+        self.follower.handlers[0x80 | OP_FOLLOW] = self._reply
+        self.lead.handlers[0x80 | OP_LEAD] = self._reply
         self.lead.handlers[PUSH_APPLIED] = lambda r, t: self.on_applied and self.on_applied(r, t)
         self.lead.handlers[PUSH_REPORT] = lambda r, t: self.on_report and self.on_report(r, t)
         self.follower.handlers["gone"] = self._follower_gone
         self.lead.handlers["gone"] = self._lead_gone
+
+    def _reply(self, r, t):
+        cable = r[8] == STATUS_CABLE
+        if cable and not self.cable:
+            self.log("The split cable between the halves is working, so the halves don't need the relay.\n"
+                     "They type over the cable. You can stop this with Ctrl+C.")
+        self.cable = cable
 
     def _lead_packet(self, seq, rows, motion=bytes(7), ack=0):
         return bytes([seq & 0xFF, self.side]) + rows + motion + bytes([ack])
@@ -220,7 +306,7 @@ class Relay:
             self.on_rows(r, t, time.perf_counter())
 
     def _follower_gone(self, half):
-        self.log("follower gone: releasing its keys on the lead")
+        self.log(f"The {half.name} left USB. Waiting for it to come back.")
         self.rows = bytes(5)
         try:
             self.lead.send(OP_LEAD, self._lead_packet(0, self.rows))
@@ -229,7 +315,7 @@ class Relay:
             pass
 
     def _lead_gone(self, half):
-        self.log("lead gone: the follower types on its own")
+        self.log(f"The {half.name} left USB. The other half types on its own until it comes back.")
         try:
             self.follower.send(OP_RELEASE)
         except Gone:
@@ -240,9 +326,9 @@ class Relay:
             if not h.alive:
                 try:
                     if h.open():
-                        st = h.request(OP_STATUS)
-                        self.log(f"{h.name} {h.serial}: {st['side']} half")
-                except Gone as e:
+                        h.request(OP_STATUS)
+                        self.log(f"The {h.name} is connected ({h.serial}).")
+                except (Gone, NotTwoCable, OpenFailed) as e:
                     self.log(f"{h.name}: {e}")
                     h.close()
 
@@ -271,48 +357,227 @@ class Relay:
 
     def shutdown(self):
         self.stop.set()
-        for h, op in ((self.lead, OP_RELEASE), (self.follower, OP_RELEASE)):
+        for h in (self.lead, self.follower):
             try:
-                h.send(op)
+                h.send(OP_RELEASE)
             except Gone:
                 pass
             h.close()
 
 
+# ---- finding the halves ----------------------------------------------------------------
+
+def probe(d):
+    """Open one half, ask for its two-cable status and its side, and close it again."""
+    h = Half(d["serial_number"], "half")
+    info = dict(serial=d["serial_number"], name=d.get("product_string") or "", two_cable=False,
+                side="unknown", role="none", error=None)
+    try:
+        h.open()
+        st = h.request(OP_STATUS)
+        info.update(two_cable=True, role=st["role"], side=st["side"])
+        try:
+            info.update(h.side_info())
+        except Gone:
+            pass
+        if st["role"] != "none":  # a relay that quit uncleanly left a lease: end it now
+            h.send(OP_RELEASE)
+    except NotTwoCable:
+        pass
+    except OpenFailed as e:
+        info["error"] = str(e)
+    except Gone:
+        info["error"] = "no answer"
+    finally:
+        h.close()
+    return info
+
+
+def wait_for(serials, timeout):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        have = {d["serial_number"] for d in boards()}
+        if all(s in have for s in serials):
+            time.sleep(0.5)  # let it finish starting
+            return True
+        time.sleep(0.25)
+    return False
+
+
+def identify_left(a, b, log):
+    """Both halves follow for a moment; the one whose keys go down is the left."""
+    halves = [Half(a, "first"), Half(b, "second")]
+    down = {}
+    lock = threading.Lock()
+
+    def on_rows(h):
+        def f(r, t):
+            if any(r[9:14]):
+                with lock:
+                    down.setdefault(h.serial, time.monotonic())
+        return f
+
+    try:
+        for h in halves:
+            h.handlers[PUSH_ROWS] = on_rows(h)
+            if not h.open():
+                raise SystemExit(f"{h.serial} went away. Plug it back in and run this again.")
+        log("\nPress and hold any key on your LEFT half (the half for your left hand) ...")
+        end = time.monotonic() + 120
+        while time.monotonic() < end:
+            for h in halves:
+                h.send(OP_FOLLOW)  # keys go to the relay only: nothing types
+            with lock:
+                if down:
+                    first = min(down, key=down.get)
+                    log("Got it. You can let go.")
+                    return first
+            time.sleep(0.1)
+        raise SystemExit("No key press came in two minutes. Run this again when you're ready.")
+    finally:
+        for h in halves:
+            try:
+                h.send(OP_RELEASE)
+            except Gone:
+                pass
+            h.close()
+
+
+def fix_sides(found, log, interactive):
+    """Make sure one half is left and the other right; set them if not. Returns the probes."""
+    a, b = found
+    sides = {a["side"], b["side"]}
+    if sides == {"left", "right"}:
+        return found
+    if not interactive:
+        raise SystemExit(f"The halves report sides {a['side']} and {b['side']}. Run the relay by hand to set them.")
+    want = {}
+    known = [x for x in found if x["side"] in ("left", "right")]
+    if len(known) == 1:
+        other = b if known[0] is a else a
+        want[other["serial"]] = "right" if known[0]["side"] == "left" else "left"
+        log(f"One half has no side yet. Setting it to {want[other['serial']]}, opposite the other half.")
+    else:
+        if sides == {"unknown"}:
+            log("Neither half knows whether it is the left or the right one. That is normal after flash_nuke.")
+        else:
+            log(f"Both halves say they are the {a['side']} half.")
+        left = identify_left(a["serial"], b["serial"], log)
+        for x in found:
+            want[x["serial"]] = "left" if x["serial"] == left else "right"
+    for x in found:
+        s = want.get(x["serial"])
+        if not s or s == x["side"]:
+            continue
+        h = Half(x["serial"], "half")
+        try:
+            h.open()
+            st = h.set_side(s)
+        except (Gone, OpenFailed) as e:
+            raise SystemExit(f"Couldn't set the side of {x['serial']}: {e}")
+        finally:
+            h.close()
+        if st != 0:
+            raise SystemExit(f"{x['serial']} wouldn't take the {s} side: {SET_STATUS.get(st, f'status {st}')}.")
+        log(f"{x['serial']} is now the {s} half. It restarts.")
+    time.sleep(1.0)
+    if not wait_for([a["serial"], b["serial"]], 20):
+        raise SystemExit("A half didn't come back after it restarted. Unplug it, plug it in again, and run this again.")
+    end = time.monotonic() + 10
+    while True:  # a half that just enumerated may not answer yet
+        found = [probe(d) for d in boards() if d["serial_number"] in (a["serial"], b["serial"])]
+        if len(found) == 2 and all(x["two_cable"] for x in found) or time.monotonic() > end:
+            break
+        time.sleep(0.5)
+    if {x["side"] for x in found} != {"left", "right"}:
+        raise SystemExit("The sides still aren't set: " + ", ".join(f"{x['serial']} {x['side']}" for x in found))
+    log("Sides set. The halves keep them, with any firmware.")
+    return found
+
+
+def detect(lead_pref="right", exclude=(), log=print, interactive=True):
+    """Find exactly two two-cable halves and pick the lead. Returns (lead serial, follower serial, probes)."""
+    all_boards = [d for d in boards() if d["serial_number"] not in exclude]
+    if not all_boards:
+        raise SystemExit("No Svalboard found on USB.\n"
+                         "Plug each half into the computer with its own USB cable. Each half needs the\n"
+                         "two-cable firmware: a half on Vial or an older release doesn't show up here.")
+    probes = [probe(d) for d in all_boards]
+    errors = [p for p in probes if p["error"]]
+    for p in errors:
+        log(f"{p['serial']}: {p['error']}")
+    if errors and any("open" in p["error"] for p in errors):
+        log(open_hint())
+    found = [p for p in probes if p["two_cable"]]
+    others = [p for p in probes if not p["two_cable"] and not p["error"]]
+    for p in others:
+        log(f"{p['serial']} ({p['name']}) runs other firmware, not the two-cable firmware. Copy the two-cable file onto it.")
+    if lead_pref not in ("left", "right"):  # a serial: the lead, and one other half
+        found = [p for p in found if p["serial"] == lead_pref] + [p for p in found if p["serial"] != lead_pref]
+    if len(found) == 0:
+        raise SystemExit("No half with the two-cable firmware found.")
+    if len(found) == 1:
+        raise SystemExit(f"Found only one half with the two-cable firmware ({found[0]['side']}, {found[0]['serial']}).\n"
+                         "Plug the other half into the computer with its own USB cable, and make sure it has the two-cable firmware.")
+    if len(found) > 2:
+        raise SystemExit("Found more than two halves with the two-cable firmware:\n  "
+                         + "\n  ".join(f"{p['serial']} {p['side']}" for p in found)
+                         + "\nUnplug the ones you don't want, or name both: --halves SERIAL SERIAL")
+    found = fix_sides(found, log, interactive)
+    if lead_pref in ("left", "right"):
+        lead = next(p for p in found if p["side"] == lead_pref)
+    else:
+        lead = next(p for p in found if p["serial"] == lead_pref)
+    follower = next(p for p in found if p is not lead)
+    return lead["serial"], follower["serial"], dict(lead=lead, follower=follower)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    ls = sub.add_parser("list", help="Svalboard halves on USB")
-    ls.add_argument("--probe", action="append", help="also ask this serial for its side and role")
-    r = sub.add_parser("run", help="relay until Ctrl+C")
-    r.add_argument("--lead", required=True, help="serial of the half that runs the keymap")
-    r.add_argument("--follower", required=True, help="serial of the other half")
+    ap.add_argument("cmd", nargs="?", default="run", choices=("run", "list", "sides"),
+                    help="run (the default), list, or sides")
+    ap.add_argument("--lead", default="right", help="left, right (default), or a half's serial")
+    ap.add_argument("--follower", help="the other half's serial (with --lead SERIAL; optional)")
+    ap.add_argument("--exclude", action="append", default=[], help="never touch this serial (repeatable)")
+    ap.add_argument("--halves", nargs=2, metavar="SERIAL", help="use exactly these two halves")
     a = ap.parse_args()
+
     if a.cmd == "list":
-        # Lists only: nothing is sent to any board unless its serial is named.
-        for d in boards():
-            line = f"{d['serial_number']}  {d['product_string']!r}"
-            if d["serial_number"] in (a.probe or []):
-                h = Half(d["serial_number"], d["product_string"])
-                try:
-                    h.open()
-                    st = h.request(OP_STATUS)
-                    line += f"  {st['side']}  role {st['role']}"
-                except Gone:
-                    line += "  (no two-cable support)"
-                finally:
-                    h.close()
-            print(line)
+        found = [d for d in boards() if d["serial_number"] not in a.exclude]
+        if not found:
+            print("No Svalboard found on USB.")
+        for d in found:
+            p = probe(d)
+            what = f"two-cable firmware, {p['side']} half" if p["two_cable"] else (p["error"] or "other firmware")
+            print(f"{p['serial']}  {p['name']!r}  {what}")
         return
-    if a.lead == a.follower:
-        sys.exit("lead and follower must be different halves")
-    relay = Relay(a.lead, a.follower)
+
+    exclude = set(a.exclude)
+    if a.halves:
+        exclude |= {d["serial_number"] for d in boards()} - set(a.halves)
+    if a.follower and a.lead not in ("left", "right"):
+        exclude |= {d["serial_number"] for d in boards()} - {a.lead, a.follower}
+
+    if a.cmd == "sides":
+        found = [p for p in (probe(d) for d in boards() if d["serial_number"] not in exclude) if p["two_cable"]]
+        if len(found) != 2:
+            sys.exit(f"Need exactly two halves with the two-cable firmware on USB; found {len(found)}.")
+        for p in found:
+            p["side"] = "unknown"  # ask again
+        fix_sides(found, print, True)
+        return
+
+    lead, follower, info = detect(a.lead, exclude)
+    print(f"\nRelaying. The {info['lead']['side']} half leads and the {info['follower']['side']} half follows.")
+    print("Keep this window open while you type. Press Ctrl+C to stop.\n")
+    relay = Relay(lead, follower, names=(f"{info['lead']['side']} half", f"{info['follower']['side']} half"))
     try:
         relay.run()
     except KeyboardInterrupt:
         pass
     finally:
         relay.shutdown()
+        print("\nStopped. Each half types on its own again.")
 
 
 if __name__ == "__main__":

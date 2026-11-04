@@ -12,11 +12,13 @@ import argparse
 import json
 import random
 import statistics
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
 
-from two_cable_relay import (OP_CAPTURE, OP_INJECT, OP_REBOOT, OP_STATUS, Gone, Relay)
+from two_cable_relay import (OP_CAPTURE, OP_INJECT, OP_REBOOT, OP_STATUS, Gone, Half, Relay, detect)
 
 ROWS = 5
 
@@ -211,16 +213,73 @@ def resolve(km, layer, pos):
     return 0
 
 
+def relay_process(exclude, res, log):
+    """The real relay script as its own process, found by auto-detect, then killed hard."""
+    here = Path(__file__).resolve().parent
+    cmd = [sys.executable, "-u", str(here / "two_cable_relay.py")] + [x for s in exclude for x in ("--exclude", s)]
+    lead_s, follower_s, _ = detect("right", exclude, log=lambda *a: None, interactive=False)
+    probes = [Half(lead_s, "lead-probe"), Half(follower_s, "follower-probe")]
+    for h in probes:
+        h.open()
+    roles = lambda: tuple(h.request(OP_STATUS)["role"] for h in probes)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    out = []
+    threading.Thread(target=lambda: out.extend(proc.stdout), daemon=True).start()
+    t0 = time.perf_counter()
+    up = None
+    while time.perf_counter() - t0 < 15:
+        try:
+            if roles() == ("lead", "follower"):
+                up = time.perf_counter() - t0
+                break
+        except Gone:
+            pass
+        time.sleep(0.05)
+    time.sleep(1.0)
+    t1 = time.perf_counter()
+    proc.kill()  # pulled: no Ctrl+C, no RELEASE
+    proc.wait()
+    lead_free = follower_free = None
+    while time.perf_counter() - t1 < 3 and (lead_free is None or follower_free is None):
+        try:
+            r = roles()
+        except Gone:
+            r = ("?", "?")
+        now = time.perf_counter() - t1
+        if lead_free is None and r[0] == "none":
+            lead_free = now
+        if follower_free is None and r[1] == "none":
+            follower_free = now
+        time.sleep(0.02)
+    for h in probes:
+        h.close()
+    res["relay_process"] = dict(cmd=" ".join(Path(c).name if i < 2 else c for i, c in enumerate(cmd)),
+                                roles_up_after_s=round(up, 2) if up else None,
+                                lead_released_after_kill_ms=round(lead_free * 1e3) if lead_free is not None else None,
+                                follower_on_its_own_after_kill_ms=round(follower_free * 1e3) if follower_free is not None else None,
+                                output=[line.rstrip() for line in out][:20],
+                                ok=bool(up) and lead_free is not None and follower_free is not None)
+    log("relay process", res["relay_process"])
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lead", required=True)
-    ap.add_argument("--follower", required=True)
+    ap.add_argument("--lead", help="serial; with --follower. Default: auto-detect, the right half leads")
+    ap.add_argument("--follower")
+    ap.add_argument("--exclude", action="append", default=[], help="never touch this serial (repeatable)")
     ap.add_argument("--out", required=True)
     ap.add_argument("-n", type=int, default=300)
     a = ap.parse_args()
     out = Path(a.out)
     res = {}
-    b = Bench(a.lead, a.follower)
+    if a.lead and a.follower:
+        lead, follower = a.lead, a.follower
+        res["detect"] = "serials given"
+    else:
+        lead, follower, info = detect(a.lead or "right", set(a.exclude), interactive=False)
+        res["detect"] = dict(lead=info["lead"], follower=info["follower"], excluded=a.exclude)
+        print(f"auto-detect: lead {lead} ({info['lead']['side']}), follower {follower} ({info['follower']['side']})")
+    b = Bench(lead, follower)
     b.start()
     try:
         fside = b.relay.follower.request(OP_STATUS)["side"]
@@ -439,6 +498,12 @@ def main():
         b.log("lead unplugged", res["lead_unplugged"])
     finally:
         b.stop()
+        if a.lead is None or a.follower is None:
+            time.sleep(1.5)
+            try:
+                relay_process(set(a.exclude), res, b.log)
+            except (SystemExit, Exception) as e:
+                b.log("relay process: not run:", e)
         out.mkdir(parents=True, exist_ok=True)
         res["log"] = b.logs
         (out / "bench.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
