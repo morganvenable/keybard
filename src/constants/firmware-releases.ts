@@ -94,3 +94,27 @@ export function matchPin(sha256: string, releases: FirmwareReleasePin[] = CARRIE
 export function carriedFileUrl(release: FirmwareReleasePin, name: string, base: string = import.meta.env.BASE_URL ?? "/"): string {
     return `${base.endsWith("/") ? base : `${base}/`}firmware/${release.tag}/${name}`;
 }
+
+/** The public site that serves a Keybard release tag: v on production, x on next; null for others. */
+export function siteForTag(tag: string): "production" | "next" | null {
+    const kind = parseReleaseTag(tag)?.kind;
+    return kind === "v" ? "production" : kind === "x" ? "next" : null;
+}
+
+/** The newest firmware release a site carries, or null when it carries none. */
+export function newestFirmwareFor(site: Site, releases: FirmwareReleasePin[] = CARRIED_RELEASES): string | null {
+    return releasesForSite(site, releases)[0]?.tag ?? null;
+}
+
+/**
+ * What a release deploy publishes as version.json: its Keybard release tag and
+ * the newest firmware it carries (omitted when it carries none). The Keybard and
+ * firmware tags can differ: a Keybard-only release carries an older firmware.
+ * Only a build of the site that serves the tag has one (an x tag built for
+ * production, as Keybard Overlay does, has none).
+ */
+export function versionFile(tag: string, site: Site, releases: FirmwareReleasePin[] = CARRIED_RELEASES): { tag: string; firmware?: string } | null {
+    if (site === "dev" || siteForTag(tag) !== site) return null;
+    const firmware = newestFirmwareFor(site, releases);
+    return firmware ? { tag, firmware } : { tag };
+}
