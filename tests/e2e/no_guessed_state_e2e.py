@@ -199,8 +199,8 @@ def main() -> int:
             context, page, errors = open_page(browser, url, "?demo&fwfake=1&panel=firmware&speed=4", theme, PHONE)
             try:
                 section = page.get_by_test_id("firmware-section")
-                expect(section.get_by_text("x4 is available")).to_be_visible(timeout=30000)
-                section.get_by_role("button", name="Update to x4").click()
+                expect(section.get_by_text("Unstable firmware x4 is available")).to_be_visible(timeout=30000)
+                section.get_by_role("button", name="Update to Unstable firmware x4").click()
                 sheet = page.get_by_test_id("update-sheet")
                 expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
                 sheet.get_by_role("button", name="Update", exact=True).click()

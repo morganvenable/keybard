@@ -140,3 +140,8 @@ export function keybardName(tag: string): string {
     const word = releaseWord(tag);
     return word ? `${word} Keybard ${tag}` : tag;
 }
+
+/** What a connected keyboard runs, as a sentence part: "Runs Unstable firmware x4.4", or "Firmware: <label>". */
+export function runsFirmware(label: string): string {
+    return releaseWord(label) ? `Runs ${firmwareName(label)}` : `Firmware: ${label}`;
+}

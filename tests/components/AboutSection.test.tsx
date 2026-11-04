@@ -23,7 +23,9 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const table = () => screen.getByRole('table', { name: 'Keybard releases' });
 /** Each body row's cells joined with "|", with "*" before the current row. */
 const rows = () => within(table()).getAllByRole('row').slice(1)
-    .map(r => (r.hasAttribute('data-current') ? '*' : '') + [...r.children].map(c => c.textContent).join('|'));
+    .map(r => (r.hasAttribute('data-current') ? '*' : '') + [...r.children].map(cellText).join('|'));
+/** A cell's text without the column name shown only when rows stack. */
+const cellText = (c: Element) => { const k = c.cloneNode(true) as Element; k.querySelectorAll('[data-stack-label]').forEach(l => l.remove()); return k.textContent; };
 const sentence = () => document.querySelector('[data-about-using]')!.textContent;
 
 describe('About', () => {
@@ -41,8 +43,15 @@ describe('About', () => {
             'Stable|v4.3.6|v4.3.5|keybard.svalboard.com',
             '*Unstable|x4.4|x4.4|next.keybard.svalboard.com',
         ]);
-        const current = within(table()).getAllByRole('row').find(r => r.hasAttribute('data-current'))!;
-        expect(current.className).toContain('font-semibold');
+        // Bold is the current row's only marker: both rows share one color.
+        const [stable, unstable] = within(table()).getAllByRole('row').slice(1);
+        expect(unstable.className).toContain('font-semibold');
+        expect(stable.className).not.toContain('font-semibold');
+        const color = (r: Element) => r.className.split(/\s+/).filter(c => /^text-(kb-|muted)/.test(c));
+        expect(color(stable)).toEqual(color(unstable));
+        // The stacked rows' column names are for sight only; the table headers name the cells.
+        expect([...table().querySelectorAll('[data-stack-label]')].every(l => l.getAttribute('aria-hidden') === 'true')).toBe(true);
+        expect(within(table()).getAllByRole('rowheader').map(h => h.textContent)).toEqual(['Stable', 'Unstable']);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'keybard.svalboard.com' })).toHaveAttribute('href', 'https://keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'next.keybard.svalboard.com' })).toHaveAttribute('href', 'https://next.keybard.svalboard.com/');

@@ -1,27 +1,31 @@
 """
-Browser test of Settings > About as each site shows it, with the other site's
+Browser test of how Keybard names its releases, with the other site's
 version.json mocked. Run with `npm run test:e2e:about-versions`.
 
-Builds three Keybards: next.keybard.svalboard.com (x4.4, --mode next),
-keybard.svalboard.com (v4.3.6, --mode svalboard) and an untagged test build.
+Builds three Keybards:
+- next.keybard.svalboard.com (x4.4, --mode next);
+- keybard.svalboard.com (v4.3.6, --mode svalboard), built with the test site's
+  storage namespace so ?fwfake=1 can stand in for a keyboard on Unstable firmware;
+- an untagged build.
 Each is opened at ?panel=about in light and dark theme.
 
-  1. This build's version comes first, with its site and "(this one)"; the
-     other site follows with the version its version.json names. Each version
-     has its word beside it (Stable for v, Unstable for x; none for a
-     commit or an unknown version). Every site is a link to that site, and no
-     link is labeled Stable or Unstable.
+  1. About says which Keybard this is in one sentence, then one table on every
+     site: Release, Keybard, Firmware, Site; Stable then Unstable. The current
+     release's row is bold; an untagged build has no bold row. Each site is a link.
+     The section has no parentheticals.
   2. Release notes link this release's notes (the releases list when untagged).
-  3. On next, the banner says which firmware to flash and which site to use.
-  4. When version.json cannot be read, the site shows with no version and the
+  3. On next, the banner names the Stable firmware and the Stable site.
+  4. When version.json cannot be read, that release's values are blank and the
      banner names only the site.
   5. Every text in About and the banner has a contrast of at least 4.5:1 (AA).
-     At phone width (375 px) the rows fit with no sideways scroll and the
-     word, version and site columns stay aligned.
-  6. No page errors.
+     At phone width (375 px) the rows stack and fit, with no sideways scroll.
+  6. On keybard.svalboard.com with a keyboard on Unstable firmware x4.4, the
+     editor shows one notice line and About a sentence, each linking next.
+  7. No page errors.
 
-E2E_SKIP_BUILD reuses the last builds. E2E_SHOTS=<dir> saves a screenshot of
-About (and the banner) per site and theme. Exits 1 when a check fails.
+E2E_SKIP_BUILD reuses the last builds. E2E_SHOTS=<dir> saves screenshots of
+About (desktop and phone), the banner and the notice per site and theme.
+Exits 1 when a check fails.
 """
 import json
 import os
@@ -39,13 +43,35 @@ from combo_editor_e2e import NPX, ROOT, free_port  # noqa: E402
 from select_contrast_e2e import contrast, rgba  # noqa: E402
 
 BASE_PATH = "/keybard-e2e-about/"
-TABLE = "[role=table][aria-label='Keybard']"
+ABOUT = "#settings-section-about"
+TABLE = "table[data-about-releases]"
 FILES = {
     "https://keybard.svalboard.com/version.json": {"tag": "v4.3.6", "firmware": "v4.3.5"},
     "https://next.keybard.svalboard.com/version.json": {"tag": "x4.4", "firmware": "x4.4"},
 }
-# name, vite mode, RELEASE_TAG
-BUILDS = [("next", "next", "x4.4"), ("production", "svalboard", "v4.3.6"), ("untagged", "production", "")]
+# name, vite mode, RELEASE_TAG, extra env
+BUILDS = [
+    ("next", "next", "x4.4", {}),
+    ("production", "svalboard", "v4.3.6", {"VITE_STORAGE_NAMESPACE": "keybard-test"}),
+    ("untagged", "production", "", {}),
+]
+# This build's own firmware comes from what it carries: today's main carries x4.4 only,
+# so keybard.svalboard.com's own firmware is blank, never guessed.
+EXPECTED = {
+    "next": ("You're using Unstable Keybard x4.4.",
+             ["Stable | v4.3.6 | v4.3.5 | keybard.svalboard.com", "*Unstable | x4.4 | x4.4 | next.keybard.svalboard.com"]),
+    "production": ("You're using Stable Keybard v4.3.6.",
+                   [re.compile(r"^\*Stable \| v4\.3\.6 \| (v[\d.]+)? \| keybard\.svalboard\.com$"), "Unstable | x4.4 | x4.4 | next.keybard.svalboard.com"]),
+    "untagged": (re.compile(r"^You're using a development build, commit [0-9a-f]+\.$"),
+                 ["Stable | v4.3.6 | v4.3.5 | keybard.svalboard.com", "Unstable | x4.4 | x4.4 | next.keybard.svalboard.com"]),
+}
+FAILED_READ = {
+    "next": (0, "Stable |  |  | keybard.svalboard.com"),
+    "production": (1, "Unstable |  |  | next.keybard.svalboard.com"),
+}
+BANNER = "This is the Unstable release and may break. For the Stable release, flash Stable firmware v4.3.5 and use keybard.svalboard.com."
+BANNER_UNKNOWN = "This is the Unstable release and may break. For the Stable release, use keybard.svalboard.com."
+NOTICE = "Your keyboard runs Unstable firmware x4.4. Unstable Keybard at next.keybard.svalboard.com goes with it."
 
 failures: list[str] = []
 
@@ -56,12 +82,16 @@ def check(cond: bool, label: str):
         failures.append(label)
 
 
+def matches(got, want) -> bool:
+    return bool(want.match(got)) if isinstance(want, re.Pattern) else got == want
+
+
 def out_dir(name: str) -> str:
     return os.path.join(ROOT, f".e2e-dist-about-{name}")
 
 
-def build(name: str, mode: str, tag: str):
-    env = {**os.environ, "RELEASE_TAG": tag}
+def build(name: str, mode: str, tag: str, extra: dict):
+    env = {**os.environ, "RELEASE_TAG": tag, **extra}
     subprocess.run([NPX, "vite", "build", "--mode", mode, f"--base={BASE_PATH}", f"--outDir={out_dir(name)}", "--emptyOutDir"],
                    cwd=ROOT, check=True, env=env)
 
@@ -123,10 +153,7 @@ def check_contrast(page, locator, label: str):
           f"{label}: lowest contrast {worst[0]:.1f}:1 ({worst[1]!r}: {worst[2]} on {worst[3]})" if worst else f"{label}: no text")
 
 
-def open_about(browser, url: str, theme: str, reachable: bool):
-    context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme=theme, reduced_motion="reduce")
-    reads: list[str] = []
-
+def mock_version_files(context, reachable: bool, reads: list[str]):
     def version_file(route):
         reads.append(route.request.url)
         body = FILES.get(route.request.url.split("?")[0])
@@ -135,146 +162,190 @@ def open_about(browser, url: str, theme: str, reachable: bool):
             return
         route.fulfill(status=200, content_type="application/json", body=json.dumps(body),
                       headers={"Access-Control-Allow-Origin": "*"})
-
     context.route(re.compile(r"^https://(next\.)?keybard\.svalboard\.com/"), version_file)
+
+
+def open_page(browser, url: str, theme: str, query: str, reachable: bool = True, width: int = 1440):
+    context = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=theme, reduced_motion="reduce")
+    reads: list[str] = []
+    mock_version_files(context, reachable, reads)
     page = context.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.goto(f"{url}?demo=combos&panel=about&theme={theme}")
-    expect(page.get_by_label("Search settings")).to_be_visible(timeout=20000)
+    page.goto(f"{url}?{query}&theme={theme}")
     if theme == "dark":
-        expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"), timeout=10000)
+        expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"), timeout=20000)
     return context, page, errors, reads
 
 
+def open_about(browser, url: str, theme: str, reachable: bool = True, extra: str = ""):
+    context, page, errors, reads = open_page(browser, url, theme, f"demo=combos&panel=about{extra}", reachable)
+    expect(page.get_by_label("Search settings")).to_be_visible(timeout=20000)
+    expect(page.locator(TABLE)).to_be_visible(timeout=10000)
+    return context, page, errors, reads
+
+
+# Each body row as its cells joined with " | ", "*" before the current (bold) row.
+READ_ROWS = """t => [...t.tBodies[0].rows].map(r =>
+    (r.hasAttribute('data-current') ? '*' : '') + [...r.cells].map(c => {
+        const k = c.cloneNode(true); k.querySelectorAll('[data-stack-label]').forEach(l => l.remove());
+        return k.textContent.trim();
+    }).join(' | '))"""
+
+
 def rows(page) -> list[str]:
-    return page.locator(TABLE).evaluate(
-        "t => [...t.querySelectorAll('[role=row]')].map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].map(td => td.textContent.trim()).join(' | '))")
+    return page.locator(TABLE).evaluate(READ_ROWS)
 
 
-EXPECTED = {
-    "next": ["Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4(this one)",
-             "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5"],
-    "production": [re.compile(r"^Stable \| v4\.3\.6 \| keybard\.svalboard\.com(, firmware v[\d.]+)?\(this one\)$"),
-                   "Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
-    "untagged": [re.compile(r"^ \| build [0-9a-f]+ \| \(this one\)$"),
-                 "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5",
-                 "Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
-}
-FAILED_READ = {
-    "next": " | version not known | keybard.svalboard.com",
-    "production": " | version not known | next.keybard.svalboard.com",
-}
+def wait_rows(page, want: list) -> list[str]:
+    deadline = time.time() + 5
+    got = rows(page)
+    while time.time() < deadline and not (len(got) == len(want) and all(matches(g, w) for g, w in zip(got, want))):
+        page.wait_for_timeout(100)
+        got = rows(page)
+    return got
 
 
 def phone(page, name: str, theme: str, shots: str | None):
-    """Phone width: the rows fit the card, nothing scrolls sideways, columns stay aligned."""
+    """Phone width: each row stacks inside the card, nothing scrolls sideways."""
     page.set_viewport_size({"width": 375, "height": 812})
     page.wait_for_timeout(300)
-    page.evaluate("() => document.getElementById('settings-section-about').scrollIntoView({ block: 'center' })")
+    page.evaluate(f"() => document.querySelector('{ABOUT}').scrollIntoView({{ block: 'start' }})")
     page.wait_for_timeout(200)
-    fit = page.evaluate("""() => {
-        const t = document.querySelector("[role=table][aria-label='Keybard']");
-        const card = document.getElementById('settings-section-about');
-        const tr = t.getBoundingClientRect(), cr = card.getBoundingClientRect();
-        const rows = [...t.querySelectorAll('[role=row]')].map(r => [...r.querySelectorAll(':scope > [role=cell]')]);
-        const lefts = (i) => rows.map(r => Math.round(r[i].getBoundingClientRect().left));
-        const cells = rows.flat().map(c => c.getBoundingClientRect());
+    fit = page.evaluate("""(sel) => {
+        const t = document.querySelector(sel), card = document.querySelector('#settings-section-about');
+        const cr = card.getBoundingClientRect();
+        const cells = [...t.querySelectorAll('tbody th, tbody td')].map(c => c.getBoundingClientRect());
+        const rows = [...t.tBodies[0].rows];
         return {
-            inside: tr.left >= cr.left - 1 && tr.right <= cr.right + 1 && cells.every(c => c.right <= cr.right + 1),
+            inside: cells.every(c => c.left >= cr.left - 1 && c.right <= cr.right + 1),
             noScroll: document.documentElement.scrollWidth <= innerWidth + 1,
-            aligned: [0, 1, 2].every(i => new Set(lefts(i)).size === 1),
-            right: Math.round(tr.right), card: Math.round(cr.right),
+            stacked: rows.every(r => getComputedStyle(r).display === 'block'),
+            labels: [...t.querySelectorAll('[data-stack-label]')].every(l => getComputedStyle(l).display !== 'none' && l.getAttribute('aria-hidden') === 'true'),
+            headerHidden: t.tHead.getBoundingClientRect().height <= 1,
         };
-    }""")
-    check(fit["inside"] and fit["noScroll"] and fit["aligned"], f"{name}/{theme}: phone width fits and stays aligned {fit}")
-    check_contrast(page, page.locator(TABLE), f"{name}/{theme}: About versions at phone width")
+    }""", TABLE)
+    check(all(fit.values()), f"{name}/{theme}: phone width stacks each row and fits {fit}")
+    check_contrast(page, page.locator(ABOUT), f"{name}/{theme}: About at phone width")
     if shots:
-        os.makedirs(shots, exist_ok=True)
-        page.locator("#settings-section-about").screenshot(path=os.path.join(shots, f"about-{name}-{theme}-phone.png"))
+        page.locator(ABOUT).screenshot(path=os.path.join(shots, f"about-{name}-{theme}-phone.png"))
     page.set_viewport_size({"width": 1440, "height": 900})
     page.wait_for_timeout(300)
 
 
-def matches(got: list[str], want: list) -> bool:
-    return len(got) == len(want) and all(w.match(g) if isinstance(w, re.Pattern) else g == w for g, w in zip(got, want))
-
-
 def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
-    context, page, errors, reads = open_about(browser, url, theme, reachable=True)
+    sentence_want, rows_want = EXPECTED[name]
+    context, page, errors, reads = open_about(browser, url, theme)
     try:
-        about = page.locator("#settings-section-about")
-        dl = page.locator(TABLE)
-        expect(dl).to_be_visible(timeout=10000)
-        want = EXPECTED[name]
-        deadline = time.time() + 5
-        while time.time() < deadline and not matches(rows(page), want):
-            page.wait_for_timeout(100)
-        got = rows(page)
-        check(matches(got, want), f"{name}/{theme}: rows {got}")
+        about = page.locator(ABOUT)
+        got = wait_rows(page, rows_want)
+        check(len(got) == len(rows_want) and all(matches(g, w) for g, w in zip(got, rows_want)), f"{name}/{theme}: rows {got}")
+        sentence = page.locator("[data-about-using]").inner_text().strip()
+        check(matches(sentence, sentence_want), f"{name}/{theme}: sentence {sentence!r}")
+        heads = page.locator(TABLE).evaluate("t => [...t.tHead.rows[0].cells].map(c => c.textContent.trim())")
+        check(heads == ["Release", "Keybard", "Firmware", "Site"], f"{name}/{theme}: columns {heads}")
+        bold = page.locator(TABLE).evaluate("t => [...t.tBodies[0].rows].map(r => getComputedStyle(r.cells[0]).fontWeight)")
+        current = [r.startswith("*") for r in got]
+        check(all((w == "600") == c for w, c in zip(bold, current)), f"{name}/{theme}: only the current row is bold {bold}")
+        colors = page.locator(TABLE).evaluate("t => [...t.tBodies[0].rows].map(r => getComputedStyle(r.cells[1]).color)")
+        check(len(set(colors)) == 1, f"{name}/{theme}: bold is the only marker, every row one color {colors}")
         for host in ("keybard.svalboard.com", "next.keybard.svalboard.com"):
-            link = dl.get_by_role("link", name=host, exact=True)
+            link = page.locator(TABLE).get_by_role("link", name=host, exact=True)
             check(link.count() == 1 and link.get_attribute("href") == f"https://{host}/", f"{name}/{theme}: {host} links to its site")
-        check(about.get_by_role("link", name=re.compile("stable|unstable", re.I)).count() == 0,
-              f"{name}/{theme}: no link is labeled Stable or Unstable")
-        words = dl.evaluate("t => [...t.querySelectorAll('[role=row]')].map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].slice(0, 2).map(c => c.textContent.trim()))")
-        check(all((w == "Stable") == v.startswith("v") and (w == "Unstable") == v.startswith("x") and (w == "" or re.match(r"^[vx]\d", v))
-                  for w, v in words), f"{name}/{theme}: each word sits beside its own version {words}")
+        check(not re.search(r"[()]|this one", about.inner_text(), re.I), f"{name}/{theme}: no parentheticals in About")
         notes = about.get_by_role("link", name="Release notes").get_attribute("href")
         want_notes = f"https://github.com/svalboard/keybard/releases/tag/{tag}" if tag else "https://github.com/svalboard/keybard/releases"
         check(notes == want_notes, f"{name}/{theme}: release notes link {notes}")
         own = {"next": "next", "production": "keybard"}.get(name)
         check(bool(reads) and (all(("next." in r) != (own == "next") for r in reads) if own else len(reads) == 2),
               f"{name}/{theme}: reads only the other site's version.json ({reads})")
-        check_contrast(page, dl, f"{name}/{theme}: About versions")
-        check_contrast(page, about.locator("p").last, f"{name}/{theme}: About links")
-        banner = page.get_by_role("note").filter(has_text="Unstable")
+        check_contrast(page, about, f"{name}/{theme}: About")
+        banner = page.get_by_role("note").filter(has_text="Unstable release")
         if name == "next":
             expect(banner).to_have_text(re.compile("firmware"), timeout=5000)
-            check(banner.inner_text().strip() ==
-                  "Unstable: may break. For the stable version, flash firmware v4.3.5 and use keybard.svalboard.com.",
-                  f"{name}/{theme}: banner {banner.inner_text()!r}")
+            check(banner.inner_text().strip() == BANNER, f"{name}/{theme}: banner {banner.inner_text()!r}")
             check(banner.get_by_role("link").get_attribute("href") == "https://keybard.svalboard.com/", f"{name}/{theme}: banner links to keybard.svalboard.com")
             check_contrast(page, banner, f"{name}/{theme}: banner")
         else:
-            check(banner.count() == 0, f"{name}/{theme}: no unstable banner")
-        phone(page, name, theme, shots)
+            check(banner.count() == 0, f"{name}/{theme}: no Unstable banner")
+        check(page.get_by_test_id("about-unstable-firmware").count() == 0, f"{name}/{theme}: no Unstable firmware sentence without such a keyboard")
         if shots:
             os.makedirs(shots, exist_ok=True)
-            page.evaluate("() => document.getElementById('settings-section-about').scrollIntoView({ block: 'center' })")
+            page.evaluate(f"() => document.querySelector('{ABOUT}').scrollIntoView({{ block: 'center' }})")
             page.wait_for_timeout(200)
             about.screenshot(path=os.path.join(shots, f"about-{name}-{theme}.png"))
-            if name == "next":
-                banner.screenshot(path=os.path.join(shots, f"banner-next-{theme}.png"))
+        phone(page, name, theme, shots)
         check(not errors, f"{name}/{theme}: no page errors {errors}")
     finally:
         context.close()
 
-    if name not in FAILED_READ:
-        return
-    context, page, errors, _ = open_about(browser, url, theme, reachable=False)
+    if name in FAILED_READ:
+        index, want = FAILED_READ[name]
+        context, page, errors, _ = open_about(browser, url, theme, reachable=False)
+        try:
+            page.wait_for_timeout(800)
+            got = rows(page)
+            check(got[index] == want, f"{name}/{theme}: unreadable version.json leaves that release blank {got}")
+            if name == "next":
+                text = page.get_by_role("note").inner_text().strip()
+                check(text == BANNER_UNKNOWN, f"{name}/{theme}: banner without a firmware {text!r}")
+        finally:
+            context.close()
+
+    if name == "next" and shots:
+        # The banner on its own, with no side panel over it.
+        context, page, _, _ = open_page(browser, url, theme, "demo=combos", width=1440)
+        try:
+            page.get_by_role("note").filter(has_text="firmware").wait_for(timeout=20000)
+            page.wait_for_timeout(300)
+            box = page.get_by_role("note").bounding_box()
+            pad = 12
+            page.screenshot(path=os.path.join(shots, f"banner-next-{theme}.png"),
+                            clip={"x": box["x"] - pad, "y": 0, "width": box["width"] + 2 * pad, "height": box["y"] + box["height"] + pad})
+        finally:
+            context.close()
+
+    if name == "production":
+        unstable_keyboard(browser, url, theme, shots)
+
+
+def unstable_keyboard(browser, url: str, theme: str, shots: str | None):
+    """keybard.svalboard.com with a keyboard on Unstable firmware x4.4: a notice and an About sentence."""
+    context, page, errors, _ = open_page(browser, url, theme, "fakeBoard&fwfake=1&running=x4.4&panel=about")
     try:
-        dl = page.locator(TABLE)
-        expect(dl).to_be_visible(timeout=10000)
-        page.wait_for_timeout(500)
-        got = rows(page)
-        check(len(got) == 2 and got[1] == FAILED_READ[name], f"{name}/{theme}: unreadable version.json shows the site with no version {got}")
-        if name == "next":
-            text = page.get_by_role("note").inner_text().strip()
-            check(text == "Unstable: may break. For the stable version, use keybard.svalboard.com.", f"{name}/{theme}: banner without a version {text!r}")
+        notice = page.get_by_test_id("unstable-firmware-notice")
+        expect(notice).to_be_visible(timeout=30000)
+        check(notice.inner_text().strip() == NOTICE, f"production/{theme}: notice {notice.inner_text()!r}")
+        check(notice.get_by_role("link").get_attribute("href") == "https://next.keybard.svalboard.com/", f"production/{theme}: notice links next")
+        check(page.get_by_test_id("unstable-firmware-notice").count() == 1, f"production/{theme}: one notice line")
+        check_contrast(page, notice, f"production/{theme}: notice")
+        line = page.get_by_test_id("about-unstable-firmware")
+        expect(line).to_be_visible(timeout=20000)
+        check(line.inner_text().strip() == NOTICE, f"production/{theme}: About sentence {line.inner_text()!r}")
+        check(not re.search(r"[()]", page.locator(ABOUT).inner_text()), f"production/{theme}: no parentheticals with the notice")
+        check_contrast(page, page.locator(ABOUT), f"production/{theme}: About with the notice")
+        if shots:
+            page.wait_for_timeout(300)
+            box = notice.bounding_box()
+            page.screenshot(path=os.path.join(shots, f"notice-production-{theme}.png"),
+                            clip={"x": max(0, box["x"] - 16), "y": max(0, box["y"] - 16), "width": box["width"] + 32, "height": box["height"] + 32})
+            page.locator(ABOUT).screenshot(path=os.path.join(shots, f"about-production-unstable-keyboard-{theme}.png"))
+        check(not errors, f"production/{theme}: no page errors with the notice {errors}")
     finally:
         context.close()
 
 
 def main() -> int:
     if not os.environ.get("E2E_SKIP_BUILD"):
-        for name, mode, tag in BUILDS:
-            build(name, mode, tag)
+        for name, mode, tag, extra in BUILDS:
+            build(name, mode, tag, extra)
     shots = os.environ.get("E2E_SHOTS")
+    if shots:
+        os.makedirs(shots, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
-            for name, _, tag in BUILDS:
+            for name, _, tag, _ in BUILDS:
                 with serve(name) as url:
                     for theme in ("light", "dark"):
                         flow(browser, name, tag, url, theme, shots)

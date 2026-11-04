@@ -3,7 +3,9 @@ import {
     fetchSiteVersion, ownSite, parseVersionFile, releaseNotesUrl, releaseTable, resetSiteVersions, siteForTag, siteVersion, sitesToRead,
     unstableFirmwareNotice, usingSentence,
 } from '../../src/utils/site-versions';
-import { firmwareName, keybardName, releaseWord, versionFile, type FirmwareReleasePin } from '../../src/constants/firmware-releases';
+import { firmwareName, keybardName, releaseWord, runsFirmware, versionFile, type FirmwareReleasePin } from '../../src/constants/firmware-releases';
+
+import { backupFirmwareNote } from '../../src/services/backup/describe';
 
 const json = (body: unknown, ok = true) => vi.fn(async () => ({ ok, json: async () => body }) as unknown as Response);
 
@@ -102,6 +104,11 @@ describe('site versions', () => {
         expect(firmwareName('build 19')).toBe('build 19');
         expect(keybardName('v4.3.6')).toBe('Stable Keybard v4.3.6');
         expect(keybardName('x4.4')).toBe('Unstable Keybard x4.4');
+        // What a connected keyboard runs, without "Firmware: Unstable firmware".
+        expect(runsFirmware('x4.4')).toBe('Runs Unstable firmware x4.4');
+        expect(runsFirmware('Svalboard QMK vLaunch2 or later')).toBe('Firmware: Svalboard QMK vLaunch2 or later');
+        expect(backupFirmwareNote({ fromTag: 'x4.4' })).toBe('saved from Unstable firmware x4.4');
+        expect(backupFirmwareNote({ fromTag: 'x4test10' })).toBe('saved from x4test10 firmware');
     });
 
     it('links to this release notes, or the list for an untagged build', () => {
