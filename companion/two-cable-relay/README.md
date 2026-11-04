@@ -45,6 +45,69 @@ halves refuse the relay (status 3) and it says so.
 nothing types, presses keys by injection, measures latency and the failure
 cases, and (with auto-detect) runs this script as its own process and kills it.
 
+## Always on
+
+Windows (PowerShell, in the folder with the script):
+
+```
+py -3 two_cable_relay.py install --halves SERIAL SERIAL
+```
+
+`install` copies the script to `%LOCALAPPDATA%\Svalboard\two-cable-relay\`,
+adds a shortcut to the Startup folder that runs it with `pythonw` (no window),
+and starts it now. `--halves` pins the two halves (serials from `list`); without
+it the relay picks the only two two-cable halves on USB. `uninstall` stops it
+and removes the shortcut; `stop` stops it until the next login.
+
+What runs is `supervise`: it starts `run --service` and starts it again 0.5 s
+after it exits for any reason. Only one supervisor runs at a time (a lock file).
+The service relay never asks anything and never exits for a missing half: it
+waits for both halves, then relays, and opens a half again whenever it leaves
+USB, restarts, stops answering for 2 s (as after the computer sleeps), or
+forgets the relay's client ID.
+
+- Log: `relay.log` in that folder (1 MB, three old copies kept).
+- Status: `status.json` in that folder, rewritten on every change and at least
+  every 5 s: `state` is `relaying`, `connecting`, `waiting` (a half is off
+  USB), `looking` (the halves aren't both found yet), `cable` (the split cable
+  works), `restarting` or `stopped`, with `detail`, `since`, `updated` (Unix
+  seconds), `pid`, `lead`, `follower` and `relayed`. An `updated` older than
+  about 15 s means no relay is running.
+- The lead half shows an amber double blip every 3 s when its relay lease has
+  lapsed for 3 s (the relay stopped without letting go), until a relay or the
+  split cable takes over.
+
+Mac (untested): `install` copies the script to
+`~/Library/Application Support/Svalboard/two-cable-relay/` and stops there. A
+LaunchAgent starts it at login and restarts it if it exits, so it needs no
+`supervise`. Save this as
+`~/Library/LaunchAgents/com.svalboard.two-cable-relay.plist`, with the paths
+of your virtual environment's Python and the copied script:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.svalboard.two-cable-relay</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/YOU/sval-relay/bin/python</string>
+    <string>/Users/YOU/Library/Application Support/Svalboard/two-cable-relay/two_cable_relay.py</string>
+    <string>run</string>
+    <string>--service</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>1</integer>
+</dict>
+</plist>
+```
+
+Then `launchctl load ~/Library/LaunchAgents/com.svalboard.two-cable-relay.plist`.
+`stop` there makes the relay exit, and launchd starts it again; unload the
+agent instead.
+
 ## Platform notes
 
 - hidapi wheels exist for Python 3.8-3.14 on Windows, Linux, and macOS (Intel
