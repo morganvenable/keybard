@@ -20,8 +20,8 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-const rowText = () => [...screen.getByLabelText('Keybard').querySelectorAll('dt')]
-    .map(dt => `${dt.textContent}|${dt.nextElementSibling?.textContent}`);
+const rowText = () => [...screen.getByRole('table', { name: 'Keybard' }).querySelectorAll('[role=row]')]
+    .map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].map(td => td.textContent).join('|'));
 
 describe('About', () => {
     it('shows the Keybard build, never a made-up version', async () => {
@@ -29,28 +29,31 @@ describe('About', () => {
         await act(async () => {});
         const facts = screen.getByLabelText('Keybard');
         expect(facts).not.toHaveTextContent('1.0.0');
-        expect(facts.textContent).toMatch(/^(build [0-9a-f]+|development build|[vx]\d)/);
+        expect(facts.textContent).toMatch(/^(build [0-9a-f]+|development build|Stable[v]\d|Bleeding edge[x]\d)/);
     });
 
     it('on next: x4.4 with next first and marked, then v4.3.6 with keybard.svalboard.com', async () => {
         render(<AboutSection tag="x4.4" label="x4.4" buildSite="next" />);
         await waitFor(() => expect(rowText()[1]).toContain('v4.3.6'));
         expect(rowText()).toEqual([
-            'x4.4|next.keybard.svalboard.com, firmware x4.4(this one)',
-            'v4.3.6|keybard.svalboard.com, firmware v4.3.5',
+            'Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4(this one)',
+            'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
         ]);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'keybard.svalboard.com' })).toHaveAttribute('href', 'https://keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'next.keybard.svalboard.com' })).toHaveAttribute('href', 'https://next.keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases/tag/x4.4');
-        expect(document.body.textContent).not.toMatch(/stable|bleeding/i);
+        // The words appear only beside a version, in their own cell.
+        const words = [...screen.getByRole('table', { name: 'Keybard' }).querySelectorAll('[role=row]')].map(tr => tr.querySelector('[role=cell]')?.textContent);
+        expect(words).toEqual(['Bleeding edge', 'Stable']);
+        expect(screen.queryByRole('link', { name: /stable|bleeding/i })).toBeNull();
     });
 
     it('on keybard.svalboard.com: v4.3.6 first and marked, then x4.4 with next', async () => {
         render(<AboutSection tag="v4.3.6" label="v4.3.6" buildSite="production" />);
         await waitFor(() => expect(rowText()[1]).toContain('x4.4'));
-        expect(rowText()[0]).toMatch(/^v4\.3\.6\|keybard\.svalboard\.com.*\(this one\)$/);
-        expect(rowText()[1]).toBe('x4.4|next.keybard.svalboard.com, firmware x4.4');
+        expect(rowText()[0]).toMatch(/^Stable\|v4\.3\.6\|keybard\.svalboard\.com.*\(this one\)$/);
+        expect(rowText()[1]).toBe('Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4');
     });
 
     it('shows the other site with no version when its version.json cannot be read', async () => {
@@ -59,16 +62,17 @@ describe('About', () => {
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         // Wait for the read itself to finish, so this is the failed state, not the one while reading.
         await act(async () => { await fetchMock.mock.results[0].value.catch(() => {}); await new Promise(r => setTimeout(r, 0)); });
-        expect(rowText()[1]).toBe('version not known|keybard.svalboard.com');
+        // No word without a version.
+        expect(rowText()[1]).toBe('|version not known|keybard.svalboard.com');
     });
 
     it('an untagged build shows its commit, then both sites with their versions', async () => {
         render(<AboutSection tag="" label="build 1a2b3c4" buildSite="dev" />);
         await waitFor(() => expect(rowText()[2]).toContain('x4.4'));
         expect(rowText()).toEqual([
-            'build 1a2b3c4|(this one)',
-            'v4.3.6|keybard.svalboard.com, firmware v4.3.5',
-            'x4.4|next.keybard.svalboard.com, firmware x4.4',
+            '|build 1a2b3c4|(this one)',
+            'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
+            'Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4',
         ]);
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases');
     });
@@ -76,7 +80,7 @@ describe('About', () => {
     it('Paranoid shows only its own version and reads nothing', async () => {
         render(<AboutSection tag="v4.3.6" label="v4.3.6" buildSite="production" paranoid />);
         await new Promise(r => setTimeout(r, 0));
-        expect(rowText()).toEqual(['v4.3.6|keybard.svalboard.com(this one)']);
+        expect(rowText()).toEqual(['Stable|v4.3.6|keybard.svalboard.com(this one)']);
         expect(fetchMock).not.toHaveBeenCalled();
     });
 

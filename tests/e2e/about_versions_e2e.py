@@ -7,13 +7,17 @@ keybard.svalboard.com (v4.3.6, --mode svalboard) and an untagged test build.
 Each is opened at ?panel=about in light and dark theme.
 
   1. This build's version comes first, with its site and "(this one)"; the
-     other site follows with the version its version.json names. Every site
-     is a link to that site. No "Stable" or "Bleeding edge" label anywhere in About.
+     other site follows with the version its version.json names. Each version
+     has its word beside it (Stable for v, Bleeding edge for x; none for a
+     commit or an unknown version). Every site is a link to that site, and no
+     link is labeled Stable or Bleeding edge.
   2. Release notes link this release's notes (the releases list when untagged).
   3. On next, the banner says which firmware to flash and which site to use.
   4. When version.json cannot be read, the site shows with no version and the
      banner names only the site.
   5. Every text in About and the banner has a contrast of at least 4.5:1 (AA).
+     At phone width (375 px) the rows fit with no sideways scroll and the
+     word, version and site columns stay aligned.
   6. No page errors.
 
 E2E_SKIP_BUILD reuses the last builds. E2E_SHOTS=<dir> saves a screenshot of
@@ -35,6 +39,7 @@ from combo_editor_e2e import NPX, ROOT, free_port  # noqa: E402
 from select_contrast_e2e import contrast, rgba  # noqa: E402
 
 BASE_PATH = "/keybard-e2e-about/"
+TABLE = "[role=table][aria-label='Keybard']"
 FILES = {
     "https://keybard.svalboard.com/version.json": {"tag": "v4.3.6", "firmware": "v4.3.5"},
     "https://next.keybard.svalboard.com/version.json": {"tag": "x4.4", "firmware": "x4.4"},
@@ -143,23 +148,52 @@ def open_about(browser, url: str, theme: str, reachable: bool):
 
 
 def rows(page) -> list[str]:
-    return page.locator("dl[aria-label='Keybard']").evaluate(
-        "dl => [...dl.querySelectorAll('dt')].map(dt => (dt.textContent + ' | ' + dt.nextElementSibling.textContent).trim())")
+    return page.locator(TABLE).evaluate(
+        "t => [...t.querySelectorAll('[role=row]')].map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].map(td => td.textContent.trim()).join(' | '))")
 
 
 EXPECTED = {
-    "next": ["x4.4 | next.keybard.svalboard.com, firmware x4.4(this one)",
-             "v4.3.6 | keybard.svalboard.com, firmware v4.3.5"],
-    "production": [re.compile(r"^v4\.3\.6 \| keybard\.svalboard\.com(, firmware v[\d.]+)?\(this one\)$"),
-                   "x4.4 | next.keybard.svalboard.com, firmware x4.4"],
-    "untagged": [re.compile(r"^build [0-9a-f]+ \| \(this one\)$"),
-                 "v4.3.6 | keybard.svalboard.com, firmware v4.3.5",
-                 "x4.4 | next.keybard.svalboard.com, firmware x4.4"],
+    "next": ["Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4(this one)",
+             "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5"],
+    "production": [re.compile(r"^Stable \| v4\.3\.6 \| keybard\.svalboard\.com(, firmware v[\d.]+)?\(this one\)$"),
+                   "Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
+    "untagged": [re.compile(r"^ \| build [0-9a-f]+ \| \(this one\)$"),
+                 "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5",
+                 "Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
 }
 FAILED_READ = {
-    "next": "version not known | keybard.svalboard.com",
-    "production": "version not known | next.keybard.svalboard.com",
+    "next": " | version not known | keybard.svalboard.com",
+    "production": " | version not known | next.keybard.svalboard.com",
 }
+
+
+def phone(page, name: str, theme: str, shots: str | None):
+    """Phone width: the rows fit the card, nothing scrolls sideways, columns stay aligned."""
+    page.set_viewport_size({"width": 375, "height": 812})
+    page.wait_for_timeout(300)
+    page.evaluate("() => document.getElementById('settings-section-about').scrollIntoView({ block: 'center' })")
+    page.wait_for_timeout(200)
+    fit = page.evaluate("""() => {
+        const t = document.querySelector("[role=table][aria-label='Keybard']");
+        const card = document.getElementById('settings-section-about');
+        const tr = t.getBoundingClientRect(), cr = card.getBoundingClientRect();
+        const rows = [...t.querySelectorAll('[role=row]')].map(r => [...r.querySelectorAll(':scope > [role=cell]')]);
+        const lefts = (i) => rows.map(r => Math.round(r[i].getBoundingClientRect().left));
+        const cells = rows.flat().map(c => c.getBoundingClientRect());
+        return {
+            inside: tr.left >= cr.left - 1 && tr.right <= cr.right + 1 && cells.every(c => c.right <= cr.right + 1),
+            noScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+            aligned: [0, 1, 2].every(i => new Set(lefts(i)).size === 1),
+            right: Math.round(tr.right), card: Math.round(cr.right),
+        };
+    }""")
+    check(fit["inside"] and fit["noScroll"] and fit["aligned"], f"{name}/{theme}: phone width fits and stays aligned {fit}")
+    check_contrast(page, page.locator(TABLE), f"{name}/{theme}: About versions at phone width")
+    if shots:
+        os.makedirs(shots, exist_ok=True)
+        page.locator("#settings-section-about").screenshot(path=os.path.join(shots, f"about-{name}-{theme}-phone.png"))
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.wait_for_timeout(300)
 
 
 def matches(got: list[str], want: list) -> bool:
@@ -170,7 +204,7 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
     context, page, errors, reads = open_about(browser, url, theme, reachable=True)
     try:
         about = page.locator("#settings-section-about")
-        dl = page.locator("dl[aria-label='Keybard']")
+        dl = page.locator(TABLE)
         expect(dl).to_be_visible(timeout=10000)
         want = EXPECTED[name]
         deadline = time.time() + 5
@@ -181,7 +215,11 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         for host in ("keybard.svalboard.com", "next.keybard.svalboard.com"):
             link = dl.get_by_role("link", name=host, exact=True)
             check(link.count() == 1 and link.get_attribute("href") == f"https://{host}/", f"{name}/{theme}: {host} links to its site")
-        check(not re.search(r"stable|bleeding", about.inner_text(), re.I), f"{name}/{theme}: About labels no site Stable or Bleeding edge")
+        check(about.get_by_role("link", name=re.compile("stable|bleeding", re.I)).count() == 0,
+              f"{name}/{theme}: no link is labeled Stable or Bleeding edge")
+        words = dl.evaluate("t => [...t.querySelectorAll('[role=row]')].map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].slice(0, 2).map(c => c.textContent.trim()))")
+        check(all((w == "Stable") == v.startswith("v") and (w == "Bleeding edge") == v.startswith("x") and (w == "" or re.match(r"^[vx]\d", v))
+                  for w, v in words), f"{name}/{theme}: each word sits beside its own version {words}")
         notes = about.get_by_role("link", name="Release notes").get_attribute("href")
         want_notes = f"https://github.com/svalboard/keybard/releases/tag/{tag}" if tag else "https://github.com/svalboard/keybard/releases"
         check(notes == want_notes, f"{name}/{theme}: release notes link {notes}")
@@ -200,6 +238,7 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
             check_contrast(page, banner, f"{name}/{theme}: banner")
         else:
             check(banner.count() == 0, f"{name}/{theme}: no bleeding-edge banner")
+        phone(page, name, theme, shots)
         if shots:
             os.makedirs(shots, exist_ok=True)
             page.evaluate("() => document.getElementById('settings-section-about').scrollIntoView({ block: 'center' })")
@@ -215,7 +254,7 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         return
     context, page, errors, _ = open_about(browser, url, theme, reachable=False)
     try:
-        dl = page.locator("dl[aria-label='Keybard']")
+        dl = page.locator(TABLE)
         expect(dl).to_be_visible(timeout=10000)
         page.wait_for_timeout(500)
         got = rows(page)

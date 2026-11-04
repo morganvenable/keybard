@@ -108,6 +108,16 @@ export function sitesToRead(tag: string, paranoid: boolean, buildSite: Site = cu
     return own === "production" ? ["next"] : own === "next" ? ["production"] : ["production", "next"];
 }
 
+/**
+ * The plain word for a release version, from its tag kind: v releases are
+ * stable, x releases bleeding edge. Only ever shown beside the version itself;
+ * null for anything that is not a release tag (a build's commit, an unknown version).
+ */
+export function descriptorFor(version: string | null): "Stable" | "Bleeding edge" | null {
+    const kind = version ? parseReleaseTag(version)?.kind : undefined;
+    return kind === "v" ? "Stable" : kind === "x" ? "Bleeding edge" : null;
+}
+
 export interface VersionRow {
     /** The Keybard version shown, or null when it is not known. */
     version: string | null;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-    fetchSiteVersion, ownSite, parseVersionFile, releaseNotesUrl, resetSiteVersions, siteForTag, siteVersion, sitesToRead, versionRows,
+    descriptorFor, fetchSiteVersion, ownSite, parseVersionFile, releaseNotesUrl, resetSiteVersions, siteForTag, siteVersion, sitesToRead, versionRows,
 } from '../../src/utils/site-versions';
 import { versionFile, type FirmwareReleasePin } from '../../src/constants/firmware-releases';
 
@@ -82,6 +82,15 @@ describe('site versions', () => {
         expect(await fetchSiteVersion('production', vi.fn(async () => { throw new TypeError('Failed to fetch'); }))).toBeNull();
         const badJson = vi.fn(async () => ({ ok: true, json: async () => { throw new SyntaxError('bad'); } }) as unknown as Response);
         expect(await fetchSiteVersion('production', badJson)).toBeNull();
+    });
+
+    it('names a version Stable or Bleeding edge from its tag kind, and nothing else', () => {
+        expect(descriptorFor('v4.3.6')).toBe('Stable');
+        expect(descriptorFor('x4.4')).toBe('Bleeding edge');
+        expect(descriptorFor('build 1a2b3c4')).toBeNull();
+        expect(descriptorFor('development build')).toBeNull();
+        expect(descriptorFor(null)).toBeNull();
+        expect(descriptorFor('vLaunch2.3')).toBeNull();
     });
 
     it('links to this release notes, or the list for an untagged build', () => {
