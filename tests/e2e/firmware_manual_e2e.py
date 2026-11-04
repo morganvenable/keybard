@@ -24,7 +24,8 @@ Run with `npm run test:e2e:firmware`.
      firmware picked shown once: That's right or Swap; a half that came back
      unknown); after an install by hand. The answer is the confirmation: one click.
   9. One line, at phone width (430 px) and desktop, light and dark: no sideways
-     scroll; titles, choices and buttons each on one line; one title per dialog,
+     scroll; titles, choices and buttons each on one line (two for a line naming a
+     release, such as Unstable firmware x3.1.3); one title per dialog,
      and it names the dialog. Plain words only.
  10. The reset notice after new firmware: "Your layout was reset", a Firmware line (what
      the halves run now) and a Layout line (the backup, by when and why it was saved,
@@ -148,7 +149,10 @@ def main() -> int:
         wide = page.evaluate(WIDE_JS)
         check(not any(wide.values()), f"{label}: no sideways scroll {wide}")
         rows = page.evaluate(ONE_LINE_JS, "[role=dialog] [data-testid=layout-choice] label, [role=dialog] h2, [role=dialog] button, [data-testid=firmware-section] button, [data-testid=firmware-halves] dd")
-        check(rows["count"] > 0 and not rows["wrapped"], f"{label}: each of {rows['count']} titles, choices and buttons on one line {rows['wrapped']}")
+        # A full release name ("Unstable firmware x3.1.3") may take a second line on a phone, no more.
+        named = re.compile(r"(Stable|Unstable) firmware [vx]\d")
+        wrapped = [r for r in rows["wrapped"] if not (named.search(r["text"]) and r["lines"] <= 2)]
+        check(rows["count"] > 0 and not wrapped, f"{label}: each of {rows['count']} titles, choices and buttons on one line {wrapped}")
         t = page.evaluate(TITLES_JS)
         if t:
             check(len(t["heads"]) == 1 and t["label"] == t["heads"][0] and not t["hidden"], f"{label}: one title, and it names the dialog {t}")

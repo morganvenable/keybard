@@ -44,6 +44,8 @@ from select_contrast_e2e import contrast, rgba  # noqa: E402
 
 BASE_PATH = "/keybard-e2e-about/"
 ABOUT = "#settings-section-about"
+# About's own content: the sentence, the table, the notice sentence and the links (not the card's other rows).
+ABOUT_BODY = "[data-about]"
 TABLE = "table[data-about-releases]"
 FILES = {
     "https://keybard.svalboard.com/version.json": {"tag": "v4.3.6", "firmware": "v4.3.5"},
@@ -226,7 +228,7 @@ def phone(page, name: str, theme: str, shots: str | None):
         };
     }""", TABLE)
     check(all(fit.values()), f"{name}/{theme}: phone width stacks each row and fits {fit}")
-    check_contrast(page, page.locator(ABOUT), f"{name}/{theme}: About at phone width")
+    check_contrast(page, page.locator(ABOUT_BODY), f"{name}/{theme}: About at phone width")
     if shots:
         page.locator(ABOUT).screenshot(path=os.path.join(shots, f"about-{name}-{theme}-phone.png"))
     page.set_viewport_size({"width": 1440, "height": 900})
@@ -246,7 +248,8 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         check(heads == ["Release", "Keybard", "Firmware", "Site"], f"{name}/{theme}: columns {heads}")
         bold = page.locator(TABLE).evaluate("t => [...t.tBodies[0].rows].map(r => getComputedStyle(r.cells[0]).fontWeight)")
         current = [r.startswith("*") for r in got]
-        check(all((w == "600") == c for w, c in zip(bold, current)), f"{name}/{theme}: only the current row is bold {bold}")
+        check(all((w == "600") == c for w, c in zip(bold, current)) and all(w == "400" for w, c in zip(bold, current) if not c),
+              f"{name}/{theme}: only the current row is bold {bold}")
         colors = page.locator(TABLE).evaluate("t => [...t.tBodies[0].rows].map(r => getComputedStyle(r.cells[1]).color)")
         check(len(set(colors)) == 1, f"{name}/{theme}: bold is the only marker, every row one color {colors}")
         for host in ("keybard.svalboard.com", "next.keybard.svalboard.com"):
@@ -259,7 +262,7 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         own = {"next": "next", "production": "keybard"}.get(name)
         check(bool(reads) and (all(("next." in r) != (own == "next") for r in reads) if own else len(reads) == 2),
               f"{name}/{theme}: reads only the other site's version.json ({reads})")
-        check_contrast(page, about, f"{name}/{theme}: About")
+        check_contrast(page, page.locator(ABOUT_BODY), f"{name}/{theme}: About")
         banner = page.get_by_role("note").filter(has_text="Unstable release")
         if name == "next":
             expect(banner).to_have_text(re.compile("firmware"), timeout=5000)
@@ -292,15 +295,17 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         finally:
             context.close()
 
-    if name == "next" and shots:
+    if name == "next":
         # The banner on its own, with no side panel over it.
         context, page, _, _ = open_page(browser, url, theme, "demo=combos", width=1440)
         try:
             page.get_by_role("note").filter(has_text="firmware").wait_for(timeout=20000)
             page.wait_for_timeout(300)
             box = page.get_by_role("note").bounding_box()
+            check(box["height"] <= 24, f"next/{theme}: the banner fits one line at 1440 px ({box['height']:.0f} px)")
             pad = 12
-            page.screenshot(path=os.path.join(shots, f"banner-next-{theme}.png"),
+            if shots:
+                page.screenshot(path=os.path.join(shots, f"banner-next-{theme}.png"),
                             clip={"x": box["x"] - pad, "y": 0, "width": box["width"] + 2 * pad, "height": box["y"] + box["height"] + pad})
         finally:
             context.close()
@@ -323,7 +328,7 @@ def unstable_keyboard(browser, url: str, theme: str, shots: str | None):
         expect(line).to_be_visible(timeout=20000)
         check(line.inner_text().strip() == NOTICE, f"production/{theme}: About sentence {line.inner_text()!r}")
         check(not re.search(r"[()]", page.locator(ABOUT).inner_text()), f"production/{theme}: no parentheticals with the notice")
-        check_contrast(page, page.locator(ABOUT), f"production/{theme}: About with the notice")
+        check_contrast(page, page.locator(ABOUT_BODY), f"production/{theme}: About with the notice")
         if shots:
             page.wait_for_timeout(300)
             box = notice.bounding_box()

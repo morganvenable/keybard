@@ -52,6 +52,9 @@ describe('About', () => {
         // The stacked rows' column names are for sight only; the table headers name the cells.
         expect([...table().querySelectorAll('[data-stack-label]')].every(l => l.getAttribute('aria-hidden') === 'true')).toBe(true);
         expect(within(table()).getAllByRole('rowheader').map(h => h.textContent)).toEqual(['Stable', 'Unstable']);
+        const [stableHead, unstableHead] = within(table()).getAllByRole('rowheader');
+        expect(stableHead.className).toContain('font-normal');
+        expect(unstableHead.className).toContain('font-semibold');
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'keybard.svalboard.com' })).toHaveAttribute('href', 'https://keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'next.keybard.svalboard.com' })).toHaveAttribute('href', 'https://next.keybard.svalboard.com/');

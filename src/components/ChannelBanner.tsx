@@ -18,7 +18,7 @@ const ChannelBanner: React.FC = () => {
     return (
         <div
             role="note"
-            className="fixed top-1 left-1/2 -translate-x-1/2 z-50 rounded-full bg-kb-yellow px-3 py-0.5 text-xs font-medium text-kb-sidebar-dark shadow"
+            className="fixed top-1 left-1/2 -translate-x-1/2 z-50 w-max max-w-[calc(100vw-1rem)] rounded-2xl bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
         >
             This is the Unstable release and may break. For the Stable release,{" "}
             {version?.firmware ? `flash ${firmwareName(version.firmware)} and use` : "use"}{" "}

@@ -44,7 +44,7 @@ const AboutSection: React.FC<{ tag?: string; sha?: string; paranoid?: boolean; b
     const rows = releaseTable({ tag, paranoid, buildSite, fetched: { production, next } });
 
     return (
-        <div className="flex flex-col gap-2 px-3 py-2.5 text-sm">
+        <div className="flex flex-col gap-2 px-3 py-2.5 text-sm" data-about="">
             <p className="text-kb-ink" data-about-using="">{usingSentence(tag, sha)}</p>
             {rows.length > 0 && (
                 <div className="@container">
@@ -66,7 +66,7 @@ const AboutSection: React.FC<{ tag?: string; sha?: string; paranoid?: boolean; b
                                     data-current={r.current ? "" : undefined}
                                     className={`${stack} text-kb-ink @max-[25rem]:mb-2 @max-[25rem]:last:mb-0 ${r.current ? "font-semibold" : ""}`}
                                 >
-                                    <th scope="row" role="rowheader" className={`${stack} py-0.5 pr-3 align-baseline font-[inherit] @max-[25rem]:py-0`}>{r.release}</th>
+                                    <th scope="row" role="rowheader" className={`${stack} py-0.5 pr-3 align-baseline @max-[25rem]:py-0 ${r.current ? "font-semibold" : "font-normal"}`}>{r.release}</th>
                                     <td role="cell" className={cell}><StackLabel>Keybard</StackLabel><span className="font-mono">{r.keybard ?? ""}</span></td>
                                     <td role="cell" className={cell}><StackLabel>Firmware</StackLabel><span className="font-mono">{r.firmware ?? ""}</span></td>
                                     <td role="cell" className={`${cell} pr-0`}>

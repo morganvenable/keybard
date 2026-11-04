@@ -180,7 +180,7 @@ def main() -> int:
                     halves = section.get_by_test_id("firmware-halves")
                     expect(halves).to_be_visible(timeout=30000)
                     check("Plugged-in half" in halves.inner_text() and not re.search(r"Left half|Right half|plugged in", halves.inner_text()), f"{label}: the card names no half ({halves.inner_text()!r})")
-                    section.get_by_role("button", name=re.compile(r"^(Update to|Install) x4")).first.click()
+                    section.get_by_role("button", name=re.compile(r"^(Update to|Install) Unstable firmware x4")).first.click()
                     dialog = page.get_by_test_id("manual-install")
                     expect(dialog).to_be_visible(timeout=20000)
                     steps = [li.inner_text() for li in dialog.get_by_test_id("manual-steps").locator("li").all()]
