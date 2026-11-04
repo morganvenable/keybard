@@ -118,3 +118,25 @@ export function versionFile(tag: string, site: Site, releases: FirmwareReleasePi
     const firmware = newestFirmwareFor(site, releases);
     return firmware ? { tag, firmware } : { tag };
 }
+
+/**
+ * The two releases, by tag kind: v is Stable, x is Unstable. Keybard names a
+ * release version as "<Release> <thing> <version>" ("Stable firmware v4.3.5",
+ * "Unstable Keybard x4.4"), never a bare v or x version.
+ */
+export function releaseWord(tag: string | null | undefined): "Stable" | "Unstable" | null {
+    const kind = tag ? parseReleaseTag(tag)?.kind : undefined;
+    return kind === "v" ? "Stable" : kind === "x" ? "Unstable" : null;
+}
+
+/** "Stable firmware v4.3.5"; any other label (an old vLaunch tag, "build 19") as it is. */
+export function firmwareName(tag: string): string {
+    const word = releaseWord(tag);
+    return word ? `${word} firmware ${tag}` : tag;
+}
+
+/** "Unstable Keybard x4.4"; any other label as it is. */
+export function keybardName(tag: string): string {
+    const word = releaseWord(tag);
+    return word ? `${word} Keybard ${tag}` : tag;
+}

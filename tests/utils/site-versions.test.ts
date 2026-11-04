@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-    descriptorFor, fetchSiteVersion, ownSite, parseVersionFile, releaseNotesUrl, resetSiteVersions, siteForTag, siteVersion, sitesToRead, versionRows,
+    fetchSiteVersion, ownSite, parseVersionFile, releaseNotesUrl, releaseTable, resetSiteVersions, siteForTag, siteVersion, sitesToRead,
+    unstableFirmwareNotice, usingSentence,
 } from '../../src/utils/site-versions';
-import { versionFile, type FirmwareReleasePin } from '../../src/constants/firmware-releases';
+import { firmwareName, keybardName, releaseWord, versionFile, type FirmwareReleasePin } from '../../src/constants/firmware-releases';
 
 const json = (body: unknown, ok = true) => vi.fn(async () => ({ ok, json: async () => body }) as unknown as Response);
 
@@ -14,53 +15,58 @@ describe('site versions', () => {
         expect(siteForTag('vLaunch2.3')).toBeNull();
     });
 
-    it('on next: this release first, then keybard.svalboard.com with its fetched versions', () => {
-        const rows = versionRows({ tag: 'x4.4', label: 'x4.4', buildSite: 'next', fetched: { production: { tag: 'v4.3.6', firmware: 'v4.3.5' } } });
-        expect(rows).toEqual([
-            { version: 'x4.4', firmware: 'x4.4', site: 'next', thisOne: true },
-            { version: 'v4.3.6', firmware: 'v4.3.5', site: 'production', thisOne: false },
-        ]);
+    const stable = (keybard: string | null, firmware: string | null, current = false) => ({ site: 'production', release: 'Stable', keybard, firmware, current });
+    const unstable = (keybard: string | null, firmware: string | null, current = false) => ({ site: 'next', release: 'Unstable', keybard, firmware, current });
+
+    it('on next: Stable from its version.json, Unstable from this build and current', () => {
+        expect(releaseTable({ tag: 'x4.4', buildSite: 'next', fetched: { production: { tag: 'v4.3.6', firmware: 'v4.3.5' } } }))
+            .toEqual([stable('v4.3.6', 'v4.3.5'), unstable('x4.4', 'x4.4', true)]);
     });
 
-    it('on keybard.svalboard.com: this release first, then next', () => {
-        const rows = versionRows({ tag: 'v4.3.6', label: 'v4.3.6', buildSite: 'production', fetched: { next: { tag: 'x4.4', firmware: 'x4.4' } } });
-        expect(rows.map(r => [r.version, r.site, r.thisOne])).toEqual([
-            ['v4.3.6', 'production', true],
-            ['x4.4', 'next', false],
-        ]);
+    it('on keybard.svalboard.com: the same table, Stable current', () => {
+        // Today's build carries no v firmware, so this site's firmware is blank rather than guessed.
+        expect(releaseTable({ tag: 'v4.3.6', buildSite: 'production', fetched: { next: { tag: 'x4.4', firmware: 'x4.4' } } }))
+            .toEqual([stable('v4.3.6', null, true), unstable('x4.4', 'x4.4')]);
     });
 
-    it('a failed read shows the other site with no version', () => {
-        const rows = versionRows({ tag: 'x4.4', label: 'x4.4', buildSite: 'next', fetched: { production: null } });
-        expect(rows[1]).toEqual({ version: null, firmware: null, site: 'production', thisOne: false });
+    it('a failed read leaves the other release blank', () => {
+        expect(releaseTable({ tag: 'x4.4', buildSite: 'next', fetched: { production: null } })[0]).toEqual(stable(null, null));
     });
 
-    it('a build with no tag shows its commit, then both public sites', () => {
-        const rows = versionRows({ tag: '', label: 'build 1a2b3c4', buildSite: 'dev', fetched: { next: { tag: 'x4.4', firmware: null } } });
-        expect(rows.map(r => [r.version, r.site, r.thisOne])).toEqual([
-            ['build 1a2b3c4', null, true],
-            [null, 'production', false],
-            ['x4.4', 'next', false],
-        ]);
+    it('a build with no tag lists both releases, neither current', () => {
+        expect(releaseTable({ tag: '', buildSite: 'dev', fetched: { next: { tag: 'x4.4', firmware: null } } }))
+            .toEqual([stable(null, null), unstable('x4.4', null)]);
         expect(sitesToRead('', false, 'dev')).toEqual(['production', 'next']);
     });
 
-    it('Paranoid reads nothing and shows only its own version', () => {
+    it('Paranoid reads nothing and lists only its own release', () => {
         expect(sitesToRead('v4.3.6', true, 'production')).toEqual([]);
-        expect(versionRows({ tag: 'v4.3.6', label: 'v4.3.6', paranoid: true, buildSite: 'production', fetched: {} }))
-            .toEqual([{ version: 'v4.3.6', firmware: null, site: 'production', thisOne: true }]);
+        expect(releaseTable({ tag: 'v4.3.6', paranoid: true, buildSite: 'production', fetched: {} })).toEqual([stable('v4.3.6', null, true)]);
     });
 
     it('a release built for another site (Keybard Overlay builds x tags for production) is no public site', () => {
         expect(ownSite('x4.4', 'production')).toBeNull();
         expect(ownSite('x4.4', 'next')).toBe('next');
         expect(ownSite('v4.3.6', 'dev')).toBeNull();
-        const rows = versionRows({ tag: 'x4.4', label: 'x4.4', buildSite: 'production', fetched: {} });
-        expect(rows.map(r => [r.version, r.firmware, r.site, r.thisOne])).toEqual([
-            ['x4.4', null, null, true],
-            [null, null, 'production', false],
-            [null, null, 'next', false],
-        ]);
+        expect(releaseTable({ tag: 'x4.4', buildSite: 'production', fetched: {} })).toEqual([stable(null, null), unstable(null, null)]);
+    });
+
+    it('says which Keybard this is, as a plain sentence', () => {
+        expect(usingSentence('x4.4', 'abc1234')).toBe("You're using Unstable Keybard x4.4.");
+        expect(usingSentence('v4.3.6', '')).toBe("You're using Stable Keybard v4.3.6.");
+        expect(usingSentence('', '1a2b3c4')).toBe("You're using a development build, commit 1a2b3c4.");
+        expect(usingSentence('', '')).toBe("You're using a development build.");
+    });
+
+    it('notices a keyboard on Unstable firmware only on the Stable site', () => {
+        const n = unstableFirmwareNotice('x4.4', 'production');
+        expect(n && n.lead + n.host + n.tail).toBe('Your keyboard runs Unstable firmware x4.4. Unstable Keybard at next.keybard.svalboard.com goes with it.');
+        expect(n?.url).toBe('https://next.keybard.svalboard.com/');
+        expect(unstableFirmwareNotice('v4.3.5', 'production')).toBeNull();
+        expect(unstableFirmwareNotice('x4.4', 'next')).toBeNull();
+        expect(unstableFirmwareNotice('x4.4', 'dev')).toBeNull();
+        expect(unstableFirmwareNotice('fw version 19', 'production')).toBeNull();
+        expect(unstableFirmwareNotice(null, 'production')).toBeNull();
     });
 
     it('accepts only a tag that site serves', () => {
@@ -84,13 +90,18 @@ describe('site versions', () => {
         expect(await fetchSiteVersion('production', badJson)).toBeNull();
     });
 
-    it('names a version Stable or Unstable from its tag kind, and nothing else', () => {
-        expect(descriptorFor('v4.3.6')).toBe('Stable');
-        expect(descriptorFor('x4.4')).toBe('Unstable');
-        expect(descriptorFor('build 1a2b3c4')).toBeNull();
-        expect(descriptorFor('development build')).toBeNull();
-        expect(descriptorFor(null)).toBeNull();
-        expect(descriptorFor('vLaunch2.3')).toBeNull();
+    it('names a release "<Release> <thing> <version>" from its tag kind, never a bare v or x', () => {
+        expect(releaseWord('v4.3.6')).toBe('Stable');
+        expect(releaseWord('x4.4')).toBe('Unstable');
+        expect(releaseWord('build 1a2b3c4')).toBeNull();
+        expect(releaseWord(null)).toBeNull();
+        expect(releaseWord('vLaunch2.3')).toBeNull();
+        expect(firmwareName('v4.3.5')).toBe('Stable firmware v4.3.5');
+        expect(firmwareName('x4.4')).toBe('Unstable firmware x4.4');
+        expect(firmwareName('vLaunch2.3')).toBe('vLaunch2.3');
+        expect(firmwareName('build 19')).toBe('build 19');
+        expect(keybardName('v4.3.6')).toBe('Stable Keybard v4.3.6');
+        expect(keybardName('x4.4')).toBe('Unstable Keybard x4.4');
     });
 
     it('links to this release notes, or the list for an untagged build', () => {

@@ -1,4 +1,5 @@
 import React from "react";
+import { firmwareName } from "@/constants/firmware-releases";
 import { SITES, useSiteVersion } from "@/utils/site-versions";
 
 export const STABLE_URL = SITES.production.url;
@@ -19,8 +20,8 @@ const ChannelBanner: React.FC = () => {
             role="note"
             className="fixed top-1 left-1/2 -translate-x-1/2 z-50 rounded-full bg-kb-yellow px-3 py-0.5 text-xs font-medium text-kb-sidebar-dark shadow"
         >
-            Unstable: may break. For the stable version,{" "}
-            {version?.firmware ? `flash firmware ${version.firmware} and use` : "use"}{" "}
+            This is the Unstable release and may break. For the Stable release,{" "}
+            {version?.firmware ? `flash ${firmwareName(version.firmware)} and use` : "use"}{" "}
             <a href={STABLE_URL} className="underline underline-offset-2">{SITES.production.host}</a>.
         </div>
     );

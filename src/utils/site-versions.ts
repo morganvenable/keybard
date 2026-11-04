@@ -7,7 +7,7 @@
  * whose file cannot be read is shown with no version.
  */
 import { useEffect, useState } from "react";
-import { currentSite, newestFirmwareFor, parseReleaseTag, siteForTag, type Site } from "@/constants/firmware-releases";
+import { currentSite, firmwareName, keybardName, newestFirmwareFor, parseReleaseTag, releaseWord, siteForTag, type Site } from "@/constants/firmware-releases";
 
 export { siteForTag };
 export type PublicSite = "production" | "next";
@@ -108,51 +108,57 @@ export function sitesToRead(tag: string, paranoid: boolean, buildSite: Site = cu
     return own === "production" ? ["next"] : own === "next" ? ["production"] : ["production", "next"];
 }
 
-/**
- * The plain word for a release version, from its tag kind: v releases are
- * stable, x releases unstable. Only ever shown beside the version itself;
- * null for anything that is not a release tag (a build's commit, an unknown version).
- */
-export function descriptorFor(version: string | null): "Stable" | "Unstable" | null {
-    const kind = version ? parseReleaseTag(version)?.kind : undefined;
-    return kind === "v" ? "Stable" : kind === "x" ? "Unstable" : null;
-}
-
-export interface VersionRow {
-    /** The Keybard version shown, or null when it is not known. */
-    version: string | null;
-    /** The newest firmware that site carries, when known. */
+export interface ReleaseRow {
+    site: PublicSite;
+    release: "Stable" | "Unstable";
+    /** The Keybard release that site serves; null when it is not known. */
+    keybard: string | null;
+    /** The newest firmware that site carries; null when it is not known. */
     firmware: string | null;
-    /** The site serving it; null for a build no public site serves. */
-    site: PublicSite | null;
-    thisOne: boolean;
+    /** This build is that site's release. */
+    current: boolean;
 }
 
+const RELEASE_OF: Record<PublicSite, "Stable" | "Unstable"> = { production: "Stable", next: "Unstable" };
+
 /**
- * The About rows. A release build pairs its version with its own site, first
- * and marked, then the other site with its fetched version. A build with no
- * release tag shows its own label, then both public sites. Paranoid never
- * reads the network, so it shows only its own row.
+ * The About table: Stable, then Unstable, each its Keybard and firmware
+ * version and site. This site's values come from the build; the other's from
+ * its version.json. Unknown values are null, never guessed. Paranoid reads
+ * nothing, so it lists only its own release.
  */
-export function versionRows(opts: {
+export function releaseTable(opts: {
     tag: string;
-    label: string;
     fetched: Partial<Record<PublicSite, SiteVersion | null>>;
     paranoid?: boolean;
     buildSite?: Site;
-}): VersionRow[] {
+}): ReleaseRow[] {
     const paranoid = !!opts.paranoid;
-    const buildSite = opts.buildSite ?? currentSite();
-    const own = ownSite(opts.tag, buildSite);
-    const rows: VersionRow[] = [{
-        version: opts.label,
-        firmware: own && !paranoid ? newestFirmwareFor(own) : null,
-        site: own,
-        thisOne: true,
-    }];
-    for (const site of sitesToRead(opts.tag, paranoid, buildSite)) {
+    const own = ownSite(opts.tag, opts.buildSite ?? currentSite());
+    const sites: PublicSite[] = paranoid ? (own ? [own] : []) : ["production", "next"];
+    return sites.map((site) => {
+        if (site === own) return { site, release: RELEASE_OF[site], keybard: opts.tag, firmware: paranoid ? null : newestFirmwareFor(own), current: true };
         const v = opts.fetched[site];
-        rows.push({ version: v?.tag ?? null, firmware: v?.firmware ?? null, site, thisOne: false });
-    }
-    return rows;
+        return { site, release: RELEASE_OF[site], keybard: v?.tag ?? null, firmware: v?.firmware ?? null, current: false };
+    });
+}
+
+/** "You're using Unstable Keybard x4.4." or, untagged, "You're using a development build, commit 1a2b3c4." */
+export function usingSentence(tag: string, sha: string): string {
+    if (releaseWord(tag)) return `You're using ${keybardName(tag)}.`;
+    return sha ? `You're using a development build, commit ${sha}.` : "You're using a development build.";
+}
+
+/**
+ * The line for a keyboard on Unstable firmware while this is the Stable site;
+ * null otherwise. The host is a link where it is shown.
+ */
+export function unstableFirmwareNotice(boardTag: string | null | undefined, buildSite: Site = currentSite()): { lead: string; host: string; url: string; tail: string } | null {
+    if (buildSite !== "production" || !boardTag || siteForTag(boardTag) !== "next") return null;
+    return {
+        lead: `Your keyboard runs ${firmwareName(boardTag)}. Unstable Keybard at `,
+        host: SITES.next.host,
+        url: SITES.next.url,
+        tail: " goes with it.",
+    };
 }

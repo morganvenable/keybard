@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import AboutSection from '../../src/layout/SecondarySidebar/Panels/settings/AboutSection';
 import { resetSiteVersions } from '../../src/utils/site-versions';
 
@@ -20,68 +20,95 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-const rowText = () => [...screen.getByRole('table', { name: 'Keybard' }).querySelectorAll('[role=row]')]
-    .map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].map(td => td.textContent).join('|'));
+const table = () => screen.getByRole('table', { name: 'Keybard releases' });
+/** Each body row's cells joined with "|", with "*" before the current row. */
+const rows = () => within(table()).getAllByRole('row').slice(1)
+    .map(r => (r.hasAttribute('data-current') ? '*' : '') + [...r.children].map(c => c.textContent).join('|'));
+const sentence = () => document.querySelector('[data-about-using]')!.textContent;
 
 describe('About', () => {
-    it('shows the Keybard build, never a made-up version', async () => {
-        render(<AboutSection />);
+    it('heads the table Release, Keybard, Firmware, Site', async () => {
+        render(<AboutSection tag="x4.4" buildSite="next" boardTag={null} />);
         await act(async () => {});
-        const facts = screen.getByLabelText('Keybard');
-        expect(facts).not.toHaveTextContent('1.0.0');
-        expect(facts.textContent).toMatch(/^(build [0-9a-f]+|development build|Stable[v]\d|Unstable[x]\d)/);
+        expect(within(table()).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Release', 'Keybard', 'Firmware', 'Site']);
     });
 
-    it('on next: x4.4 with next first and marked, then v4.3.6 with keybard.svalboard.com', async () => {
-        render(<AboutSection tag="x4.4" label="x4.4" buildSite="next" />);
-        await waitFor(() => expect(rowText()[1]).toContain('v4.3.6'));
-        expect(rowText()).toEqual([
-            'Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4(this one)',
-            'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
+    it('on next: says Unstable Keybard x4.4, Stable from its version.json, the Unstable row bold', async () => {
+        render(<AboutSection tag="x4.4" buildSite="next" boardTag={null} />);
+        await waitFor(() => expect(rows()[0]).toContain('v4.3.6'));
+        expect(sentence()).toBe("You're using Unstable Keybard x4.4.");
+        expect(rows()).toEqual([
+            'Stable|v4.3.6|v4.3.5|keybard.svalboard.com',
+            '*Unstable|x4.4|x4.4|next.keybard.svalboard.com',
         ]);
+        const current = within(table()).getAllByRole('row').find(r => r.hasAttribute('data-current'))!;
+        expect(current.className).toContain('font-semibold');
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'keybard.svalboard.com' })).toHaveAttribute('href', 'https://keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'next.keybard.svalboard.com' })).toHaveAttribute('href', 'https://next.keybard.svalboard.com/');
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases/tag/x4.4');
-        // The words appear only beside a version, in their own cell.
-        const words = [...screen.getByRole('table', { name: 'Keybard' }).querySelectorAll('[role=row]')].map(tr => tr.querySelector('[role=cell]')?.textContent);
-        expect(words).toEqual(['Unstable', 'Stable']);
-        expect(screen.queryByRole('link', { name: /stable|unstable/i })).toBeNull();
     });
 
-    it('on keybard.svalboard.com: v4.3.6 first and marked, then x4.4 with next', async () => {
-        render(<AboutSection tag="v4.3.6" label="v4.3.6" buildSite="production" />);
-        await waitFor(() => expect(rowText()[1]).toContain('x4.4'));
-        expect(rowText()[0]).toMatch(/^Stable\|v4\.3\.6\|keybard\.svalboard\.com.*\(this one\)$/);
-        expect(rowText()[1]).toBe('Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4');
+    it('on keybard.svalboard.com: the same table, the Stable row bold', async () => {
+        render(<AboutSection tag="v4.3.6" buildSite="production" boardTag={null} />);
+        await waitFor(() => expect(rows()[1]).toContain('x4.4'));
+        expect(sentence()).toBe("You're using Stable Keybard v4.3.6.");
+        // This build carries no v firmware today: blank, not guessed.
+        expect(rows()).toEqual([
+            '*Stable|v4.3.6||keybard.svalboard.com',
+            'Unstable|x4.4|x4.4|next.keybard.svalboard.com',
+        ]);
     });
 
-    it('shows the other site with no version when its version.json cannot be read', async () => {
+    it('has no parentheticals anywhere', async () => {
+        const { container } = render(<AboutSection tag="v4.3.6" buildSite="production" boardTag="x4.4" />);
+        await waitFor(() => expect(rows()[1]).toContain('x4.4'));
+        expect(container.textContent).not.toMatch(/[()]|this one/i);
+    });
+
+    it('leaves the other release blank when its version.json cannot be read', async () => {
         fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch'); });
-        render(<AboutSection tag="x4.4" label="x4.4" buildSite="next" />);
+        render(<AboutSection tag="x4.4" buildSite="next" boardTag={null} />);
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         // Wait for the read itself to finish, so this is the failed state, not the one while reading.
         await act(async () => { await fetchMock.mock.results[0].value.catch(() => {}); await new Promise(r => setTimeout(r, 0)); });
-        // No word without a version.
-        expect(rowText()[1]).toBe('|version not known|keybard.svalboard.com');
+        expect(rows()[0]).toBe('Stable|||keybard.svalboard.com');
     });
 
-    it('an untagged build shows its commit, then both sites with their versions', async () => {
-        render(<AboutSection tag="" label="build 1a2b3c4" buildSite="dev" />);
-        await waitFor(() => expect(rowText()[2]).toContain('x4.4'));
-        expect(rowText()).toEqual([
-            '|build 1a2b3c4|(this one)',
-            'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
-            'Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4',
+    it('an untagged build: a development build with its commit, then both releases, neither bold', async () => {
+        render(<AboutSection tag="" sha="1a2b3c4" buildSite="dev" boardTag={null} />);
+        await waitFor(() => expect(rows()[1]).toContain('x4.4'));
+        expect(sentence()).toBe("You're using a development build, commit 1a2b3c4.");
+        expect(rows()).toEqual([
+            'Stable|v4.3.6|v4.3.5|keybard.svalboard.com',
+            'Unstable|x4.4|x4.4|next.keybard.svalboard.com',
         ]);
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases');
     });
 
-    it('Paranoid shows only its own version and reads nothing', async () => {
-        render(<AboutSection tag="v4.3.6" label="v4.3.6" buildSite="production" paranoid />);
+    it('Paranoid lists only its own release and reads nothing', async () => {
+        render(<AboutSection tag="v4.3.6" buildSite="production" paranoid boardTag={null} />);
         await new Promise(r => setTimeout(r, 0));
-        expect(rowText()).toEqual(['Stable|v4.3.6|keybard.svalboard.com(this one)']);
+        expect(rows()).toEqual(['*Stable|v4.3.6||keybard.svalboard.com']);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('on keybard.svalboard.com, a keyboard on Unstable firmware gets a sentence under the table', async () => {
+        render(<AboutSection tag="v4.3.6" buildSite="production" boardTag="x4.4" />);
+        await act(async () => {});
+        const line = screen.getByTestId('about-unstable-firmware');
+        expect(line.textContent).toBe('Your keyboard runs Unstable firmware x4.4. Unstable Keybard at next.keybard.svalboard.com goes with it.');
+        expect(within(line).getByRole('link', { name: 'next.keybard.svalboard.com' })).toHaveAttribute('href', 'https://next.keybard.svalboard.com/');
+    });
+
+    it('no such sentence on next, or for a keyboard on Stable firmware', async () => {
+        const { unmount } = render(<AboutSection tag="x4.4" buildSite="next" boardTag="x4.4" />);
+        await act(async () => {});
+        expect(screen.queryByTestId('about-unstable-firmware')).toBeNull();
+        unmount();
+        render(<AboutSection tag="v4.3.6" buildSite="production" boardTag="v4.3.5" />);
+        await act(async () => {});
+        expect(screen.queryByTestId('about-unstable-firmware')).toBeNull();
     });
 
     it('links to the manual and community', async () => {
