@@ -4,6 +4,14 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in x4.4
+
+This prerelease bundles the Keybard that next.keybard.svalboard.com now runs, and goes with Svalboard firmware x4.4. What changes for you since v4.3.6:
+
+- **Keybard shows only what your keyboard reports.** When a setting can't be read from the keyboard, Keybard says so instead of showing a made-up value. The sniper and boost labels show a number only when the keyboard reports it.
+- **Update steps match your keyboard.** The key chord for updates is shown as key positions on your keyboard, and when Keybard can't tell which half you plug in, the install steps work from either half.
+- **Keybard Overlay keeps its controls in place.** After your displays sleep or change, the Overlay's controls stay with the Overlay.
+
 ## New in v4.3.6
 
 This release bundles the Keybard that keybard.svalboard.com now runs, and goes with Svalboard firmware v4.3.5. There is no new firmware: a keyboard on v4.3.5 is up to date. What changes for you since v4.3.5:
