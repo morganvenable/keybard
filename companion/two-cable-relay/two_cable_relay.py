@@ -321,6 +321,7 @@ class Relay:
         self.last_rows = 0.0         # monotonic time of the follower's last rows push
         self.opened = {}             # half name -> when it was last opened
         self.peer_last = {}          # bit -> the last good block, resent when one query misses
+        self.other_relay = False     # the follower follows, but pushes its rows to another client
         self.lead_misses = 0
         self.state = None            # "relaying", "cable", "waiting", ... (see _update_state)
         self.state_since = time.time()
@@ -347,6 +348,7 @@ class Relay:
 
     def _rows(self, r, t):
         self.last_rows = time.monotonic()
+        self.other_relay = False
         if self.paused:
             return
         self.rows, self.side = bytes(r[9:14]), r[8]
@@ -414,6 +416,8 @@ class Relay:
             st, detail = "waiting", f"the {self.lead.name} is not on USB"
         elif not self.follower.alive:
             st, detail = "waiting", f"the {self.follower.name} is not on USB"
+        elif self.other_relay:
+            st, detail = "conflict", "another relay has the halves"
         elif now - self.last_rows < 0.5:
             st, detail = "relaying", f"{self.lead.name} leads, {self.follower.name} follows"
         else:
@@ -430,11 +434,22 @@ class Relay:
         f = self.follower
         if (f.alive and self.lead.alive and not self.lead_down and not self.cable and not self.paused
                 and now - self.opened.get(f.name, now) > QUIET_S and now - self.last_rows > QUIET_S):
+            self.last_rows = now  # one check per quiet spell
+            try:
+                st = f.request(OP_STATUS, timeout=0.2)
+            except (Gone, NotTwoCable):
+                st = None
+            if st and st["role"] == "follower":
+                # It answers and follows, but its keys go to another client: a second relay.
+                if not self.other_relay:
+                    self.log(f"The {f.name} sends its keys to another relay. Is a second relay running? "
+                             "Stop one of them.")
+                self.other_relay = True
+                return
             self.log(f"The {f.name} stopped answering. Opening it again.")
             f.close()
             self.cable = False
             self._release_lead()
-            self.last_rows = now  # one reopen per quiet spell
         if self.lead_misses >= LEAD_MISSES and self.lead.alive:
             self.log(f"The {self.lead.name} stopped answering. Opening it again.")
             self.lead_misses = 0
@@ -459,7 +474,9 @@ class Relay:
                 self.lead.send(OP_STATUS)  # writes go through again: the lead is back
                 self.lead_down = False
             except Gone:
-                pass
+                # Still failing: the lead has left USB, though the computer may say so
+                # only seconds later. Drop the handle now and look for it from here on.
+                self.lead.close()
         if self.lead.alive and self.follower.alive and not self.lead_down:
             try:
                 self.follower.send(OP_FOLLOW)  # the follower answers with its rows: that is the lead's heartbeat
@@ -761,7 +778,7 @@ def file_logger():
 class StatusFile:
     """A small JSON file with the relay's state, for apps that show it (and for people).
 
-    {"state": "relaying" | "connecting" | "waiting" | "cable" | "looking" | "restarting" | "stopped",
+    {"state": "relaying" | "connecting" | "waiting" | "cable" | "conflict" | "looking" | "restarting" | "stopped",
      "detail": text, "since": unix time of the change, "updated": unix time of this write,
      "pid": the relay's process, "lead": serial, "follower": serial, "relayed": packets}
     A reader treats "updated" older than about 15 s as "the relay isn't running"."""
@@ -897,12 +914,13 @@ def supervise(a):
     """Runs `run --service` and starts it again within RESTART_S whenever it exits,
     until the stop file appears."""
     lg = file_logger()
-    lock = None
-    end = time.monotonic() + 10  # an older supervisor may still be stopping (install, a quick re-login)
-    while not lock and time.monotonic() < end:
+    lock = _hold_lock()
+    end = time.monotonic() + 10
+    # An older supervisor that was asked to stop (install, uninstall) may need a few
+    # seconds: wait for it then, and only then. A running one stays; this one exits.
+    while not lock and STOP_FILE.exists() and time.monotonic() < end:
+        time.sleep(0.25)
         lock = _hold_lock()
-        if not lock:
-            time.sleep(0.25)
     if not lock:
         lg.info("A relay supervisor is already running; this one exits.")
         print("The relay is already running.")

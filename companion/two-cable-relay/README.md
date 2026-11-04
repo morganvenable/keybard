@@ -70,7 +70,7 @@ forgets the relay's client ID.
 - Status: `status.json` in that folder, rewritten on every change and at least
   every 5 s: `state` is `relaying`, `connecting`, `waiting` (a half is off
   USB), `looking` (the halves aren't both found yet), `cable` (the split cable
-  works), `restarting` or `stopped`, with `detail`, `since`, `updated` (Unix
+  works), `conflict` (another relay has the halves), `restarting` or `stopped`, with `detail`, `since`, `updated` (Unix
   seconds), `pid`, `lead`, `follower` and `relayed`. An `updated` older than
   about 15 s means no relay is running.
 - The lead half shows an amber double blip every 3 s when its relay lease has
