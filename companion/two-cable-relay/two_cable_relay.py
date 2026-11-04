@@ -61,7 +61,7 @@ SET_STATUS = {1: "the request was refused as invalid", 2: "this half has nowhere
               3: "writing it failed", 4: "this half's thumb wiring says it is the other side",
               8: "this half runs a one-side build for the other side"}
 HEARTBEAT_S = 0.1
-RENEW_S = 60          # client IDs live 120 s on the board
+RENEW_S = 30          # client IDs live at least about 65 s on the board
 
 
 class Gone(Exception):
@@ -110,7 +110,9 @@ class Half:
         self.cond = threading.Condition()
         self.handlers = {}
         self.alive = False
+        self.closing = False
         self.renewed = 0.0
+        self.last_error = None
 
     def open(self):
         m = [d for d in boards() if d["serial_number"] == self.serial]
@@ -123,7 +125,9 @@ class Half:
             raise OpenFailed(f"couldn't open {self.serial}: {e}") from e
         self.dev = dev
         self.alive = True
-        threading.Thread(target=self._reader, daemon=True, name=f"read-{self.name}").start()
+        self.closing = False
+        self.reader = threading.Thread(target=self._reader, daemon=True, name=f"read-{self.name}")
+        self.reader.start()
         try:
             self.bootstrap()
         except Gone:
@@ -132,13 +136,20 @@ class Half:
         return True
 
     def close(self):
+        self.closing = True
         self.alive = False
+        # hidapi must not close a handle another thread is reading: wait for the
+        # reader to leave read() (it times out every 200 ms) first.
+        r = getattr(self, "reader", None)
+        if r and r.is_alive() and r is not threading.current_thread():
+            r.join(1.0)
+        with self.lock:
+            dev, self.dev = self.dev, None
         try:
-            if self.dev:
-                self.dev.close()
+            if dev:
+                dev.close()
         except Exception:
             pass
-        self.dev = None
         with self.cond:
             self.cond.notify_all()
 
@@ -185,15 +196,15 @@ class Half:
             with self.cond:
                 self.replies[(r[5], r[6])] = (r, t)
                 self.cond.notify_all()
-        if self.dev is dev:  # gone off USB, not closed by us
-            self.alive = False
-            try:
-                dev.close()
-            except Exception:
-                pass
-            self.dev = None
-        else:
+        if self.closing:  # closed by us: close() closes the handle
             return
+        self.alive = False  # gone off USB
+        with self.lock:
+            self.dev = None
+        try:
+            dev.close()
+        except Exception:
+            pass
         h = self.handlers.get("gone")
         if h:
             h(self)
@@ -298,7 +309,10 @@ class Relay:
             return
         self.rows, self.side = bytes(r[9:14]), r[8]
         try:
-            self.lead.send(OP_LEAD, self._lead_packet(r[7], self.rows, bytes(r[14:21])))
+            # flags bit 1: the follower's rows hold bench-injected keys (r[25] bit 0),
+            # which the lead lets act only while it captures
+            flags = 2 if r[25] & 1 else 0
+            self.lead.send(OP_LEAD, self._lead_packet(r[7], self.rows, bytes(r[14:21]), flags))
             self.relayed += 1
         except Gone:
             pass
@@ -328,8 +342,12 @@ class Relay:
                     if h.open():
                         h.request(OP_STATUS)
                         self.log(f"The {h.name} is connected ({h.serial}).")
+                        h.last_error = None
                 except (Gone, NotTwoCable, OpenFailed) as e:
-                    self.log(f"{h.name}: {e}")
+                    msg = f"{h.name}: {e}"
+                    if msg != h.last_error:  # once, not every heartbeat
+                        self.log(msg + ("\n" + open_hint() if isinstance(e, OpenFailed) else ""))
+                        h.last_error = msg
                     h.close()
 
     def tick(self):

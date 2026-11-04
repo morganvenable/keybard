@@ -42,6 +42,8 @@ class Bench:
         self.pushes = {}       # seq -> (arrive, written, rows)
         self.cv = threading.Condition()
         self.capture_on = False
+        self.capture_lost = False
+        self.combo_restore = None    # (index, saved bytes) of a temporary combo
         self.relay.on_report = self._report
         self.relay.on_applied = self._applied
         self.relay.on_rows = self._rows
@@ -100,7 +102,8 @@ class Bench:
             try:
                 self.relay.lead.send(OP_CAPTURE, bytes([1]))
             except Gone:
-                pass
+                if self.capture_on:
+                    self.capture_lost = True  # no more injected keys: they could type
             time.sleep(0.3)
 
     def start(self):
@@ -119,6 +122,8 @@ class Bench:
         self.log("relay up; lead capturing")
 
     def follower_keys(self, held, dx=0, dy=0):
+        if held and (self.capture_lost or not self.capture_on):
+            raise SystemExit("capture lost: no follower key pressed")
         rows = bytearray(ROWS)
         for r, c in held:
             rows[r] |= 1 << c
@@ -348,6 +353,7 @@ def main():
                     and resolve(km, n, (l0 + p[0], p[1])) < 0x0100]
             lp = cand[0] if cand else l_letters[0]
             expect = resolve(km, n, (l0 + lp[0], lp[1]))
+            layer_lp, layer_expect, layer_base = lp, expect, km[(0, l0 + lp[0], lp[1])]
             m = b.mark()
             b.follower_keys([layer_key])
             time.sleep(0.35)  # past any tapping term: a held layer
@@ -419,6 +425,7 @@ def main():
             fkc = km[(0, f0 + f_letters[1][0], f_letters[1][1])]
             lkc = km[(0, l0 + l_letters[1][0], l_letters[1][1])]
             saved = b.combo_raw(temp)
+            b.combo_restore = (temp, saved)
             b.set_combo(temp, [fkc, lkc], 0x68)  # F13, captured, never typed
             span = dict(index=temp, inputs=[fkc, lkc], output=0x68, temporary=True)
         fin = next(x for x in span["inputs"] if (where[x][0] >= 5) == (f0 == 5))
@@ -439,6 +446,7 @@ def main():
         b.log("combo", res["combo"])
         if temp is not None:
             b.put_combo_raw(temp, saved)
+            b.combo_restore = None
             res["combo"]["restored"] = b.combo_raw(temp) == saved and not any(c["index"] == temp for c in b.combos())
 
         # ---- 6. pointer motion from the follower
@@ -471,6 +479,25 @@ def main():
         time.sleep(0.3)
         b.log("relay stops", res["relay_stops"])
 
+        # ---- 7b. a layer held on the follower when the relay stops is let go
+        if layer_key:
+            b.follower_keys([layer_key])
+            time.sleep(0.35)             # held past the tapping term
+            b.relay.paused = True
+            time.sleep(1.0)              # the lead's lease (0.5 s) and the follower's (0.6 s) end
+            b.relay.paused = False
+            time.sleep(0.5)              # following again
+            b.follower_keys([])
+            time.sleep(0.2)
+            m = b.mark()
+            tap_lead(layer_lp)
+            time.sleep(0.3)
+            got = {k for _, ks in b.keys_since(m) for k in ks}
+            res["layer_released"] = dict(follower_key=list(layer_key), lead_key=list(layer_lp), base=kc_name(layer_base),
+                                         layer_key_would_give=kc_name(layer_expect), captured=sorted(kc_name(x) for x in got),
+                                         ok=layer_base in got and layer_expect not in got)
+            b.log("layer released", res["layer_released"])
+
         # ---- 8. the follower drops off USB with a key held
         m = b.mark()
         b.follower_keys([fk])
@@ -497,6 +524,12 @@ def main():
                                      note="simulated by a reboot; the reboot fires 100 ms after the command")
         b.log("lead unplugged", res["lead_unplugged"])
     finally:
+        if b.combo_restore:
+            try:
+                b.put_combo_raw(*b.combo_restore)
+                res["combo_restored_after_failure"] = True
+            except Gone:
+                res["combo_restored_after_failure"] = False
         b.stop()
         if a.lead is None or a.follower is None:
             time.sleep(1.5)
