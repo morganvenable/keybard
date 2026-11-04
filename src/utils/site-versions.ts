@@ -110,12 +110,12 @@ export function sitesToRead(tag: string, paranoid: boolean, buildSite: Site = cu
 
 /**
  * The plain word for a release version, from its tag kind: v releases are
- * stable, x releases bleeding edge. Only ever shown beside the version itself;
+ * stable, x releases unstable. Only ever shown beside the version itself;
  * null for anything that is not a release tag (a build's commit, an unknown version).
  */
-export function descriptorFor(version: string | null): "Stable" | "Bleeding edge" | null {
+export function descriptorFor(version: string | null): "Stable" | "Unstable" | null {
     const kind = version ? parseReleaseTag(version)?.kind : undefined;
-    return kind === "v" ? "Stable" : kind === "x" ? "Bleeding edge" : null;
+    return kind === "v" ? "Stable" : kind === "x" ? "Unstable" : null;
 }
 
 export interface VersionRow {

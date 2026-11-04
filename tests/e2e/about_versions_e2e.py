@@ -8,9 +8,9 @@ Each is opened at ?panel=about in light and dark theme.
 
   1. This build's version comes first, with its site and "(this one)"; the
      other site follows with the version its version.json names. Each version
-     has its word beside it (Stable for v, Bleeding edge for x; none for a
+     has its word beside it (Stable for v, Unstable for x; none for a
      commit or an unknown version). Every site is a link to that site, and no
-     link is labeled Stable or Bleeding edge.
+     link is labeled Stable or Unstable.
   2. Release notes link this release's notes (the releases list when untagged).
   3. On next, the banner says which firmware to flash and which site to use.
   4. When version.json cannot be read, the site shows with no version and the
@@ -153,13 +153,13 @@ def rows(page) -> list[str]:
 
 
 EXPECTED = {
-    "next": ["Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4(this one)",
+    "next": ["Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4(this one)",
              "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5"],
     "production": [re.compile(r"^Stable \| v4\.3\.6 \| keybard\.svalboard\.com(, firmware v[\d.]+)?\(this one\)$"),
-                   "Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
+                   "Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
     "untagged": [re.compile(r"^ \| build [0-9a-f]+ \| \(this one\)$"),
                  "Stable | v4.3.6 | keybard.svalboard.com, firmware v4.3.5",
-                 "Bleeding edge | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
+                 "Unstable | x4.4 | next.keybard.svalboard.com, firmware x4.4"],
 }
 FAILED_READ = {
     "next": " | version not known | keybard.svalboard.com",
@@ -215,10 +215,10 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         for host in ("keybard.svalboard.com", "next.keybard.svalboard.com"):
             link = dl.get_by_role("link", name=host, exact=True)
             check(link.count() == 1 and link.get_attribute("href") == f"https://{host}/", f"{name}/{theme}: {host} links to its site")
-        check(about.get_by_role("link", name=re.compile("stable|bleeding", re.I)).count() == 0,
-              f"{name}/{theme}: no link is labeled Stable or Bleeding edge")
+        check(about.get_by_role("link", name=re.compile("stable|unstable", re.I)).count() == 0,
+              f"{name}/{theme}: no link is labeled Stable or Unstable")
         words = dl.evaluate("t => [...t.querySelectorAll('[role=row]')].map(tr => [...tr.querySelectorAll(':scope > [role=cell]')].slice(0, 2).map(c => c.textContent.trim()))")
-        check(all((w == "Stable") == v.startswith("v") and (w == "Bleeding edge") == v.startswith("x") and (w == "" or re.match(r"^[vx]\d", v))
+        check(all((w == "Stable") == v.startswith("v") and (w == "Unstable") == v.startswith("x") and (w == "" or re.match(r"^[vx]\d", v))
                   for w, v in words), f"{name}/{theme}: each word sits beside its own version {words}")
         notes = about.get_by_role("link", name="Release notes").get_attribute("href")
         want_notes = f"https://github.com/svalboard/keybard/releases/tag/{tag}" if tag else "https://github.com/svalboard/keybard/releases"
@@ -228,16 +228,16 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
               f"{name}/{theme}: reads only the other site's version.json ({reads})")
         check_contrast(page, dl, f"{name}/{theme}: About versions")
         check_contrast(page, about.locator("p").last, f"{name}/{theme}: About links")
-        banner = page.get_by_role("note").filter(has_text="Bleeding edge")
+        banner = page.get_by_role("note").filter(has_text="Unstable")
         if name == "next":
             expect(banner).to_have_text(re.compile("firmware"), timeout=5000)
             check(banner.inner_text().strip() ==
-                  "Bleeding edge: may break. For the stable version, flash firmware v4.3.5 and use keybard.svalboard.com.",
+                  "Unstable: may break. For the stable version, flash firmware v4.3.5 and use keybard.svalboard.com.",
                   f"{name}/{theme}: banner {banner.inner_text()!r}")
             check(banner.get_by_role("link").get_attribute("href") == "https://keybard.svalboard.com/", f"{name}/{theme}: banner links to keybard.svalboard.com")
             check_contrast(page, banner, f"{name}/{theme}: banner")
         else:
-            check(banner.count() == 0, f"{name}/{theme}: no bleeding-edge banner")
+            check(banner.count() == 0, f"{name}/{theme}: no unstable banner")
         phone(page, name, theme, shots)
         if shots:
             os.makedirs(shots, exist_ok=True)
@@ -261,7 +261,7 @@ def flow(browser, name: str, tag: str, url: str, theme: str, shots: str | None):
         check(len(got) == 2 and got[1] == FAILED_READ[name], f"{name}/{theme}: unreadable version.json shows the site with no version {got}")
         if name == "next":
             text = page.get_by_role("note").inner_text().strip()
-            check(text == "Bleeding edge: may break. For the stable version, use keybard.svalboard.com.", f"{name}/{theme}: banner without a version {text!r}")
+            check(text == "Unstable: may break. For the stable version, use keybard.svalboard.com.", f"{name}/{theme}: banner without a version {text!r}")
     finally:
         context.close()
 

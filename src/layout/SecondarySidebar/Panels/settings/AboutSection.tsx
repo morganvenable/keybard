@@ -14,7 +14,7 @@ const linkClass = "underline underline-offset-2 hover:text-kb-ink";
  * Keybard's own facts and links. Each release version is paired with the site
  * that serves it (v releases: keybard.svalboard.com, x releases:
  * next.keybard.svalboard.com), this build first, each with its plain word
- * (Stable, Bleeding edge) from its tag kind. Other sites' versions are read
+ * (Stable, Unstable) from its tag kind. Other sites' versions are read
  * from their version.json, never guessed; Paranoid reads nothing.
  */
 const AboutSection: React.FC<{ tag?: string; label?: string; paranoid?: boolean; buildSite?: Site }> = ({

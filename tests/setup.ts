@@ -99,7 +99,7 @@ declare global {
 
 export {};
 
-// The About section and the bleeding-edge banner read the public sites'
+// The About section and the unstable banner read the public sites'
 // version.json (src/utils/site-versions.ts). Tests never reach those sites:
 // unless a test stubs fetch itself, the read fails and no version is shown.
 {

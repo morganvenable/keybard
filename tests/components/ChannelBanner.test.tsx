@@ -13,7 +13,7 @@ describe('ChannelBanner', () => {
         render(<ChannelBanner />);
         await waitFor(() => expect(screen.getByRole('note').textContent).toContain('v4.3.5'));
         expect(screen.getByRole('note').textContent)
-            .toBe('Bleeding edge: may break. For the stable version, flash firmware v4.3.5 and use keybard.svalboard.com.');
+            .toBe('Unstable: may break. For the stable version, flash firmware v4.3.5 and use keybard.svalboard.com.');
         expect(screen.getByRole('link', { name: 'keybard.svalboard.com' }).getAttribute('href')).toBe(STABLE_URL);
     });
 
@@ -26,7 +26,7 @@ describe('ChannelBanner', () => {
         // Wait for the read itself to finish, so this is the failed state, not the one while reading.
         await act(async () => { await fetchMock.mock.results[0].value.catch(() => {}); await new Promise(r => setTimeout(r, 0)); });
         expect(screen.getByRole('note').textContent)
-            .toBe('Bleeding edge: may break. For the stable version, use keybard.svalboard.com.');
+            .toBe('Unstable: may break. For the stable version, use keybard.svalboard.com.');
     });
 
     it('shows nothing and reads nothing on other builds', () => {

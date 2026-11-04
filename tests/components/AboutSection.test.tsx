@@ -29,14 +29,14 @@ describe('About', () => {
         await act(async () => {});
         const facts = screen.getByLabelText('Keybard');
         expect(facts).not.toHaveTextContent('1.0.0');
-        expect(facts.textContent).toMatch(/^(build [0-9a-f]+|development build|Stable[v]\d|Bleeding edge[x]\d)/);
+        expect(facts.textContent).toMatch(/^(build [0-9a-f]+|development build|Stable[v]\d|Unstable[x]\d)/);
     });
 
     it('on next: x4.4 with next first and marked, then v4.3.6 with keybard.svalboard.com', async () => {
         render(<AboutSection tag="x4.4" label="x4.4" buildSite="next" />);
         await waitFor(() => expect(rowText()[1]).toContain('v4.3.6'));
         expect(rowText()).toEqual([
-            'Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4(this one)',
+            'Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4(this one)',
             'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
         ]);
         expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -45,15 +45,15 @@ describe('About', () => {
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases/tag/x4.4');
         // The words appear only beside a version, in their own cell.
         const words = [...screen.getByRole('table', { name: 'Keybard' }).querySelectorAll('[role=row]')].map(tr => tr.querySelector('[role=cell]')?.textContent);
-        expect(words).toEqual(['Bleeding edge', 'Stable']);
-        expect(screen.queryByRole('link', { name: /stable|bleeding/i })).toBeNull();
+        expect(words).toEqual(['Unstable', 'Stable']);
+        expect(screen.queryByRole('link', { name: /stable|unstable/i })).toBeNull();
     });
 
     it('on keybard.svalboard.com: v4.3.6 first and marked, then x4.4 with next', async () => {
         render(<AboutSection tag="v4.3.6" label="v4.3.6" buildSite="production" />);
         await waitFor(() => expect(rowText()[1]).toContain('x4.4'));
         expect(rowText()[0]).toMatch(/^Stable\|v4\.3\.6\|keybard\.svalboard\.com.*\(this one\)$/);
-        expect(rowText()[1]).toBe('Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4');
+        expect(rowText()[1]).toBe('Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4');
     });
 
     it('shows the other site with no version when its version.json cannot be read', async () => {
@@ -72,7 +72,7 @@ describe('About', () => {
         expect(rowText()).toEqual([
             '|build 1a2b3c4|(this one)',
             'Stable|v4.3.6|keybard.svalboard.com, firmware v4.3.5',
-            'Bleeding edge|x4.4|next.keybard.svalboard.com, firmware x4.4',
+            'Unstable|x4.4|next.keybard.svalboard.com, firmware x4.4',
         ]);
         expect(screen.getByRole('link', { name: 'Release notes' })).toHaveAttribute('href', 'https://github.com/svalboard/keybard/releases');
     });
