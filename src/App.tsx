@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import ChannelBanner from "./components/ChannelBanner";
 import DeployBadge from "./components/DeployBadge";
+import LegendStyleSwitcher from "./components/LegendStyleSwitcher";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
 import ThemeSync from "./components/ThemeSync";
@@ -110,6 +111,7 @@ function App() {
         <KeyboardProvider>
             <LoadingOverlay />
             <DeployBadge />
+            <LegendStyleSwitcher />
             <ChannelBanner />
             <SettingsProvider>
                 <ThemeSync />

@@ -11,6 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
+import { DUAL_LEGEND_FONT_PX, DUAL_LEGEND_INSET_PX, dualLegendFor, useLegendStyle } from "@/lib/legendStyle";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -118,6 +119,13 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const keyData = useMemo(() => {
         return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
     }, [label, keyContents, keycode, forceLabel, internationalLayout]);
+
+    // Prototype (?legendStyle): plain digit and punctuation keys also show their shifted symbol.
+    const legendStyle = useLegendStyle();
+    const dualLegend = useMemo(() => {
+        if (!legendStyle) return null;
+        return dualLegendFor(keycode, typeof keyData.centerContent === "string" ? keyData.centerContent : label, keyContents, internationalLayout);
+    }, [legendStyle, keycode, keyData.centerContent, label, keyContents, internationalLayout]);
 
     const comboInteractive = !!combo && combo.interactive !== false;
     const comboFocusable = comboInteractive;
@@ -341,12 +349,16 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
 
             {keyContents && getTypeIcon(keyContents.type || "", variant)}
 
+            {dualLegend && legendStyle ? (
+                <DualLegendFace legend={dualLegend} style={legendStyle} variant={variant} />
+            ) : (
             <div
                 className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
                 style={styles.textStyle}
             >
                 {keyData.centerContent}
             </div>
+            )}
 
             {keyData.bottomStr !== "" && (
                 <span className={cn(headerClass, "rounded-t-none rounded-b-sm")} style={{ ...styles.bottomTextStyle, ...headerStyle }}>
@@ -360,6 +372,36 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
 Key.displayName = "Key";
 
 // --- Helper Functions ---
+
+/**
+ * Both legends of a dual-legend key (prototype, ?legendStyle), one color and one size,
+ * like a printed keycap. stacked: shifted above base, centered; corner: shifted top right,
+ * base bottom left; keycap: shifted top left, base bottom left.
+ */
+function DualLegendFace({ legend, style, variant }: {
+    legend: { base: string; shifted: string };
+    style: "stacked" | "corner" | "keycap";
+    variant: "default" | "medium" | "small";
+}) {
+    const fontSize = DUAL_LEGEND_FONT_PX[style][variant];
+    const inset = DUAL_LEGEND_INSET_PX[variant];
+    const text: React.CSSProperties = { fontSize, lineHeight: 1 };
+    if (style === "stacked") {
+        return (
+            <div data-dual-legend={style} className="w-full flex-1 min-h-0 flex flex-col items-center justify-center font-semibold" style={{ gap: variant === "small" ? 1 : variant === "medium" ? 2 : 3 }}>
+                <span data-legend="shifted" style={text}>{legend.shifted}</span>
+                <span data-legend="base" style={text}>{legend.base}</span>
+            </div>
+        );
+    }
+    const shiftedPos: React.CSSProperties = style === "corner" ? { top: inset, right: inset } : { top: inset, left: inset };
+    return (
+        <div data-dual-legend={style} className="relative w-full flex-1 min-h-0 font-semibold">
+            <span data-legend="shifted" className="absolute" style={{ ...text, ...shiftedPos }}>{legend.shifted}</span>
+            <span data-legend="base" className="absolute" style={{ ...text, bottom: inset, left: inset }}>{legend.base}</span>
+        </div>
+    );
+}
 
 function processKeyData(
     keycode: string,
