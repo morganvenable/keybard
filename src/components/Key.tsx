@@ -11,7 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
-import { DIAGONAL_INSET_PX, DUAL_LEGEND_FONT_PX, DUAL_LEGEND_INSET_PX, dualLegendFor, useLegendStyle, type LegendStyle } from "@/lib/legendStyle";
+import { DIAGONAL_INSET_PX, DUAL_LEGEND_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, KEY_BAND_PX, STACKED_GAP_PX, dualLegendFor, fitDualLegend, useLegendStyle, type LegendStyle } from "@/lib/legendStyle";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -350,7 +350,12 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             {keyContents && getTypeIcon(keyContents.type || "", variant)}
 
             {dualLegend && legendStyle ? (
-                <DualLegendFace legend={dualLegend} style={legendStyle} variant={variant} />
+                <DualLegendFace
+                    legend={dualLegend}
+                    style={legendStyle}
+                    variant={variant}
+                    roomPx={h * drag.currentUnitSize - 2 - KEY_BAND_PX[variant] * ((keyData.topLabel ? 1 : 0) + (keyData.bottomStr !== "" ? 1 : 0))}
+                />
             ) : (
             <div
                 className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
@@ -376,39 +381,32 @@ Key.displayName = "Key";
 /**
  * Both legends of a dual-legend key (prototype, ?legendStyle), one color and one size,
  * like a printed keycap. stacked: shifted above base, centered; diagonal: shifted upper right,
- * base lower left, pulled in toward the middle and kept between the key's bands; corner:
- * shifted top right, base bottom left; keycap: shifted top left, base bottom left.
+ * base lower left, pulled in toward the middle; corner: shifted top right, base bottom left.
+ * The face is the room between the key's bands, and every legend stays whole inside it:
+ * the line height holds the glyphs' ink, and fitDualLegend sizes both legends to the room
+ * (`roomPx`: the key's inner height less its bands).
  */
-function DualLegendFace({ legend, style, variant }: {
+function DualLegendFace({ legend, style, variant, roomPx }: {
     legend: { base: string; shifted: string };
     style: LegendStyle;
     variant: "default" | "medium" | "small";
+    roomPx: number;
 }) {
-    const fontSize = DUAL_LEGEND_FONT_PX[style][variant];
-    const inset = DUAL_LEGEND_INSET_PX[variant];
-    const text: React.CSSProperties = { fontSize, lineHeight: 1 };
+    const { fontPx, insetY } = fitDualLegend(style, variant, roomPx);
+    const text: React.CSSProperties = { fontSize: fontPx, lineHeight: DUAL_LEGEND_LINE_HEIGHT, whiteSpace: "nowrap" };
     if (style === "stacked") {
         return (
-            <div data-dual-legend={style} className="w-full flex-1 min-h-0 flex flex-col items-center justify-center font-semibold" style={{ gap: variant === "small" ? 1 : variant === "medium" ? 2 : 3 }}>
+            <div data-dual-legend={style} data-legend-font={fontPx} className="w-full flex-1 min-h-0 flex flex-col items-center justify-center font-semibold" style={{ gap: STACKED_GAP_PX[variant] }}>
                 <span data-legend="shifted" style={text}>{legend.shifted}</span>
                 <span data-legend="base" style={text}>{legend.base}</span>
             </div>
         );
     }
-    if (style === "diagonal") {
-        const d = DIAGONAL_INSET_PX[variant];
-        return (
-            <div data-dual-legend={style} className="relative w-full flex-1 min-h-0 font-semibold">
-                <span data-legend="shifted" className="absolute" style={{ ...text, top: d.y, right: d.x }}>{legend.shifted}</span>
-                <span data-legend="base" className="absolute" style={{ ...text, bottom: d.y, left: d.x }}>{legend.base}</span>
-            </div>
-        );
-    }
-    const shiftedPos: React.CSSProperties = style === "corner" ? { top: inset, right: inset } : { top: inset, left: inset };
+    const x = style === "diagonal" ? DIAGONAL_INSET_PX[variant].x : DUAL_LEGEND_INSET_PX[variant];
     return (
-        <div data-dual-legend={style} className="relative w-full flex-1 min-h-0 font-semibold">
-            <span data-legend="shifted" className="absolute" style={{ ...text, ...shiftedPos }}>{legend.shifted}</span>
-            <span data-legend="base" className="absolute" style={{ ...text, bottom: inset, left: inset }}>{legend.base}</span>
+        <div data-dual-legend={style} data-legend-font={fontPx} className="relative w-full flex-1 min-h-0 font-semibold">
+            <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, right: x }}>{legend.shifted}</span>
+            <span data-legend="base" className="absolute" style={{ ...text, bottom: insetY, left: x }}>{legend.base}</span>
         </div>
     );
 }

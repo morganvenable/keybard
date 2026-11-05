@@ -1,6 +1,6 @@
 """
 Browser tests for the dual-legend prototype
-(?legendStyle=stacked|diagonal|corner|keycap): digit and punctuation keys also
+(?legendStyle=stacked|diagonal|corner): digit and punctuation keys also
 show their shifted symbol. Run with `npm run test:e2e:shifted-legends`.
 
 For every style, key size (default, medium, small), panel position (sidebar,
@@ -11,16 +11,17 @@ picker's CTRL modifier on (every picker key gets an LCTL band):
   1. `/` shows `?` on the layout and in the US picker; LCTL(KC_1), LCTL_T(KC_2),
      LT1(KC_3) and LALT(KC_SLASH) show both legends; LSFT(KC_4) keeps its `$`
      and letters keep one legend.
-  2. Both legends of every dual key sit inside the key (inside its border), do
-     not overlap each other, and share one font size and one color.
+  2. The ink of both legends of every dual key (canvas measureText with the
+     span's font, at its baseline: the glyphs as drawn, not their text boxes)
+     sits whole inside the key's border, so nothing is clipped, and the two do
+     not overlap. Both share one font size and one color.
   3. Both legends keep the key's own legend color (no accent). In the picker
      that color meets WCAG AA (4.5:1) on the key; on the layout it is the
      existing white-on-layer-color legend (Keybard's fixed brand colors, 3.39:1
      on the primary layer), reported but not changed by this prototype.
-  4. Diagonal: on every key, no legend meets a key indicator (the header band
-     of a mod-tap or layer-tap, a modifier band, or a combo fold at its large
-     size), leaves the key or meets the other legend. For the other styles,
-     those collisions on keys with a band are listed instead of failed.
+  4. On every key, in every style, no glyph meets a key indicator: the header
+     band of a mod-tap or layer-tap, a modifier band, or a combo fold at its
+     large size.
 Without the param no key draws two legends (no regression).
 
 E2E_SHOTS=<dir> also saves screenshots of the layout and the picker.
@@ -38,9 +39,9 @@ from fake_board_e2e import app_url, wait_connected  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-STYLES = ["stacked", "diagonal", "corner", "keycap"]
-# Must clear every band and combo fold; the others are measured and reported.
-STRICT_INDICATORS = {"diagonal"}
+STYLES = ["stacked", "diagonal", "corner"]
+# Every style must keep its glyphs whole and clear of every band and combo fold.
+STRICT_INDICATORS = set(STYLES)
 SIZES = ["default", "medium", "small"]
 POSITIONS = ["sidebar", "bottombar"]
 THEMES = ["light", "dark"]
@@ -71,6 +72,7 @@ MEASURE_JS = r"""() => {
     if (a && (a.length < 4 || Number(a[3]) > 0.5)) return b; } return 'rgb(255,255,255)'; };
   const meet = (a, q) => !(a.right <= q.left + 0.25 || q.right <= a.left + 0.25 || a.bottom <= q.top + 0.25 || q.bottom <= a.top + 0.25);
   const out = [];
+  const ctx = document.createElement('canvas').getContext('2d');
   for (const face of document.querySelectorAll('[data-dual-legend]')) {
     const key = face.closest('[data-keycap]');
     if (!key || !key.getClientRects().length) continue;
@@ -81,7 +83,22 @@ MEASURE_JS = r"""() => {
     const bw = parseFloat(cs.borderLeftWidth) * scale;
     const inner = { l: r.left + bw, t: r.top + bw, r: r.right - bw, b: r.bottom - bw };
     const s = face.querySelector('[data-legend="shifted"]'), b = face.querySelector('[data-legend="base"]');
-    const sr = s.getBoundingClientRect(), br = b.getBoundingClientRect();
+    // The glyphs' ink, not their text boxes: canvas measureText with the span's own font, placed
+    // at the span's baseline (a single line: half the leading, then the font's ascent).
+    const ink = el => {
+      const st = getComputedStyle(el), q = el.getBoundingClientRect();
+      // Measured at 100px and scaled: canvas rounds glyph metrics to whole pixels at small sizes.
+      ctx.font = `${st.fontWeight} 100px ${st.fontFamily}`;
+      const t = st.textTransform === 'uppercase' ? el.textContent.toLocaleUpperCase() : el.textContent;
+      const raw = ctx.measureText(t), em = parseFloat(st.fontSize) / 100;
+      const mm = {};
+      for (const k of ['actualBoundingBoxLeft', 'actualBoundingBoxRight', 'actualBoundingBoxAscent', 'actualBoundingBoxDescent', 'fontBoundingBoxAscent', 'fontBoundingBoxDescent']) mm[k] = raw[k] * em;
+      const lh = parseFloat(st.lineHeight) || parseFloat(st.fontSize) * 1.2;
+      const baseline = (lh - (mm.fontBoundingBoxAscent + mm.fontBoundingBoxDescent)) / 2 + mm.fontBoundingBoxAscent;
+      return { left: q.left - mm.actualBoundingBoxLeft * scale, right: q.left + mm.actualBoundingBoxRight * scale,
+               top: q.top + (baseline - mm.actualBoundingBoxAscent) * scale, bottom: q.top + (baseline + mm.actualBoundingBoxDescent) * scale };
+    };
+    const sr = ink(s), br = ink(b);
     const inside = q => q.left >= inner.l - 0.5 && q.top >= inner.t - 0.5 && q.right <= inner.r + 0.5 && q.bottom <= inner.b + 0.5;
     const overlap = !(sr.right <= br.left || br.right <= sr.left || sr.bottom <= br.top || br.bottom <= sr.top);
     // Key indicators: the header band (mod-tap, layer-tap), the modifier band, and combo
@@ -182,11 +199,11 @@ def run_case(browser, url, style, size, position, theme, summary, collisions):
     for x in m:
         k = f"{tag} {x['where']} {x['code']}"
         if style in STRICT_INDICATORS or x["kind"] != "banded":
-            check(x["inS"] and x["inB"], f"{k}: legends inside the key ({x['keyPx']}px key)")
+            check(x["inS"] and x["inB"], f"{k}: glyphs whole inside the key ({x['keyPx']}px key)")
         elif not (x["inS"] and x["inB"]):
             x["hits"] = x["hits"] + ["outside the key"]
         if style in STRICT_INDICATORS or x["kind"] != "banded":
-            check(not x["overlap"], f"{k}: legends do not overlap")
+            check(not x["overlap"], f"{k}: the two glyphs do not overlap")
         elif x["overlap"]:
             x["hits"] = x["hits"] + ["the two legends overlap"]
         check(x["sFont"] == x["bFont"], f"{k}: one font size")
@@ -198,7 +215,7 @@ def run_case(browser, url, style, size, position, theme, summary, collisions):
         if x["hits"]:
             collisions.setdefault(style, set()).add(f"{size}/{position} {x['where']} {x['code']}: {', '.join(x['hits'])}")
         if style in STRICT_INDICATORS:
-            check(not x["hits"], f"{k}: clear of indicators ({x['hits']})")
+            check(not x["hits"], f"{k}: glyphs clear of bands and folds ({x['hits']})")
     for where in ("layout", "picker", "picker+ctrl"):
         rows = [x for x in m if x["where"] == where]
         if rows:

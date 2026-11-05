@@ -1,5 +1,5 @@
 /**
- * Dual-legend keys (prototype, owner review: ?legendStyle=stacked|diagonal|corner|keycap).
+ * Dual-legend keys (prototype, owner review: ?legendStyle=stacked|diagonal|corner).
  *
  * A plain key whose shifted output is a different character (digits and
  * punctuation, never letters or special keys) also shows its shifted symbol,
@@ -14,7 +14,7 @@ import { useSyncExternalStore } from "react";
 import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import type { KeyContent } from "@/types/keyboard.types";
 
-export const LEGEND_STYLES = ["stacked", "diagonal", "corner", "keycap"] as const;
+export const LEGEND_STYLES = ["stacked", "diagonal", "corner"] as const;
 export type LegendStyle = typeof LEGEND_STYLES[number];
 export const LEGEND_STYLE_PARAM = "legendStyle";
 
@@ -122,17 +122,27 @@ export function dualLegendFor(
 /**
  * Legend font size (px) per key size, the same for both legends. Keys are
  * 60 / 45 / 30 px (default / medium / small); the picker draws small keys,
- * zoomed to 24-30 px. Chosen so two lines stay inside the key with room for
- * the 1px border and the hover ring.
+ * zoomed to 24-30 px. A legend gets smaller only when its key's room can't
+ * hold it whole (fitDualLegend).
  */
-export const DUAL_LEGEND_FONT_PX = {
-    stacked: { default: 15, medium: 12, small: 10 },
-    diagonal: { default: 15, medium: 12, small: 10 },
-    corner: { default: 15, medium: 12, small: 10 },
-    keycap: { default: 15, medium: 12, small: 10 },
-} as const satisfies Record<LegendStyle, Record<"default" | "medium" | "small", number>>;
+export const DUAL_LEGEND_FONT_PX = { default: 15, medium: 12, small: 10 } as const;
 
-/** Inset of the corner legends from the key edge (px), per key size. */
+/**
+ * Line height of a legend, in em. Inter's tallest legend ink runs from 1.00 em above the
+ * baseline (Å) to 0.24 em below it (|), measured with canvas measureText at weight 600 over
+ * every legend in LAYOUTS; its content area is 0.97 + 0.24 em. At 1.3 the line box holds
+ * all of that, so a legend's box is its ink's box and fitting boxes fits glyphs. (At 1.0,
+ * as before, the ink of | { } ( ) [ ] @ $ ran 0.1 em past the box on each side.)
+ */
+export const DUAL_LEGEND_LINE_HEIGHT = 1.3;
+
+/** Band height (px) along a key's top or bottom (mod-tap, layer-tap, modifier), per key size. */
+export const KEY_BAND_PX = { default: 18, medium: 14, small: 10 } as const;
+
+/** Stacked: gap between the two lines (px), per key size. */
+export const STACKED_GAP_PX = { default: 3, medium: 2, small: 1 } as const;
+
+/** Corner: inset of the legends from the key edge (px), per key size. */
 export const DUAL_LEGEND_INSET_PX = { default: 7, medium: 5, small: 2 } as const;
 
 /**
@@ -147,3 +157,22 @@ export const DIAGONAL_INSET_PX = {
     medium: { x: 8, y: 5 },
     small: { x: 4, y: 2 },
 } as const;
+
+export type KeySizeName = "default" | "medium" | "small";
+
+/**
+ * The legend size and vertical inset that keep both legends whole inside `roomPx`, the
+ * height between the key's border and bands. Stacked needs two lines and a gap; diagonal
+ * and corner put the legends side by side in height, so they need one line.
+ * Sizes step down by 0.5 px.
+ */
+export function fitDualLegend(style: LegendStyle, size: KeySizeName, roomPx: number): { fontPx: number; insetY: number } {
+    const base = DUAL_LEGEND_FONT_PX[size];
+    const lines = style === "stacked" ? 2 : 1;
+    const gap = style === "stacked" ? STACKED_GAP_PX[size] : 0;
+    const fit = (roomPx - gap) / (lines * DUAL_LEGEND_LINE_HEIGHT);
+    const fontPx = Math.max(1, Math.min(base, Math.floor(fit * 2) / 2));
+    const wantY = style === "diagonal" ? DIAGONAL_INSET_PX[size].y : style === "corner" ? DUAL_LEGEND_INSET_PX[size] : 0;
+    const insetY = Math.max(0, Math.min(wantY, (roomPx - fontPx * DUAL_LEGEND_LINE_HEIGHT) / 2));
+    return { fontPx, insetY };
+}

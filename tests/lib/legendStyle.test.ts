@@ -1,15 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { dualLegendFor, legendStyleFromSearch } from "@/lib/legendStyle";
+import { DUAL_LEGEND_LINE_HEIGHT, dualLegendFor, fitDualLegend, legendStyleFromSearch } from "@/lib/legendStyle";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
 
 describe("legendStyleFromSearch", () => {
     it("reads the three styles and nothing else", () => {
         expect(legendStyleFromSearch("?legendStyle=stacked")).toBe("stacked");
         expect(legendStyleFromSearch("?legendStyle=Corner")).toBe("corner");
-        expect(legendStyleFromSearch("?legendStyle=keycap")).toBe("keycap");
+        expect(legendStyleFromSearch("?legendStyle=keycap")).toBeNull(); // dropped after review
         expect(legendStyleFromSearch("?legendStyle=diagonal")).toBe("diagonal");
         expect(legendStyleFromSearch("?legendStyle=off")).toBeNull();
         expect(legendStyleFromSearch("")).toBeNull();
+    });
+});
+
+describe("fitDualLegend", () => {
+    it("keeps the full size where the room holds it", () => {
+        expect(fitDualLegend("stacked", "default", 58).fontPx).toBe(15);
+        expect(fitDualLegend("stacked", "small", 28).fontPx).toBe(10);
+        expect(fitDualLegend("diagonal", "small", 18).fontPx).toBe(10);
+    });
+
+    it("shrinks stacked on a key with a band, so both lines fit between the bands", () => {
+        const { fontPx } = fitDualLegend("stacked", "small", 18);
+        expect(fontPx).toBeLessThan(10);
+        expect(2 * fontPx * DUAL_LEGEND_LINE_HEIGHT + 1).toBeLessThanOrEqual(18);
+    });
+
+    it("keeps a single line inside the room", () => {
+        for (const style of ["diagonal", "corner"] as const) {
+            for (const room of [8, 18, 29, 40]) {
+                const { fontPx, insetY } = fitDualLegend(style, "small", room);
+                expect(fontPx * DUAL_LEGEND_LINE_HEIGHT + 2 * insetY).toBeLessThanOrEqual(room + 1e-9);
+            }
+        }
     });
 });
 
