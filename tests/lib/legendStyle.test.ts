@@ -7,6 +7,7 @@ describe("legendStyleFromSearch", () => {
         expect(legendStyleFromSearch("?legendStyle=stacked")).toBe("stacked");
         expect(legendStyleFromSearch("?legendStyle=Corner")).toBe("corner");
         expect(legendStyleFromSearch("?legendStyle=keycap")).toBe("keycap");
+        expect(legendStyleFromSearch("?legendStyle=diagonal")).toBe("diagonal");
         expect(legendStyleFromSearch("?legendStyle=off")).toBeNull();
         expect(legendStyleFromSearch("")).toBeNull();
     });
@@ -35,6 +36,25 @@ describe("dualLegendFor", () => {
     it("never modified or special-type keys", () => {
         expect(dualLegendFor("LSFT(KC_SLASH)", "?", undefined, "us")).toBeNull();
         expect(dualLegendFor("KC_SLASH", "/", { type: "modtap" } as never, "us")).toBeNull();
+    });
+
+    it("modifier, mod-tap and layer-tap keys show both legends of their base key", () => {
+        expect(dualLegendFor("LCTL(KC_1)", "!", { type: "modmask", modids: 0x0100 } as never, "us")).toEqual({ base: "1", shifted: "!" });
+        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "us")).toEqual({ base: "2", shifted: "@" });
+        expect(dualLegendFor("LT1(KC_3)", "#", { type: "layerhold" } as never, "us")).toEqual({ base: "3", shifted: "#" });
+    });
+
+    it("a Shift-wrapped key keeps the shifted symbol it draws", () => {
+        expect(dualLegendFor("LSFT(KC_4)", "$", { type: "modmask", modids: 0x0200 } as never, "us")).toBeNull();
+        expect(dualLegendFor("LSFT_T(KC_4)", "$", { type: "modtap" } as never, "us")).toBeNull();
+        expect(dualLegendFor("C_S(KC_4)", "$", { type: "modmask" } as never, "us")).toBeNull();
+        expect(dualLegendFor("MEH_T(KC_4)", "$", { type: "modtap" } as never, "us")).toBeNull();
+    });
+
+    it("tap dances, macros and layer keys keep one legend", () => {
+        for (const type of ["tapdance", "macro", "layer", "OSM", "user"]) {
+            expect(dualLegendFor("KC_1", "1", { type } as never, "us"), type).toBeNull();
+        }
     });
 
     it("follows the International keyboards layout", () => {

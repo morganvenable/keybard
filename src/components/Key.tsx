@@ -11,7 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
-import { DUAL_LEGEND_FONT_PX, DUAL_LEGEND_INSET_PX, dualLegendFor, useLegendStyle } from "@/lib/legendStyle";
+import { DIAGONAL_INSET_PX, DUAL_LEGEND_FONT_PX, DUAL_LEGEND_INSET_PX, dualLegendFor, useLegendStyle, type LegendStyle } from "@/lib/legendStyle";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -375,12 +375,13 @@ Key.displayName = "Key";
 
 /**
  * Both legends of a dual-legend key (prototype, ?legendStyle), one color and one size,
- * like a printed keycap. stacked: shifted above base, centered; corner: shifted top right,
- * base bottom left; keycap: shifted top left, base bottom left.
+ * like a printed keycap. stacked: shifted above base, centered; diagonal: shifted upper right,
+ * base lower left, pulled in toward the middle and kept between the key's bands; corner:
+ * shifted top right, base bottom left; keycap: shifted top left, base bottom left.
  */
 function DualLegendFace({ legend, style, variant }: {
     legend: { base: string; shifted: string };
-    style: "stacked" | "corner" | "keycap";
+    style: LegendStyle;
     variant: "default" | "medium" | "small";
 }) {
     const fontSize = DUAL_LEGEND_FONT_PX[style][variant];
@@ -391,6 +392,15 @@ function DualLegendFace({ legend, style, variant }: {
             <div data-dual-legend={style} className="w-full flex-1 min-h-0 flex flex-col items-center justify-center font-semibold" style={{ gap: variant === "small" ? 1 : variant === "medium" ? 2 : 3 }}>
                 <span data-legend="shifted" style={text}>{legend.shifted}</span>
                 <span data-legend="base" style={text}>{legend.base}</span>
+            </div>
+        );
+    }
+    if (style === "diagonal") {
+        const d = DIAGONAL_INSET_PX[variant];
+        return (
+            <div data-dual-legend={style} className="relative w-full flex-1 min-h-0 font-semibold">
+                <span data-legend="shifted" className="absolute" style={{ ...text, top: d.y, right: d.x }}>{legend.shifted}</span>
+                <span data-legend="base" className="absolute" style={{ ...text, bottom: d.y, left: d.x }}>{legend.base}</span>
             </div>
         );
     }

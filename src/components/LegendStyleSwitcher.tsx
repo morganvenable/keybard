@@ -4,6 +4,7 @@ import { LEGEND_STYLES, setLegendStyle, useLegendStyle, useLegendStyleParam, typ
 
 const NAMES: Record<LegendStyle | "off", string> = {
     stacked: "Stacked",
+    diagonal: "Diagonal",
     corner: "Corner",
     keycap: "Keycap",
     off: "Off",

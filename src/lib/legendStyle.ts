@@ -1,5 +1,5 @@
 /**
- * Dual-legend keys (prototype, owner review: ?legendStyle=stacked|corner|keycap).
+ * Dual-legend keys (prototype, owner review: ?legendStyle=stacked|diagonal|corner|keycap).
  *
  * A plain key whose shifted output is a different character (digits and
  * punctuation, never letters or special keys) also shows its shifted symbol,
@@ -14,7 +14,7 @@ import { useSyncExternalStore } from "react";
 import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import type { KeyContent } from "@/types/keyboard.types";
 
-export const LEGEND_STYLES = ["stacked", "corner", "keycap"] as const;
+export const LEGEND_STYLES = ["stacked", "diagonal", "corner", "keycap"] as const;
 export type LegendStyle = typeof LEGEND_STYLES[number];
 export const LEGEND_STYLE_PARAM = "legendStyle";
 
@@ -72,10 +72,12 @@ export interface DualLegend {
 }
 
 const PLAIN_KEYCODE = /^KC_[A-Z0-9_]+$/;
+/** Key kinds that draw their base key in the middle, with a band above or below it. */
+const WRAPPED_TYPES = new Set(["modmask", "modtap", "layerhold"]);
 
 /**
  * The base and shifted legends of a plain key on this OS layout, or null when
- * the key keeps one legend: modified or special keycodes, keys whose shift is
+ * the key keeps one legend: special keycodes, keys whose shift is
  * only the capital letter (or nothing), and keys the layout doesn't hold.
  * `label` is what the key would draw today; a key drawing something else
  * (the picker while Shift is on) keeps that one legend.
@@ -86,8 +88,24 @@ export function dualLegendFor(
     keyContents: KeyContent | undefined,
     layoutId: string
 ): DualLegend | null {
-    if (keyContents?.type) return null;
-    const code = keycode.toUpperCase();
+    // A modifier (LCTL(KC_1)), mod-tap (LCTL_T(KC_2)) or layer-tap (LT1(KC_3)) draws its
+    // base key in the middle; that key gets both legends too, between the key's bands. A
+    // Shift-wrapped key already draws its shifted symbol ($ for LSFT(KC_4)) and keeps it.
+    // Today such a key draws the first line of its base key's name, which for the digits is
+    // the shifted symbol ("!" for LCTL(KC_1)); the two legends say which is which.
+    let code = keycode.toUpperCase();
+    let wrapped = false;
+    if (keyContents?.type) {
+        if (!WRAPPED_TYPES.has(keyContents.type)) return null;
+        const m = /^([A-Z0-9_]+)\((KC_[A-Z0-9_]+)\)$/.exec(code);
+        if (!m) return null;
+        const wrapper = m[1];
+        const shifted = (typeof keyContents.modids === "number" && (keyContents.modids & 0x0200) !== 0) ||
+            (!/^LT\d/.test(wrapper) && wrapper.includes("S")) || /^(MEH|HYPR|ALL)(_T)?$/.test(wrapper);
+        if (shifted) return null;
+        code = m[2];
+        wrapped = true;
+    }
     if (!PLAIN_KEYCODE.test(code)) return null;
     if (code in US_SHIFT_ALIASES) return null; // already a shifted symbol (KC_QUES)
     // Numpad (KC_KP_*, KC_P1, KC_PDOT...) and KC_PSCR-style keys: never dual. KC_P is a letter.
@@ -97,7 +115,7 @@ export function dualLegendFor(
     if (!base || !shifted) return null;
     if (base.length > 2 || shifted.length > 2) return null; // "Space", "enter", "backsp"
     if (base.toLocaleUpperCase() === shifted.toLocaleUpperCase()) return null; // letters, same symbol
-    if (label && label !== base && label.toLocaleUpperCase() !== base.toLocaleUpperCase()) return null;
+    if (!wrapped && label && label !== base && label.toLocaleUpperCase() !== base.toLocaleUpperCase()) return null;
     return { base, shifted };
 }
 
@@ -109,9 +127,23 @@ export function dualLegendFor(
  */
 export const DUAL_LEGEND_FONT_PX = {
     stacked: { default: 15, medium: 12, small: 10 },
+    diagonal: { default: 15, medium: 12, small: 10 },
     corner: { default: 15, medium: 12, small: 10 },
     keycap: { default: 15, medium: 12, small: 10 },
 } as const satisfies Record<LegendStyle, Record<"default" | "medium" | "small", number>>;
 
 /** Inset of the corner legends from the key edge (px), per key size. */
 export const DUAL_LEGEND_INSET_PX = { default: 7, medium: 5, small: 2 } as const;
+
+/**
+ * Diagonal: shifted upper right, base lower left, pulled in from the corners toward the
+ * middle. `x` is each legend's inset from its side, `y` from the top or bottom of the
+ * room between the key's bands. On a key with a band the room is shorter than two lines,
+ * so the legends overlap in height; they never overlap in width, since
+ * 2x + the two glyphs' widths stays within the key (widest pair "@ 2" at 10px: 16px of 28).
+ */
+export const DIAGONAL_INSET_PX = {
+    default: { x: 12, y: 8 },
+    medium: { x: 8, y: 5 },
+    small: { x: 4, y: 2 },
+} as const;
