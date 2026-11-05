@@ -4,6 +4,10 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in x4.5
+
+Goes with Svalboard firmware x4.5. Keybard and Keybard Overlay are unchanged from x4.4.
+
 ## New in x4.4
 
 This prerelease bundles the Keybard that next.keybard.svalboard.com now runs, and goes with Svalboard firmware x4.4. What changes for you since v4.3.6:
