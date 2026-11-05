@@ -27,6 +27,8 @@
  *   ?fakeBoard=leader0 is firmware from before x4.3.3 whose settings reset
  *   stored a leader timeout of 0 (fresh on every load).
  *   Its settings stay in this browser across reloads (except turbo6 and leader0).
+ * - ?keyLegends=german opens with that layout chosen for Key legends (any layout id in
+ *   Keyboards/layouts.ts), and ?altgrLegends=on|off sets AltGr Symbols, for this load only.
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
  * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
@@ -43,6 +45,23 @@ export const THEME_PARAM = "theme";
 export const EDIT_PARAM = "edit";
 export const FAKE_BOARD_PARAM = "fakeBoard";
 export const TESTER_PARAM = "tester";
+
+export const KEY_LEGENDS_PARAM = "keyLegends";
+export const ALTGR_LEGENDS_PARAM = "altgrLegends";
+
+/** ?keyLegends=<layout id>, lower-cased; absent is null (the caller checks it names a layout). */
+export function keyLegendsFromSearch(search: string): string | null {
+    const value = param(search, KEY_LEGENDS_PARAM)?.trim().toLowerCase();
+    return value ? value : null;
+}
+
+/** ?altgrLegends=on|1|true is true, off|0|false is false; anything else or absent is null. */
+export function altgrLegendsFromSearch(search: string): boolean | null {
+    const value = param(search, ALTGR_LEGENDS_PARAM)?.trim().toLowerCase();
+    if (value === "on" || value === "1" || value === "true") return true;
+    if (value === "off" || value === "0" || value === "false") return false;
+    return null;
+}
 
 export type DemoChoice = "qwerty" | "combos";
 

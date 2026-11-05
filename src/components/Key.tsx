@@ -11,7 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
-import { DEFAULT_SHIFTED_LEGENDS, DIAGONAL_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, KEY_BAND_PX, dualLegendFor, fitDualLegend } from "@/lib/shiftedLegends";
+import { DEFAULT_SHIFTED_LEGENDS, DIAGONAL_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, KEY_BAND_PX, altgrOnlyLegend, dualLegendFor, planLegends, type LegendPlan } from "@/lib/shiftedLegends";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -115,17 +115,32 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const isMedium = variant === "medium";
 
     // --- Data processing ---
-    const { internationalLayout, showShiftedLegends } = useLayoutSettings();
+    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
     const keyData = useMemo(() => {
         return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
     }, [label, keyContents, keycode, forceLabel, internationalLayout]);
 
-    // Digit and punctuation keys also show the symbol Shift types (Settings > Appearance).
+    // Digit and punctuation keys also show the symbol Shift types (Settings > Appearance), and
+    // with AltGr Symbols on, the character AltGr types.
     const showShifted = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS;
-    const dualLegend = useMemo(() => {
-        if (!showShifted) return null;
-        return dualLegendFor(keycode, typeof keyData.centerContent === "string" ? keyData.centerContent : label, keyContents, internationalLayout);
-    }, [showShifted, keycode, keyData.centerContent, label, keyContents, internationalLayout]);
+    const showAltGr = showAltGrLegends === true;
+    const centerText = typeof keyData.centerContent === "string" ? keyData.centerContent : label;
+    const fullLegend = useMemo(
+        () => dualLegendFor(keycode, centerText, keyContents, internationalLayout, { shifted: showShifted, altgr: showAltGr }),
+        [showShifted, showAltGr, keycode, centerText, keyContents, internationalLayout]
+    );
+    // RALT(KC_2) types "²" on German: that is its one legend, not the bare 2.
+    const altgrOnly = useMemo(
+        () => (showAltGr ? altgrOnlyLegend(keycode, keyContents, internationalLayout) : null),
+        [showAltGr, keycode, keyContents, internationalLayout]
+    );
+    const hasComboFold = !!combo && combo.memberships.length > 0;
+    const legendPlan = useMemo<LegendPlan | null>(() => {
+        if (!fullLegend) return null;
+        const roomPx = h * drag.currentUnitSize - 2 - KEY_BAND_PX[variant] * ((keyData.topLabel ? 1 : 0) + (keyData.bottomStr !== "" ? 1 : 0));
+        const widthPx = w * drag.currentUnitSize - 2 - 2 * DIAGONAL_INSET_PX[variant].x;
+        return planLegends(fullLegend, variant, roomPx, widthPx, hasComboFold);
+    }, [fullLegend, variant, h, w, drag.currentUnitSize, keyData.topLabel, keyData.bottomStr, hasComboFold]);
 
     const comboInteractive = !!combo && combo.interactive !== false;
     const comboFocusable = comboInteractive;
@@ -349,19 +364,14 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
 
             {keyContents && getTypeIcon(keyContents.type || "", variant)}
 
-            {dualLegend ? (
-                <DualLegendFace
-                    legend={dualLegend}
-                    variant={variant}
-                    roomPx={h * drag.currentUnitSize - 2 - KEY_BAND_PX[variant] * ((keyData.topLabel ? 1 : 0) + (keyData.bottomStr !== "" ? 1 : 0))}
-                    widthPx={w * drag.currentUnitSize - 2 - 2 * DIAGONAL_INSET_PX[variant].x}
-                />
+            {legendPlan ? (
+                <DualLegendFace plan={legendPlan} variant={variant} />
             ) : (
             <div
-                className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
+                className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"), altgrOnly && "normal-case")}
                 style={styles.textStyle}
             >
-                {keyData.centerContent}
+                {altgrOnly ?? keyData.centerContent}
             </div>
             )}
 
@@ -379,25 +389,23 @@ Key.displayName = "Key";
 // --- Helper Functions ---
 
 /**
- * Both legends of a digit or punctuation key, like a printed keycap: the shifted symbol
- * upper right, the base legend lower left, pulled in from the corners, one color and one
- * size. The face is the room between the key's bands; the line height holds the glyphs'
- * ink and fitDualLegend sizes both legends to the room (`roomPx`: the key's inner height
- * less its bands; `widthPx`: its inner width less the side insets), so every glyph stays whole.
+ * The legends of a digit, punctuation or AltGr key, like a printed keycap: the shifted
+ * symbol upper right, the base legend lower left and the AltGr character lower right,
+ * pulled in from the corners, one color and one size. The face is the room between the
+ * key's bands; planLegends (shiftedLegends.ts) sizes every legend to the room, so every
+ * glyph stays whole. Spans draw as written (no CSS capitals, which would turn the micro
+ * sign into a Greek capital mu): a letter's base legend is capitalized here.
  */
-function DualLegendFace({ legend, variant, roomPx, widthPx }: {
-    legend: { base: string; shifted: string };
-    variant: "default" | "medium" | "small";
-    roomPx: number;
-    widthPx: number;
-}) {
-    const { fontPx, insetY } = fitDualLegend(variant, roomPx, widthPx, [...legend.base].length + [...legend.shifted].length);
-    const text: React.CSSProperties = { fontSize: fontPx, lineHeight: DUAL_LEGEND_LINE_HEIGHT, whiteSpace: "nowrap" };
+function DualLegendFace({ plan, variant }: { plan: LegendPlan; variant: "default" | "medium" | "small" }) {
+    const { legend, fontPx, insetY } = plan;
+    const text: React.CSSProperties = { fontSize: fontPx, lineHeight: DUAL_LEGEND_LINE_HEIGHT, whiteSpace: "nowrap", textTransform: "none" };
     const x = DIAGONAL_INSET_PX[variant].x;
+    const base = /\p{L}/u.test(legend.base) && legend.base !== "ß" ? legend.base.toLocaleUpperCase() : legend.base;
     return (
         <div data-dual-legend="" className="relative w-full flex-1 min-h-0 font-semibold">
-            <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, right: x }}>{legend.shifted}</span>
-            <span data-legend="base" className="absolute" style={{ ...text, bottom: insetY, left: x }}>{legend.base}</span>
+            {legend.shifted && <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, right: x }}>{legend.shifted}</span>}
+            <span data-legend="base" className="absolute" style={{ ...text, bottom: insetY, left: x }}>{base}</span>
+            {legend.altgr && <span data-legend="altgr" className="absolute" style={{ ...text, bottom: insetY, right: x }}>{legend.altgr}</span>}
         </div>
     );
 }

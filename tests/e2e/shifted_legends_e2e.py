@@ -22,6 +22,12 @@ picker's CTRL modifier on (every picker key gets an LCTL band):
   4. Both legends keep the key's own legend color. In the picker that color
      meets WCAG AA (4.5:1) on the key; on the layout it is the existing legend
      on the layer color, unchanged here.
+German with AltGr Symbols (run_german, run_toggle; ?keyLegends=german&altgrLegends=on|off): digits get
+shifted upper right, base lower left, AltGr lower right; letters with an AltGr character (Q, E, M, ss)
+get base and AltGr; legends are whole, apart, clear of bands and folds, one size and color, at every key
+size, panel position and theme, in the picker (also with CTRL on) and the layout; keys with a combo fold
+or too little room beside a band keep two legends; RALT(KC_7) shows its AltGr character alone; with the
+setting off none draws; Settings shows the toggle only with an AltGr layout.
 And the picker's Shift: with the picker's own L SHIFT on, the 1 key shows `!`
 alone and binds LSFT(KC_1) (named KC_EXLM), as shown; R SHIFT binds RSFT(KC_1);
 with it off, KC_1. Caps Lock leaves the picker as it is. The SHIFT modifier
@@ -57,7 +63,7 @@ def check(cond: bool, label: str):
 
 
 def settings_init(size: str, position: str, shifted: bool = True) -> str:
-    stored = {"key-size": size, "panel-position": position, "live-updating": True, "shifted-legends": shifted}
+    stored = {"key-size": size, "panel-position": position, "live-updating": True, "shifted-legends": shifted, "altgr-legends": False}
     return (f"(() => {{ const extra = {json.dumps(stored)}; const keys = Object.keys(localStorage).filter(k => /keyboard-settings$/.test(k));"
             " if (!keys.includes('keyboard-settings')) keys.push('keyboard-settings');"
             " for (const k of keys) { let v = {}; try { v = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch {}"
@@ -81,7 +87,8 @@ MEASURE_JS = r"""() => {
     const scale = r.width / key.offsetWidth || 1;
     const bw = parseFloat(cs.borderLeftWidth) * scale;
     const inner = { l: r.left + bw, t: r.top + bw, r: r.right - bw, b: r.bottom - bw };
-    const s = face.querySelector('[data-legend="shifted"]'), b = face.querySelector('[data-legend="base"]');
+    const s = face.querySelector('[data-legend="shifted"]'), b = face.querySelector('[data-legend="base"]'), a3 = face.querySelector('[data-legend="altgr"]');
+    const legends = [['shifted', s], ['base', b], ['altgr', a3]].filter(x => x[1]);
     // The glyphs' ink, not their text boxes: canvas measureText with the span's own font, placed
     // at the span's baseline (a single line: half the leading, then the font's ascent).
     const ink = el => {
@@ -97,17 +104,18 @@ MEASURE_JS = r"""() => {
       return { left: q.left - mm.actualBoundingBoxLeft * scale, right: q.left + mm.actualBoundingBoxRight * scale,
                top: q.top + (baseline - mm.actualBoundingBoxAscent) * scale, bottom: q.top + (baseline + mm.actualBoundingBoxDescent) * scale };
     };
-    const sr = ink(s), br = ink(b);
+    const inks = legends.map(([n, el]) => [n, el, ink(el)]);
     const inside = q => q.left >= inner.l - 0.5 && q.top >= inner.t - 0.5 && q.right <= inner.r + 0.5 && q.bottom <= inner.b + 0.5;
-    const overlap = !(sr.right <= br.left || br.right <= sr.left || sr.bottom <= br.top || br.bottom <= sr.top);
+    const apart = (x, y) => x.right <= y.left || y.right <= x.left || x.bottom <= y.top || y.bottom <= x.top;
+    let overlap = false;
+    for (let i = 0; i < inks.length; i++) for (let j = i + 1; j < inks.length; j++) if (!apart(inks[i][2], inks[j][2])) overlap = true;
     // Key indicators: the header band (mod-tap, layer-tap), the modifier band, and combo
     // folds (drawn at their large size; see the style the test adds).
     const hits = [];
     const bands = [...key.querySelectorAll(':scope > span')];
     for (const band of bands) {
       const q = band.getBoundingClientRect();
-      if (meet(sr, q)) hits.push('shifted/band ' + band.textContent.trim());
-      if (meet(br, q)) hits.push('base/band ' + band.textContent.trim());
+      for (const [n, , r2] of inks) if (meet(r2, q)) hits.push(n + '/band ' + band.textContent.trim());
     }
     const folds = [...key.querySelectorAll('[data-combo-fold] :is(path, polygon)')];
     for (const fold of folds) {
@@ -116,20 +124,23 @@ MEASURE_JS = r"""() => {
       // The fold is the triangle below the line from its bottom-left to its top-right.
       const inTri = q => !(q.right <= f.left || q.bottom <= f.top || q.left >= f.right || q.top >= f.bottom) &&
         ((q.right - f.left) / f.width + (q.bottom - f.top) / f.height > 1);
-      if (inTri(sr)) hits.push('shifted/fold');
-      if (inTri(br)) hits.push('base/fold');
+      for (const [n, , r2] of inks) if (inTri(r2)) hits.push(n + '/fold');
     }
-    const fg = getComputedStyle(s).color, bg = opaque(key);
+    const fg = getComputedStyle(b).color, bg = opaque(key);
     const L1 = lum(fg), L2 = lum(bg);
     out.push({
       where: key.closest('[data-fitted-keyboard]') ? 'picker' : 'layout',
       code: key.getAttribute('data-keycode') || key.getAttribute('data-picker-key') || '',
-      shifted: s.textContent, base: b.textContent,
+      shifted: s ? s.textContent : '', base: b.textContent, altgr: a3 ? a3.textContent : '',
+      n: legends.length, allIn: inks.every(x => inside(x[2])),
+      sameFont: new Set(legends.map(x => getComputedStyle(x[1]).fontSize)).size === 1,
+      sameColor: new Set(legends.map(x => getComputedStyle(x[1]).color)).size === 1,
+      noTransform: legends.every(x => getComputedStyle(x[1]).textTransform === 'none'),
       keyPx: Math.round(r.width * 10) / 10,
-      sFont: getComputedStyle(s).fontSize, bFont: getComputedStyle(b).fontSize,
-      fontPx: Math.round(parseFloat(getComputedStyle(s).fontSize) * scale * 10) / 10,
-      sColor: fg, bColor: getComputedStyle(b).color, keyColor: cs.color, family: getComputedStyle(s).fontFamily,
-      inS: inside(sr), inB: inside(br), overlap, hits: [...new Set(hits)],
+      sFont: getComputedStyle(b).fontSize, bFont: getComputedStyle(b).fontSize,
+      fontPx: Math.round(parseFloat(getComputedStyle(b).fontSize) * scale * 10) / 10,
+      sColor: fg, bColor: getComputedStyle(b).color, keyColor: cs.color, family: getComputedStyle(b).fontFamily,
+      inS: inside(inks[0][2]), inB: inside(inks[inks.length - 1][2]), overlap, hits: [...new Set(hits)],
       kind: bands.length ? 'banded' : folds.length ? 'fold' : 'plain',
       contrast: (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05),
     });
@@ -141,11 +152,11 @@ MEASURE_JS = r"""() => {
 LAYOUT = '[aria-label="Keyboard canvas"]'
 
 
-def open_case(browser, url, size, position, theme, shifted=True):
+def open_case(browser, url, size, position, theme, shifted=True, query=""):
     context = browser.new_context(viewport={"width": 1920, "height": 1080}, color_scheme=theme, reduced_motion="reduce")
     context.add_init_script(settings_init(size, position, shifted))
     page = context.new_page()
-    page.goto(f"{url}?fakeBoard=legends&panel=keyboard&theme={theme}")
+    page.goto(f"{url}?fakeBoard=legends&panel=keyboard&theme={theme}{query}")
     wait_connected(page)
     page.locator("[data-fitted-keyboard]:visible").first.wait_for(timeout=20000)
     page.add_style_tag(content="[data-fold-scale]{transform:none!important}")
@@ -197,11 +208,11 @@ def run_case(browser, url, size, position, theme, summary):
         check(False, f"{tag}: CTRL modifier button visible")
     for x in m:
         k = f"{tag} {x['where']} {x['code']}"
-        check(x["inS"] and x["inB"], f"{k}: glyphs whole inside the key ({x['keyPx']}px key)")
-        check(not x["overlap"], f"{k}: the two glyphs do not overlap")
+        check(x["allIn"], f"{k}: glyphs whole inside the key ({x['keyPx']}px key)")
+        check(not x["overlap"], f"{k}: the glyphs do not overlap")
         check(not x["hits"], f"{k}: glyphs clear of bands and folds ({x['hits']})")
-        check(x["sFont"] == x["bFont"], f"{k}: one font size")
-        check(x["sColor"] == x["bColor"], f"{k}: one color")
+        check(x["sameFont"], f"{k}: one font size")
+        check(x["sameColor"], f"{k}: one color")
         check(x["sColor"] == x["keyColor"], f"{k}: the key's own legend color")
         check("Inter" in x["family"], f"{k}: Inter font")
         if x["where"].startswith("picker"):
@@ -229,6 +240,111 @@ def run_off(browser, url, size, position, theme):
     if size in ("default", "small"):
         shoot(page, f"off-{size}-{position}-{theme}")
     context.close()
+
+
+NOMINAL = {"default": 15, "medium": 12, "small": 10}
+KEYPX = {"default": 60, "medium": 45, "small": 30}
+GERMAN = "&keyLegends=german"
+
+
+def run_german(browser, url, size, position, theme, summary):
+    """German selected, AltGr Symbols on: three legends where they fit, two where not."""
+    tag = f"german-on/{size}/{position}/{theme}"
+    context, page = open_case(browser, url, size, position, theme, query=GERMAN + "&altgrLegends=on")
+    m = page.evaluate(MEASURE_JS)
+    layout = [x for x in m if x["where"] == "layout"]
+    picker = [x for x in m if x["where"] == "picker"]
+
+    def find(rows, code):
+        return next((x for x in rows if x["code"] == code), None)
+
+    # Picker: digits get three legends; letters with an AltGr character get base + AltGr.
+    for key, sh, ag in (("2", '"', "²"), ("3", "§", "³"), ("7", "/", "{"), ("8", "(", "["), ("9", ")", "]"), ("0", "=", "}"), ("+", "*", "~")):
+        x = find(picker, key)
+        check(x is not None and x["shifted"] == sh and x["altgr"] == ag, f"{tag}: picker {key} shows {sh} / {ag} (got {x and (x['shifted'], x['altgr'])})")
+    for key, ag in (("q", "@"), ("e", "€"), ("m", "µ"), ("ß", "\\")):
+        x = find(picker, key)
+        check(x is not None and x["shifted"] == "" and x["altgr"] == ag and x["n"] == 2, f"{tag}: picker {key} shows its base and {ag} (got {x and (x['shifted'], x['altgr'], x['n'])})")
+    check(find(picker, "w") is None, f"{tag}: picker W has no AltGr character and keeps one legend")
+    # Layout: plain digit keys (KC_2 on the G key), a letter, a mod-tap, a combo key, and RALT alone.
+    x = find(layout, "KC_2")
+    check(x is not None and x["n"] == 3 and x["altgr"] == "²" and x["shifted"] == '"', f"{tag}: layout KC_2 shows three legends")
+    if x:
+        check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{tag}: KC_2 at the full {NOMINAL[size]}px, as the key is scaled (got {x['fontPx']})")
+    x = find(layout, "KC_8")
+    check(x is not None and x["altgr"] == "" and x["shifted"] == "(", f"{tag}: KC_8 in a combo keeps the two-legend diagonal (the fold takes the corner)")
+    x = find(layout, "KC_Q")
+    check(x is not None and x["altgr"] == "@" and x["shifted"] == "", f"{tag}: layout Q shows base and @")
+    x = find(layout, "LCTL_T(KC_2)")
+    check(x is not None and x["altgr"] == "" and x["shifted"] == '"', f"{tag}: mod-tap 2 (in a combo, so it has a fold) keeps the two-legend diagonal (got {x and x['altgr']!r})")
+    ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
+    check(ralt.count() > 0 and ralt.locator("[data-dual-legend]").count() == 0 and "{" in ralt.inner_text() and "7" not in ralt.inner_text(),
+          f"{tag}: RALT(KC_7) shows the AltGr character alone, not 7 (drew {ralt.inner_text()!r})")
+    for x in m:
+        k = f"{tag} {x['where']} {x['code']}"
+        check(x["allIn"], f"{k}: glyphs whole inside the key ({x['keyPx']}px key)")
+        check(not x["overlap"], f"{k}: the glyphs do not overlap")
+        check(not x["hits"], f"{k}: glyphs clear of bands and folds ({x['hits']})")
+        check(x["sameFont"] and x["sameColor"] and x["noTransform"], f"{k}: one size, one color, drawn as written")
+        check(x["sColor"] == x["keyColor"], f"{k}: the key's own legend color")
+        if x["where"] == "layout" and x["kind"] == "plain":
+            check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{k}: font {x['fontPx']}px is the full {NOMINAL[size]}px, as the key is scaled")
+        if x["where"].startswith("picker"):
+            check(x["contrast"] >= 4.5, f"{k}: contrast {x['contrast']:.2f} >= 4.5")
+    s = summary.setdefault(f"german/{size}", {"three": set(), "two": set(), "fontPx": set()})
+    for x in layout:
+        (s["three"] if x["n"] == 3 else s["two"]).add(x["code"])
+        s["fontPx"].add(x["fontPx"])
+    shoot(page, f"german-on-{size}-{position}-{theme}")
+    # With the picker's CTRL on every picker key gets a band: three legends stay only where they fit.
+    ctrl = page.get_by_role("button", name="CTRL", exact=True).first
+    if ctrl.is_visible():
+        ctrl.click()
+        page.wait_for_timeout(300)
+        for x in [y for y in page.evaluate(MEASURE_JS) if y["where"] == "picker"]:
+            k = f"{tag} picker+ctrl {x['code']}"
+            check(x["allIn"] and not x["overlap"] and not x["hits"], f"{k}: glyphs whole, apart, clear of the band ({x['hits']})")
+            check(x["sameFont"] and x["sameColor"], f"{k}: one size, one color")
+            s.setdefault("ctrlLegends", set()).add(x["n"])
+        page.get_by_role("button", name="None", exact=True).first.click()
+    context.close()
+
+    tag = f"german-off/{size}/{position}/{theme}"
+    context, page = open_case(browser, url, size, position, theme, query=GERMAN + "&altgrLegends=off")
+    check(page.locator('[data-legend="altgr"]').count() == 0, f"{tag}: no AltGr legend anywhere")
+    check(page.locator("[data-dual-legend]").count() > 0, f"{tag}: Shifted Key Symbols still draw")
+    ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
+    check("7" in ralt.inner_text() and "{" not in ralt.inner_text(), f"{tag}: RALT(KC_7) draws its base key")
+    q = page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_Q"]').first
+    check(q.locator("[data-dual-legend]").count() == 0, f"{tag}: Q keeps one legend")
+    context.close()
+
+
+def run_toggle(browser, url):
+    """Settings > Appearance and editing: the AltGr symbols row only with an AltGr layout; it turns the legends on and off."""
+    for lang, shown in (("", False), (GERMAN, True)):
+        tag = f"toggle/{lang or 'us'}"
+        context = browser.new_context(viewport={"width": 1920, "height": 1080}, reduced_motion="reduce")
+        context.add_init_script(settings_init("default", "sidebar"))
+        page = context.new_page()
+        page.goto(f"{url}?fakeBoard=legends&panel=settings{lang}")
+        wait_connected(page)
+        page.locator("[data-settings-section='appearance']").wait_for(timeout=20000)
+        head = page.locator("[data-settings-section='appearance'] [aria-expanded]").first
+        if head.get_attribute("aria-expanded") != "true":
+            head.click()
+        page.wait_for_timeout(300)
+        row = page.get_by_role("group", name="AltGr symbols")
+        check((row.count() == 1) == shown, f"{tag}: the AltGr symbols row is {'shown' if shown else 'hidden'}")
+        if shown:
+            check(page.locator('[data-legend="altgr"]').count() == 0, f"{tag}: off by default, no AltGr legend")
+            row.get_by_role("button", name="ON", exact=True).click()
+            page.wait_for_timeout(500)
+            check(page.locator('[data-legend="altgr"]').count() > 0, f"{tag}: on, AltGr legends show")
+            row.get_by_role("button", name="OFF", exact=True).click()
+            page.wait_for_timeout(500)
+            check(page.locator('[data-legend="altgr"]').count() == 0, f"{tag}: off again, they go")
+        context.close()
 
 
 def layout_codes(page: Page) -> list:
@@ -306,13 +422,15 @@ def main():
                     for theme in THEMES:
                         run_case(browser, url, size, position, theme, summary)
                         run_off(browser, url, size, position, theme)
+                        run_german(browser, url, size, position, theme, summary)
+            run_toggle(browser, url)
         finally:
             browser.close()
     for k, v in sorted(summary.items()):
-        print(k, json.dumps(v))
+        print(k, json.dumps(v, default=lambda s: sorted(s)))
     if SHOTS:
         with open(os.path.join(SHOTS, "summary.json"), "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=1)
+            json.dump(summary, f, indent=1, default=lambda s: sorted(s))
     print(f"{len(failures)} failure(s)")
     sys.exit(1 if failures else 0)
 

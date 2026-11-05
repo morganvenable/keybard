@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from "react";
-import { DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
+import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
+import { altgrLegendsFromSearch, keyLegendsFromSearch } from "@/lib/deepLinks";
+import { LAYOUTS } from "@/components/Keyboards/layouts";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import {
@@ -27,6 +29,8 @@ interface LayoutSettingsContextType {
     internationalLayout: string;
     /** Digit and punctuation keys also show their shifted symbol (Settings > Appearance; on when absent). */
     showShiftedLegends?: boolean;
+    /** Also show what AltGr types as a third legend (Settings > Appearance; off when absent). */
+    showAltGrLegends?: boolean;
     setInternationalLayout: (layout: string) => void;
     keyVariant: KeyVariant;
     setKeyVariant: (variant: KeyVariant) => void;
@@ -52,7 +56,11 @@ interface LayoutSettingsContextType {
 const LayoutSettingsContext = createContext<LayoutSettingsContextType | undefined>(undefined);
 
 export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [internationalLayout, setInternationalLayout] = useState<string>("us");
+    const [internationalLayout, setInternationalLayout] = useState<string>(() => {
+        // ?keyLegends=german opens with that Key legends layout (review links; not saved).
+        const fromLink = typeof window === "undefined" ? null : keyLegendsFromSearch(window.location.search);
+        return fromLink && LAYOUTS[fromLink] ? fromLink : "us";
+    });
     const [keyVariant, setKeyVariantState] = useState<KeyVariant>("default");
     const [layoutMode, setLayoutModeState] = useState<LayoutMode>("sidebar");
     const [isAutoLayoutMode, setIsAutoLayoutModeState] = useState<boolean>(true);
@@ -71,6 +79,13 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const storedKeySize = settings?.isLoaded ? settings.getSetting(KEY_SIZE_SETTING, DEFAULT_KEY_SIZE) : null;
     const storedPanelPosition = settings?.isLoaded ? settings.getSetting(PANEL_POSITION_SETTING, DEFAULT_PANEL_POSITION) : null;
     const showShiftedLegends = settings ? settings.getSetting(SHIFTED_LEGENDS_SETTING, DEFAULT_SHIFTED_LEGENDS) === true : DEFAULT_SHIFTED_LEGENDS;
+
+    // ?altgrLegends=on|off decides AltGr Symbols for this load only (review links; not saved).
+    // The link holds only until the setting is changed in Settings, so the toggle works on a linked load.
+    const storedAltGr = settings ? settings.getSetting(ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS) === true : DEFAULT_ALTGR_LEGENDS;
+    const altgrLink = useRef<{ value: boolean | null; stored: boolean }>({ value: typeof window === "undefined" ? null : altgrLegendsFromSearch(window.location.search), stored: storedAltGr });
+    if (altgrLink.current.value !== null && altgrLink.current.stored !== storedAltGr) altgrLink.current.value = null;
+    const showAltGrLegends = altgrLink.current.value ?? storedAltGr;
 
     useEffect(() => {
         if (!isKeySizePreference(storedKeySize)) return;
@@ -229,6 +244,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         <LayoutSettingsContext.Provider value={{
             internationalLayout,
             showShiftedLegends,
+            showAltGrLegends,
             setInternationalLayout,
             keyVariant,
             setKeyVariant,

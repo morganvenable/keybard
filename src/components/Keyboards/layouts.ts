@@ -3,6 +3,14 @@ export interface LayoutDefinition {
     value: string;
     default: string[];
     shift: string[];
+    /**
+     * What AltGr types with each key, in the same rows and places as `default`, "{none}"
+     * where it types nothing printable. Optional: only layouts with a verified AltGr level.
+     * Dead keys (AltGr+4 "~" on Spanish, AltGr+e "~" and AltGr+è "`" on French) are left out:
+     * they type nothing until the next key. Source: the Windows layout tables (KBDGR.DLL
+     * and its siblings), read with ToUnicodeEx at Ctrl+Alt on this machine, row by row.
+     */
+    altgr?: string[];
 }
 
 export const LAYOUTS: Record<string, LayoutDefinition> = {
@@ -64,6 +72,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L Ö Ä ' {enter}",
             "{shiftleft} > Y X C V B N M ; : _ {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} {none} ² ³ {none} {none} {none} { [ ] } \\ {none} {none}",
+            "{none} @ {none} € {none} {none} {none} {none} {none} {none} {none} {none} ~",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "{none} | {none} {none} {none} {none} {none} {none} µ {none} {none} {none} {none}",
+            "",
         ]
     },
     french: {
@@ -84,6 +100,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} Q S D F G H J K L M % µ {enter}",
             "{shiftleft} > W X C V B N ? . / § {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} {none} {none} # { [ | {none} \\ ^ @ ] } {none}",
+            "{none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} {none} ¤",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "",
         ]
     },
     spanish: {
@@ -104,6 +128,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L Ñ ¨ Ç {enter}",
             "{shiftleft} > Z X C V B N M ; : _ {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "\\ | @ # {none} € ¬ {none} {none} {none} {none} {none} {none} {none}",
+            "{none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} [ ]",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} { } {none}",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "",
         ]
     },
     italian: {
@@ -124,6 +156,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L ç ° § {enter}",
             "{shiftleft} > Z X C V B N M ; : _ {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} {none} {none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} {none}",
+            "{none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} [ ]",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} @ # {none} {none}",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "",
         ]
     },
     br: {
@@ -144,6 +184,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L Ç ^ } {enter}",
             "{shiftleft} | Z X C V B N M < > : ? {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} ¹ ² ³ £ ¢ ¬ {none} {none} {none} {none} {none} § {none}",
+            "{none} / ? ° {none} {none} {none} {none} {none} {none} {none} {none} ª",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} º {none}",
+            "{none} {none} {none} {none} ₢ {none} {none} {none} {none} {none} {none} {none} ° {none}",
+            "",
         ]
     },
     danish: {
@@ -164,6 +212,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L Æ Ø * {enter}",
             "{shiftleft} > Z X C V B N M ; : _ {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} {none} @ £ $ € {none} { [ ] } {none} | {none}",
+            "{none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "{none} \\ {none} {none} {none} {none} {none} {none} µ {none} {none} {none} {none}",
+            "",
         ]
     },
     swiss: {
@@ -184,6 +240,14 @@ export const LAYOUTS: Record<string, LayoutDefinition> = {
             "{capslock} A S D F G H J K L é à £ {enter}",
             "{shiftleft} > Y X C V B N M ; : _ {shiftright}",
             "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+        ],
+        altgr: [
+            "",
+            "{none} ¦ @ # ° § ¬ | ¢ {none} {none} {none} {none} {none}",
+            "{none} {none} {none} € {none} {none} {none} {none} {none} {none} {none} [ ]",
+            "{none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} { } {none}",
+            "{none} \\ {none} {none} {none} {none} {none} {none} {none} {none} {none} {none} {none}",
+            "",
         ]
     },
     // Aliases / Placeholders for others to prevent empty rendering
@@ -379,7 +443,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         ",": "KC_COMMA", ";": "KC_COMMA",
         "<": "KC_NONUS_BSLASH", ">": "KC_NONUS_BSLASH",
         "!": "KC_1", "\"": "KC_2", "·": "KC_3", "$": "KC_4", "%": "KC_5", "&": "KC_6", "/": "KC_7", "(": "KC_8", ")": "KC_9", "=": "KC_0",
-        "ª": "KC_GRAVE", "º": "KC_GRAVE"
+        "ª": "KC_GRAVE", "º": "KC_GRAVE",
+        "`": "KC_LBRACKET", "´": "KC_QUOTE"
     },
     danish: {
         "+": "KC_MINUS", "´": "KC_EQUAL",
