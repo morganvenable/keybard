@@ -13,7 +13,11 @@ import { applyModifiers, Modifier, ModifierSide, PLAIN_MODIFIER_KEYCODES } from 
 import { QWERTY_KEY_PX, TRAY_MIN_KEY_PX } from "@/lib/pickerShape";
 
 interface IProps {
-    onKeyPress?: (button: string) => void;
+    /**
+     * A key was clicked. `shifted`: the picker's own Shift (or Caps) is on and this key shows
+     * its shifted symbol, so the binding is Shift plus the key, as shown.
+     */
+    onKeyPress?: (button: string, shifted?: boolean) => void;
     activeModifiers?: string[];
     /** Hand used when activeModifiers are applied (RSFT(kc) vs LSFT(kc)). */
     modifierSide?: ModifierSide;
@@ -44,13 +48,13 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
 
     const isShiftActive = activeModifiers.includes("Shift") || layoutName === "shift";
 
-    const onKeyPress = (button: string) => {
+    const onKeyPress = (button: string, shifted = false) => {
         if (!isBinding || !keyboard) return;
         if (button === "{shiftleft}" || button === "{shiftright}" || button === "{capslock}") {
             setLayoutName(layoutName === "default" ? "shift" : "default");
         }
         if (onKeyPressCallback) {
-            onKeyPressCallback(button);
+            onKeyPressCallback(button, shifted);
         }
     };
 
@@ -115,6 +119,9 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // Exception: If the key is specific to the shift layer (rare but possible), defaultKey might be weird?
                     // But in our layouts, default is strict base.
                     const outputKey = defaultKey;
+                    // With the picker's own Shift on, a key that shows its shifted symbol binds it
+                    // (Shift plus the key), so what the key shows is what it binds.
+                    const bindShifted = layoutName === "shift" && shiftKey !== defaultKey && !defaultKey.startsWith("{");
 
                     // To get correct QMK keycode for display/icon lookup, we resolve the visual key
                     // key is "ç" or "a" or "{shift}"
@@ -178,7 +185,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
-                            onClick={() => onKeyPress(outputKey)}
+                            onClick={() => onKeyPress(outputKey, bindShifted)}
                             disableTooltip={disableTooltip}
                             forceLabel={true}
                             dragW={1}
