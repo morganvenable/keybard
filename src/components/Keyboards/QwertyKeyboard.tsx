@@ -14,10 +14,10 @@ import { QWERTY_KEY_PX, TRAY_MIN_KEY_PX } from "@/lib/pickerShape";
 
 interface IProps {
     /**
-     * A key was clicked. `shifted`: the picker's own Shift (or Caps) is on and this key shows
-     * its shifted symbol, so the binding is Shift plus the key, as shown.
+     * A key was clicked. `shifted`: the picker's own L SHIFT or R SHIFT is on and this key
+     * shows its shifted symbol, so the binding is Shift (that side) plus the key, as shown.
      */
-    onKeyPress?: (button: string, shifted?: boolean) => void;
+    onKeyPress?: (button: string, shifted?: ModifierSide | false) => void;
     activeModifiers?: string[];
     /** Hand used when activeModifiers are applied (RSFT(kc) vs LSFT(kc)). */
     modifierSide?: ModifierSide;
@@ -28,7 +28,10 @@ interface IProps {
 }
 
 const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [], modifierSide = "left", hideLanguageSelector = false, disableTooltip = false, fit }) => {
-    const [layoutName, setLayoutName] = useState<"default" | "shift">("default");
+    // The picker's own Shift: off, or the side clicked. Caps Lock binds Caps Lock and leaves
+    // the picker as it is (letters already draw as capitals), so display and binding agree.
+    const [pickerShift, setPickerShift] = useState<ModifierSide | null>(null);
+    const layoutName: "default" | "shift" = pickerShift ? "shift" : "default";
     const { internationalLayout, setInternationalLayout, layoutMode } = useLayoutSettings();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
@@ -48,10 +51,10 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
 
     const isShiftActive = activeModifiers.includes("Shift") || layoutName === "shift";
 
-    const onKeyPress = (button: string, shifted = false) => {
+    const onKeyPress = (button: string, shifted: ModifierSide | false = false) => {
         if (!isBinding || !keyboard) return;
-        if (button === "{shiftleft}" || button === "{shiftright}" || button === "{capslock}") {
-            setLayoutName(layoutName === "default" ? "shift" : "default");
+        if (button === "{shiftleft}" || button === "{shiftright}") {
+            setPickerShift(pickerShift ? null : button === "{shiftright}" ? "right" : "left");
         }
         if (onKeyPressCallback) {
             onKeyPressCallback(button, shifted);
@@ -121,7 +124,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     const outputKey = defaultKey;
                     // With the picker's own Shift on, a key that shows its shifted symbol binds it
                     // (Shift plus the key), so what the key shows is what it binds.
-                    const bindShifted = layoutName === "shift" && shiftKey !== defaultKey && !defaultKey.startsWith("{");
+                    const bindShifted = pickerShift && shiftKey !== defaultKey && !defaultKey.startsWith("{") ? pickerShift : false;
 
                     // To get correct QMK keycode for display/icon lookup, we resolve the visual key
                     // key is "ç" or "a" or "{shift}"

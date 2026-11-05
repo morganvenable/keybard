@@ -100,7 +100,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             { setting: "typing-binds-key", label: "Typing binds a key" },
             { setting: "serial-assignment", label: "Advance after assigning", description: "After you assign a key, select the next one in this order." },
             { setting: "international-keyboards", label: "Key legends", description: "The keyboard layout your computer uses, so keys show what they type." },
-            { setting: SHIFTED_LEGENDS_SETTING, label: "Shifted symbols on keys" },
+            { setting: SHIFTED_LEGENDS_SETTING, label: "Shifted Key Symbols" },
             { setting: SHOW_ALT_REPEAT_SETTING },
             { setting: COMBO_INDICATOR_SETTING, label: "Combo indicators" },
             { setting: COMBO_COLORBLIND_SETTING, label: "Colorblind-friendly combo colors" },

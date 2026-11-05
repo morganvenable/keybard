@@ -23,8 +23,9 @@ picker's CTRL modifier on (every picker key gets an LCTL band):
      meets WCAG AA (4.5:1) on the key; on the layout it is the existing legend
      on the layer color, unchanged here.
 And the picker's Shift: with the picker's own L SHIFT on, the 1 key shows `!`
-alone and binds LSFT(KC_1) (named KC_EXLM), as shown; with it off, KC_1. The
-SHIFT modifier button shows `!` alone too.
+alone and binds LSFT(KC_1) (named KC_EXLM), as shown; R SHIFT binds RSFT(KC_1);
+with it off, KC_1. Caps Lock leaves the picker as it is. The SHIFT modifier
+button shows `!` alone too.
 
 E2E_SHOTS=<dir> also saves screenshots of the layout and the picker.
 Builds the app like fake_board_e2e.py (E2E_URL and E2E_SKIP_BUILD work the
@@ -258,6 +259,27 @@ def run_shift(browser, url, position):
     # A letter with picker Shift on binds Shift plus the letter (what the key shows: Q).
     bind_from_picker(page, "KC_T", "q")
     check(any(c in ("LSFT(KC_Q)", "S(KC_Q)") for c in layout_codes(page)), f"{tag}: with picker Shift on, Q binds Shift+Q")
+    context.close()
+    # The picker's R SHIFT: binds right Shift plus the key.
+    context, page = open_case(browser, url, "default", position, "light")
+    picker = page.locator("[data-fitted-keyboard]:visible").first
+    page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_E"]:visible').first.click()
+    picker.locator('[data-picker-key="{shiftright}"]').first.click()
+    page.wait_for_timeout(400)
+    bind_from_picker(page, "KC_R", "1")
+    codes = layout_codes(page)
+    check(any(c and c.startswith("RSFT(") and "KC_1" in c for c in codes), f"{tag}: with picker R SHIFT on, the 1 key binds right Shift+1 ({[c for c in codes if c and 'KC_1' in c]})")
+    context.close()
+    # Caps Lock binds Caps Lock and leaves the picker as it is: 1 still shows both legends, binds KC_1.
+    context, page = open_case(browser, url, "default", position, "light")
+    picker = page.locator("[data-fitted-keyboard]:visible").first
+    one = picker.locator('[data-picker-key="1"]').first
+    page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_E"]:visible').first.click()
+    picker.locator('[data-picker-key="{capslock}"]').first.click()
+    page.wait_for_timeout(400)
+    check(one.locator("[data-dual-legend]").count() == 1, f"{tag}: after Caps Lock, 1 still shows both legends")
+    bind_from_picker(page, "KC_R", "1")
+    check("KC_1" in layout_codes(page) and "KC_EXLM" not in layout_codes(page), f"{tag}: after Caps Lock, the 1 key binds KC_1")
     context.close()
     # The SHIFT modifier button: ! alone, binds Shift+1.
     context, page = open_case(browser, url, "default", position, "light")

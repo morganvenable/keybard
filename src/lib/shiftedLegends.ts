@@ -11,7 +11,7 @@
  * On by default; Settings > Appearance and editing turns it off (stored per
  * browser like the other display settings).
  */
-import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
+import { BUTTON_TO_KEYCODE_MAP, getLabelForKeycode, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS, LAYOUTS, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import type { KeyContent } from "@/types/keyboard.types";
 
 export const SHIFTED_LEGENDS_SETTING = "shifted-legends";
@@ -35,6 +35,34 @@ export function wrapperHasShift(wrapper: string, modids?: number): boolean {
     if (/^LT\d/.test(wrapper)) return false;
     return wrapper.includes("S") || /^(MEH|HYPR|ALL)(_T)?$/.test(wrapper);
 }
+
+const legendText = (token: string) => KEY_DISPLAY_OVERRIDES[token] || token.replace("{", "").replace("}", "");
+
+/**
+ * A key's legends on this OS layout by position: the token for `code` in the layout's
+ * default rows and the token at the same row and place in its shift rows, the pairing the
+ * QWERTY picker draws. (Looking the shifted symbol up by name instead can find a token
+ * that names another key, such as French ":" or Danish "-".)
+ */
+export function positionalLegends(code: string, layoutId: string): DualLegend | null {
+    const layout = LAYOUTS[layoutId] || LAYOUTS.us;
+    const keyMap = LAYOUT_KEY_MAPS[layoutId] || {};
+    for (let r = 0; r < layout.default.length; r++) {
+        const tokens = layout.default[r].split(" ");
+        const shiftTokens = (layout.shift[r] ?? "").split(" ");
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            const mapped = keyMap[token] || keyMap[token.toLowerCase()] || BUTTON_TO_KEYCODE_MAP[token] || BUTTON_TO_KEYCODE_MAP[token.toLowerCase()];
+            if (mapped !== code) continue;
+            const shiftToken = shiftTokens[i];
+            if (!shiftToken) return null;
+            return { base: legendText(token), shifted: legendText(shiftToken) };
+        }
+    }
+    return null;
+}
+
+const LETTER = /\p{L}/u;
 
 /**
  * The base and shifted legends of a key on this OS layout, or null when the key
@@ -60,6 +88,8 @@ export function dualLegendFor(
         const m = /^([A-Z0-9_]+)\((KC_[A-Z0-9_]+)\)$/.exec(code);
         if (!m) return null;
         if (wrapperHasShift(m[1], keyContents.modids)) return null;
+        // AltGr types a third symbol on many layouts (AltGr+2 is "²" on German): keep one legend.
+        if (/^(RALT|ALGR|RCAG|RCA|RSA|SAGR|RCS)/.test(m[1])) return null;
         code = m[2];
         wrapped = true;
     }
@@ -67,12 +97,18 @@ export function dualLegendFor(
     if (code in US_SHIFT_ALIASES) return null; // already a shifted symbol (KC_QUES)
     // Numpad (KC_KP_*, KC_P1, KC_PDOT...) and KC_PSCR-style keys: never dual. KC_P is a letter.
     if (code.startsWith("KC_KP_") || code.startsWith("KC_P")) return null;
-    const base = getLabelForKeycode(code, layoutId);
-    const shifted = getLabelForKeycode(`LSFT(${code})`, layoutId);
-    if (!base || !shifted) return null;
-    if (base.length > 2 || shifted.length > 2) return null; // "Space", "enter", "backsp"
-    if (base.toLocaleUpperCase() === shifted.toLocaleUpperCase()) return null; // letters, same symbol
-    if (!wrapped && label && label !== base && label.toLocaleUpperCase() !== base.toLocaleUpperCase()) return null;
+    const legends = positionalLegends(code, layoutId);
+    if (!legends) return null;
+    const { base, shifted } = legends;
+    if ([...base].length > 2 || [...shifted].length > 2) return null; // "Space", "enter", "backsp"
+    if (base === shifted) return null;
+    // Letters keep one legend, in every script (a, é, ж, ش): only digits and symbols get two.
+    if (LETTER.test(base) || LETTER.test(shifted)) return null;
+    if (!wrapped && label) {
+        // A key drawing something else (the picker while its Shift is on) keeps that legend.
+        const same = (a: string | null) => !!a && a.toLocaleUpperCase() === label.toLocaleUpperCase();
+        if (!same(base) && !same(getLabelForKeycode(code, layoutId))) return null;
+    }
     return { base, shifted };
 }
 
@@ -108,14 +144,20 @@ export const DIAGONAL_INSET_PX = {
     small: { x: 4, y: 2 },
 } as const;
 
+/** Widest legend glyph advance in Inter 600, in em, rounded up ("@" is 0.95 em). */
+export const DUAL_LEGEND_GLYPH_EM = 1;
+
 /**
- * The legend size and vertical inset that keep a line whole inside `roomPx`, the height
- * between the key's border and bands. Sizes step down by 0.5 px only when the room
- * can't hold one line.
+ * The legend size and vertical inset that keep both legends whole: a line inside `roomPx`
+ * (the height between the key's border and bands) and both legends side by side inside
+ * `widthPx` (the key's inner width less the two side insets) at their widest glyphs,
+ * `chars` characters in all. Sizes step down by 0.5 px only when the key can't hold them.
  */
-export function fitDualLegend(size: KeySizeName, roomPx: number): { fontPx: number; insetY: number } {
+export function fitDualLegend(size: KeySizeName, roomPx: number, widthPx = Infinity, chars = 2): { fontPx: number; insetY: number } {
     const base = DUAL_LEGEND_FONT_PX[size];
-    const fontPx = Math.max(1, Math.min(base, Math.floor((roomPx / DUAL_LEGEND_LINE_HEIGHT) * 2) / 2));
+    const byHeight = roomPx / DUAL_LEGEND_LINE_HEIGHT;
+    const byWidth = widthPx / (Math.max(1, chars) * DUAL_LEGEND_GLYPH_EM);
+    const fontPx = Math.max(1, Math.min(base, Math.floor(Math.min(byHeight, byWidth) * 2) / 2));
     const insetY = Math.max(0, Math.min(DIAGONAL_INSET_PX[size].y, (roomPx - fontPx * DUAL_LEGEND_LINE_HEIGHT) / 2));
     return { fontPx, insetY };
 }

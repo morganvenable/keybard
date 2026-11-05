@@ -94,7 +94,7 @@ function measureClearance(svg: SVGSVGElement): number {
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         if (!n.textContent?.trim() || svg.contains(n) || !n.parentElement) continue;
         const fs = parseFloat(getComputedStyle(n.parentElement).fontSize) || 12;
-        // A dual legend (?legendStyle) can be @ | ( $ and other glyphs that run below the
+        // A two-legend key (shifted legends) can show @ | ( $ and other glyphs that run below the
         // baseline: keep clear of its whole content box.
         const descends = !!n.parentElement.closest("[data-legend]");
         const range = document.createRange();

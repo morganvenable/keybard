@@ -354,6 +354,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                     legend={dualLegend}
                     variant={variant}
                     roomPx={h * drag.currentUnitSize - 2 - KEY_BAND_PX[variant] * ((keyData.topLabel ? 1 : 0) + (keyData.bottomStr !== "" ? 1 : 0))}
+                    widthPx={w * drag.currentUnitSize - 2 - 2 * DIAGONAL_INSET_PX[variant].x}
                 />
             ) : (
             <div
@@ -382,14 +383,15 @@ Key.displayName = "Key";
  * upper right, the base legend lower left, pulled in from the corners, one color and one
  * size. The face is the room between the key's bands; the line height holds the glyphs'
  * ink and fitDualLegend sizes both legends to the room (`roomPx`: the key's inner height
- * less its bands), so every glyph stays whole.
+ * less its bands; `widthPx`: its inner width less the side insets), so every glyph stays whole.
  */
-function DualLegendFace({ legend, variant, roomPx }: {
+function DualLegendFace({ legend, variant, roomPx, widthPx }: {
     legend: { base: string; shifted: string };
     variant: "default" | "medium" | "small";
     roomPx: number;
+    widthPx: number;
 }) {
-    const { fontPx, insetY } = fitDualLegend(variant, roomPx);
+    const { fontPx, insetY } = fitDualLegend(variant, roomPx, widthPx, [...legend.base].length + [...legend.shifted].length);
     const text: React.CSSProperties = { fontSize: fontPx, lineHeight: DUAL_LEGEND_LINE_HEIGHT, whiteSpace: "nowrap" };
     const x = DIAGONAL_INSET_PX[variant].x;
     return (

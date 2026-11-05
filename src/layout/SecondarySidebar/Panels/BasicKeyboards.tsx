@@ -32,6 +32,7 @@ const getKeyCodeForButton = (keyboard: KeyboardInfo, button: string): string | u
 
 import {
     Modifier,
+    type ModifierSide,
     modifierOptions,
     decomposeKeycode,
     getOsmKeycode,
@@ -112,21 +113,24 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
         });
     };
 
-    const handleKeyClick = (keycode: string, shifted = false) => {
+    const handleKeyClick = (keycode: string, shifted: ModifierSide | false = false) => {
         if (!isBinding || !keyboard) return;
 
         // Ensure we translate names like 'SV_...' to actual keycodes if needed
         const mappedKeycode = getKeyCodeForButton(keyboard, keycode) || keycode;
         // Blank, Transparent and plain modifier keys are never modified
         const isBlank = keycode === "KC_NO" || keycode === "KC_TRNS" || PLAIN_MODIFIER_KEYCODES.has(mappedKeycode);
-        // The QWERTY picker's own Shift adds Shift to the key it shows shifted.
-        const modifiers: Modifier[] = shifted && !activeModifiers.includes("Shift") ? [...activeModifiers, "Shift"] : activeModifiers;
-        const finalKeycode = isBlank ? mappedKeycode : applyModifiers(mappedKeycode, modifiers, false, modifierSide);
+        // The QWERTY picker's own Shift adds Shift to the key it shows shifted, on the side
+        // clicked when it is the only modifier (otherwise the modifier row's side holds).
+        const addShift = !!shifted && !activeModifiers.includes("Shift");
+        const modifiers: Modifier[] = addShift ? [...activeModifiers, "Shift"] : activeModifiers;
+        const side: ModifierSide = addShift && activeModifiers.length === 0 && shifted ? shifted : modifierSide;
+        const finalKeycode = isBlank ? mappedKeycode : applyModifiers(mappedKeycode, modifiers, false, side);
         assignKeycode(finalKeycode);
 
     };
 
-    const handleKeyboardInput = (button: string, shifted = false) => {
+    const handleKeyboardInput = (button: string, shifted: ModifierSide | false = false) => {
         if (!isBinding || !keyboard) return;
         handleKeyClick(button, shifted);
     };
