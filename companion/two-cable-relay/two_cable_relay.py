@@ -67,6 +67,7 @@ OP_FOLLOW, OP_LEAD, OP_RELEASE, OP_STATUS, OP_INJECT, OP_CAPTURE, OP_REBOOT, OP_
 PUSH_ROWS, PUSH_APPLIED, PUSH_REPORT = 0x90, 0x92, 0x93
 STATUS_CABLE = 3                     # the split cable works: FOLLOW and LEAD refused
 ERR_INVALID_ID = 0x01               # client wrapper: unknown or expired client ID
+RELEASE_LOST = bytes([1])            # RELEASE: the other half was lost (the link light shows); none: a stop
 STATUS_NOT_LEAD = 5                  # PEER before the lead has taken its role
 POINTING_HARDWARE, MAIN_BOARD = 0x2C, 0x38   # Sval: each half's pointing module and main board
 SIDE_CMD = 0x33                      # Sval side record: 0 GET, 1 SET
@@ -365,11 +366,11 @@ class Relay:
 
     def _release_lead(self):
         """The follower is away: the lead lets go of its keys now, not when the lease ends
-        (and a lead let go on purpose shows no relay-down light)."""
+        (with the lost flag: the lead blinks the link light until the follower is back)."""
         self.rows = bytes(5)
         try:
             self.lead.send(OP_LEAD, self._lead_packet(0, self.rows))
-            self.lead.send(OP_RELEASE)
+            self.lead.send(OP_RELEASE, RELEASE_LOST)
         except Gone:
             pass
 
@@ -384,7 +385,7 @@ class Relay:
         self.peer_due = 0.0
         self.cable = False
         try:
-            self.follower.send(OP_RELEASE)
+            self.follower.send(OP_RELEASE, RELEASE_LOST)
         except Gone:
             pass
 
@@ -540,7 +541,7 @@ class Relay:
             return
         self.lead_down = True
         try:
-            self.follower.send(OP_RELEASE)
+            self.follower.send(OP_RELEASE, RELEASE_LOST)
         except Gone:
             pass
 

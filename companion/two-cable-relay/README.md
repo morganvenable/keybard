@@ -73,9 +73,10 @@ forgets the relay's client ID.
   works), `conflict` (another relay has the halves), `restarting` or `stopped`, with `detail`, `since`, `updated` (Unix
   seconds), `pid`, `lead`, `follower` and `relayed`. An `updated` older than
   about 15 s means no relay is running.
-- The lead half shows an amber double blip every 3 s when its relay lease has
-  lapsed for 3 s (the relay stopped without letting go), until a relay or the
-  split cable takes over.
+- The link light: a half that was paired blinks amber (2 Hz) when the relay
+  crashes or hangs (both halves), or when the other half leaves USB (the half
+  that is left), until they pair again. A clean `stop` or `uninstall` shows
+  no light, and neither does a half on its own after it starts.
 
 Mac (untested): `install` copies the script to
 `~/Library/Application Support/Svalboard/two-cable-relay/` and stops there. A
