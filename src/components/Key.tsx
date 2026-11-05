@@ -400,7 +400,9 @@ function DualLegendFace({ plan, variant }: { plan: LegendPlan; variant: "default
     const { legend, fontPx, insetY } = plan;
     const text: React.CSSProperties = { fontSize: fontPx, lineHeight: DUAL_LEGEND_LINE_HEIGHT, whiteSpace: "nowrap", textTransform: "none" };
     const x = DIAGONAL_INSET_PX[variant].x;
-    const base = /\p{L}/u.test(legend.base) && legend.base !== "ß" ? legend.base.toLocaleUpperCase() : legend.base;
+    // A letter is capitalized like the key's other labels only when it has no shifted legend: the
+    // shifted legend of é, è, ç, à is their digit, and their base stays as the layout prints it.
+    const base = !legend.shifted && /\p{L}/u.test(legend.base) && legend.base !== "ß" ? legend.base.toLocaleUpperCase() : legend.base;
     return (
         <div data-dual-legend="" className="relative w-full flex-1 min-h-0 font-semibold">
             {legend.shifted && <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, right: x }}>{legend.shifted}</span>}

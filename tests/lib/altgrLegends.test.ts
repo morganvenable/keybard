@@ -77,6 +77,32 @@ describe("dualLegendFor with AltGr Symbols", () => {
         expect(de("KC_W", "w")).toBeNull(); // no AltGr character
     });
 
+    it("French number-row keys read Shift's digit from the shift row, never the capital of the base", () => {
+        const fr = (kc: string, label = "", opts = on) => dualLegendFor(kc, label, undefined, "french", opts);
+        expect(fr("KC_9")).toEqual({ base: "ç", shifted: "9", altgr: "^" });
+        expect(fr("KC_0")).toEqual({ base: "à", shifted: "0", altgr: "@" });
+        expect(fr("KC_2")).toEqual({ base: "é", shifted: "2" }); // AltGr+é is a dead key: left out
+        expect(fr("KC_7")).toEqual({ base: "è", shifted: "7" }); // AltGr+è is a dead key: left out
+        // The layout draws these with the base letter in any case.
+        expect(fr("KC_9", "Ç")).toEqual({ base: "ç", shifted: "9", altgr: "^" });
+        expect(fr("KC_9", "9")).toBeNull(); // the picker with Shift on draws 9 alone
+        // Shift off: the base and AltGr only, still no synthesized capital.
+        expect(fr("KC_9", "", { shifted: false, altgr: true })).toEqual({ base: "ç", altgr: "^" });
+        expect(de("KC_Q", "q")).toEqual({ base: "q", altgr: "@" }); // drawn as Q with @, no shifted legend
+    });
+
+    it("every shifted legend is the shift-row token at its own place, never an upper-cased base", () => {
+        for (const id of ALTGR_LAYOUTS) {
+            for (const kc of new Set([...Object.values(BUTTON_TO_KEYCODE_MAP), ...Object.values(LAYOUT_KEY_MAPS[id] ?? {})])) {
+                const full = positionalLegends(kc, id);
+                const d = dualLegendFor(kc, "", undefined, id, on);
+                if (!d?.shifted) continue;
+                expect(d.shifted, `${id} ${kc}`).toBe(full!.shifted);
+                expect(d.shifted.toLocaleLowerCase(), `${id} ${kc}`).not.toBe(d.base.toLocaleLowerCase());
+            }
+        }
+    });
+
     it("keys without an AltGr character keep what they had", () => {
         expect(de("KC_1")).toEqual({ base: "1", shifted: "!" });
         expect(de("KC_A")).toBeNull();

@@ -266,6 +266,8 @@ def run_german(browser, url, size, position, theme, summary):
         x = find(picker, key)
         check(x is not None and x["shifted"] == "" and x["altgr"] == ag and x["n"] == 2, f"{tag}: picker {key} shows its base and {ag} (got {x and (x['shifted'], x['altgr'], x['n'])})")
     check(find(picker, "w") is None, f"{tag}: picker W has no AltGr character and keeps one legend")
+    q = find(picker, "q")
+    check(q is not None and q["base"] == "Q", f"{tag}: picker Q shows Q with its @, no shifted legend (got {q and q['base']!r})")
     # Layout: plain digit keys (KC_2 on the G key), a letter, a mod-tap, a combo key, and RALT alone.
     x = find(layout, "KC_2")
     check(x is not None and x["n"] == 3 and x["altgr"] == "²" and x["shifted"] == '"', f"{tag}: layout KC_2 shows three legends")
@@ -318,6 +320,22 @@ def run_german(browser, url, size, position, theme, summary):
     q = page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_Q"]').first
     check(q.locator("[data-dual-legend]").count() == 0, f"{tag}: Q keeps one legend")
     context.close()
+
+
+def run_french(browser, url, size, position, theme):
+    """French AZERTY: number-row keys with a letter base show Shift's digit from the shift row, not the capital."""
+    tag = f"french/{size}/{position}/{theme}"
+    for on in ("on", "off"):
+        context, page = open_case(browser, url, size, position, theme, query=f"&keyLegends=french&altgrLegends={on}")
+        picker = [x for x in page.evaluate(MEASURE_JS) if x["where"] == "picker"]
+        for base, sh, ag in (("ç", "9", "^"), ("à", "0", "@"), ("é", "2", ""), ("è", "7", "")):
+            x = next((y for y in picker if y["base"] == base), None)
+            want = ag if on == "on" else ""
+            check(x is not None and x["shifted"] == sh and x["altgr"] == want and x["base"] == base,
+                  f"{tag}/{on}: picker {base} shows {base} / {sh} / {want!r}, never the capital (got {x and (x['base'], x['shifted'], x['altgr'])})")
+            if x:
+                check(x["allIn"] and not x["overlap"], f"{tag}/{on}: {base} glyphs whole and apart")
+        context.close()
 
 
 def run_toggle(browser, url):
@@ -423,6 +441,8 @@ def main():
                         run_case(browser, url, size, position, theme, summary)
                         run_off(browser, url, size, position, theme)
                         run_german(browser, url, size, position, theme, summary)
+            run_french(browser, url, "default", "sidebar", "light")
+            run_french(browser, url, "small", "bottombar", "dark")
             run_toggle(browser, url)
         finally:
             browser.close()

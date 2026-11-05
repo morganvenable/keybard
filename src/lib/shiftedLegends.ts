@@ -85,6 +85,7 @@ export function positionalLegends(code: string, layoutId: string): (DualLegend &
 }
 
 const LETTER = /\p{L}/u;
+const DIGIT = /^[0-9]$/;
 
 /** What each kind of legend a key may draw (Settings > Appearance and editing). */
 export interface LegendOptions {
@@ -144,11 +145,13 @@ export function dualLegendFor(
     if (!wrapped && label) {
         // A key drawing something else (the picker while its Shift is on) keeps that legend.
         // Exact, not case-insensitive: the picker's shifted letter is the capital of the base.
-        const same = (a: string | null) => !!a && a === label;
+        const same = (a: string | null) => !!a && (a === label || (DIGIT.test(shifted) && a.toLocaleUpperCase() === label.toLocaleUpperCase()));
         if (!same(base) && !same(getLabelForKeycode(code, layoutId))) return null;
     }
-    // Letters keep one shift legend, in every script (a, é, ж, ش): only digits and symbols get two.
-    const showShifted = wantShifted && base !== shifted && !LETTER.test(base) && !LETTER.test(shifted);
+    // Letters keep one shift legend, in every script (a, é, ж, ش): only digits and symbols get two. A
+    // number-row key whose base is a letter (French é è ç à) still shows its shifted digit, read
+    // from the layout's shift row, never the capital of the base letter.
+    const showShifted = wantShifted && base !== shifted && !LETTER.test(shifted) && (!LETTER.test(base) || DIGIT.test(shifted));
     const showAltGr = wantAltGr && !!altgr && [...altgr].length <= 2 && altgr !== base;
     if (!showShifted && !showAltGr) return null;
     const out: DualLegend = { base };
