@@ -63,6 +63,7 @@ export function positionalLegends(code: string, layoutId: string): DualLegend | 
 }
 
 const LETTER = /\p{L}/u;
+const DIGIT = /^[0-9]$/;
 
 /**
  * The base and shifted legends of a key on this OS layout, or null when the key
@@ -102,8 +103,11 @@ export function dualLegendFor(
     const { base, shifted } = legends;
     if ([...base].length > 2 || [...shifted].length > 2) return null; // "Space", "enter", "backsp"
     if (base === shifted) return null;
-    // Letters keep one legend, in every script (a, é, ж, ش): only digits and symbols get two.
-    if (LETTER.test(base) || LETTER.test(shifted)) return null;
+    // Letters keep one legend, in every script (a, é, ж, ش): only digits and symbols get two. A
+    // number-row key whose base is a letter (French é è ç à) still shows its shifted digit, read
+    // from the layout's shift row, never the capital of the base letter.
+    if (LETTER.test(shifted)) return null;
+    if (LETTER.test(base) && !DIGIT.test(shifted)) return null;
     if (!wrapped && label) {
         // A key drawing something else (the picker while its Shift is on) keeps that legend.
         const same = (a: string | null) => !!a && a.toLocaleUpperCase() === label.toLocaleUpperCase();

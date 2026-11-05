@@ -84,13 +84,24 @@ describe("dualLegendFor", () => {
             for (const kc of Object.values(BUTTON_TO_KEYCODE_MAP)) {
                 const d = dualLegendFor(kc, "", undefined, id);
                 if (d) {
-                    expect(d.base, `${id} ${kc}`).not.toMatch(/\p{L}/u);
+                    if (/\p{L}/u.test(d.base)) expect(d.shifted, `${id} ${kc}`).toMatch(/^[0-9]$/); // a number-row key with a letter base (French é è ç à)
                     expect(d.shifted, `${id} ${kc}`).not.toMatch(/\p{L}/u);
                 }
             }
         }
         expect(dualLegendFor("KC_A", "", undefined, "arabic")).toBeNull();
         expect(dualLegendFor("KC_B", "", undefined, "arabic")).toBeNull();
+    });
+
+    it("French number-row keys with a letter base read their shifted digit from the shift row", () => {
+        const fr = (kc: string) => dualLegendFor(kc, "", undefined, "french");
+        expect(fr("KC_2")).toEqual({ base: "é", shifted: "2" });
+        expect(fr("KC_7")).toEqual({ base: "è", shifted: "7" });
+        expect(fr("KC_9")).toEqual({ base: "ç", shifted: "9" });
+        expect(fr("KC_0")).toEqual({ base: "à", shifted: "0" });
+        // Letters stay single: Shift only capitalizes them.
+        expect(fr("KC_A")).toBeNull();
+        expect(dualLegendFor("KC_Q", "", undefined, "german")).toBeNull();
     });
 
     it("non-US layouts pair keys by position (French, Danish)", () => {
