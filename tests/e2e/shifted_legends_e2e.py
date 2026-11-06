@@ -336,7 +336,10 @@ def run_german(browser, url, size, position, theme, summary):
     check(page.locator('[data-legend="altgr"]').count() == 0, f"{tag}: no AltGr legend anywhere")
     check(page.locator("[data-dual-legend]").count() > 0, f"{tag}: Shifted Key Symbols still draw")
     ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
-    check("{" in ralt.inner_text() and "RALT" not in ralt.inner_text().upper(), f"{tag}: RALT(KC_7) shows its AltGr character with the toggle off too (drew {ralt.inner_text()!r})")
+    check("RALT" in ralt.inner_text().upper() and "{" not in ralt.inner_text(), f"{tag}: with AltGr Symbols off RALT(KC_7) keeps its RALT band and base key (drew {ralt.inner_text()!r})")
+    check(page.locator("[data-altgr-button]:visible").count() == 0, f"{tag}: with AltGr Symbols off there is no picker AltGr button")
+    ralt_key = page.locator('[data-fitted-keyboard]:visible [data-picker-key="{altright}"]').first
+    check("AltGr" not in ralt_key.inner_text(), f"{tag}: with AltGr Symbols off KC_RALT keeps its normal label (got {ralt_key.inner_text()!r})")
     q = page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_Q"]').first
     check(q.locator("[data-dual-legend]").count() == 0, f"{tag}: Q keeps one legend")
     context.close()
@@ -369,11 +372,12 @@ def k_tag(tag, x):
 def run_altgr_button(browser, url, size, position, theme):
     """The picker's AltGr button: German shows it, binds RALT(key) and shows the AltGr character; US has none."""
     tag = f"altgr-button/{size}/{position}/{theme}"
-    context, page = open_case(browser, url, size, position, theme, query=GERMAN)
+    context, page = open_case(browser, url, size, position, theme, query=GERMAN + "&altgrLegends=on")
     btn = page.locator("[data-altgr-button]:visible").first
     check(btn.count() > 0, f"{tag}: AltGr button shown on German")
     ralt_picker = page.locator('[data-fitted-keyboard]:visible [data-picker-key="{altright}"]').first
     check("AltGr" in ralt_picker.inner_text(), f"{tag}: KC_RALT picker key is labeled AltGr (got {ralt_picker.inner_text()!r})")
+    idx_w = layout_codes(page).index("KC_W")
     page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_W"]:visible').first.click()
     btn.click()
     page.wait_for_timeout(400)
@@ -393,6 +397,21 @@ def run_altgr_button(browser, url, size, position, theme):
     placed = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
     text = placed.inner_text()
     check("{" in text and "RALT" not in text.upper(), f"{tag}: the bound key shows {{, not RALT (drew {text!r})")
+    # Keys with no AltGr character are inert: no click, no drag.
+    before = layout_codes(page)[idx_w]
+    page.locator(f"{LAYOUT} [data-keycap]:visible").nth(idx_w).click()
+    pick_a = page.locator('[data-fitted-keyboard]:visible [data-picker-key="a"]').first
+    pick_a.click(force=True)
+    page.wait_for_timeout(300)
+    check(layout_codes(page)[idx_w] == before, f"{tag}: clicking a dimmed key (A) binds nothing")
+    ab, tb = pick_a.bounding_box(), page.locator(f"{LAYOUT} [data-keycap]:visible").nth(idx_w).bounding_box()
+    page.mouse.move(ab["x"] + ab["width"] / 2, ab["y"] + ab["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(ab["x"] + ab["width"] / 2 + 12, ab["y"] + ab["height"] / 2 + 12, steps=4)
+    page.mouse.move(tb["x"] + tb["width"] / 2, tb["y"] + tb["height"] / 2, steps=12)
+    page.mouse.up()
+    page.wait_for_timeout(400)
+    check(layout_codes(page)[idx_w] == before, f"{tag}: dragging a dimmed key (A) binds nothing")
     if SHOTS:
         shoot(page, f"altgr-button-{size}-{position}-{theme}")
     # SHIFT replaces AltGr.
@@ -514,6 +533,70 @@ def run_drag(browser, url, layout_id):
         want = {"z": "KC_Y", "2": "KC_2", "1": "KC_1", "/": "KC_SLASH"}[t]
         check(shifted_of(dragged) == want, f"{tag}: dragging {t!r} with Shift on carries Shift plus {want}, as a click binds (got {dragged})")
         context.close()
+
+
+def run_click_vs_drag(browser, url):
+    """With CTRL from the modifier row and the picker's own Shift both on, a click and a drag write the same keycode."""
+    results = {}
+    for how in ("click", "drag"):
+        context, page = open_case(browser, url, "default", "sidebar", "light", query="&keyLegends=german")
+        tokens = page.locator("[data-fitted-keyboard]:visible [data-picker-key]").evaluate_all("els => els.map(e => e.getAttribute('data-picker-key'))")
+        idx = layout_codes(page).index("KC_W")
+        target = lambda: page.locator(f"{LAYOUT} [data-keycap]:visible").nth(idx)
+        pick = lambda k: page.locator("[data-fitted-keyboard]:visible [data-picker-key]").nth(tokens.index(k))
+        target().click()
+        page.get_by_role("button", name="CTRL", exact=True).first.click()
+        pick("{shiftleft}").click()
+        page.wait_for_timeout(300)
+        if how == "click":
+            target().click()
+            pick("z").click()
+        else:
+            a, b = pick("z").bounding_box(), target().bounding_box()
+            page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+            page.mouse.down()
+            page.mouse.move(a["x"] + a["width"] / 2 + 12, a["y"] + a["height"] / 2 + 12, steps=4)
+            page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=12)
+            page.mouse.up()
+        page.wait_for_timeout(600)
+        results[how] = layout_codes(page)[idx]
+        context.close()
+    check(results["click"] == results["drag"] and "KC_Y" in results["click"], f"click-vs-drag: with CTRL and Shift a click writes {results['click']} and a drag {results['drag']}")
+
+
+def run_persist(browser, url):
+    """Key legends is stored: a German user stays German after a reload, and the AltGr Symbols row shows."""
+    context = browser.new_context(viewport={"width": 1920, "height": 1080}, reduced_motion="reduce")
+    context.add_init_script(settings_init("default", "sidebar"))
+    page = context.new_page()
+    page.goto(f"{url}?fakeBoard=legends&panel=keyboard")
+    wait_connected(page)
+    page.locator("[data-fitted-keyboard]:visible").first.wait_for(timeout=20000)
+    page.locator('select[aria-label="Keyboard layout"]:visible, select[title="Keyboard layout"]:visible').first.select_option("german")
+    page.wait_for_timeout(500)
+    page.goto(f"{url}?fakeBoard=legends&panel=settings")
+    wait_connected(page)
+    page.locator("[data-settings-section='appearance']").wait_for(timeout=20000)
+    head = page.locator("[data-settings-section='appearance'] [aria-expanded]").first
+    if head.get_attribute("aria-expanded") != "true":
+        head.click()
+    page.wait_for_timeout(500)
+    check(page.get_by_role("group", name="AltGr symbols").count() == 1, "persist: after a reload German is still selected, so the AltGr Symbols row shows")
+    context.close()
+
+
+def run_mac(browser, url):
+    """On macOS the AltGr option and the picker button are hidden."""
+    context = browser.new_context(viewport={"width": 1920, "height": 1080}, reduced_motion="reduce")
+    context.add_init_script("Object.defineProperty(navigator, 'platform', {get: () => 'MacIntel'}); Object.defineProperty(navigator, 'userAgentData', {get: () => ({platform: 'macOS'})});")
+    context.add_init_script(settings_init("default", "sidebar"))
+    page = context.new_page()
+    page.goto(f"{url}?fakeBoard=legends&panel=keyboard&keyLegends=german&altgrLegends=on")
+    wait_connected(page)
+    page.locator("[data-fitted-keyboard]:visible").first.wait_for(timeout=20000)
+    check(page.locator("[data-altgr-button]:visible").count() == 0, "mac: no picker AltGr button")
+    check(page.locator('[data-legend="altgr"]').count() == 0, "mac: no AltGr legend")
+    context.close()
 
 
 def run_toggle(browser, url):
@@ -638,6 +721,10 @@ def main():
             if wanted("drag"):
                 for layout_id in ("us", "german"):
                     run_drag(browser, url, layout_id)
+            if wanted("six"):
+                run_click_vs_drag(browser, url)
+                run_persist(browser, url)
+                run_mac(browser, url)
             if wanted("toggle"):
                 run_toggle(browser, url)
         finally:

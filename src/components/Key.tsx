@@ -121,10 +121,12 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const baseKeyData = useMemo(() => {
         return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
     }, [label, keyContents, keycode, forceLabel, internationalLayout]);
-    // On a layout with AltGr data, RALT(KC_2) shows the character it types ("²" on German), not
-    // "RALT", and the KC_RALT key is labeled AltGr (R ALT elsewhere).
-    const altgrOnly = useMemo(() => altgrOnlyLegend(keycode, keyContents, internationalLayout), [keycode, keyContents, internationalLayout]);
-    const isAltGrKey = keycode === "KC_RALT" && hasAltGr(internationalLayout);
+    // With AltGr Symbols on and an AltGr layout, RALT(KC_2) shows the character it types ("²" on
+    // German), not "RALT", and the KC_RALT key is labeled AltGr. With it off they keep the RALT band
+    // and the normal label.
+    const altgrOn = showAltGrLegends === true;
+    const altgrOnly = useMemo(() => (altgrOn ? altgrOnlyLegend(keycode, keyContents, internationalLayout) : null), [altgrOn, keycode, keyContents, internationalLayout]);
+    const isAltGrKey = altgrOn && keycode === "KC_RALT" && hasAltGr(internationalLayout);
     const keyData = useMemo(() => {
         if (props.hideModifierBand && keyContents?.type === "modmask") return { ...baseKeyData, bottomStr: "" };
         if (altgrOnly) return { ...baseKeyData, bottomStr: "" };

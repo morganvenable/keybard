@@ -616,3 +616,9 @@ export function keycodeForToken(layoutId: string, token: string): string {
     const map = LAYOUT_KEY_MAPS[layoutId] || {};
     return map[token] || map[token.toLowerCase()] || BUTTON_TO_KEYCODE_MAP[token] || BUTTON_TO_KEYCODE_MAP[token.toLowerCase()] || token;
 }
+
+// Layouts that reuse another layout's rows reuse its key map too, so each token names the keycode of its position.
+LAYOUT_KEY_MAPS.fr_mac = LAYOUT_KEY_MAPS.french;
+LAYOUT_KEY_MAPS.es_latam = LAYOUT_KEY_MAPS.spanish;
+LAYOUT_KEY_MAPS.ukrainian = LAYOUT_KEY_MAPS.russian;
+LAYOUT_KEY_MAPS.pt = LAYOUT_KEY_MAPS.br;

@@ -37,9 +37,9 @@ import {
     decomposeKeycode,
     getOsmKeycode,
     applyModifiers,
-    PLAIN_MODIFIER_KEYCODES,
     ALTGR_MODIFIERS,
     ALTGR_SIDE,
+    pickerBinding,
 } from "@/utils/modifierUtils";
 import { hasAltGr } from "@/lib/shiftedLegends";
 import { pickerAltGrFromSearch } from "@/lib/deepLinks";
@@ -64,7 +64,8 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
     // on, the picker shows each key's AltGr character and a click binds RALT(key); it is exclusive
     // with the other modifiers and ignores the L/R side.
     const [altGr, setAltGr] = useState(() => typeof window !== "undefined" && pickerAltGrFromSearch(window.location.search));
-    const altGrAvailable = hasAltGr(internationalLayout);
+    const { showAltGrLegends } = useLayoutSettings();
+    const altGrAvailable = hasAltGr(internationalLayout) && showAltGrLegends === true;
     const altGrOn = altGr && altGrAvailable;
     // A layout without AltGr data drops it, so coming back to German does not silently turn it on.
     useEffect(() => {
@@ -141,14 +142,8 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
 
         // Ensure we translate names like 'SV_...' to actual keycodes if needed
         const mappedKeycode = getKeyCodeForButton(keyboard, keycode) || keycode;
-        // Blank, Transparent and plain modifier keys are never modified
-        const isBlank = keycode === "KC_NO" || keycode === "KC_TRNS" || PLAIN_MODIFIER_KEYCODES.has(mappedKeycode);
-        // The QWERTY picker's own Shift adds Shift to the key it shows shifted, on the side
-        // clicked when it is the only modifier (otherwise the modifier row's side holds).
-        const addShift = !!shifted && !activeModifiers.includes("Shift");
-        const modifiers: Modifier[] = addShift ? [...activeModifiers, "Shift"] : activeModifiers;
-        const side: ModifierSide = addShift && activeModifiers.length === 0 && shifted ? shifted : modifierSide;
-        const finalKeycode = isBlank ? mappedKeycode : applyModifiers(mappedKeycode, modifiers, false, side);
+        // The same builder the picker's drag uses, so a click and a drag write the identical keycode.
+        const finalKeycode = keycode === "KC_NO" || keycode === "KC_TRNS" ? mappedKeycode : pickerBinding(mappedKeycode, activeModifiers, modifierSide, shifted);
         assignKeycode(finalKeycode);
 
     };

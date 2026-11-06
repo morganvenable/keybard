@@ -93,3 +93,23 @@ describe("every layout's picker keys sit at their physical positions", () => {
         });
     }
 });
+
+describe("no layout's picker rows repeat a keycode", () => {
+    for (const [id, layout] of Object.entries(LAYOUTS)) {
+        if (!layout.default.length) continue;
+        it(id, () => {
+            const seen = new Map<string, string>();
+            const dups: string[] = [];
+            layout.default.forEach((row, r) => {
+                if (r === 0 || r === layout.default.length - 1) return; // function row, bottom row
+                for (const tok of row.split(" ")) {
+                    if (!tok || tok.startsWith("{")) continue;
+                    const kc = keycodeForToken(id, tok);
+                    if (seen.has(kc)) dups.push(`${kc}: ${seen.get(kc)} and ${tok}`);
+                    seen.set(kc, tok);
+                }
+            });
+            expect(dups).toEqual([]);
+        });
+    }
+});

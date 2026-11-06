@@ -195,4 +195,22 @@ export const applyModifiers = (keycode: string, activeModifiers: Modifier[], isM
 
 /** AltGr is Right Alt: the picker AltGr button binds RALT(key) (Alt on the right), whatever the L/R toggle says. */
 export const ALTGR_MODIFIERS: Modifier[] = ["Alt"];
+
+/**
+ * The keycode a picker key writes, for a click and for a drag alike: Blank, Transparent and plain
+ * modifier keys are never modified; the picker's own Shift (`shifted`, the side clicked) adds Shift to
+ * a key it shows shifted, on that side when it is the only modifier, else the modifier row's side holds.
+ */
+export const pickerBinding = (
+    keycode: string,
+    activeModifiers: Modifier[],
+    modifierSide: ModifierSide,
+    shifted: ModifierSide | false = false
+): string => {
+    if (keycode === "KC_NO" || keycode === "KC_TRNS" || PLAIN_MODIFIER_KEYCODES.has(keycode)) return keycode;
+    const addShift = !!shifted && !activeModifiers.includes("Shift");
+    const modifiers: Modifier[] = addShift ? [...activeModifiers, "Shift"] : activeModifiers;
+    const side: ModifierSide = addShift && activeModifiers.length === 0 && shifted ? shifted : modifierSide;
+    return applyModifiers(keycode, modifiers, false, side);
+};
 export const ALTGR_SIDE: ModifierSide = "right";

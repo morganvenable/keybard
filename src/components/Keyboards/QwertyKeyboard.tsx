@@ -9,7 +9,7 @@ import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "
 import { KeyContent } from "@/types/keyboard.types";
 import { LAYOUTS, KEY_DISPLAY_OVERRIDES, US_SHIFT_ALIASES, keycodeForToken } from "@/components/Keyboards/layouts";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { applyModifiers, Modifier, ModifierSide, PLAIN_MODIFIER_KEYCODES } from "@/utils/modifierUtils";
+import { applyModifiers, Modifier, ModifierSide, PLAIN_MODIFIER_KEYCODES, pickerBinding } from "@/utils/modifierUtils";
 import { QWERTY_KEY_PX, TRAY_MIN_KEY_PX } from "@/lib/pickerShape";
 
 interface IProps {
@@ -202,9 +202,10 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             data-picker-key={defaultKey}
                             x={0} y={0} w={width} h={1} row={0} col={0}
                             keycode={keycode}
-                            className={dimmed ? "opacity-40" : undefined}
-                            // Dragging carries what a click binds: with the picker's own Shift on, Shift plus the position's keycode.
-                            dragItemData={bindShifted ? { keycode: applyModifiers(positionKeycode, ["Shift"], false, bindShifted) } : undefined}
+                            className={dimmed ? "opacity-40 pointer-events-none" : undefined}
+                            // Dragging carries exactly what a click binds (one builder, pickerBinding).
+                            dragItemData={{ keycode: pickerBinding(positionKeycode, activeModifiers as Modifier[], modifierSide, bindShifted) }}
+                            disableDrag={dimmed}
                             hideModifierBand={activeModifiers.length === 1 && activeModifiers[0] === "Shift"}
                             label={displayLabel}
                             keyContents={keyContents as KeyContent | undefined}
@@ -215,7 +216,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
-                            onClick={() => onKeyPress(outputKey, bindShifted)}
+                            onClick={dimmed ? undefined : () => onKeyPress(outputKey, bindShifted)}
                             disableTooltip={disableTooltip}
                             forceLabel={true}
                             dragW={1}

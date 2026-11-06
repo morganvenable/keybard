@@ -8,6 +8,7 @@ import { SettingsService } from "@/services/settings.service";
 import { DEFAULT_THEME_PREF, THEME_SETTING_NAME } from "@/lib/theme";
 import { DEFAULT_SHOW_ALT_REPEAT, SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING, DEFAULT_COMBO_INDICATORS_ON } from "@/lib/comboIndicators";
+import { KEY_LEGENDS_ITEMS } from "@/lib/keyLegendsSetting";
 import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 
 // Settings definitions - single source of truth
@@ -88,32 +89,7 @@ export const SETTINGS: SettingDefinition[] = [
         name: "international-keyboards",
         label: "International Keyboards",
         type: "select",
-        items: [
-            { label: "English (US)", value: "us" },
-            { label: "English (UK)", value: "uk" },
-            { label: "Brazilian", value: "br" },
-            { label: "Canadian (CSA)", value: "ca-csa" },
-            { label: "Colemak", value: "colemak" },
-            { label: "Croatian (QWERTZ)", value: "croatian-qwertz" },
-            { label: "Danish", value: "danish" },
-            { label: "EuroKey", value: "eurokey" },
-            { label: "French (AZERTY)", value: "french-azerty" },
-            { label: "French (Mac)", value: "french-mac" },
-            { label: "German (QWERTZ)", value: "german-qwertz" },
-            { label: "Hebrew (Standard)", value: "hebrew-standard" },
-            { label: "Hungarian (QWERTZ)", value: "hungarian-qwertz" },
-            { label: "Italian", value: "italian" },
-            { label: "Japanese", value: "japanese" },
-            { label: "Latin American", value: "latin-american" },
-            { label: "Norwegian", value: "norwegian" },
-            { label: "Russian", value: "russian" },
-            { label: "Slovak", value: "slovak" },
-            { label: "Spanish", value: "spanish" },
-            { label: "Swedish", value: "swedish" },
-            { label: "Swedish (SWERTY)", value: "swedish-swerty" },
-            { label: "Swiss (QWERTZ)", value: "swiss-qwertz" },
-            { label: "Turkish", value: "turkish" },
-        ],
+        items: KEY_LEGENDS_ITEMS,
         defaultValue: "us",
     },
     {

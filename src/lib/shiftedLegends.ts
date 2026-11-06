@@ -19,6 +19,7 @@
  */
 import { BUTTON_TO_KEYCODE_MAP, getLabelForKeycode, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS, LAYOUTS, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 import type { KeyContent } from "@/types/keyboard.types";
+import { isMacOS } from "@/lib/platform";
 
 export const SHIFTED_LEGENDS_SETTING = "shifted-legends";
 export const DEFAULT_SHIFTED_LEGENDS = true;
@@ -40,6 +41,7 @@ export interface DualLegend {
 
 /** True when the layout has an AltGr level (LayoutDefinition.altgr), so AltGr Symbols can show. */
 export function hasAltGr(layoutId: string): boolean {
+    if (isMacOS()) return false; // the data is the Windows AltGr level, not the Mac Option layer
     const rows = LAYOUTS[layoutId]?.altgr;
     return !!rows && rows.some((r) => r.split(" ").some((tok) => tok !== "" && tok !== NO_ALTGR));
 }
@@ -80,7 +82,7 @@ export function positionalLegends(code: string, layoutId: string): (DualLegend &
             if (mapped !== code) continue;
             const shiftToken = shiftTokens[i];
             if (!shiftToken) return null;
-            const altgrToken = layout.altgr?.[r]?.split(" ")[i];
+            const altgrToken = hasAltGr(layoutId) ? layout.altgr?.[r]?.split(" ")[i] : undefined;
             const altgr = altgrToken && altgrToken !== NO_ALTGR ? legendText(altgrToken) : undefined;
             return altgr ? { base: legendText(token), shifted: legendText(shiftToken), altgr } : { base: legendText(token), shifted: legendText(shiftToken) };
         }
