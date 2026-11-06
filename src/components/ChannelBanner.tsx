@@ -1,4 +1,5 @@
 import React from "react";
+import { PADTEST } from "@/lib/padtest";
 
 export const STABLE_URL = "https://keybard.svalboard.com/";
 
@@ -7,6 +8,18 @@ export const STABLE_URL = "https://keybard.svalboard.com/";
  * mistakes it for the stable site, and links back to stable. Other builds show nothing.
  */
 const ChannelBanner: React.FC = () => {
+    if (PADTEST) {
+        return (
+            <div
+                role="note"
+                data-padtest-banner
+                className="fixed top-1 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-1rem)] rounded-full bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
+            >
+                Test build for touchpad scroll speed. This Keybard and its firmware are for testing only.
+                To go back, install x4.5 from Firmware.
+            </div>
+        );
+    }
     if (import.meta.env.VITE_CHANNEL !== "next") return null;
 
     return (
