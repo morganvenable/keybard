@@ -491,6 +491,31 @@ def run_bindings(browser, url, layout_id):
     context.close()
 
 
+def run_drag(browser, url, layout_id):
+    """Dragging a picker key with the picker's own Shift on carries the keycode a click binds."""
+    tag = f"drag/{layout_id}"
+    for t in (("z", "2", "1") if layout_id == "german" else ("1", "/")):
+        context, page = open_case(browser, url, "default", "sidebar", "light", query=f"&keyLegends={layout_id}")
+        tokens = page.locator("[data-fitted-keyboard]:visible [data-picker-key]").evaluate_all("els => els.map(e => e.getAttribute('data-picker-key'))")
+        idx = layout_codes(page).index("KC_W")
+        target = lambda: page.locator(f"{LAYOUT} [data-keycap]:visible").nth(idx)
+        pick = lambda k: page.locator("[data-fitted-keyboard]:visible [data-picker-key]").nth(tokens.index(k))
+        target().click()
+        pick("{shiftleft}").click()
+        page.wait_for_timeout(300)
+        a, b = pick(t).bounding_box(), target().bounding_box()
+        page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(a["x"] + a["width"] / 2 + 12, a["y"] + a["height"] / 2 + 12, steps=4)
+        page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=12)
+        page.mouse.up()
+        page.wait_for_timeout(600)
+        dragged = layout_codes(page)[idx]
+        want = {"z": "KC_Y", "2": "KC_2", "1": "KC_1", "/": "KC_SLASH"}[t]
+        check(shifted_of(dragged) == want, f"{tag}: dragging {t!r} with Shift on carries Shift plus {want}, as a click binds (got {dragged})")
+        context.close()
+
+
 def run_toggle(browser, url):
     """Settings > Appearance and editing: the AltGr symbols row only with an AltGr layout; it turns the legends on and off."""
     for lang, shown in (("", False), (GERMAN, True)):
@@ -610,6 +635,9 @@ def main():
             if wanted("bindings"):
                 for layout_id in ("us", "german", "french", "swiss"):
                     run_bindings(browser, url, layout_id)
+            if wanted("drag"):
+                for layout_id in ("us", "german"):
+                    run_drag(browser, url, layout_id)
             if wanted("toggle"):
                 run_toggle(browser, url)
         finally:

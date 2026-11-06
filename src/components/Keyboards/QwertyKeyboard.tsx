@@ -203,6 +203,8 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             x={0} y={0} w={width} h={1} row={0} col={0}
                             keycode={keycode}
                             className={dimmed ? "opacity-40" : undefined}
+                            // Dragging carries what a click binds: with the picker's own Shift on, Shift plus the position's keycode.
+                            dragItemData={bindShifted ? { keycode: applyModifiers(positionKeycode, ["Shift"], false, bindShifted) } : undefined}
                             hideModifierBand={activeModifiers.length === 1 && activeModifiers[0] === "Shift"}
                             label={displayLabel}
                             keyContents={keyContents as KeyContent | undefined}
