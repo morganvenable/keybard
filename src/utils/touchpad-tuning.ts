@@ -36,7 +36,12 @@ export const hasPadMode = (flags4: number | undefined | null): boolean => ((flag
 export const NOT_LAYOUT_VALUES: readonly string[] = [PAD_MODE_KEY];
 /** VIA value 58 (GET_INFO byte 21 bit 0): the palm rejection, an area in the chip's channels; 0 off. */
 export const PAD_PALM_KEY = "id_pad_palm";
-export const PAD_TUNING_KEYS = [PAD_DEAD_ZONE_KEY, PAD_TAP_MS_KEY, PAD_SCROLL_KEY, PAD_PALM_KEY] as const;
+/** VIA value 60 (GET_INFO byte 21 bit 3): the touchpad two-finger scroll speed, percent (test firmware). */
+export const PAD_SPEED_KEY = "id_pad_scroll_speed";
+export const SVIL_FLAG4_PAD_SPEED = 0x08;
+export const hasPadSpeed = (flags4: number | undefined | null): boolean => ((flags4 ?? 0) & SVIL_FLAG4_PAD_SPEED) !== 0;
+export const PAD_SPEED_PERCENT = [25, 50, 75, 100, 125, 150, 200, 250, 300, 400] as const;
+export const PAD_TUNING_KEYS = [PAD_DEAD_ZONE_KEY, PAD_TAP_MS_KEY, PAD_SCROLL_KEY, PAD_PALM_KEY, PAD_SPEED_KEY] as const;
 /** The menu entry that opens the tuning view (an app action, not a value). */
 export const TUNE_TOUCHPAD_ACTION = "app:touchpad-tuning";
 export const TUNE_TOUCHPAD_LABEL = "Tune touchpad…";
