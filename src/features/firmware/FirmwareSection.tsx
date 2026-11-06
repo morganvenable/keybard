@@ -12,6 +12,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { PARANOID } from "@/lib/paranoid";
+import { PADTEST } from "@/lib/padtest";
 import { SvupError, type SvupFile } from "@/services/updater/svup";
 import { loadFirmwareFile } from "@/services/updater/uf2";
 import type { Hand } from "@/services/updater/protocol";
@@ -76,7 +77,7 @@ function NotesLink({ release, label }: { release: FirmwareReleasePin; label: str
     return <a className={link} href={release.notesUrl} target="_blank" rel="noreferrer">{label} ↗</a>;
 }
 
-export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true, sides, onRecheck, checking = false }: FirmwareSectionProps) {
+export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID && !PADTEST, heading = true, sides, onRecheck, checking = false }: FirmwareSectionProps) {
     const offered = paranoid ? [] : releases;
     const newest = offered[0] ?? null;
     const [more, setMore] = useState(false);
