@@ -4,6 +4,8 @@ import ExportDialog from "@/components/ExportDialog";
 import { useNavigation } from "@/App";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { hasAltGr } from "@/lib/shiftedLegends";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useLayoutImport } from "@/hooks/useLayoutImport";
 import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
@@ -90,7 +92,9 @@ const SettingsPanel = () => {
     // the Debug console row only on firmware with the command.
     const touchpadShown = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
-    const pageSections = useMemo(() => shownPage({ touchpad: touchpadShown, debugConsole: debugShown }), [touchpadShown, debugShown]);
+    const { internationalLayout } = useLayoutSettings();
+    const altgrShown = hasAltGr(internationalLayout);
+    const pageSections = useMemo(() => shownPage({ touchpad: touchpadShown, debugConsole: debugShown, altgr: altgrShown }), [touchpadShown, debugShown, altgrShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 

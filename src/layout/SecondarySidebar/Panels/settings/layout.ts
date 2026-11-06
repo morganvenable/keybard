@@ -2,7 +2,7 @@ import { THEME_SETTING_NAME } from "@/lib/theme";
 import { KEY_SIZE_SETTING, PANEL_POSITION_SETTING } from "@/lib/appearance-settings";
 import { SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING } from "@/lib/comboIndicators";
-import { SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
+import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 
 /**
  * The Settings page, declared. Settings holds the setup a board needs once
@@ -101,6 +101,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             { setting: "serial-assignment", label: "Advance after assigning", description: "After you assign a key, select the next one in this order." },
             { setting: "international-keyboards", label: "Key legends", description: "The keyboard layout your computer uses, so keys show what they type." },
             { setting: SHIFTED_LEGENDS_SETTING, label: "Shifted Key Symbols" },
+            { setting: ALTGR_LEGENDS_SETTING, label: "AltGr Symbols" },
             { setting: SHOW_ALT_REPEAT_SETTING },
             { setting: COMBO_INDICATOR_SETTING, label: "Combo indicators" },
             { setting: COMBO_COLORBLIND_SETTING, label: "Colorblind-friendly combo colors" },
@@ -139,14 +140,20 @@ export const CONDITIONAL_BLOCKS = ["debug"] as const;
 
 /**
  * The page this board shows: without a touchpad (and the setting) no Touchpad
- * tuning card, and without the debug console command no Debug console row.
+ * tuning card, and without the debug console command no Debug console row, and without AltGr data on the
+ * chosen keyboard layout no AltGr symbols row.
  * Search and rendering both use it, so a search never finds a hidden row.
  */
-export function shownPage(board: { touchpad: boolean; debugConsole: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
+export function shownPage(board: { touchpad: boolean; debugConsole: boolean; altgr?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
     return page
         .filter((section) => section.id !== "touchpad" || board.touchpad)
-        .map((section) => (board.debugConsole ? section
-            : { ...section, rows: section.rows.filter((row) => !("block" in row && row.block === "debug")) }));
+        .map((section) => ({
+            ...section,
+            rows: section.rows.filter((row) =>
+                !(!board.debugConsole && "block" in row && row.block === "debug") &&
+                // AltGr Symbols shows only when the Key legends layout has an AltGr level.
+                !(board.altgr === false && "setting" in row && row.setting === ALTGR_LEGENDS_SETTING)),
+        }));
 }
 
 /**

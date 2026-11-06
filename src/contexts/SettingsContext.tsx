@@ -8,7 +8,8 @@ import { SettingsService } from "@/services/settings.service";
 import { DEFAULT_THEME_PREF, THEME_SETTING_NAME } from "@/lib/theme";
 import { DEFAULT_SHOW_ALT_REPEAT, SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING, DEFAULT_COMBO_INDICATORS_ON } from "@/lib/comboIndicators";
-import { DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
+import { KEY_LEGENDS_ITEMS } from "@/lib/keyLegendsSetting";
+import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 
 // Settings definitions - single source of truth
 export const SETTINGS: SettingDefinition[] = [
@@ -59,6 +60,13 @@ export const SETTINGS: SettingDefinition[] = [
         type: "boolean",
     },
     {
+        name: ALTGR_LEGENDS_SETTING,
+        label: "AltGr Symbols",
+        description: "Also show what AltGr types on each key, lower right, for keyboard layouts that have one.",
+        defaultValue: DEFAULT_ALTGR_LEGENDS,
+        type: "boolean",
+    },
+    {
         name: SHOW_ALT_REPEAT_SETTING,
         label: "Show Alt-Repeat",
         description: "Add Alt-Repeat to the rail.",
@@ -81,32 +89,7 @@ export const SETTINGS: SettingDefinition[] = [
         name: "international-keyboards",
         label: "International Keyboards",
         type: "select",
-        items: [
-            { label: "English (US)", value: "us" },
-            { label: "English (UK)", value: "uk" },
-            { label: "Brazilian", value: "br" },
-            { label: "Canadian (CSA)", value: "ca-csa" },
-            { label: "Colemak", value: "colemak" },
-            { label: "Croatian (QWERTZ)", value: "croatian-qwertz" },
-            { label: "Danish", value: "danish" },
-            { label: "EuroKey", value: "eurokey" },
-            { label: "French (AZERTY)", value: "french-azerty" },
-            { label: "French (Mac)", value: "french-mac" },
-            { label: "German (QWERTZ)", value: "german-qwertz" },
-            { label: "Hebrew (Standard)", value: "hebrew-standard" },
-            { label: "Hungarian (QWERTZ)", value: "hungarian-qwertz" },
-            { label: "Italian", value: "italian" },
-            { label: "Japanese", value: "japanese" },
-            { label: "Latin American", value: "latin-american" },
-            { label: "Norwegian", value: "norwegian" },
-            { label: "Russian", value: "russian" },
-            { label: "Slovak", value: "slovak" },
-            { label: "Spanish", value: "spanish" },
-            { label: "Swedish", value: "swedish" },
-            { label: "Swedish (SWERTY)", value: "swedish-swerty" },
-            { label: "Swiss (QWERTZ)", value: "swiss-qwertz" },
-            { label: "Turkish", value: "turkish" },
-        ],
+        items: KEY_LEGENDS_ITEMS,
         defaultValue: "us",
     },
     {
@@ -171,7 +154,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: [THEME_SETTING_NAME, "typing-binds-key", COMBO_INDICATOR_SETTING, COMBO_COLORBLIND_SETTING, SHOW_ALT_REPEAT_SETTING, "serial-assignment", "international-keyboards", SHIFTED_LEGENDS_SETTING, "qmk-settings", "print"],
+        settings: [THEME_SETTING_NAME, "typing-binds-key", COMBO_INDICATOR_SETTING, COMBO_COLORBLIND_SETTING, SHOW_ALT_REPEAT_SETTING, "serial-assignment", "international-keyboards", SHIFTED_LEGENDS_SETTING, ALTGR_LEGENDS_SETTING, "qmk-settings", "print"],
     },
     {
         name: "fragments",
