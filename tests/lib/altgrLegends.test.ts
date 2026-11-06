@@ -76,9 +76,9 @@ describe("dualLegendFor with AltGr Symbols (the keycap grid)", () => {
         expect(de("KC_Q", "q")).toEqual({ base: "q", shifted: "Q", altgr: "@", letter: true, grid: true });
         expect(de("KC_E", "e")).toEqual({ base: "e", shifted: "E", altgr: "€", letter: true, grid: true });
         expect(de("KC_M", "m")).toEqual({ base: "m", shifted: "M", altgr: "µ", letter: true, grid: true });
-        // A letter with no AltGr character shows its capital alone, top left.
-        expect(de("KC_W", "w")).toEqual({ base: "w", shifted: "W", letter: true, grid: true });
-        expect(de("KC_A")).toEqual({ base: "a", shifted: "A", letter: true, grid: true });
+        // A letter with no AltGr character keeps its one centered legend.
+        expect(de("KC_W", "w")).toBeNull();
+        expect(de("KC_A")).toBeNull();
     });
 
     it("keys without an AltGr character: shifted top left, base bottom left", () => {
@@ -164,59 +164,62 @@ describe("altgrOnlyLegend", () => {
     });
 });
 
-describe("planLegends: where three legends fit", () => {
+describe("planLegends: the keycap grid, or one centered legend", () => {
     type Size = "default" | "medium" | "small";
-    // Inner size of a 1u key: the key less its 1 px borders; room less the bands; width less the side insets.
     const room = (px: number, size: Size, bands = 0) => px - 2 - KEY_BAND_PX[size] * bands;
     const width = (px: number, size: Size) => px - 2 - 2 * DIAGONAL_INSET_PX[size].x;
-    const three = { base: "2", shifted: "\"", altgr: "²", grid: true };
-    const letter = { base: "q", altgr: "@", grid: true };
-    const plan = (l: typeof three | typeof letter, size: Size, px: number, bands = 0, fold = false) =>
-        planLegends(l, size, room(px, size, bands), width(px, size), fold);
+    const SIZES = [["default", 60], ["medium", 45], ["small", 30]] as const;
+    const three = { base: "9", shifted: ")", altgr: "]", grid: true };
+    const letter = { base: "q", shifted: "Q", altgr: "@", letter: true, grid: true };
+    const two = { base: "2", shifted: "@", grid: true };
+    const plan = (l: object, size: Size, px: number, bands = 0, fold = false) => planLegends(l as never, size, room(px, size, bands), width(px, size), fold);
 
-    it("a plain key holds all three at the full size: 60, 45 and 30 px keys", () => {
-        expect(plan(three, "default", 60)).toMatchObject({ fontPx: 15, droppedAltGr: false });
-        expect(plan(three, "medium", 45)).toMatchObject({ fontPx: 12, droppedAltGr: false });
-        expect(plan(three, "small", 30)).toMatchObject({ fontPx: 10, droppedAltGr: false });
-        expect(plan(three, "small", 30)?.legend.altgr).toBe("²");
+    it("a plain key holds the grid at the full size on 60, 45 and 30 px keys", () => {
+        for (const [size, px] of SIZES) {
+            for (const l of [three, letter, two]) {
+                expect(plan(l, size, px), `${size} ${l.base}`).toMatchObject({ fontPx: DUAL_LEGEND_FONT_PX[size], grid: true, droppedAltGr: false });
+            }
+        }
     });
 
     it("three legends never overlap: two lines fit the room and the bottom pair fits across", () => {
-        for (const [size, px] of [["default", 60], ["medium", 45], ["small", 30]] as const) {
+        for (const [size, px] of SIZES) {
             const p = plan(three, size, px)!;
             expect(2 * p.fontPx * DUAL_LEGEND_LINE_HEIGHT + 2 * p.insetY).toBeLessThanOrEqual(room(px, size) + 1e-9);
-            expect(2 * p.fontPx).toBeLessThanOrEqual(width(px, size) + 1e-9); // two 1 em glyphs side by side
+            expect(2 * p.fontPx).toBeLessThanOrEqual(width(px, size) + 1e-9);
         }
     });
 
-    it("a key with a band keeps three only where two lines fit beside the band", () => {
-        expect(plan(three, "default", 60, 1)).toMatchObject({ fontPx: 15, droppedAltGr: false }); // 40 px of room
-        expect(plan(three, "medium", 45, 1)?.droppedAltGr).toBe(true); // 29 px: needs 31
-        expect(plan(three, "small", 30, 1)?.droppedAltGr).toBe(true); // 18 px: needs 26
-        expect(plan(three, "default", 60, 2)?.droppedAltGr).toBe(true); // both bands: 22 px
-    });
-
-    it("a dropped AltGr legend leaves the two-legend diagonal", () => {
-        const p = plan(three, "small", 30, 1)!;
-        expect(p.legend).toEqual({ base: "2", shifted: "\"" });
-        expect(p.fontPx).toBe(10);
-    });
-
-    it("a combo fold takes the lower right corner: two legends at every size", () => {
-        for (const [size, px] of [["default", 60], ["medium", 45], ["small", 30]] as const) {
-            expect(plan(three, size, px, 0, true)).toMatchObject({ droppedAltGr: true, legend: { base: "2", shifted: "\"" } });
+    it("a combo fold: AltGr drops and shifted and base stay in the grid; a letter keeps one legend", () => {
+        for (const [size, px] of SIZES) {
+            expect(plan(three, size, px, 0, true)).toMatchObject({ grid: true, droppedAltGr: true, legend: { base: "9", shifted: ")" } });
+            expect(plan(two, size, px, 0, true)).toMatchObject({ grid: true, legend: { base: "2", shifted: "@" } });
+            expect(plan(letter, size, px, 0, true)).toBeNull();
         }
     });
 
-    it("a letter holds base and AltGr in one line, with a band too, but not under a fold", () => {
-        expect(plan(letter, "small", 30)).toMatchObject({ fontPx: 10, droppedAltGr: false });
-        expect(plan(letter, "small", 30, 1)).toMatchObject({ fontPx: 10, droppedAltGr: false });
-        expect(plan(letter, "default", 60, 1)).toMatchObject({ fontPx: 15, droppedAltGr: false });
-        expect(plan(letter, "small", 30, 0, true)).toBeNull();
+    it("a band: the grid only where two lines fit beside it (60 px); else the base alone, centered", () => {
+        expect(plan(three, "default", 60, 1)).toMatchObject({ grid: true, droppedAltGr: false });
+        for (const [size, px] of [["medium", 45], ["small", 30]] as const) {
+            expect(plan(three, size, px, 1)).toBeNull();
+            expect(plan(two, size, px, 1)).toBeNull();
+            expect(plan(letter, size, px, 1)).toBeNull();
+        }
+        expect(plan(letter, "default", 60, 1)).toMatchObject({ grid: true });
+        for (const [size, px] of SIZES) expect(plan(three, size, px, 2)).toBeNull();
     });
 
-    it("without an AltGr legend it is the existing diagonal", () => {
-        expect(plan({ base: "1", shifted: "!" } as never, "small", 30)).toMatchObject({ fontPx: 10, droppedAltGr: false });
+    it("a band and a fold on 60 px keeps shifted and base without AltGr", () => {
+        expect(plan(three, "default", 60, 1, true)).toMatchObject({ droppedAltGr: true, legend: { base: "9", shifted: ")" } });
+    });
+
+    it("never a diagonal: every plan is the grid", () => {
+        for (const [size, px] of SIZES) for (const bands of [0, 1]) for (const fold of [false, true]) {
+            for (const l of [three, letter, two]) {
+                const p = plan(l, size, px, bands, fold);
+                if (p) expect(p.grid).toBe(true);
+            }
+        }
     });
 });
 
@@ -261,52 +264,5 @@ describe("review links and the Settings row", () => {
                 .some((s) => s.rows.some((r) => "setting" in r && r.setting === "altgr-legends"));
         expect(has(true)).toBe(true);
         expect(has(false)).toBe(false);
-    });
-});
-
-describe("planLegends: the keycap grid", () => {
-    type Size = "default" | "medium" | "small";
-    const room = (px: number, size: Size, bands = 0) => px - 2 - KEY_BAND_PX[size] * bands;
-    const width = (px: number, size: Size) => px - 2 - 2 * DIAGONAL_INSET_PX[size].x;
-    const SIZES = [["default", 60], ["medium", 45], ["small", 30]] as const;
-    const three = { base: "9", shifted: ")", altgr: "]", grid: true };
-    const letterAltGr = { base: "q", shifted: "Q", altgr: "@", letter: true, grid: true };
-    const letterAlone = { base: "w", shifted: "W", letter: true, grid: true };
-    const two = { base: "2", shifted: "@", grid: true };
-    const plan = (l: object, size: Size, px: number, bands = 0, fold = false) => planLegends(l as never, size, room(px, size, bands), width(px, size), fold);
-
-    it("a plain key holds the grid at the full size on 60, 45 and 30 px keys, for every kind", () => {
-        for (const [size, px] of SIZES) {
-            for (const l of [three, letterAltGr, letterAlone, two]) {
-                expect(plan(l, size, px), `${size} ${l.base}`).toMatchObject({ fontPx: DUAL_LEGEND_FONT_PX[size], grid: true, droppedAltGr: false });
-            }
-        }
-    });
-
-    it("a combo fold: digits and symbols fall back to the two-legend diagonal, a letter to one legend", () => {
-        for (const [size, px] of SIZES) {
-            expect(plan(three, size, px, 0, true)).toMatchObject({ grid: false, droppedAltGr: true, legend: { base: "9", shifted: ")" } });
-            expect(plan(two, size, px, 0, true)).toMatchObject({ grid: false, legend: { base: "2", shifted: "@" } });
-            expect(plan(letterAltGr, size, px, 0, true)).toBeNull();
-            expect(plan(letterAlone, size, px, 0, true)).toBeNull();
-        }
-    });
-
-    it("one band: the grid only where two lines fit beside it (60 px), else the diagonal", () => {
-        expect(plan(three, "default", 60, 1)).toMatchObject({ grid: true });
-        expect(plan(three, "medium", 45, 1)).toMatchObject({ grid: false, droppedAltGr: true });
-        expect(plan(three, "small", 30, 1)).toMatchObject({ grid: false, droppedAltGr: true });
-        expect(plan(two, "medium", 45, 1)).toMatchObject({ grid: false });
-        expect(plan(two, "small", 30, 1)).toMatchObject({ grid: false });
-    });
-
-    it("a letter with a band: capital and AltGr fall back to base and AltGr on one line, a lone capital stays", () => {
-        expect(plan(letterAltGr, "small", 30, 1)).toMatchObject({ grid: false, legend: { base: "q", altgr: "@" } });
-        expect(plan(letterAltGr, "default", 60, 1)).toMatchObject({ grid: true });
-        expect(plan(letterAlone, "small", 30, 1)).toMatchObject({ grid: true });
-    });
-
-    it("the diagonal is unchanged without the grid", () => {
-        expect(plan({ base: "1", shifted: "!" }, "small", 30)).toMatchObject({ grid: false, fontPx: 10 });
     });
 });

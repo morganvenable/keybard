@@ -112,8 +112,9 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
         ? fit.scaleFor(availableWidth, fit.maxHeight, naturalWidth, naturalHeight)
         : availableWidth > 0 ? Math.max(TRAY_MIN_KEY_PX / QWERTY_KEY_PX, Math.min(1, availableWidth / naturalWidth)) : 1;
 
-    const renderRow = (defaultRowStr: string, shiftRowStr: string) => {
+    const renderRow = (defaultRowStr: string, shiftRowStr: string, altgrRowStr = "") => {
         const defaultKeys = defaultRowStr.split(" ");
+        const altgrKeys = altgrRowStr.split(" ");
         const shiftKeys = shiftRowStr.split(" ");
 
         return (
@@ -174,6 +175,12 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                         keycode = applyModifiers(keycode, activeModifiers as Modifier[], false, modifierSide);
                     }
 
+                    // With the AltGr button on, only the keys that type an AltGr character stand out:
+                    // the rest are dimmed, drawn plain (no RALT band), and bind as before.
+                    const typesAltGr = !!altgrKeys[i] && altgrKeys[i] !== "{none}";
+                    const dimmed = altGr && !typesAltGr && defaultKey !== "{altright}";
+                    if (dimmed && keycode.startsWith("RALT(")) keycode = keycode.slice(5, -1);
+
                     const displayLabel = KEY_DISPLAY_OVERRIDES[visualKey] || visualKey.replace("{", "").replace("}", "");
                     const width = getKeyWidth(defaultKey); // Use default key for width lookup to be consistent
                     const keyContents = keyboard ? getKeyContents(keyboard, keycode) : undefined;
@@ -185,6 +192,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             data-picker-key={defaultKey}
                             x={0} y={0} w={width} h={1} row={0} col={0}
                             keycode={keycode}
+                            className={dimmed ? "opacity-40" : undefined}
                             label={displayLabel}
                             keyContents={keyContents as KeyContent | undefined}
                             layerColor="sidebar"
@@ -246,7 +254,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                 {/* Zoom, not a transform: the keyboard's laid-out width is its scaled width, so it never makes its box scroll sideways. */}
                 <div className="flex flex-col gap-1" style={{ width: naturalWidth, zoom: scale, marginLeft: fit ? Math.max(0, (availableWidth - naturalWidth * scale) / 2) / scale : undefined }}>
                     {currentLayout.default.map((row, i) => (
-                        <div key={i}>{renderRow(row, currentLayout.shift[i])}</div>
+                        <div key={i}>{renderRow(row, currentLayout.shift[i], currentLayout.altgr?.[i])}</div>
                     ))}
                 </div>
             </div>

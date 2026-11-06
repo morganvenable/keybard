@@ -161,7 +161,8 @@ export function dualLegendFor(
     // A letter key in the grid shows its capital top left, read from the shift row, with AltGr bottom right.
     if (altgrMode && wantShifted && LETTER.test(base) && LETTER.test(shifted) && base !== shifted) {
         const letterAltGr = altgr && [...altgr].length <= 2 && altgr !== base ? altgr : undefined;
-        return letterAltGr ? { base, shifted, altgr: letterAltGr, letter: true, grid: true } : { base, shifted, letter: true, grid: true };
+        // A letter with no AltGr character keeps its one centered legend.
+        if (letterAltGr) return { base, shifted, altgr: letterAltGr, letter: true, grid: true };
     }
     const showShifted = wantShifted && base !== shifted && !LETTER.test(shifted) && (!LETTER.test(base) || DIGIT.test(shifted) || altgrMode);
     const showAltGr = wantAltGr && !!altgr && [...altgr].length <= 2 && altgr !== base;
@@ -253,46 +254,36 @@ export interface LegendPlan {
 }
 
 /**
- * Chooses what a key draws and at what size. The keycap grid (`legend.grid`) is used only when
- * every legend fits whole at the size the other keys use, none overlapping, and no combo fold
- * sits on the key: two lines of room for shifted above base and AltGr (or capital above AltGr on
- * a letter), one line for a lone capital or for base and AltGr side by side. `roomPx` is the
- * key's inner height less its bands; `widthPx` its inner width less the side insets. Otherwise
- * the key falls back: digits and symbols to the two-legend diagonal (fitDualLegend), letters to
- * base and AltGr on one line, else the one legend it had (null).
+ * Chooses what a key draws and at what size: the keycap grid, or one centered legend (null).
+ * A key with two or three legends draws them in the grid only when every legend fits whole at
+ * the size the other keys use, none overlapping and none touching a combo fold: two lines of
+ * room for shifted above base (and AltGr beside the base, or beside a letter's capital), one
+ * line for base and AltGr alone. `roomPx` is the key's inner height less its bands; `widthPx`
+ * its inner width less the side insets; `hasFold` a combo fold, which covers the lower right
+ * corner where the AltGr legend goes. Where the AltGr legend does not fit the key keeps its
+ * shifted and base legends in the grid; where those do not fit either, it keeps its base
+ * legend alone, centered. There is no other arrangement, so no key reads in another order.
  */
 export function planLegends(legend: DualLegend, size: KeySizeName, roomPx: number, widthPx: number, hasFold: boolean): LegendPlan | null {
     const chars = (s?: string) => (s ? [...s].length : 0);
     const nominal = DUAL_LEGEND_FONT_PX[size];
-    const attempt = (l: DualLegend, rows: number, wide: number, grid: boolean): LegendPlan | null => {
+    const attempt = (l: DualLegend, rows: number, wide: number, droppedAltGr: boolean): LegendPlan | null => {
         const byHeight = roomPx / (rows * DUAL_LEGEND_LINE_HEIGHT);
         const byWidth = widthPx / (wide * DUAL_LEGEND_GLYPH_EM);
         const fontPx = Math.floor(Math.min(nominal, byHeight, byWidth) * 2) / 2;
         if (fontPx < nominal) return null;
         const insetY = Math.max(0, Math.min(DIAGONAL_INSET_PX[size].y, (roomPx - rows * fontPx * DUAL_LEGEND_LINE_HEIGHT) / 2));
-        return { legend: l, fontPx, insetY, grid, droppedAltGr: false };
+        return { legend: l, fontPx, insetY, grid: true, droppedAltGr };
     };
-    if (legend.grid && !hasFold) {
-        if (legend.letter) {
-            const p = attempt(legend, legend.altgr ? 2 : 1, Math.max(chars(legend.shifted), chars(legend.altgr)), true);
-            if (p) return p;
-        } else if (legend.altgr) {
-            const p = attempt(legend, legend.shifted ? 2 : 1, Math.max(chars(legend.base) + chars(legend.altgr), chars(legend.shifted)), !!legend.shifted);
-            if (p) return p;
-        } else if (legend.shifted) {
-            const p = attempt(legend, 2, Math.max(chars(legend.base), chars(legend.shifted)), true);
-            if (p) return p;
-        }
-    }
-    const dropped = !!legend.altgr;
     if (legend.letter) {
-        // A letter falls back to base and AltGr on one line, or to the single legend it had.
-        if (!legend.altgr || hasFold) return null;
-        const p = attempt({ base: legend.base, altgr: legend.altgr }, 1, chars(legend.base) + chars(legend.altgr), false);
-        return p ? { ...p, droppedAltGr: false } : null;
+        // Capital top left, AltGr bottom right: no base, nothing to fall back to but one legend.
+        if (hasFold || !legend.altgr) return null;
+        return attempt(legend, 2, Math.max(chars(legend.shifted), chars(legend.altgr)), false);
+    }
+    if (legend.altgr && !hasFold) {
+        const p = attempt(legend, legend.shifted ? 2 : 1, Math.max(chars(legend.base) + chars(legend.altgr), chars(legend.shifted)), false);
+        if (p) return p;
     }
     if (!legend.shifted) return null;
-    const diagonal = { base: legend.base, shifted: legend.shifted };
-    const fit = fitDualLegend(size, roomPx, widthPx, chars(diagonal.base) + chars(diagonal.shifted));
-    return { legend: diagonal, ...fit, grid: false, droppedAltGr: dropped };
+    return attempt({ base: legend.base, shifted: legend.shifted, grid: true }, 2, Math.max(chars(legend.base), chars(legend.shifted)), !!legend.altgr);
 }

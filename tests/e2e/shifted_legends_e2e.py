@@ -48,9 +48,21 @@ from fake_board_e2e import app_url, wait_connected  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-SIZES = ["default", "medium", "small"]
-POSITIONS = ["sidebar", "bottombar"]
-THEMES = ["light", "dark"]
+# E2E_SIZES / E2E_POSITIONS / E2E_THEMES (comma lists) and E2E_ONLY (comma list of: shift, us, off, german,
+# grid, button, french, toggle) narrow a run while iterating; E2E_URL points it at a dev server.
+def _pick(name, default):
+    v = os.environ.get(name)
+    return [x for x in v.split(",") if x] if v else default
+
+
+SIZES = _pick("E2E_SIZES", ["default", "medium", "small"])
+POSITIONS = _pick("E2E_POSITIONS", ["sidebar", "bottombar"])
+THEMES = _pick("E2E_THEMES", ["light", "dark"])
+ONLY = _pick("E2E_ONLY", [])
+
+
+def wanted(name):
+    return not ONLY or name in ONLY
 SHOTS = os.environ.get("E2E_SHOTS")
 
 failures: list[str] = []
@@ -189,7 +201,7 @@ def run_case(browser, url, size, position, theme, summary):
     picker = [x for x in m if x["where"] == "picker"]
     check(any(x["code"] == "/" and x["shifted"] == "?" for x in picker), f"{tag}: picker / shows ?")
     check(any(x["code"] == "KC_SLASH" and x["shifted"] == "?" for x in layout), f"{tag}: layout / shows ?")
-    for code, sh in (("LCTL(KC_1)", "!"), ("LCTL_T(KC_2)", "@"), ("LT1(KC_3)", "#"), ("LALT(KC_SLASH)", "?")):
+    for code, sh in ((("LCTL(KC_1)", "!"), ("LCTL_T(KC_2)", "@"), ("LT1(KC_3)", "#"), ("LALT(KC_SLASH)", "?")) if size == "default" else ()):
         check(any(x["code"] == code and x["shifted"] == sh for x in layout), f"{tag}: {code} shows {sh}")
     dollar = page.locator(f'{LAYOUT} [data-keycap][data-key-label="$"]')
     check(dollar.count() > 0, f"{tag}: LSFT(KC_4) is on the layout as $")
@@ -269,8 +281,7 @@ def run_german(browser, url, size, position, theme, summary):
         x = find(picker, key)
         check(x is not None and x["shifted"] == key.upper() and x["base"] == "" and x["altgr"] == ag and x["n"] == 2 and x["quad"] == {"shifted": "tl", "altgr": "br"},
               f"{tag}: picker {key} shows its capital top left and {ag} bottom right (got {x and (x['shifted'], x['altgr'], x['n'], x['quad'])})")
-    w = find(picker, "w")
-    check(w is not None and w["shifted"] == "W" and w["n"] == 1 and w["quad"] == {"shifted": "tl"}, f"{tag}: picker W has no AltGr character: its capital alone, top left (got {w and (w['shifted'], w['quad'])})")
+    check(find(picker, "w") is None, f"{tag}: picker W has no AltGr character: one centered legend")
     for x in picker:
         if x["n"] == 3:
             check(x["quad"] == {"shifted": "tl", "base": "bl", "altgr": "br"}, f"{tag}: picker {x['code']} grid: shifted top left, base bottom left, AltGr bottom right (got {x['quad']})")
@@ -280,11 +291,14 @@ def run_german(browser, url, size, position, theme, summary):
     if x:
         check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{tag}: KC_2 at the full {NOMINAL[size]}px, as the key is scaled (got {x['fontPx']})")
     x = find(layout, "KC_8")
-    check(x is not None and x["altgr"] == "" and x["shifted"] == "(" and x["quad"] == {"shifted": "tr", "base": "bl"}, f"{tag}: KC_8 in a combo keeps the two-legend diagonal (the fold takes the corner)")
+    check(x is not None and x["altgr"] == "" and x["shifted"] == "(" and x["quad"] == {"shifted": "tl", "base": "bl"}, f"{tag}: KC_8 in a combo drops AltGr and keeps shifted top left, base bottom left (the fold takes the corner)")
     x = find(layout, "KC_Q")
     check(x is not None and x["altgr"] == "@" and x["shifted"] == "Q" and x["base"] == "" and x["quad"] == {"shifted": "tl", "altgr": "br"}, f"{tag}: layout Q shows Q top left and @ bottom right")
     x = find(layout, "LCTL_T(KC_2)")
-    check(x is not None and x["altgr"] == "" and x["shifted"] == '"', f"{tag}: mod-tap 2 (in a combo, so it has a fold) keeps the two-legend diagonal (got {x and x['altgr']!r})")
+    if size == "default":
+        check(x is not None and x["altgr"] == "" and x["shifted"] == '"' and x["quad"] == {"shifted": "tl", "base": "bl"}, f"{tag}: mod-tap 2 (band and fold) keeps shifted and base in the grid (got {x and x['quad']})")
+    else:
+        check(x is None, f"{tag}: mod-tap 2 (band and fold) has no room for two legends: its base alone, centered")
     ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
     check(ralt.count() > 0 and ralt.locator("[data-dual-legend]").count() == 0 and "{" in ralt.inner_text() and "7" not in ralt.inner_text(),
           f"{tag}: RALT(KC_7) shows the AltGr character alone, not 7 (drew {ralt.inner_text()!r})")
@@ -368,6 +382,10 @@ def run_altgr_button(browser, url, size, position, theme):
     check(key7.inner_text().strip() == "{", f"{tag}: with AltGr on the picker's 7 shows {{ alone (got {key7.inner_text()!r})")
     m = [x for x in page.evaluate(MEASURE_JS) if x["where"] == "picker"]
     check(all(x["allIn"] and not x["overlap"] for x in m), f"{tag}: no two-legend key cropped while AltGr is on")
+    keya = page.locator('[data-fitted-keyboard]:visible [data-picker-key="a"]').first
+    opacity = lambda loc: float(loc.evaluate("e => getComputedStyle(e.closest('[data-keycap]') || e).opacity"))
+    check(opacity(keya) < 0.6 and "RALT" not in keya.inner_text().upper(), f"{tag}: A has no AltGr character: dimmed, no RALT band (opacity {opacity(keya)}, drew {keya.inner_text()!r})")
+    check(opacity(key7) == 1.0, f"{tag}: 7 has an AltGr character: not dimmed")
     page.locator('[data-fitted-keyboard]:visible [data-picker-key="7"]').first.click()
     page.wait_for_timeout(600)
     codes = layout_codes(page)
@@ -408,7 +426,7 @@ def run_grid_preview(browser, url, size, position, theme):
     for x in layout_keys(m):
         if x["kind"] == "banded":
             continue  # between bands the legends share one height: whole and apart is all that holds (checked above)
-        check(x["quad"].get("shifted") in ("tl", "tr") and x["quad"].get("base") == "bl", f"{k_tag(tag, x)}: grid top left, or the diagonal on a key with a fold")
+        check(x["quad"] == {"shifted": "tl", "base": "bl"}, f"{k_tag(tag, x)}: shifted top left, base bottom left (got {x['quad']})")
     shoot(page, f"grid-us-{size}-{position}-{theme}")
     context.close()
 
@@ -508,24 +526,29 @@ def main():
     with app_url() as url, sync_playwright() as p:
         browser = p.chromium.launch()
         try:
-            for position in POSITIONS:
-                run_shift(browser, url, position)
+            if wanted("shift"):
+                for position in POSITIONS:
+                    run_shift(browser, url, position)
             for size in SIZES:
                 for position in POSITIONS:
                     for theme in THEMES:
-                        run_case(browser, url, size, position, theme, summary)
-                        run_off(browser, url, size, position, theme)
-                        run_german(browser, url, size, position, theme, summary)
-            for size in SIZES:
+                        if wanted("us"):
+                            run_case(browser, url, size, position, theme, summary)
+                        if wanted("off"):
+                            run_off(browser, url, size, position, theme)
+                        if wanted("german"):
+                            run_german(browser, url, size, position, theme, summary)
+                        if wanted("grid"):
+                            run_grid_preview(browser, url, size, position, theme)
+            if wanted("button"):
                 for position in POSITIONS:
-                    for theme in THEMES:
-                        run_grid_preview(browser, url, size, position, theme)
-            for position in POSITIONS:
-                run_altgr_button(browser, url, "default", position, "light")
-            run_altgr_button(browser, url, "small", "bottombar", "dark")
-            run_french(browser, url, "default", "sidebar", "light")
-            run_french(browser, url, "small", "bottombar", "dark")
-            run_toggle(browser, url)
+                    run_altgr_button(browser, url, "default", position, "light")
+                run_altgr_button(browser, url, "small", "bottombar", "dark")
+            if wanted("french"):
+                run_french(browser, url, "default", "sidebar", "light")
+                run_french(browser, url, "small", "bottombar", "dark")
+            if wanted("toggle"):
+                run_toggle(browser, url)
         finally:
             browser.close()
     for k, v in sorted(summary.items()):
