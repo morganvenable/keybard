@@ -115,7 +115,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const isMedium = variant === "medium";
 
     // --- Data processing ---
-    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
+    const { internationalLayout, showShiftedLegends, showAltGrLegends, legendGridPreview } = useLayoutSettings();
     const keyData = useMemo(() => {
         return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
     }, [label, keyContents, keycode, forceLabel, internationalLayout]);
@@ -126,8 +126,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const showAltGr = showAltGrLegends === true;
     const centerText = typeof keyData.centerContent === "string" ? keyData.centerContent : label;
     const fullLegend = useMemo(
-        () => dualLegendFor(keycode, centerText, keyContents, internationalLayout, { shifted: showShifted, altgr: showAltGr }),
-        [showShifted, showAltGr, keycode, centerText, keyContents, internationalLayout]
+        () => dualLegendFor(keycode, centerText, keyContents, internationalLayout, { shifted: showShifted, altgr: showAltGr, grid: legendGridPreview === true }),
+        [showShifted, showAltGr, legendGridPreview, keycode, centerText, keyContents, internationalLayout]
     );
     // RALT(KC_2) types "²" on German: that is its one legend, not the bare 2.
     const altgrOnly = useMemo(
@@ -405,8 +405,8 @@ function DualLegendFace({ plan, variant }: { plan: LegendPlan; variant: "default
     const base = !legend.shifted && /\p{L}/u.test(legend.base) && legend.base !== "ß" ? legend.base.toLocaleUpperCase() : legend.base;
     return (
         <div data-dual-legend="" className="relative w-full flex-1 min-h-0 font-semibold">
-            {legend.shifted && <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, right: x }}>{legend.shifted}</span>}
-            <span data-legend="base" className="absolute" style={{ ...text, bottom: insetY, left: x }}>{base}</span>
+            {legend.shifted && <span data-legend="shifted" className="absolute" style={{ ...text, top: insetY, ...(plan.grid ? { left: x } : { right: x }) }}>{legend.shifted}</span>}
+            {!legend.letter && <span data-legend="base" className="absolute" style={{ ...text, bottom: insetY, left: x }}>{base}</span>}
             {legend.altgr && <span data-legend="altgr" className="absolute" style={{ ...text, bottom: insetY, right: x }}>{legend.altgr}</span>}
         </div>
     );

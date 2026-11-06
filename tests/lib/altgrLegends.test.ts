@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUTTON_TO_KEYCODE_MAP, LAYOUT_KEY_MAPS, LAYOUTS } from "@/components/Keyboards/layouts";
-import { altgrOnlyLegend, dualLegendFor, hasAltGr, planLegends, positionalLegends, DIAGONAL_INSET_PX, KEY_BAND_PX, DUAL_LEGEND_LINE_HEIGHT } from "@/lib/shiftedLegends";
+import { altgrOnlyLegend, dualLegendFor, hasAltGr, planLegends, positionalLegends, DIAGONAL_INSET_PX, DUAL_LEGEND_FONT_PX, KEY_BAND_PX, DUAL_LEGEND_LINE_HEIGHT } from "@/lib/shiftedLegends";
 import { altgrLegendsFromSearch, keyLegendsFromSearch } from "@/lib/deepLinks";
 import { shownPage, SETTINGS_PAGE } from "@/layout/SecondarySidebar/Panels/settings/layout";
 
@@ -59,36 +59,73 @@ describe("AltGr data", () => {
     });
 });
 
-describe("dualLegendFor with AltGr Symbols", () => {
+describe("dualLegendFor with AltGr Symbols (the keycap grid)", () => {
     const on = { shifted: true, altgr: true };
     const de = (kc: string, label = "", opts = on) => dualLegendFor(kc, label, undefined, "german", opts);
+    const fr = (kc: string, label = "", opts = on) => dualLegendFor(kc, label, undefined, "french", opts);
 
-    it("digits get three legends", () => {
-        expect(de("KC_2")).toEqual({ base: "2", shifted: "\"", altgr: "²" });
-        expect(de("KC_7")).toEqual({ base: "7", shifted: "/", altgr: "{" });
-        expect(de("KC_RBRACKET")).toEqual({ base: "+", shifted: "*", altgr: "~" });
+    it("digits get three legends: shifted top left, base bottom left, AltGr bottom right", () => {
+        expect(de("KC_2")).toEqual({ base: "2", shifted: "\"", altgr: "²", grid: true });
+        expect(de("KC_7")).toEqual({ base: "7", shifted: "/", altgr: "{", grid: true });
+        expect(de("KC_RBRACKET")).toEqual({ base: "+", shifted: "*", altgr: "~", grid: true });
+        expect(de("KC_MINUS", "ß")).toEqual({ base: "ß", shifted: "?", altgr: "\\", grid: true });
     });
 
-    it("letters get their base and AltGr legends, no shifted legend", () => {
-        expect(de("KC_Q", "q")).toEqual({ base: "q", altgr: "@" });
-        expect(de("KC_E", "e")).toEqual({ base: "e", altgr: "€" });
-        expect(de("KC_M", "m")).toEqual({ base: "m", altgr: "µ" });
-        expect(de("KC_MINUS", "ß")).toEqual({ base: "ß", altgr: "\\" });
-        expect(de("KC_W", "w")).toBeNull(); // no AltGr character
+    it("letters: the capital top left from the shift row, AltGr bottom right, no base", () => {
+        expect(de("KC_Q", "q")).toEqual({ base: "q", shifted: "Q", altgr: "@", letter: true, grid: true });
+        expect(de("KC_E", "e")).toEqual({ base: "e", shifted: "E", altgr: "€", letter: true, grid: true });
+        expect(de("KC_M", "m")).toEqual({ base: "m", shifted: "M", altgr: "µ", letter: true, grid: true });
+        // A letter with no AltGr character shows its capital alone, top left.
+        expect(de("KC_W", "w")).toEqual({ base: "w", shifted: "W", letter: true, grid: true });
+        expect(de("KC_A")).toEqual({ base: "a", shifted: "A", letter: true, grid: true });
+    });
+
+    it("keys without an AltGr character: shifted top left, base bottom left", () => {
+        expect(de("KC_1")).toEqual({ base: "1", shifted: "!", grid: true });
+    });
+
+    it("off: the diagonal, unchanged", () => {
+        expect(de("KC_2", "", { shifted: true, altgr: false })).toEqual({ base: "2", shifted: "\"" });
+        expect(dualLegendFor("KC_2", "", undefined, "german")).toEqual({ base: "2", shifted: "\"" });
+        expect(de("KC_Q", "q", { shifted: true, altgr: false })).toBeNull();
+        expect(de("KC_W", "w", { shifted: true, altgr: false })).toBeNull();
+    });
+
+    it("AltGr on with Shifted Key Symbols off: base and AltGr only", () => {
+        const o = { shifted: false, altgr: true };
+        expect(de("KC_2", "", o)).toEqual({ base: "2", altgr: "²", grid: true });
+        expect(de("KC_1", "", o)).toBeNull();
+        expect(de("KC_Q", "q", o)).toEqual({ base: "q", altgr: "@", grid: true });
+        expect(de("KC_2", "", { shifted: false, altgr: false })).toBeNull();
+    });
+
+    it("layouts without AltGr data are unchanged, with the toggle on", () => {
+        expect(dualLegendFor("KC_2", "", undefined, "us", on)).toEqual({ base: "2", shifted: "@" });
+        expect(dualLegendFor("KC_2", "", undefined, "uk", on)).toEqual({ base: "2", shifted: "\"" });
+        expect(dualLegendFor("KC_Q", "q", undefined, "us", on)).toBeNull();
+    });
+
+    it("the grid preview with AltGr off: shifted top left, base bottom left, letters untouched", () => {
+        const g = { shifted: true, altgr: false, grid: true };
+        expect(dualLegendFor("KC_2", "", undefined, "us", g)).toEqual({ base: "2", shifted: "@", grid: true });
+        expect(dualLegendFor("KC_SLASH", "", undefined, "us", g)).toEqual({ base: "/", shifted: "?", grid: true });
+        expect(dualLegendFor("KC_Q", "q", undefined, "us", g)).toBeNull();
+        expect(de("KC_2", "", g)).toEqual({ base: "2", shifted: "\"", grid: true }); // no AltGr legend with it off
+    });
+
+    it("a key drawing something else (the picker with its Shift on) keeps one legend", () => {
+        expect(de("KC_Q", "Q")).toBeNull();
+        expect(de("KC_2", "\"")).toBeNull();
     });
 
     it("French number-row keys read Shift's digit from the shift row, never the capital of the base", () => {
-        const fr = (kc: string, label = "", opts = on) => dualLegendFor(kc, label, undefined, "french", opts);
-        expect(fr("KC_9")).toEqual({ base: "ç", shifted: "9", altgr: "^" });
-        expect(fr("KC_0")).toEqual({ base: "à", shifted: "0", altgr: "@" });
-        expect(fr("KC_2")).toEqual({ base: "é", shifted: "2" }); // AltGr+é is a dead key: left out
-        expect(fr("KC_7")).toEqual({ base: "è", shifted: "7" }); // AltGr+è is a dead key: left out
-        // The layout draws these with the base letter in any case.
-        expect(fr("KC_9", "Ç")).toEqual({ base: "ç", shifted: "9", altgr: "^" });
+        expect(fr("KC_9")).toEqual({ base: "ç", shifted: "9", altgr: "^", grid: true });
+        expect(fr("KC_0")).toEqual({ base: "à", shifted: "0", altgr: "@", grid: true });
+        expect(fr("KC_2")).toEqual({ base: "é", shifted: "2", grid: true }); // AltGr+é is a dead key: left out
+        expect(fr("KC_7")).toEqual({ base: "è", shifted: "7", grid: true }); // AltGr+è is a dead key: left out
+        expect(fr("KC_9", "Ç")).toEqual({ base: "ç", shifted: "9", altgr: "^", grid: true });
         expect(fr("KC_9", "9")).toBeNull(); // the picker with Shift on draws 9 alone
-        // Shift off: the base and AltGr only, still no synthesized capital.
-        expect(fr("KC_9", "", { shifted: false, altgr: true })).toEqual({ base: "ç", altgr: "^" });
-        expect(de("KC_Q", "q")).toEqual({ base: "q", altgr: "@" }); // drawn as Q with @, no shifted legend
+        expect(fr("KC_9", "", { shifted: false, altgr: true })).toEqual({ base: "ç", altgr: "^", grid: true });
     });
 
     it("every shifted legend is the shift-row token at its own place, never an upper-cased base", () => {
@@ -98,42 +135,14 @@ describe("dualLegendFor with AltGr Symbols", () => {
                 const d = dualLegendFor(kc, "", undefined, id, on);
                 if (!d?.shifted) continue;
                 expect(d.shifted, `${id} ${kc}`).toBe(full!.shifted);
-                expect(d.shifted.toLocaleLowerCase(), `${id} ${kc}`).not.toBe(d.base.toLocaleLowerCase());
+                if (!d.letter) expect(d.shifted.toLocaleLowerCase(), `${id} ${kc}`).not.toBe(d.base.toLocaleLowerCase());
             }
         }
     });
 
-    it("keys without an AltGr character keep what they had", () => {
-        expect(de("KC_1")).toEqual({ base: "1", shifted: "!" });
-        expect(de("KC_A")).toBeNull();
-    });
-
-    it("off: nothing changes", () => {
-        expect(de("KC_2", "", { shifted: true, altgr: false })).toEqual({ base: "2", shifted: "\"" });
-        expect(dualLegendFor("KC_2", "", undefined, "german")).toEqual({ base: "2", shifted: "\"" });
-        expect(de("KC_Q", "q", { shifted: true, altgr: false })).toBeNull();
-    });
-
-    it("AltGr on with Shifted Key Symbols off: base and AltGr only", () => {
-        expect(de("KC_2", "", { shifted: false, altgr: true })).toEqual({ base: "2", altgr: "²" });
-        expect(de("KC_1", "", { shifted: false, altgr: true })).toBeNull();
-        expect(de("KC_2", "", { shifted: false, altgr: false })).toBeNull();
-    });
-
-    it("layouts without AltGr data are unchanged", () => {
-        expect(dualLegendFor("KC_2", "", undefined, "us", on)).toEqual({ base: "2", shifted: "@" });
-        expect(dualLegendFor("KC_2", "", undefined, "uk", on)).toEqual({ base: "2", shifted: "\"" });
-        expect(dualLegendFor("KC_Q", "q", undefined, "us", on)).toBeNull();
-    });
-
-    it("a key drawing something else (the picker with its Shift on) keeps one legend", () => {
-        expect(de("KC_Q", "Q")).toBeNull();
-        expect(de("KC_2", "\"")).toBeNull();
-    });
-
     it("wrapped keys: modifiers, mod-taps and layer-taps get their base key's legends", () => {
-        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "german", on)).toEqual({ base: "2", shifted: "\"", altgr: "²" });
-        expect(dualLegendFor("LT1(KC_Q)", "q", { type: "layerhold" } as never, "german", on)).toEqual({ base: "q", altgr: "@" });
+        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "german", on)).toEqual({ base: "2", shifted: "\"", altgr: "²", grid: true });
+        expect(dualLegendFor("LT1(KC_Q)", "q", { type: "layerhold" } as never, "german", on)).toEqual({ base: "q", shifted: "Q", altgr: "@", letter: true, grid: true });
         // Shift and AltGr wrappers draw what they type: no extra legends.
         expect(dualLegendFor("LSFT(KC_2)", "\"", { type: "modmask", modids: 0x0200 } as never, "german", on)).toBeNull();
         expect(dualLegendFor("RALT(KC_2)", "2", { type: "modmask", modids: 0x1400 } as never, "german", on)).toBeNull();
@@ -233,5 +242,52 @@ describe("review links and the Settings row", () => {
                 .some((s) => s.rows.some((r) => "setting" in r && r.setting === "altgr-legends"));
         expect(has(true)).toBe(true);
         expect(has(false)).toBe(false);
+    });
+});
+
+describe("planLegends: the keycap grid", () => {
+    type Size = "default" | "medium" | "small";
+    const room = (px: number, size: Size, bands = 0) => px - 2 - KEY_BAND_PX[size] * bands;
+    const width = (px: number, size: Size) => px - 2 - 2 * DIAGONAL_INSET_PX[size].x;
+    const SIZES = [["default", 60], ["medium", 45], ["small", 30]] as const;
+    const three = { base: "9", shifted: ")", altgr: "]", grid: true };
+    const letterAltGr = { base: "q", shifted: "Q", altgr: "@", letter: true, grid: true };
+    const letterAlone = { base: "w", shifted: "W", letter: true, grid: true };
+    const two = { base: "2", shifted: "@", grid: true };
+    const plan = (l: object, size: Size, px: number, bands = 0, fold = false) => planLegends(l as never, size, room(px, size, bands), width(px, size), fold);
+
+    it("a plain key holds the grid at the full size on 60, 45 and 30 px keys, for every kind", () => {
+        for (const [size, px] of SIZES) {
+            for (const l of [three, letterAltGr, letterAlone, two]) {
+                expect(plan(l, size, px), `${size} ${l.base}`).toMatchObject({ fontPx: DUAL_LEGEND_FONT_PX[size], grid: true, droppedAltGr: false });
+            }
+        }
+    });
+
+    it("a combo fold: digits and symbols fall back to the two-legend diagonal, a letter to one legend", () => {
+        for (const [size, px] of SIZES) {
+            expect(plan(three, size, px, 0, true)).toMatchObject({ grid: false, droppedAltGr: true, legend: { base: "9", shifted: ")" } });
+            expect(plan(two, size, px, 0, true)).toMatchObject({ grid: false, legend: { base: "2", shifted: "@" } });
+            expect(plan(letterAltGr, size, px, 0, true)).toBeNull();
+            expect(plan(letterAlone, size, px, 0, true)).toBeNull();
+        }
+    });
+
+    it("one band: the grid only where two lines fit beside it (60 px), else the diagonal", () => {
+        expect(plan(three, "default", 60, 1)).toMatchObject({ grid: true });
+        expect(plan(three, "medium", 45, 1)).toMatchObject({ grid: false, droppedAltGr: true });
+        expect(plan(three, "small", 30, 1)).toMatchObject({ grid: false, droppedAltGr: true });
+        expect(plan(two, "medium", 45, 1)).toMatchObject({ grid: false });
+        expect(plan(two, "small", 30, 1)).toMatchObject({ grid: false });
+    });
+
+    it("a letter with a band: capital and AltGr fall back to base and AltGr on one line, a lone capital stays", () => {
+        expect(plan(letterAltGr, "small", 30, 1)).toMatchObject({ grid: false, legend: { base: "q", altgr: "@" } });
+        expect(plan(letterAltGr, "default", 60, 1)).toMatchObject({ grid: true });
+        expect(plan(letterAlone, "small", 30, 1)).toMatchObject({ grid: true });
+    });
+
+    it("the diagonal is unchanged without the grid", () => {
+        expect(plan({ base: "1", shifted: "!" }, "small", 30)).toMatchObject({ grid: false, fontPx: 10 });
     });
 });

@@ -126,20 +126,23 @@ MEASURE_JS = r"""() => {
         ((q.right - f.left) / f.width + (q.bottom - f.top) / f.height > 1);
       for (const [n, , r2] of inks) if (inTri(r2)) hits.push(n + '/fold');
     }
-    const fg = getComputedStyle(b).color, bg = opaque(key);
+    const ref = legends[0][1];
+    const quad = {};
+    for (const [n, , r2] of inks) quad[n] = ((r2.top + r2.bottom) / 2 < (r.top + r.bottom) / 2 ? 't' : 'b') + ((r2.left + r2.right) / 2 < (r.left + r.right) / 2 ? 'l' : 'r');
+    const fg = getComputedStyle(ref).color, bg = opaque(key);
     const L1 = lum(fg), L2 = lum(bg);
     out.push({
       where: key.closest('[data-fitted-keyboard]') ? 'picker' : 'layout',
       code: key.getAttribute('data-keycode') || key.getAttribute('data-picker-key') || '',
-      shifted: s ? s.textContent : '', base: b.textContent, altgr: a3 ? a3.textContent : '',
+      shifted: s ? s.textContent : '', base: b ? b.textContent : '', altgr: a3 ? a3.textContent : '', quad,
       n: legends.length, allIn: inks.every(x => inside(x[2])),
       sameFont: new Set(legends.map(x => getComputedStyle(x[1]).fontSize)).size === 1,
       sameColor: new Set(legends.map(x => getComputedStyle(x[1]).color)).size === 1,
       noTransform: legends.every(x => getComputedStyle(x[1]).textTransform === 'none'),
       keyPx: Math.round(r.width * 10) / 10,
-      sFont: getComputedStyle(b).fontSize, bFont: getComputedStyle(b).fontSize,
-      fontPx: Math.round(parseFloat(getComputedStyle(b).fontSize) * scale * 10) / 10,
-      sColor: fg, bColor: getComputedStyle(b).color, keyColor: cs.color, family: getComputedStyle(b).fontFamily,
+      sFont: getComputedStyle(ref).fontSize, bFont: getComputedStyle(ref).fontSize,
+      fontPx: Math.round(parseFloat(getComputedStyle(ref).fontSize) * scale * 10) / 10,
+      sColor: fg, bColor: getComputedStyle(ref).color, keyColor: cs.color, family: getComputedStyle(ref).fontFamily,
       inS: inside(inks[0][2]), inB: inside(inks[inks.length - 1][2]), overlap, hits: [...new Set(hits)],
       kind: bands.length ? 'banded' : folds.length ? 'fold' : 'plain',
       contrast: (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05),
@@ -259,24 +262,27 @@ def run_german(browser, url, size, position, theme, summary):
         return next((x for x in rows if x["code"] == code), None)
 
     # Picker: digits get three legends; letters with an AltGr character get base + AltGr.
-    for key, sh, ag in (("2", '"', "²"), ("3", "§", "³"), ("7", "/", "{"), ("8", "(", "["), ("9", ")", "]"), ("0", "=", "}"), ("+", "*", "~")):
+    for key, sh, ag in (("2", '"', "²"), ("3", "§", "³"), ("7", "/", "{"), ("8", "(", "["), ("9", ")", "]"), ("0", "=", "}"), ("+", "*", "~"), ("ß", "?", "\\")):
         x = find(picker, key)
         check(x is not None and x["shifted"] == sh and x["altgr"] == ag, f"{tag}: picker {key} shows {sh} / {ag} (got {x and (x['shifted'], x['altgr'])})")
-    for key, ag in (("q", "@"), ("e", "€"), ("m", "µ"), ("ß", "\\")):
+    for key, ag in (("q", "@"), ("e", "€"), ("m", "µ")):
         x = find(picker, key)
-        check(x is not None and x["shifted"] == "" and x["altgr"] == ag and x["n"] == 2, f"{tag}: picker {key} shows its base and {ag} (got {x and (x['shifted'], x['altgr'], x['n'])})")
-    check(find(picker, "w") is None, f"{tag}: picker W has no AltGr character and keeps one legend")
-    q = find(picker, "q")
-    check(q is not None and q["base"] == "Q", f"{tag}: picker Q shows Q with its @, no shifted legend (got {q and q['base']!r})")
+        check(x is not None and x["shifted"] == key.upper() and x["base"] == "" and x["altgr"] == ag and x["n"] == 2 and x["quad"] == {"shifted": "tl", "altgr": "br"},
+              f"{tag}: picker {key} shows its capital top left and {ag} bottom right (got {x and (x['shifted'], x['altgr'], x['n'], x['quad'])})")
+    w = find(picker, "w")
+    check(w is not None and w["shifted"] == "W" and w["n"] == 1 and w["quad"] == {"shifted": "tl"}, f"{tag}: picker W has no AltGr character: its capital alone, top left (got {w and (w['shifted'], w['quad'])})")
+    for x in picker:
+        if x["n"] == 3:
+            check(x["quad"] == {"shifted": "tl", "base": "bl", "altgr": "br"}, f"{tag}: picker {x['code']} grid: shifted top left, base bottom left, AltGr bottom right (got {x['quad']})")
     # Layout: plain digit keys (KC_2 on the G key), a letter, a mod-tap, a combo key, and RALT alone.
     x = find(layout, "KC_2")
-    check(x is not None and x["n"] == 3 and x["altgr"] == "²" and x["shifted"] == '"', f"{tag}: layout KC_2 shows three legends")
+    check(x is not None and x["n"] == 3 and x["altgr"] == "²" and x["shifted"] == '"' and x["quad"] == {"shifted": "tl", "base": "bl", "altgr": "br"}, f"{tag}: layout KC_2 shows the grid: shifted top left, base bottom left, AltGr bottom right")
     if x:
         check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{tag}: KC_2 at the full {NOMINAL[size]}px, as the key is scaled (got {x['fontPx']})")
     x = find(layout, "KC_8")
-    check(x is not None and x["altgr"] == "" and x["shifted"] == "(", f"{tag}: KC_8 in a combo keeps the two-legend diagonal (the fold takes the corner)")
+    check(x is not None and x["altgr"] == "" and x["shifted"] == "(" and x["quad"] == {"shifted": "tr", "base": "bl"}, f"{tag}: KC_8 in a combo keeps the two-legend diagonal (the fold takes the corner)")
     x = find(layout, "KC_Q")
-    check(x is not None and x["altgr"] == "@" and x["shifted"] == "", f"{tag}: layout Q shows base and @")
+    check(x is not None and x["altgr"] == "@" and x["shifted"] == "Q" and x["base"] == "" and x["quad"] == {"shifted": "tl", "altgr": "br"}, f"{tag}: layout Q shows Q top left and @ bottom right")
     x = find(layout, "LCTL_T(KC_2)")
     check(x is not None and x["altgr"] == "" and x["shifted"] == '"', f"{tag}: mod-tap 2 (in a combo, so it has a fold) keeps the two-legend diagonal (got {x and x['altgr']!r})")
     ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
@@ -331,11 +337,31 @@ def run_french(browser, url, size, position, theme):
         for base, sh, ag in (("ç", "9", "^"), ("à", "0", "@"), ("é", "2", ""), ("è", "7", "")):
             x = next((y for y in picker if y["base"] == base), None)
             want = ag if on == "on" else ""
-            check(x is not None and x["shifted"] == sh and x["altgr"] == want and x["base"] == base,
+            check(x is not None and x["shifted"] == sh and x["altgr"] == want and x["base"] == base and x["quad"]["shifted"] == ("tl" if on == "on" else "tr") and x["quad"]["base"] == "bl" and (on == "off" or not want or x["quad"]["altgr"] == "br"),
                   f"{tag}/{on}: picker {base} shows {base} / {sh} / {want!r}, never the capital (got {x and (x['base'], x['shifted'], x['altgr'])})")
             if x:
                 check(x["allIn"] and not x["overlap"], f"{tag}/{on}: {base} glyphs whole and apart")
         context.close()
+
+
+def run_grid_preview(browser, url, size, position, theme):
+    """?legendGrid=keycap with AltGr off, on the US layout: two legends, shifted top left, base bottom left."""
+    tag = f"grid-preview/{size}/{position}/{theme}"
+    context, page = open_case(browser, url, size, position, theme, query="&legendGrid=keycap")
+    m = page.evaluate(MEASURE_JS)
+    picker = [x for x in m if x["where"] == "picker"]
+    for code, sh in (("2", "@"), ("/", "?"), ("1", "!")):
+        x = next((y for y in picker if y["code"] == code), None)
+        check(x is not None and x["shifted"] == sh and x["base"] == code and x["altgr"] == "" and x["quad"] == {"shifted": "tl", "base": "bl"},
+              f"{tag}: picker {code} shows {sh} top left and {code} bottom left (got {x and (x['shifted'], x['quad'])})")
+    for x in m:
+        k = f"{tag} {x['where']} {x['code']}"
+        check(x["allIn"] and not x["overlap"] and not x["hits"], f"{k}: glyphs whole, apart, clear of bands and folds ({x['hits']})")
+        check(x["sameFont"] and x["sameColor"], f"{k}: one size, one color")
+        if x["where"] == "layout" and x["kind"] == "plain":
+            check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{k}: font {x['fontPx']}px is the full size")
+    shoot(page, f"grid-us-{size}-{position}-{theme}")
+    context.close()
 
 
 def run_toggle(browser, url):
@@ -441,6 +467,10 @@ def main():
                         run_case(browser, url, size, position, theme, summary)
                         run_off(browser, url, size, position, theme)
                         run_german(browser, url, size, position, theme, summary)
+            for size in SIZES:
+                for position in POSITIONS:
+                    for theme in THEMES:
+                        run_grid_preview(browser, url, size, position, theme)
             run_french(browser, url, "default", "sidebar", "light")
             run_french(browser, url, "small", "bottombar", "dark")
             run_toggle(browser, url)

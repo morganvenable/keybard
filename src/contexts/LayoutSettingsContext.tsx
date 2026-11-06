@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from "react";
 import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
-import { altgrLegendsFromSearch, keyLegendsFromSearch } from "@/lib/deepLinks";
+import { altgrLegendsFromSearch, keyLegendsFromSearch, legendGridPreviewFromSearch } from "@/lib/deepLinks";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
@@ -31,6 +31,8 @@ interface LayoutSettingsContextType {
     showShiftedLegends?: boolean;
     /** Also show what AltGr types as a third legend (Settings > Appearance; off when absent). */
     showAltGrLegends?: boolean;
+    /** ?legendGrid=keycap: the keycap grid without AltGr (preview links only, not saved). */
+    legendGridPreview?: boolean;
     setInternationalLayout: (layout: string) => void;
     keyVariant: KeyVariant;
     setKeyVariant: (variant: KeyVariant) => void;
@@ -86,6 +88,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const altgrLink = useRef<{ value: boolean | null; stored: boolean }>({ value: typeof window === "undefined" ? null : altgrLegendsFromSearch(window.location.search), stored: storedAltGr });
     if (altgrLink.current.value !== null && altgrLink.current.stored !== storedAltGr) altgrLink.current.value = null;
     const showAltGrLegends = altgrLink.current.value ?? storedAltGr;
+    const legendGridPreview = typeof window !== "undefined" && legendGridPreviewFromSearch(window.location.search);
 
     useEffect(() => {
         if (!isKeySizePreference(storedKeySize)) return;
@@ -245,6 +248,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             internationalLayout,
             showShiftedLegends,
             showAltGrLegends,
+            legendGridPreview,
             setInternationalLayout,
             keyVariant,
             setKeyVariant,
