@@ -67,6 +67,8 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     isRelative?: boolean;
     className?: string;
     headerClassName?: string;
+    /** The picker with SHIFT on: the mode says Shift, so no key repeats it as a band. */
+    hideModifierBand?: boolean;
     variant?: "default" | "medium" | "small";
     hoverBorderColor?: string;
     hoverBackgroundColor?: string;
@@ -124,10 +126,11 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const altgrOnly = useMemo(() => altgrOnlyLegend(keycode, keyContents, internationalLayout), [keycode, keyContents, internationalLayout]);
     const isAltGrKey = keycode === "KC_RALT" && hasAltGr(internationalLayout);
     const keyData = useMemo(() => {
+        if (props.hideModifierBand && keyContents?.type === "modmask") return { ...baseKeyData, bottomStr: "" };
         if (altgrOnly) return { ...baseKeyData, bottomStr: "" };
         if (isAltGrKey) return { ...baseKeyData, topLabel: "", bottomStr: "", centerContent: "AltGr" };
         return baseKeyData;
-    }, [baseKeyData, altgrOnly, isAltGrKey]);
+    }, [baseKeyData, altgrOnly, isAltGrKey, props.hideModifierBand, keyContents?.type]);
 
     // Digit and punctuation keys also show the symbol Shift types (Settings > Appearance), and
     // with AltGr Symbols on, the character AltGr types.

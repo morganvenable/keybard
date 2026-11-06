@@ -431,6 +431,66 @@ def run_grid_preview(browser, url, size, position, theme):
     context.close()
 
 
+US_ALIAS = {"KC_TILD": "KC_GRAVE", "KC_EXLM": "KC_1", "KC_AT": "KC_2", "KC_HASH": "KC_3", "KC_DLR": "KC_4", "KC_PERC": "KC_5", "KC_CIRC": "KC_6",
+            "KC_AMPR": "KC_7", "KC_ASTR": "KC_8", "KC_LPRN": "KC_9", "KC_RPRN": "KC_0", "KC_UNDS": "KC_MINUS", "KC_PLUS": "KC_EQUAL",
+            "KC_LCBR": "KC_LBRACKET", "KC_RCBR": "KC_RBRACKET", "KC_PIPE": "KC_BSLASH", "KC_COLN": "KC_SCOLON", "KC_DQUO": "KC_QUOTE",
+            "KC_LT": "KC_COMMA", "KC_GT": "KC_DOT", "KC_QUES": "KC_SLASH"}
+
+
+def shifted_of(code):
+    """(base keycode) for LSFT(x), S(x) or a US shifted alias such as KC_AT (Shift+KC_2); else None."""
+    if code in US_ALIAS:
+        return US_ALIAS[code]
+    for pre in ("LSFT(", "S("):
+        if code.startswith(pre) and code.endswith(")"):
+            return code[len(pre):-1]
+    return None
+
+
+def run_bindings(browser, url, layout_id):
+    """Every picker key binds its position's keycode, and with SHIFT on LSFT(that keycode), as the OS shows."""
+    tag = f"bindings/{layout_id}"
+    context, page = open_case(browser, url, "default", "sidebar", "light", query=f"&keyLegends={layout_id}")
+    tokens = page.locator("[data-fitted-keyboard]:visible [data-picker-key]").evaluate_all("els => els.map(e => e.getAttribute('data-picker-key'))")
+    slot = {t: n for n, t in enumerate(tokens) if t and not t.startswith("{")}
+    tokens = list(slot)
+    pk = lambda t: page.locator("[data-fitted-keyboard]:visible [data-picker-key]").nth(slot[t])
+    codes0 = layout_codes(page)
+    idx = codes0.index("KC_W")
+    target = lambda: page.locator(f"{LAYOUT} [data-keycap]:visible").nth(idx)
+
+    def bind(token):
+        target().click()
+        pk(token).click()
+        page.wait_for_timeout(120)
+        return layout_codes(page)[idx]
+
+    plain = {t: bind(t) for t in tokens}
+    page.get_by_role("button", name="SHIFT", exact=True).first.click()
+    page.wait_for_timeout(300)
+    banded = []
+    for t in tokens:
+        shifted = bind(t)
+        a = plain[t]
+        check(shifted_of(shifted) == a, f"{tag}: Shift on {t!r} binds Shift plus {a} (got {shifted})")
+        txt = pk(t).inner_text().upper()
+        banded.append("LSFT" in txt)
+        # The key on the layout shows what the picker key shows.
+        shown = pk(t).inner_text().replace("\n", "").strip()
+        placed = target().inner_text().replace("\n", "").replace("LSFT", "").strip()
+        check(placed.upper() == shown.upper().replace("LSFT", ""), f"{tag}: Shift on {t!r}: the layout key shows {placed!r}, the picker key {shown!r}")
+    check(not any(banded), f"{tag}: in Shift mode no picker key shows a Shift band ({sum(banded)} of {len(banded)} do)")
+    if layout_id == "german":
+        check(plain.get("z") == "KC_Y" and plain.get("y") == "KC_Z", f"{tag}: z binds KC_Y, y binds KC_Z (got {plain.get('z')}, {plain.get('y')})")
+        z = pk("z")
+        check(z.inner_text().strip().upper().startswith("Z") or "Z" in z.inner_text().upper(), f"{tag}: Shift on the Y position draws Z")
+        bz, b2 = bind("z"), bind("2")
+        check(shifted_of(bz) == "KC_Y" and shifted_of(b2) == "KC_2", f"{tag}: Shift+z binds LSFT(KC_Y), Shift+2 binds LSFT(KC_2) (got {bz}, {b2})")
+        two = pk("2")
+        check('"' in two.inner_text(), f"{tag}: Shift+2 shows the quote (drew {two.inner_text()!r})")
+    context.close()
+
+
 def run_toggle(browser, url):
     """Settings > Appearance and editing: the AltGr symbols row only with an AltGr layout; it turns the legends on and off."""
     for lang, shown in (("", False), (GERMAN, True)):
@@ -547,6 +607,9 @@ def main():
             if wanted("french"):
                 run_french(browser, url, "default", "sidebar", "light")
                 run_french(browser, url, "small", "bottombar", "dark")
+            if wanted("bindings"):
+                for layout_id in ("us", "german", "french", "swiss"):
+                    run_bindings(browser, url, layout_id)
             if wanted("toggle"):
                 run_toggle(browser, url)
         finally:

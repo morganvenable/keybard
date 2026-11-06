@@ -7,7 +7,7 @@ import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { KeyContent } from "@/types/keyboard.types";
-import { LAYOUTS, BUTTON_TO_KEYCODE_MAP, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
+import { LAYOUTS, KEY_DISPLAY_OVERRIDES, US_SHIFT_ALIASES, keycodeForToken } from "@/components/Keyboards/layouts";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { applyModifiers, Modifier, ModifierSide, PLAIN_MODIFIER_KEYCODES } from "@/utils/modifierUtils";
 import { QWERTY_KEY_PX, TRAY_MIN_KEY_PX } from "@/lib/pickerShape";
@@ -49,7 +49,6 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
 
 
     const currentLayout = LAYOUTS[internationalLayout] || LAYOUTS["us"];
-    const layoutKeyMap = LAYOUT_KEY_MAPS[internationalLayout] || {};
 
     useEffect(() => {
         if (altGr) setPickerShift(null);
@@ -128,7 +127,14 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // Output key is ALWAYS the default key (base), so parent can apply modifiers
                     // Exception: If the key is specific to the shift layer (rare but possible), defaultKey might be weird?
                     // But in our layouts, default is strict base.
-                    const outputKey = defaultKey;
+                    // A key is its position: the keycode comes from the key's own (unshifted) token, never from
+                    // the character it shows. German Shift on the Y position draws "Z", which a US name lookup
+                    // would send to KC_Z, the key that types Y; and Shift+2 draws a quote, KC_DQUO on US.
+                    const resolveToken = (t: string) => keycodeForToken(internationalLayout, t);
+                    const positionKeycode = resolveToken(defaultKey);
+                    // The click hands over the position's keycode (structural {tokens} keep their name):
+                    // with Shift it binds LSFT(that keycode), which the OS turns into the shown character.
+                    const outputKey = defaultKey.startsWith("{") ? defaultKey : positionKeycode;
                     // With the picker's own Shift on, a key that shows its shifted symbol binds it
                     // (Shift plus the key), so what the key shows is what it binds.
                     const bindShifted = pickerShift && !altGr && shiftKey !== defaultKey && !defaultKey.startsWith("{") ? pickerShift : false;
@@ -137,11 +143,15 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // key is "ç" or "a" or "{shift}"
                     const labelKey = visualKey;
 
-                    let keycode = layoutKeyMap[labelKey] ||
-                        layoutKeyMap[labelKey.toLowerCase()] ||
-                        BUTTON_TO_KEYCODE_MAP[labelKey] ||
-                        BUTTON_TO_KEYCODE_MAP[labelKey.toLowerCase()] ||
-                        labelKey;
+                    let keycode = positionKeycode;
+                    if (labelKey !== defaultKey) {
+                        // The picker's own Shift draws the shifted character on a key that keeps
+                        // its position's keycode. Where the character's US-name keycode is that
+                        // same position (US: "!" is KC_EXLM, KC_1 shifted), it stays the drag payload.
+                        const shownCode = resolveToken(labelKey);
+                        const shownBase = US_SHIFT_ALIASES[shownCode] || shownCode;
+                        if (shownBase === positionKeycode && shownCode !== positionKeycode) keycode = shownCode;
+                    }
 
 
                     // Don't modify special structural keys
@@ -193,6 +203,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                             x={0} y={0} w={width} h={1} row={0} col={0}
                             keycode={keycode}
                             className={dimmed ? "opacity-40" : undefined}
+                            hideModifierBand={activeModifiers.length === 1 && activeModifiers[0] === "Shift"}
                             label={displayLabel}
                             keyContents={keyContents as KeyContent | undefined}
                             layerColor="sidebar"

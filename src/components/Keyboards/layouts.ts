@@ -413,7 +413,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "+": "KC_RBRACKET", "*": "KC_RBRACKET",
         "ö": "KC_SCOLON", "Ö": "KC_SCOLON",
         "ä": "KC_QUOTE", "Ä": "KC_QUOTE",
-        "#": "KC_NUHS", "'": "KC_NUHS"
+        "#": "KC_NONUS_HASH", "'": "KC_NONUS_HASH",
+        "-": "KC_SLASH", "_": "KC_SLASH"
     },
     french: {
         "a": "KC_Q", "A": "KC_Q", "q": "KC_A", "Q": "KC_A",
@@ -425,8 +426,8 @@ export const LAYOUT_KEY_MAPS: Record<string, Record<string, string>> = {
         "°": "KC_MINUS"
     },
     uk: {
-        "\"": "KC_2", "@": "KC_QUOTE", "£": "KC_3", "~": "KC_NUHS", "\\": "KC_NONUS_BSLASH", "|": "KC_NONUS_BSLASH",
-        "#": "KC_NUHS", "¬": "KC_GRAVE", "!": "KC_1",
+        "\"": "KC_2", "@": "KC_QUOTE", "£": "KC_3", "~": "KC_NONUS_HASH", "\\": "KC_NONUS_BSLASH", "|": "KC_NONUS_BSLASH",
+        "#": "KC_NONUS_HASH", "¬": "KC_GRAVE", "!": "KC_1",
         "$": "KC_4", "%": "KC_5", "^": "KC_6", "&": "KC_7", "*": "KC_8", "(": "KC_9", ")": "KC_0",
         "_": "KC_MINUS", "+": "KC_EQUAL",
         "{": "KC_LBRACKET", "}": "KC_RBRACKET",
@@ -567,6 +568,20 @@ export const getLabelForKeycode = (keycode: string, layoutId: string): string | 
         return null;
     };
 
+    // A key is its position: find the position whose unshifted token is this keycode and read the
+    // legend there, from the shift row when shifted. (Matching the shown characters by their US
+    // names picks the wrong key wherever a layout moves a character: German Shift+KC_COMMA is ";".)
+    for (let r = 0; r < layout.default.length; r++) {
+        const defaults = layout.default[r].split(" ");
+        const shifts = (layout.shift[r] ?? "").split(" ");
+        for (let i = 0; i < defaults.length; i++) {
+            const token = defaults[i];
+            if (!token || keycodeForToken(layoutId, token) !== targetKeycode) continue;
+            const shown = isShifted ? shifts[i] || token : token;
+            return KEY_DISPLAY_OVERRIDES[shown] || shown.replace("{", "").replace("}", "");
+        }
+    }
+
     // Try primary rows matching shift state
     let label = searchInRows(primaryRows);
     if (label) return label;
@@ -591,3 +606,13 @@ export const getLabelForKeycode = (keycode: string, layoutId: string): string | 
     // Let's safe fallback just in case.
     return searchInRows(secondaryRows);
 };
+
+/**
+ * The keycode a picker token names on this OS layout: the layout's own map (German "z" is KC_Y,
+ * the key that types z), else the US name. A key's keycode is looked up from its unshifted token
+ * (its position), never from the shifted character it shows.
+ */
+export function keycodeForToken(layoutId: string, token: string): string {
+    const map = LAYOUT_KEY_MAPS[layoutId] || {};
+    return map[token] || map[token.toLowerCase()] || BUTTON_TO_KEYCODE_MAP[token] || BUTTON_TO_KEYCODE_MAP[token.toLowerCase()] || token;
+}
