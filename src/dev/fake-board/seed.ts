@@ -65,6 +65,45 @@ export function seedKeymap(kc = keycodeParser()): Uint8Array {
     return keymap;
 }
 
+/**
+ * ?fakeBoard=legends: layer-0 keys replaced so every kind of key indicator sits on a
+ * digit or punctuation key, for checking shifted legends (tests/e2e/shifted_legends_e2e.py).
+ * Keyed by the keycode they replace.
+ */
+export const LEGEND_SEED_KEYS: Readonly<Record<string, string>> = {
+    KC_Z: "LCTL(KC_1)",     // modifier band along the bottom
+    KC_X: "LCTL_T(KC_2)",   // mod-tap header along the top
+    KC_C: "LT1(KC_3)",      // layer-tap header along the top
+    KC_V: "LSFT(KC_4)",     // Shift-wrapped: draws $ alone
+    KC_B: "LALT(KC_SLASH)", // modifier band, and in a combo
+};
+
+/** Combos added after the demo ones, so folds land on the replaced keys. */
+export const LEGEND_SEED_COMBOS: readonly { keys: string[]; output: string }[] = [
+    { keys: ["KC_COMMA", "KC_DOT"], output: "KC_ENTER" },
+    { keys: ["LCTL(KC_1)", "LCTL_T(KC_2)"], output: "KC_TAB" },
+    { keys: ["LT1(KC_3)", "LALT(KC_SLASH)", "KC_SLASH"], output: "KC_ESCAPE" },
+    { keys: ["KC_SLASH", "KC_QUOTE"], output: "KC_BSPACE" },
+];
+
+/** Applies LEGEND_SEED_KEYS and LEGEND_SEED_COMBOS to a seeded board. */
+export function seedLegends(state: FakeBoardState) {
+    const kc = keycodeParser();
+    const replace = new Map(Object.entries(LEGEND_SEED_KEYS).map(([from, to]) => [kc(from), kc(to)]));
+    for (let o = 0; o < ROWS * COLS * 2; o += 2) {
+        const code = (state.keymap[o] << 8) | state.keymap[o + 1];
+        const to = replace.get(code);
+        if (to !== undefined) { state.keymap[o] = to >> 8; state.keymap[o + 1] = to & 0xff; }
+    }
+    LEGEND_SEED_COMBOS.forEach((c, n) => {
+        const o = (DEMO_FEATURES.combo.length + n) * COMBO_SIZE;
+        state.combo.fill(0, o, o + COMBO_SIZE);
+        c.keys.forEach((k, j) => put16(state.combo, o + j * 2, kc(k)));
+        put16(state.combo, o + 8, kc(c.output));
+        put16(state.combo, o + 10, COMBO_ENABLED);
+    });
+}
+
 /** QMK macro buffer bytes for one macro: text and single-key taps (SS_QMK_PREFIX, SS_TAP_CODE). */
 function macroBytes(actions: readonly (readonly (string | number)[])[], kc: (name: string) => number): number[] {
     const out: number[] = [];

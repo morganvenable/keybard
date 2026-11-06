@@ -1,6 +1,20 @@
 import type { KeyContent } from "@/types/keyboard.types";
 import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 
+/**
+ * The legend a wrapped key (modifier, mod-tap, layer-tap) draws for its base key when it
+ * holds no Shift. A two-line key name puts the shifted symbol first ("!\n1" for KC_1), so
+ * its first line would show what Shift types, not what the key types: use the layout's
+ * unshifted legend (or the name's second line). Names whose second line is a word
+ * ("Caps\nLock", "Page\nUp") keep their first line, as before.
+ */
+function unshiftedLegend(keysArr: string[], baseKeycode: string | null, layoutId: string): string | null {
+    // The second line of a symbol key is one or two symbols or digits; "Up" is a word.
+    if (keysArr.length !== 2 || keysArr[0] === "Mouse" || !keysArr[1] || keysArr[1].length > 2 || /^\p{L}{2}$/u.test(keysArr[1])) return null;
+    const fromLayout = baseKeycode ? getLabelForKeycode(baseKeycode, layoutId) : null;
+    return fromLayout && fromLayout.length <= 2 ? fromLayout : keysArr[1];
+}
+
 export function getKeyDisplayText(
     keycode: string,
     label: string,
@@ -53,6 +67,9 @@ export function getKeyDisplayText(
             if (hasShiftMod && baseKeycode) {
                 const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
                 if (shiftedLabel) displayLabel = shiftedLabel;
+            } else {
+                const unshifted = unshiftedLegend(keysArr, baseKeycode, layoutId);
+                if (unshifted) displayLabel = unshifted;
             }
         }
 
@@ -102,6 +119,9 @@ export function getKeyDisplayText(
         if (hasShiftMod && baseKeycode) {
             const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
             if (shiftedLabel) displayLabel = shiftedLabel;
+        } else {
+            const unshifted = unshiftedLegend(keysArr, baseKeycode, layoutId);
+            if (unshifted) displayLabel = unshifted;
         }
 
     } else if (keyContents?.type === "layerhold") {
@@ -124,6 +144,10 @@ export function getKeyDisplayText(
         if (btnMatch) {
             displayLabel = `Mouse ${btnMatch[1]}`;
         }
+
+        // A layer-tap holds a basic keycode only, so it never holds Shift.
+        const unshifted = unshiftedLegend(keysArr, keycode.match(/\((.*)\)$/)?.[1] ?? null, layoutId);
+        if (unshifted) displayLabel = unshifted;
 
         if (displayLabel === "KC_NO") displayLabel = "";
 

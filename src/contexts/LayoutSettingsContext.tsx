@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from "react";
+import { DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import {
@@ -24,6 +25,8 @@ interface MeasuredDimensions {
 
 interface LayoutSettingsContextType {
     internationalLayout: string;
+    /** Digit and punctuation keys also show their shifted symbol (Settings > Appearance; on when absent). */
+    showShiftedLegends?: boolean;
     setInternationalLayout: (layout: string) => void;
     keyVariant: KeyVariant;
     setKeyVariant: (variant: KeyVariant) => void;
@@ -67,6 +70,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const updateSetting = settings?.updateSetting;
     const storedKeySize = settings?.isLoaded ? settings.getSetting(KEY_SIZE_SETTING, DEFAULT_KEY_SIZE) : null;
     const storedPanelPosition = settings?.isLoaded ? settings.getSetting(PANEL_POSITION_SETTING, DEFAULT_PANEL_POSITION) : null;
+    const showShiftedLegends = settings ? settings.getSetting(SHIFTED_LEGENDS_SETTING, DEFAULT_SHIFTED_LEGENDS) === true : DEFAULT_SHIFTED_LEGENDS;
 
     useEffect(() => {
         if (!isKeySizePreference(storedKeySize)) return;
@@ -224,6 +228,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     return (
         <LayoutSettingsContext.Provider value={{
             internationalLayout,
+            showShiftedLegends,
             setInternationalLayout,
             keyVariant,
             setKeyVariant,
