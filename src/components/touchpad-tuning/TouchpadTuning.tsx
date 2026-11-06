@@ -8,7 +8,7 @@ import type { KeyboardInfo } from "@/types/keyboard.types";
 import { getPadTouch } from "@/services/pad-touch.service";
 import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY, TOUCHPAD_NOTE } from "@/utils/touchpad-taps";
 import {
-    contactRadius, EMPTY_BLOCK, EMPTY_FINGERS, formatMm, formatPalm, hasPadMode, hasPadPalm, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_MODE_AUTO, PAD_MODE_KEY,
+    contactRadius, EMPTY_BLOCK, EMPTY_FINGERS, formatMm, formatPalm, hasPadMode, hasPadPalm, hasPadSpeed, PAD_SPEED_KEY, PAD_SPEED_PERCENT, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_MODE_AUTO, PAD_MODE_KEY,
     PAD_DEAD_ZONE_MM100, PAD_HEIGHT_MM100, PAD_PALM_CHANNELS, PAD_PALM_KEY, PAD_SCROLL_KEY, PAD_SCROLL_MM100, PAD_TAP_DEFAULT_MS, PAD_TAP_MS,
     PAD_TAP_MS_KEY, PAD_WIDTH_MM100, steps, TouchTracker, type MultiTouch, type PadFingersBlock, type PadTouchBlock, type PadTouchReport,
     type TouchOutcome,
@@ -196,6 +196,9 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const holdOn = (values.get(PAD_HOLD_KEY) ?? 1) !== 0;
     const scroll = values.get(PAD_SCROLL_KEY) ?? 0;
     const palmOn = hasPadPalm(keyboard.feature_flags4);
+    const speedOn = hasPadSpeed(keyboard.feature_flags4);
+    const speedValue = values.get(PAD_SPEED_KEY) || 100;
+    const speedTable = PAD_SPEED_PERCENT.includes(speedValue as never) ? PAD_SPEED_PERCENT : [...PAD_SPEED_PERCENT, speedValue].sort((a, b) => a - b);
     const modeOn = hasPadMode(keyboard.feature_flags4);
     const modeValue = values.get(PAD_MODE_KEY) ?? PAD_MODE_AUTO;
     const palmValue = values.get(PAD_PALM_KEY) ?? 0;
@@ -233,6 +236,11 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         <StepControl label="Palm rejection" value={palmValue} table={palmTable} format={formatPalm} onChange={(v) => setNow(PAD_PALM_KEY, v)}
             note="Ignores a contact wider than this, like a resting palm." />
     );
+    // The test firmware's scroll speed: on the board at once, in either touchpad mode.
+    const speedControl = speedOn && (
+        <StepControl label="Touchpad scroll speed" value={speedValue} table={speedTable} format={(v) => `${v / 100}x`} onChange={(v) => setNow(PAD_SPEED_KEY, v)}
+            note="How fast two fingers scroll. 1x is the usual speed." />
+    );
     // A write the board didn't take says so here; the line holds its place, so nothing moves when it does.
     const errorLine = <p className="min-h-5 text-sm text-kb-touch-cancel" role={error ? "alert" : undefined} data-write-error={error ? true : undefined}>{error}</p>;
 
@@ -242,6 +250,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
             <div className={cn("grid gap-2", palmControl && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
                 {mode}
                 {palmControl}
+                {speedControl}
             </div>
             {modeChange.confirm}
             {errorLine}
@@ -251,6 +260,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
             {mode}
             {modeChange.confirm}
             {errorLine}
+            {speedControl}
             <div className={cn("grid gap-2 @lg:grid-cols-2", palmOn ? "@5xl:grid-cols-5" : "@5xl:grid-cols-4")} data-tuning-controls>
                 <StepControl label="Dead zone" value={deadZone} table={PAD_DEAD_ZONE_MM100} format={formatMm} onChange={(v) => setNow(PAD_DEAD_ZONE_KEY, v)}
                     note="How far a finger can move and still tap or hold." />
