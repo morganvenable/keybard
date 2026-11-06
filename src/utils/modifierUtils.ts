@@ -192,3 +192,7 @@ export const applyModifiers = (keycode: string, activeModifiers: Modifier[], isM
     const modifierFunc = modMap[mask];
     return modifierFunc ? `${modifierFunc}(${keycode})` : keycode;
 };
+
+/** AltGr is Right Alt: the picker AltGr button binds RALT(key) (Alt on the right), whatever the L/R toggle says. */
+export const ALTGR_MODIFIERS: Modifier[] = ["Alt"];
+export const ALTGR_SIDE: ModifierSide = "right";

@@ -95,10 +95,8 @@ const DIGIT = /^[0-9]$/;
 export interface LegendOptions {
     /** Shifted Key Symbols (on when absent). */
     shifted?: boolean;
-    /** AltGr Symbols (off when absent). With an AltGr layout this also turns on the keycap grid. */
+    /** AltGr Symbols (off when absent): the AltGr character bottom right of the keycap grid, on layouts that have one. */
     altgr?: boolean;
-    /** The keycap grid without AltGr (the ?legendGrid=keycap preview): shifted top left, base bottom left. */
-    grid?: boolean;
 }
 
 /** Wrappers that hold AltGr alone (RALT(KC_2), ALGR(KC_2)): the key types the AltGr character. */
@@ -157,9 +155,9 @@ export function dualLegendFor(
     // Letters keep one shift legend, in every script (a, é, ж, ش): only digits and symbols get two. A
     // number-row key whose base is a letter (French é è ç à) still shows its shifted digit, read
     // from the layout's shift row, never the capital of the base letter.
-    // The keycap grid: with AltGr Symbols on and an AltGr layout (or the grid preview).
+    // The keycap grid is every key's layout (shifted top left, base bottom left); AltGr Symbols on
+    // an AltGr layout adds the AltGr character bottom right and gives letters their capital top left.
     const altgrMode = wantAltGr && hasAltGr(layoutId);
-    const gridMode = altgrMode || options.grid === true;
     // A letter key in the grid shows its capital top left, read from the shift row, with AltGr bottom right.
     if (altgrMode && wantShifted && LETTER.test(base) && LETTER.test(shifted) && base !== shifted) {
         const letterAltGr = altgr && [...altgr].length <= 2 && altgr !== base ? altgr : undefined;
@@ -171,7 +169,7 @@ export function dualLegendFor(
     const out: DualLegend = { base };
     if (showShifted) out.shifted = shifted;
     if (showAltGr) out.altgr = altgr;
-    if (gridMode) out.grid = true;
+    out.grid = true;
     return out;
 }
 
@@ -285,9 +283,6 @@ export function planLegends(legend: DualLegend, size: KeySizeName, roomPx: numbe
             const p = attempt(legend, 2, Math.max(chars(legend.base), chars(legend.shifted)), true);
             if (p) return p;
         }
-    } else if (!legend.grid && legend.altgr && !hasFold) {
-        const p = attempt(legend, legend.shifted ? 2 : 1, Math.max(chars(legend.base) + chars(legend.altgr), chars(legend.shifted)), false);
-        if (p) return p;
     }
     const dropped = !!legend.altgr;
     if (legend.letter) {

@@ -11,7 +11,7 @@ import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
 import type { ComboPalette } from "@/utils/combo-hues";
-import { DEFAULT_SHIFTED_LEGENDS, DIAGONAL_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, KEY_BAND_PX, altgrOnlyLegend, dualLegendFor, planLegends, type LegendPlan } from "@/lib/shiftedLegends";
+import { DEFAULT_SHIFTED_LEGENDS, DIAGONAL_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, KEY_BAND_PX, altgrOnlyLegend, hasAltGr, dualLegendFor, planLegends, type LegendPlan } from "@/lib/shiftedLegends";
 
 /** Inspector, combo indicator and preview wiring for a layout key (every layout key has it). */
 export interface KeyComboProps {
@@ -115,10 +115,19 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const isMedium = variant === "medium";
 
     // --- Data processing ---
-    const { internationalLayout, showShiftedLegends, showAltGrLegends, legendGridPreview } = useLayoutSettings();
-    const keyData = useMemo(() => {
+    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
+    const baseKeyData = useMemo(() => {
         return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
     }, [label, keyContents, keycode, forceLabel, internationalLayout]);
+    // On a layout with AltGr data, RALT(KC_2) shows the character it types ("²" on German), not
+    // "RALT", and the KC_RALT key is labeled AltGr (R ALT elsewhere).
+    const altgrOnly = useMemo(() => altgrOnlyLegend(keycode, keyContents, internationalLayout), [keycode, keyContents, internationalLayout]);
+    const isAltGrKey = keycode === "KC_RALT" && hasAltGr(internationalLayout);
+    const keyData = useMemo(() => {
+        if (altgrOnly) return { ...baseKeyData, bottomStr: "" };
+        if (isAltGrKey) return { ...baseKeyData, topLabel: "", bottomStr: "", centerContent: "AltGr" };
+        return baseKeyData;
+    }, [baseKeyData, altgrOnly, isAltGrKey]);
 
     // Digit and punctuation keys also show the symbol Shift types (Settings > Appearance), and
     // with AltGr Symbols on, the character AltGr types.
@@ -126,13 +135,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const showAltGr = showAltGrLegends === true;
     const centerText = typeof keyData.centerContent === "string" ? keyData.centerContent : label;
     const fullLegend = useMemo(
-        () => dualLegendFor(keycode, centerText, keyContents, internationalLayout, { shifted: showShifted, altgr: showAltGr, grid: legendGridPreview === true }),
-        [showShifted, showAltGr, legendGridPreview, keycode, centerText, keyContents, internationalLayout]
-    );
-    // RALT(KC_2) types "²" on German: that is its one legend, not the bare 2.
-    const altgrOnly = useMemo(
-        () => (showAltGr ? altgrOnlyLegend(keycode, keyContents, internationalLayout) : null),
-        [showAltGr, keycode, keyContents, internationalLayout]
+        () => dualLegendFor(keycode, centerText, keyContents, internationalLayout, { shifted: showShifted, altgr: showAltGr }),
+        [showShifted, showAltGr, keycode, centerText, keyContents, internationalLayout]
     );
     const hasComboFold = !!combo && combo.memberships.length > 0;
     const legendPlan = useMemo<LegendPlan | null>(() => {
@@ -368,7 +372,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
                 <DualLegendFace plan={legendPlan} variant={variant} />
             ) : (
             <div
-                className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"), altgrOnly && "normal-case")}
+                className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"), (altgrOnly || isAltGrKey) && "normal-case")}
                 style={styles.textStyle}
             >
                 {altgrOnly ?? keyData.centerContent}

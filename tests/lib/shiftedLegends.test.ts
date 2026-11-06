@@ -7,14 +7,14 @@ describe("dualLegendFor", () => {
     const us = (kc: string, label = "") => dualLegendFor(kc, label, undefined, "us");
 
     it("gives / its ? on US English", () => {
-        expect(us("KC_SLASH", "/")).toEqual({ base: "/", shifted: "?" });
+        expect(us("KC_SLASH", "/")).toMatchObject({ base: "/", shifted: "?" });
     });
 
     it("covers digits and punctuation on US English", () => {
-        expect(us("KC_1")).toEqual({ base: "1", shifted: "!" });
-        expect(us("KC_GRAVE")).toEqual({ base: "`", shifted: "~" });
-        expect(us("KC_QUOTE")).toEqual({ base: "'", shifted: "\"" });
-        expect(us("KC_BSLASH")).toEqual({ base: "\\", shifted: "|" });
+        expect(us("KC_1")).toMatchObject({ base: "1", shifted: "!" });
+        expect(us("KC_GRAVE")).toMatchObject({ base: "`", shifted: "~" });
+        expect(us("KC_QUOTE")).toMatchObject({ base: "'", shifted: "\"" });
+        expect(us("KC_BSLASH")).toMatchObject({ base: "\\", shifted: "|" });
     });
 
     it("never letters, special keys, numpad or shifted aliases", () => {
@@ -24,9 +24,9 @@ describe("dualLegendFor", () => {
     });
 
     it("modifier, mod-tap and layer-tap keys show both legends of their base key", () => {
-        expect(dualLegendFor("LCTL(KC_1)", "1", { type: "modmask", modids: 0x0100 } as never, "us")).toEqual({ base: "1", shifted: "!" });
-        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "us")).toEqual({ base: "2", shifted: "@" });
-        expect(dualLegendFor("LT1(KC_3)", "3", { type: "layerhold" } as never, "us")).toEqual({ base: "3", shifted: "#" });
+        expect(dualLegendFor("LCTL(KC_1)", "1", { type: "modmask", modids: 0x0100 } as never, "us")).toMatchObject({ base: "1", shifted: "!" });
+        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "us")).toMatchObject({ base: "2", shifted: "@" });
+        expect(dualLegendFor("LT1(KC_3)", "3", { type: "layerhold" } as never, "us")).toMatchObject({ base: "3", shifted: "#" });
         // AltGr types a third symbol on many layouts: one legend.
         expect(dualLegendFor("RALT(KC_2)", "2", { type: "modmask" } as never, "de")).toBeNull();
     });
@@ -46,8 +46,8 @@ describe("dualLegendFor", () => {
     });
 
     it("follows the International keyboards layout", () => {
-        expect(dualLegendFor("KC_3", "3", undefined, "uk")).toEqual({ base: "3", shifted: "£" });
-        expect(dualLegendFor("KC_7", "7", undefined, "german")).toEqual({ base: "7", shifted: "/" });
+        expect(dualLegendFor("KC_3", "3", undefined, "uk")).toMatchObject({ base: "3", shifted: "£" });
+        expect(dualLegendFor("KC_7", "7", undefined, "german")).toMatchObject({ base: "7", shifted: "/" });
         expect(dualLegendFor("KC_Y", "z", undefined, "german")).toBeNull();
     });
 
@@ -93,22 +93,27 @@ describe("dualLegendFor", () => {
         expect(dualLegendFor("KC_B", "", undefined, "arabic")).toBeNull();
     });
 
+    it("every two-legend key is the keycap grid: shifted top left, base bottom left", () => {
+        expect(dualLegendFor("KC_2", "", undefined, "us")).toEqual({ base: "2", shifted: "@", grid: true });
+        expect(dualLegendFor("KC_9", "", undefined, "french")).toEqual({ base: "ç", shifted: "9", grid: true });
+    });
+
     it("French number-row keys with a letter base read their shifted digit from the shift row", () => {
         const fr = (kc: string) => dualLegendFor(kc, "", undefined, "french");
-        expect(fr("KC_2")).toEqual({ base: "é", shifted: "2" });
-        expect(fr("KC_7")).toEqual({ base: "è", shifted: "7" });
-        expect(fr("KC_9")).toEqual({ base: "ç", shifted: "9" });
-        expect(fr("KC_0")).toEqual({ base: "à", shifted: "0" });
+        expect(fr("KC_2")).toMatchObject({ base: "é", shifted: "2" });
+        expect(fr("KC_7")).toMatchObject({ base: "è", shifted: "7" });
+        expect(fr("KC_9")).toMatchObject({ base: "ç", shifted: "9" });
+        expect(fr("KC_0")).toMatchObject({ base: "à", shifted: "0" });
         // Letters stay single: Shift only capitalizes them.
         expect(fr("KC_A")).toBeNull();
         expect(dualLegendFor("KC_Q", "", undefined, "german")).toBeNull();
     });
 
     it("non-US layouts pair keys by position (French, Danish)", () => {
-        expect(dualLegendFor("KC_DOT", "", undefined, "french")).toEqual({ base: ":", shifted: "/" });
-        expect(dualLegendFor("KC_SLASH", "", undefined, "french")).toEqual({ base: "!", shifted: "§" });
-        expect(dualLegendFor("KC_MINUS", "", undefined, "danish")).toEqual({ base: "+", shifted: "?" });
-        expect(dualLegendFor("KC_SLASH", "", undefined, "danish")).toEqual({ base: "-", shifted: "_" });
+        expect(dualLegendFor("KC_DOT", "", undefined, "french")).toMatchObject({ base: ":", shifted: "/" });
+        expect(dualLegendFor("KC_SLASH", "", undefined, "french")).toMatchObject({ base: "!", shifted: "§" });
+        expect(dualLegendFor("KC_MINUS", "", undefined, "danish")).toMatchObject({ base: "+", shifted: "?" });
+        expect(dualLegendFor("KC_SLASH", "", undefined, "danish")).toMatchObject({ base: "-", shifted: "_" });
     });
 });
 

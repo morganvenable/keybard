@@ -48,12 +48,14 @@ export const TESTER_PARAM = "tester";
 
 export const KEY_LEGENDS_PARAM = "keyLegends";
 export const ALTGR_LEGENDS_PARAM = "altgrLegends";
-export const LEGEND_GRID_PARAM = "legendGrid";
+export const PICKER_ALTGR_PARAM = "pickerAltGr";
 
-/** ?legendGrid=keycap: preview the keycap grid (shifted top left, base bottom left) without AltGr. URL only, never saved. */
-export function legendGridPreviewFromSearch(search: string): boolean {
-    return param(search, LEGEND_GRID_PARAM)?.trim().toLowerCase() === "keycap";
+/** ?pickerAltGr=on opens the picker with its AltGr button active (review links; the button is shown only on a layout with AltGr data). */
+export function pickerAltGrFromSearch(search: string): boolean {
+    const value = param(search, PICKER_ALTGR_PARAM)?.trim().toLowerCase();
+    return value === "on" || value === "1" || value === "true";
 }
+
 
 /** ?keyLegends=<layout id>, lower-cased; absent is null (the caller checks it names a layout). */
 export function keyLegendsFromSearch(search: string): string | null {

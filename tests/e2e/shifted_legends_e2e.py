@@ -322,7 +322,7 @@ def run_german(browser, url, size, position, theme, summary):
     check(page.locator('[data-legend="altgr"]').count() == 0, f"{tag}: no AltGr legend anywhere")
     check(page.locator("[data-dual-legend]").count() > 0, f"{tag}: Shifted Key Symbols still draw")
     ralt = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
-    check("7" in ralt.inner_text() and "{" not in ralt.inner_text(), f"{tag}: RALT(KC_7) draws its base key")
+    check("{" in ralt.inner_text() and "RALT" not in ralt.inner_text().upper(), f"{tag}: RALT(KC_7) shows its AltGr character with the toggle off too (drew {ralt.inner_text()!r})")
     q = page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_Q"]').first
     check(q.locator("[data-dual-legend]").count() == 0, f"{tag}: Q keeps one legend")
     context.close()
@@ -337,17 +337,62 @@ def run_french(browser, url, size, position, theme):
         for base, sh, ag in (("ç", "9", "^"), ("à", "0", "@"), ("é", "2", ""), ("è", "7", "")):
             x = next((y for y in picker if y["base"] == base), None)
             want = ag if on == "on" else ""
-            check(x is not None and x["shifted"] == sh and x["altgr"] == want and x["base"] == base and x["quad"]["shifted"] == ("tl" if on == "on" else "tr") and x["quad"]["base"] == "bl" and (on == "off" or not want or x["quad"]["altgr"] == "br"),
+            check(x is not None and x["shifted"] == sh and x["altgr"] == want and x["base"] == base and x["quad"]["shifted"] == "tl" and x["quad"]["base"] == "bl" and (on == "off" or not want or x["quad"]["altgr"] == "br"),
                   f"{tag}/{on}: picker {base} shows {base} / {sh} / {want!r}, never the capital (got {x and (x['base'], x['shifted'], x['altgr'])})")
             if x:
                 check(x["allIn"] and not x["overlap"], f"{tag}/{on}: {base} glyphs whole and apart")
         context.close()
 
 
+def layout_keys(m):
+    return [x for x in m if x["where"] == "layout" and x["shifted"] and x["base"]]
+
+
+def k_tag(tag, x):
+    return f"{tag} {x['where']} {x['code']}"
+
+
+def run_altgr_button(browser, url, size, position, theme):
+    """The picker's AltGr button: German shows it, binds RALT(key) and shows the AltGr character; US has none."""
+    tag = f"altgr-button/{size}/{position}/{theme}"
+    context, page = open_case(browser, url, size, position, theme, query=GERMAN)
+    btn = page.locator("[data-altgr-button]:visible").first
+    check(btn.count() > 0, f"{tag}: AltGr button shown on German")
+    ralt_picker = page.locator('[data-fitted-keyboard]:visible [data-picker-key="{altright}"]').first
+    check("AltGr" in ralt_picker.inner_text(), f"{tag}: KC_RALT picker key is labeled AltGr (got {ralt_picker.inner_text()!r})")
+    page.locator(f'{LAYOUT} [data-keycap][data-keycode="KC_W"]:visible').first.click()
+    btn.click()
+    page.wait_for_timeout(400)
+    check(btn.get_attribute("aria-pressed") == "true", f"{tag}: AltGr button active after a click")
+    key7 = page.locator('[data-fitted-keyboard]:visible [data-picker-key="7"]').first
+    check(key7.inner_text().strip() == "{", f"{tag}: with AltGr on the picker's 7 shows {{ alone (got {key7.inner_text()!r})")
+    m = [x for x in page.evaluate(MEASURE_JS) if x["where"] == "picker"]
+    check(all(x["allIn"] and not x["overlap"] for x in m), f"{tag}: no two-legend key cropped while AltGr is on")
+    page.locator('[data-fitted-keyboard]:visible [data-picker-key="7"]').first.click()
+    page.wait_for_timeout(600)
+    codes = layout_codes(page)
+    check("RALT(KC_7)" in codes, f"{tag}: the keymap holds RALT(KC_7) ({[c for c in codes if c and '7' in c]})")
+    placed = page.locator(f'{LAYOUT} [data-keycap][data-keycode="RALT(KC_7)"]').first
+    text = placed.inner_text()
+    check("{" in text and "RALT" not in text.upper(), f"{tag}: the bound key shows {{, not RALT (drew {text!r})")
+    if SHOTS:
+        shoot(page, f"altgr-button-{size}-{position}-{theme}")
+    # SHIFT replaces AltGr.
+    page.get_by_role("button", name="SHIFT", exact=True).first.click()
+    page.wait_for_timeout(300)
+    check(btn.get_attribute("aria-pressed") == "false", f"{tag}: SHIFT turns AltGr off")
+    context.close()
+    context, page = open_case(browser, url, size, position, theme)
+    check(page.locator("[data-altgr-button]:visible").count() == 0, f"{tag}: no AltGr button on US")
+    ralt_picker = page.locator('[data-fitted-keyboard]:visible [data-picker-key="{altright}"]').first
+    check("AltGr" not in ralt_picker.inner_text(), f"{tag}: KC_RALT stays R ALT on US (got {ralt_picker.inner_text()!r})")
+    context.close()
+
+
 def run_grid_preview(browser, url, size, position, theme):
-    """?legendGrid=keycap with AltGr off, on the US layout: two legends, shifted top left, base bottom left."""
-    tag = f"grid-preview/{size}/{position}/{theme}"
-    context, page = open_case(browser, url, size, position, theme, query="&legendGrid=keycap")
+    """The default US layout: the keycap grid, two legends, shifted top left, base bottom left."""
+    tag = f"grid-us/{size}/{position}/{theme}"
+    context, page = open_case(browser, url, size, position, theme)
     m = page.evaluate(MEASURE_JS)
     picker = [x for x in m if x["where"] == "picker"]
     for code, sh in (("2", "@"), ("/", "?"), ("1", "!")):
@@ -360,6 +405,10 @@ def run_grid_preview(browser, url, size, position, theme):
         check(x["sameFont"] and x["sameColor"], f"{k}: one size, one color")
         if x["where"] == "layout" and x["kind"] == "plain":
             check(abs(x["fontPx"] - NOMINAL[size] * x["keyPx"] / KEYPX[size]) < 0.2, f"{k}: font {x['fontPx']}px is the full size")
+    for x in layout_keys(m):
+        if x["kind"] == "banded":
+            continue  # between bands the legends share one height: whole and apart is all that holds (checked above)
+        check(x["quad"].get("shifted") in ("tl", "tr") and x["quad"].get("base") == "bl", f"{k_tag(tag, x)}: grid top left, or the diagonal on a key with a fold")
     shoot(page, f"grid-us-{size}-{position}-{theme}")
     context.close()
 
@@ -471,6 +520,9 @@ def main():
                 for position in POSITIONS:
                     for theme in THEMES:
                         run_grid_preview(browser, url, size, position, theme)
+            for position in POSITIONS:
+                run_altgr_button(browser, url, "default", position, "light")
+            run_altgr_button(browser, url, "small", "bottombar", "dark")
             run_french(browser, url, "default", "sidebar", "light")
             run_french(browser, url, "small", "bottombar", "dark")
             run_toggle(browser, url)

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
@@ -37,8 +37,12 @@ import {
     decomposeKeycode,
     getOsmKeycode,
     applyModifiers,
-    PLAIN_MODIFIER_KEYCODES
+    PLAIN_MODIFIER_KEYCODES,
+    ALTGR_MODIFIERS,
+    ALTGR_SIDE,
 } from "@/utils/modifierUtils";
+import { hasAltGr } from "@/lib/shiftedLegends";
+import { pickerAltGrFromSearch } from "@/lib/deepLinks";
 
 interface Props {
     isPicker?: boolean;
@@ -50,12 +54,24 @@ interface Props {
 }
 
 const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
-    const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
-    const [modifierSide, setModifierSide] = useModifierSide();
+    const [pickedModifiers, setActiveModifiers] = useState<Modifier[]>([]);
+    const [pickedSide, setModifierSide] = useModifierSide();
     const { assignKeycode, isBinding, selectedTarget } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { keyVariant, layoutMode, internationalLayout, setInternationalLayout } = useLayoutSettings();
+    // AltGr is Right Alt: its own button, shown only when the layout has an AltGr level. While it is
+    // on, the picker shows each key's AltGr character and a click binds RALT(key); it is exclusive
+    // with the other modifiers and ignores the L/R side.
+    const [altGr, setAltGr] = useState(() => typeof window !== "undefined" && pickerAltGrFromSearch(window.location.search));
+    const altGrAvailable = hasAltGr(internationalLayout);
+    const altGrOn = altGr && altGrAvailable;
+    // A layout without AltGr data drops it, so coming back to German does not silently turn it on.
+    useEffect(() => {
+        if (!altGrAvailable) setAltGr(false);
+    }, [altGrAvailable]);
+    const activeModifiers: Modifier[] = altGrOn ? ALTGR_MODIFIERS : pickedModifiers;
+    const modifierSide: ModifierSide = altGrOn ? ALTGR_SIDE : pickedSide;
 
     const isHorizontal = layoutMode === "bottombar";
     const tray = usePickerTray();
@@ -101,9 +117,16 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
 
     const handleClearModifiers = () => {
         setActiveModifiers([]);
+        setAltGr(false);
+    };
+
+    const handleAltGrToggle = () => {
+        setActiveModifiers([]);
+        setAltGr((on) => !on);
     };
 
     const handleModifierToggle = (modifier: Modifier) => {
+        setAltGr(false);
         setActiveModifiers((prev) => {
             const next = prev.includes(modifier)
                 ? prev.filter((item) => item !== modifier)
@@ -132,6 +155,8 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
 
     const handleKeyboardInput = (button: string, shifted: ModifierSide | false = false) => {
         if (!isBinding || !keyboard) return;
+        // The picker's own Shift replaces AltGr.
+        if (altGrOn && (button === "{shiftleft}" || button === "{shiftright}")) setAltGr(false);
         handleKeyClick(button, shifted);
     };
 
@@ -264,15 +289,15 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                     {/* Modifiers section */}
                     <div className="flex items-center justify-between gap-1">
                         <span className="text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase">Modifiers</span>
-                        <ModifierSideToggle side={modifierSide} onChange={setModifierSide} compact />
+                        <ModifierSideToggle side={pickedSide} onChange={setModifierSide} compact />
                     </div>
                     <Button
                         type="button"
-                        variant={activeModifiers.length === 0 ? "default" : "secondary"}
+                        variant={pickedModifiers.length === 0 && !altGrOn ? "default" : "secondary"}
                         size="sm"
                         className={cn(
                             "rounded-md px-2 py-0.5 h-6 transition-all text-[10px] font-medium border-none w-full",
-                            activeModifiers.length === 0 ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
+                            pickedModifiers.length === 0 && !altGrOn ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                         )}
                         onClick={handleClearModifiers}
                         title="Clear modifiers"
@@ -281,9 +306,9 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                     </Button>
 
                     {/* Modifier choices stay in a compact row. */}
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className={cn("grid gap-1", altGrAvailable ? "grid-cols-5" : "grid-cols-4")}>
                         {modifierOptions.map((modifier) => {
-                            const isActive = activeModifiers.includes(modifier);
+                            const isActive = pickedModifiers.includes(modifier);
                             return (
                                 <Button
                                     key={modifier}
@@ -301,6 +326,23 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                                 </Button>
                             );
                         })}
+                        {altGrAvailable && (
+                            <Button
+                                type="button"
+                                variant={altGrOn ? "default" : "secondary"}
+                                size="sm"
+                                aria-pressed={altGrOn}
+                                data-altgr-button=""
+                                className={cn(
+                                    "rounded-md px-0.5 py-0.5 h-6 transition-all text-[11px] font-medium border-none",
+                                    altGrOn ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
+                                )}
+                                onClick={handleAltGrToggle}
+                                title="AltGr (Right Alt)"
+                            >
+                                AltGr
+                            </Button>
+                        )}
                     </div>
 
                     {/* Four constructed keys: Standalone Modifier, Modifier, Mod-Tap, One-Shot */}
@@ -384,7 +426,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
 
                 {/* Fit the complete keyboard to the available panel column. */}
                 <div className="w-[520px] max-w-full min-w-0">
-                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} hideLanguageSelector disableTooltip={true} />
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} altGr={altGrOn} hideLanguageSelector disableTooltip={true} />
                 </div>
 
                 {/* Blank/Transparent keys */}
@@ -505,7 +547,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                     tray.header!,
                 )}
                 {createPortal(
-                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} hideLanguageSelector disableTooltip={true}
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} altGr={altGrOn} hideLanguageSelector disableTooltip={true}
                         fit={{ maxHeight: tray.keyboardHeight, scaleFor: trayKeyboardScale }} />,
                     tray.body!,
                 )}
@@ -524,23 +566,23 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                         ))}
                     </select>
                 </div>
-                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} hideLanguageSelector disableTooltip={true} />
+                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} altGr={altGrOn} hideLanguageSelector disableTooltip={true} />
             </div>}
 
             <section className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-lg text-kb-ink">Modifiers</span>
-                    <ModifierSideToggle side={modifierSide} onChange={setModifierSide} />
+                    <ModifierSideToggle side={pickedSide} onChange={setModifierSide} />
                 </div>
                 {/* One line at any panel width: the five buttons share it equally. */}
-                <div className="grid grid-cols-5 gap-1" data-modifier-buttons="">
+                <div className={cn("grid gap-1", altGrAvailable ? "grid-cols-6" : "grid-cols-5")} data-modifier-buttons="">
                     <Button
                         type="button"
-                        variant={activeModifiers.length === 0 ? "default" : "secondary"}
+                        variant={pickedModifiers.length === 0 && !altGrOn ? "default" : "secondary"}
                         size="sm"
                         className={cn(
                             "rounded-md h-8 min-w-0 px-1 transition-all text-sm font-bold border-none",
-                            activeModifiers.length === 0 ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
+                            pickedModifiers.length === 0 && !altGrOn ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
                         )}
                         onClick={handleClearModifiers}
                         title="Clear modifiers"
@@ -548,7 +590,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                         None
                     </Button>
                     {modifierOptions.map((modifier) => {
-                        const isActive = activeModifiers.includes(modifier);
+                        const isActive = pickedModifiers.includes(modifier);
                         return (
                             <Button
                                 key={modifier}
@@ -565,6 +607,23 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                             </Button>
                         );
                     })}
+                    {altGrAvailable && (
+                        <Button
+                            type="button"
+                            variant={altGrOn ? "default" : "secondary"}
+                            size="sm"
+                            aria-pressed={altGrOn}
+                            data-altgr-button=""
+                            className={cn(
+                                "rounded-md h-8 min-w-0 px-1 transition-all text-sm font-bold border-none",
+                                altGrOn ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200 hover:bg-kb-surface dark:hover:bg-neutral-700"
+                            )}
+                            onClick={handleAltGrToggle}
+                            title="AltGr (Right Alt)"
+                        >
+                            ALTGR
+                        </Button>
+                    )}
                 </div>
             </section>
 
