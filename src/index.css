@@ -75,6 +75,8 @@
     --color-kb-touch-hold: var(--kb-touch-hold);
     --color-kb-touch-cancel: var(--kb-touch-cancel);
     --color-kb-confirm: var(--kb-confirm);
+    --color-kb-chart-left: var(--kb-chart-left);
+    --color-kb-chart-right: var(--kb-chart-right);
 }
 
 :root {
@@ -137,6 +139,9 @@
     --kb-warn-ink: #a35f00;
     --kb-warn-bg: #fff4e0;
     --kb-confirm: #2563eb;
+    /* Line charts: one color per hand. */
+    --kb-chart-left: #2b5fd9;
+    --kb-chart-right: #c0392b;
     /* Translucent tones of the highlight, as plain values: color-mix() inside
        @keyframes falls back to the solid color after the CSS build. */
     --kb-back-highlight-soft: rgb(9 158 124 / 0.22);
@@ -246,6 +251,8 @@
     --kb-warn-ink: #f5a524;
     --kb-warn-bg: #2f2410;
     --kb-confirm: #6ea8ff;
+    --kb-chart-left: #6ea8ff;
+    --kb-chart-right: #ff8a7a;
     --kb-back-highlight-soft: rgb(11 180 141 / 0.22);
     --kb-back-highlight-ring: rgb(11 180 141 / 0.85);
     --kb-touch-pad: #24262a;

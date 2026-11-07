@@ -112,6 +112,13 @@ export const SETTINGS: SettingDefinition[] = [
         action: "open-scan-lab",
     },
     {
+        name: "trackball-characterization",
+        label: "Trackball characterization...",
+        description: "Watch each trackball sensor's surface quality (SQUAL), shutter and raw data.",
+        type: "action",
+        action: "open-trackball",
+    },
+    {
         name: "key-proof-sheet",
         label: "Key Proof Sheet...",
         description: "Visual inspection of key renderings at all sizes",

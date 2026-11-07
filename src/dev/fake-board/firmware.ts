@@ -61,6 +61,8 @@ export const FLAG4_PAD_PALM = 0x01;
 export const FLAG4_PAD_MODE = 0x02;
 // flags4 bit 2: the debug console's debug flag (Sval 0x3E).
 export const FLAG4_DEBUG_CONSOLE = 0x04;
+// flags4 bit 3: the trackball sensor samples (Sval 0x39).
+export const FLAG4_POINTING_SENSOR = 0x08;
 // pad_gestures.c sval_pad_hold_ms: the hold times the board stores, the default (300) first.
 /** The build's own scroll distance on the native touchpad (50 pixels at 2048 across 43 mm). */
 const FAKE_SCROLL_BUILD_MM100 = 105;
@@ -1054,7 +1056,7 @@ export class FakeSvalFirmware {
                 data[19] = this.featureFlags2;
                 if (length > 20) data[20] = this.featureFlags3;
                 if (length > 21) data[21] = (this.padGestures && this.touchpad && this.multiFinger ? FLAG4_PAD_PALM | FLAG4_PAD_MODE : 0)
-                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0);
+                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0) | FLAG4_POINTING_SENSOR;
                 break;
             }
             case 0x2a: // STORAGE_RESET_CLEAR
@@ -1180,6 +1182,36 @@ export class FakeSvalFirmware {
                 if (length > 2) data.subarray(2, length).fill(0);
                 if (page === 1 && this.padGestures && this.touchpad && length >= 2 + 56) this.touchPage(data.subarray(2, length));
                 if (page === 2 && this.padGestures && this.touchpad && this.multiFinger && length >= 2 + 56) { this.fingersReads++; this.fingersPage(data.subarray(2, length)); }
+                break;
+            }
+            case 0x39: { // POINTING_SENSOR: SAMPLES of two PMW3389 trackballs (synthetic, deterministic per bin)
+                const op = data[2], hand = data[3] & 1, cursor = le16(data, 4);
+                if (length > 2) data.subarray(2, length).fill(0);
+                if (op !== 0 || length < 2 + 25) break;
+                const head = Math.floor(this.now() / 50) & 0xffff;
+                const behind = (head - cursor) & 0xffff;
+                const lost = behind > 256 || behind === 0 && cursor !== head;
+                const first = lost ? (head - 256) & 0xffff : cursor;
+                const avail = (head - first) & 0xffff;
+                const count = Math.min(2, avail);
+                data[2] = 1;
+                data[3] = 0x01 | 0x02 | (lost ? 0x04 : 0) | (avail > count ? 0x08 : 0) | (hand ? 0x10 : 0);
+                put16(data, 4, first);
+                data[6] = count;
+                put16(data, 7, head);
+                for (let i = 0; i < count; i++) {
+                    const q = (first + i) & 0xffff, o = 9 + i * 9;
+                    const w = Math.sin(q / 9 + hand * 2), burst = (q % 80) < 14;
+                    const squal = Math.round((hand ? 62 : 31) + 6 * w + (burst ? 14 : 0));
+                    data[o] = squal;
+                    data[o + 1] = Math.max(0, squal - 5 - (q % 3));
+                    data[o + 2] = Math.min(255, squal + 6 + (q % 4));
+                    data[o + 3] = Math.round((hand ? 78 : 40) + 8 * w);
+                    data[o + 4] = Math.round((hand ? 190 : 140) + 10 * w);
+                    data[o + 5] = hand ? 12 : 6;
+                    put16(data, o + 6, Math.round((hand ? 3200 : 4500) + 300 * w));
+                    data[o + 8] = burst ? 40 + (q % 20) : 0;
+                }
                 break;
             }
             case 0x2f: // POINTING_CONTACTS (not advertised): format 0

@@ -157,6 +157,7 @@ const SettingsPanel = () => {
         if (action === "import-settings") fileInputRef.current?.click();
         else if (action === "export-settings") setIsExportOpen(true);
         else if (action === "open-scan-lab") setActivePanel("scanlab");
+        else if (action === "open-trackball") setActivePanel("trackball");
         else if (action === "open-proof-sheet") navigateTo("proof-sheet");
     };
 

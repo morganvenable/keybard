@@ -126,6 +126,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             // Only on firmware with the debug console command (DebugConsoleRow).
             { block: "debug" },
             { setting: "scan-lab", label: "Scan Lab", description: "Measure key scanning and sensor timing." },
+            { setting: "trackball-characterization", label: "Trackball characterization", description: "Watch each trackball sensor's surface quality and readings live." },
             { setting: "key-proof-sheet", label: "Key proof sheet", description: "Every key rendering at every size, for visual checks." },
         ],
         summary: "Version, manual, community and developer tools",
