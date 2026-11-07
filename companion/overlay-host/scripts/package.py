@@ -18,7 +18,9 @@ def build_json():
     if not commit:
         try: commit = subprocess.run(['git', 'rev-parse', '--short=7', 'HEAD'], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
         except (OSError, subprocess.CalledProcessError): commit = None
-    return json.dumps({'version': os.environ.get('KEYBARD_HOST_VERSION') or 'dev', 'keybardCommit': commit[:7] if commit else None})
+    # A test build (VITE_TEST_BANNER set, as for the yellow banner) says so in the tray menu and on the controls page.
+    test = bool(os.environ.get('VITE_TEST_BANNER') or os.environ.get('KEYBARD_TEST_BUILD'))
+    return json.dumps({'version': os.environ.get('KEYBARD_HOST_VERSION') or 'dev', 'keybardCommit': commit[:7] if commit else None, 'testBuild': test})
 
 def base_path_problem(index_html):
     """Why a web build can't be served from the Host's root, or None. Git Bash rewrites

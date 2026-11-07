@@ -59,7 +59,13 @@ try {
         $env:QT_QPA_PLATFORM = 'windows'
         $hostArgs = @('-m', 'keybard_host')
         if ($Paranoid) { $hostArgs += '--paranoid' }
-        Start-Process -FilePath (Join-Path $runtimeDir 'pythonw.exe') -ArgumentList $hostArgs -WorkingDirectory $projectDir
+        $started = Start-Process -FilePath (Join-Path $runtimeDir 'pythonw.exe') -ArgumentList $hostArgs -WorkingDirectory $projectDir -PassThru
+        # Another build is running and could not be replaced: the start refuses with exit code 3 within seconds.
+        if ($started.WaitForExit(15000) -and $started.ExitCode -eq 3) {
+            Write-Host 'Keybard Overlay did not start: another Keybard Overlay (a different build) is running and did not quit.' -ForegroundColor Red
+            Write-Host 'Quit it from its tray icon, then start this one again.' -ForegroundColor Red
+            exit 1
+        }
         exit 0
     }
     if ($LASTEXITCODE -ne 0) { throw "Keybard Overlay exited with code $LASTEXITCODE" }

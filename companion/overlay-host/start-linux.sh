@@ -34,4 +34,8 @@ fi
 if [ -n "${WAYLAND_DISPLAY:-}" ] && [ "${QT_QPA_PLATFORM:-}" != wayland ]; then
     echo "Wayland session: Shift and AltGr come from the board's firmware (x4.5 or newer); the computer's keys can't be read here." >&2
 fi
-exec .venv/bin/python -m keybard_host "$@"
+rc=0
+.venv/bin/python -m keybard_host "$@" || rc=$?
+# Exit code 3: another build is running and was not replaced (the message is above).
+[ "$rc" -eq 3 ] && echo "Keybard Overlay did not start. Quit the other one from its tray icon, then run this again." >&2
+exit "$rc"

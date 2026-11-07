@@ -28,7 +28,7 @@ export interface HostSnapshot {
     matrixAvailable: boolean | null; visible: boolean; session: string;
 }
 /** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
-export interface HostBuild { version: string; keybardCommit: string | null }
+export interface HostBuild { version: string; keybardCommit: string | null; testBuild?: boolean }
 declare global { interface Window { __keybardNativeState?: boolean } }
 /**
  * The Keybard Overlay's state and commands. overlay: this page draws the overlay (?hostOverlay),
@@ -54,7 +54,7 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
         const data = await r.json();
         if (data.apiVersion !== 1) return false;
         token.current = data.token;
-        setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null });
+        setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null, testBuild: data.testBuild === true });
         return true;
     }, [base]);
     /**

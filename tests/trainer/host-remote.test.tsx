@@ -52,13 +52,13 @@ it("keeps the host's release and bundled Keybard from bootstrap; older hosts are
         ? new Response(JSON.stringify({ token: 't', apiVersion: 1, version: 'vLaunch2', keybardCommit: '5954334' }))
         : new Response('{}', { status: 503 }));
     const current = renderHook(() => useHost());
-    await waitFor(() => expect(current.result.current.build).toEqual({ version: 'vLaunch2', keybardCommit: '5954334' }));
+    await waitFor(() => expect(current.result.current.build).toEqual({ version: 'vLaunch2', keybardCommit: '5954334', testBuild: false }));
     current.unmount();
     fetchMock.mockImplementation(async (url: string) => String(url).endsWith('/api/host/bootstrap')
         ? new Response(JSON.stringify({ token: 't', apiVersion: 1 }))
         : new Response('{}', { status: 503 }));
     const older = renderHook(() => useHost());
-    await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null }));
+    await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null, testBuild: false }));
     older.unmount();
 });
 

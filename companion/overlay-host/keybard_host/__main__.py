@@ -41,7 +41,8 @@ from .host_pointing import demo_motion
 from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
-from .build import build_info
+from .build import build_info, build_label
+from .handoff import hand_off, REFUSED
 from .browser import open_contained
 from .macos import float_window, hide_dock_icon, is_mac
 from . import backdrop, ontop
@@ -385,6 +386,7 @@ class Host(QObject):
         app.styleHints().colorSchemeChanged.connect(lambda _scheme: self.update_icon())
         self.icon_timer = QTimer(self); self.icon_timer.timeout.connect(self.update_icon); self.icon_timer.start(3000)
         menu = QMenu()
+        self.build_action = menu.addAction(build_label(build_info())); self.build_action.setEnabled(False)
         self.status_action = menu.addAction('Keybard Overlay · waiting for board'); self.status_action.setEnabled(False)
         self.firmware_action = menu.addAction(MODIFIER_NOTE); self.firmware_action.setEnabled(False); self.firmware_action.setVisible(False)
         menu.addSeparator(); menu.addAction('Open Keybard', self.open_controls)
@@ -398,7 +400,7 @@ class Host(QObject):
         menu.addAction('Place at bottom', self.place)
         menu.addSeparator(); menu.addAction('Reload board layout', lambda: self.command(dict(op='reload')))
         menu.addAction('Quit Keybard Overlay', app.quit)
-        self.tray.setContextMenu(menu); info = build_info(); self.tray.setToolTip(f"Keybard Overlay {info['version']}" + (f" · Keybard {info['keybardCommit']}" if info['keybardCommit'] else ''))
+        self.tray.setContextMenu(menu); info = build_info(); self.tray.setToolTip(build_label(info))
         self.tray.activated.connect(lambda reason: self.open_controls() if reason == QSystemTrayIcon.DoubleClick else None)
         self.tray.show()
         # Firmware that reports Shift and Caps Lock (GET_INFO second feature byte,
@@ -859,6 +861,7 @@ class Host(QObject):
             self.state.visible = value['value']; self.surface.setVisible(value['value']); self.show_action.setChecked(value['value']); self.controls.setVisible(value['value'])
             for board in self.boards.values(): self.track_pointing(board); self.track_polling(board)
         elif op == 'place': self.place()
+        elif op == 'quit': QTimer.singleShot(300, self.app.quit)
         elif op == 'practice':
             with self.state.lock:
                 self.state.practice_hidden = value['hidden']; self.state.practice_target = value['target']; self.state.practice_at = time.monotonic()
@@ -1082,8 +1085,17 @@ def main():
             return open_paranoid(url)
         # A paranoid host only ever opens in the contained browser profile.
         if running_mode(url) is True: return open_paranoid(url)
-        from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(controls_url(False, url, args.keybard_url))); return
+        # Another normal Overlay holds the lock: same build, show its controls; another build, ask it to quit.
+        outcome = hand_off(url, build_info(), lambda: lock.tryLock(100))
+        if outcome.action == 'open':
+            from PySide6.QtGui import QDesktopServices
+            QDesktopServices.openUrl(QUrl(controls_url(False, url, args.keybard_url))); return
+        if outcome.action == 'refuse':
+            print(outcome.message, flush=True)
+            try: refuse(outcome.message, 'Keybard Overlay')
+            except Exception: pass
+            sys.exit(REFUSED)
+        # 'start': the old one quit and this start now holds the lock.
     if not (args.assets / 'index.html').exists(): raise SystemExit('Build Keybard web assets before starting the host.')
     if not args.paranoid:
         problem = web_base_problem((args.assets / 'index.html').read_text(encoding='utf-8', errors='replace'))
