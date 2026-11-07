@@ -5,7 +5,7 @@ import { BALL_DIAG_REQUEST, ballDiagLines, parseBallDiag } from "@/utils/ball-di
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Trackball diagnostics test build: the counters the x4.5-balldiag firmware keeps,
+ * Trackball diagnostics test build: the counters the x4.5-ballfix firmware keeps,
  * as plain lines to paste into the ticket while the ball is dead. Read on demand.
  */
 export default function TrackballDiagnostics() {
@@ -22,7 +22,7 @@ export default function TrackballDiagnostics() {
             const reply = await usbInstance.sendSvil(0x2c, BALL_DIAG_REQUEST, { uint8: true }) as Uint8Array;
             const report = parseBallDiag(reply);
             if (report) setLines(ballDiagLines(report));
-            else setMessage("This keyboard's firmware has no trackball diagnostics. Install x4.5-balldiag from Firmware.");
+            else setMessage("This keyboard's firmware has no trackball diagnostics. Install x4.5-ballfix from Firmware.");
         } catch {
             setMessage("Could not read the keyboard. Check the connection and press Refresh.");
         } finally {

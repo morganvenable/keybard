@@ -91,6 +91,10 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     const unread = !!board?.unread;
     const behind = !!(board && !unread && newest && (!updater || board.halves.some((h) => !h.answered || h.fwVersion < newest.fwVersion)));
     const boardNewer = !!(updater && newest && board!.fwVersion > newest.fwVersion);
+    // The same version number but another build (say one test build over another): the version
+    // check above sees nothing to do, so the card would say "newest" and offer no install.
+    const otherBuild = !!(updater && !unread && newest && !installed && !behind && !boardNewer && board!.fwVersion === newest.fwVersion && board!.tag !== newest.tag
+        && board!.halves.every((h) => h.answered));
     const silent = updater && !unread ? board!.halves.find((h) => !h.usb && !h.answered) ?? null : null;
 
     const chooseFiles = (onlyHand?: Hand) => {
@@ -174,6 +178,16 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
                     <span className="text-sm"><NotesLink release={newest} label={`What's new in ${newest.tag}`} /></span>
                 </div>
                 <Button variant="kb-primary" onClick={() => install(newest)}>Update to {newest.tag}</Button>
+            </div>
+        );
+    } else if (otherBuild && newest) {
+        lead = (
+            <div className="flex flex-wrap items-center justify-between gap-3" data-testid="firmware-other-build">
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold">Your keyboard runs {board!.tag}</span>
+                    <span className="text-sm"><NotesLink release={newest} label={`What's new in ${newest.tag}`} /></span>
+                </div>
+                <Button variant="kb-primary" onClick={() => install(newest)}>Install {newest.tag}</Button>
             </div>
         );
     } else if (!updater) {

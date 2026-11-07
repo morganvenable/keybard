@@ -15,8 +15,7 @@ const ChannelBanner: React.FC = () => {
                 data-padtest-banner
                 className="fixed top-1 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-1rem)] rounded-full bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
             >
-                Test build for trackball diagnostics. This Keybard and its firmware are for testing only.
-                To go back, install x4.5 from Firmware.
+                Test build for trackball recovery. To go back, install x4.5 from Firmware.
             </div>
         );
     }

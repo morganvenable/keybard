@@ -3,7 +3,7 @@ import { ballDiagLines, parseBallDiag } from "@/utils/ball-diag";
 
 // reply[0] is the 0x2C echo; report byte i is reply[1 + i].
 function reply(bytes: Record<number, number>): Uint8Array {
-    const r = new Uint8Array(30);
+    const r = new Uint8Array(32);
     r[0] = 0x2c;
     r[1] = 0xa5;
     r[2] = 1;
@@ -28,10 +28,19 @@ describe("trackball diagnostics", () => {
         expect(text).toContain("one bad look (Inverse_Product_ID), then ok");
         expect(text).toContain("Last sub pointer movement the master received: never");
         expect(text).toContain("last reply 2.0 s ago");
+        expect(text).toContain("0 unstick resets sent, 0 slow-probe starts, 0 give-ups");
     });
 
     it("says so when the sub has no counters", () => {
         const d = parseBallDiag(reply({ 2: 0 }))!;
         expect(ballDiagLines(d).join("\n")).toContain("no counters");
+    });
+
+    it("reads the recovery counts of each half", () => {
+        const d = parseBallDiag(reply({ 2: 3, 21: 1, 22: 2, 26: 0x32, 27: 1, 28: 0x21, 29: 0 }))!;
+        const text = ballDiagLines(d).join("\n");
+        expect(text).toContain("Master trackball health: last check ok");
+        expect(text).toContain("2 unstick resets sent, 3 slow-probe starts, 1 give-ups");
+        expect(text).toContain("1 unstick resets sent, 2 slow-probe starts, 0 give-ups");
     });
 });

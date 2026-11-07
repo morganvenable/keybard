@@ -1,4 +1,4 @@
-// Trackball diagnostics (x4.5-balldiag firmware): Sval POINTING_HARDWARE (0x2C) asked with
+// Trackball diagnostics (x4.5-ballfix firmware): Sval POINTING_HARDWARE (0x2C) asked with
 // [0xA5, 1]. Reply after the wrapper: [0x2C] then the report, byte i of the report at reply[1 + i]:
 //  0 0xA5   1 version   2 flags (1 sub counters valid, 2 split link up, 4 USB half is the left half)
 //  3 USB half boots since power-on
@@ -8,6 +8,8 @@
 //  15..20 the sub's own counters: boots | link << 4, first_spi | search << 4, start (0.1 s),
 //         health, recoveries, checks
 //  21..25 the USB half's own sensor: health, recoveries, checks, first_spi | search << 4, start (0.1 s)
+//  26..27 the USB half: unstick resets | slow-probe starts << 4, give-ups (x4.5-ballfix; each saturates at 15)
+//  28..29 the same for the sub
 
 export const BALL_DIAG_REQUEST = [0xa5, 1];
 
@@ -36,6 +38,10 @@ export interface SensorCounters {
     firstSpi: number;
     search: number;
     startTenths: number;
+    /** x4.5-ballfix and later; null from x4.5-balldiag. */
+    unsticks: number | null;
+    slowStarts: number | null;
+    giveUps: number | null;
 }
 
 export interface BallDiag {
@@ -51,6 +57,12 @@ export interface BallDiag {
     subLinkHalfs: number;
     sub: SensorCounters;
     usb: SensorCounters;
+}
+
+function recovery(reply: Uint8Array, at: number): Pick<SensorCounters, "unsticks" | "slowStarts" | "giveUps"> {
+    if (reply.length < 1 + at + 2 || reply.length < 31) return { unsticks: null, slowStarts: null, giveUps: null };
+    const a = reply[1 + at], b = reply[1 + at + 1];
+    return { unsticks: a & 15, slowStarts: a >> 4, giveUps: b & 15 };
 }
 
 export function parseBallDiag(reply: Uint8Array): BallDiag | null {
@@ -69,8 +81,8 @@ export function parseBallDiag(reply: Uint8Array): BallDiag | null {
         motionAgeS: u16(13),
         subBoots: r(15) & 15,
         subLinkHalfs: r(15) >> 4,
-        sub: { health: r(18), recoveries: r(19), checks: r(20), firstSpi: r(16) & 15, search: r(16) >> 4, startTenths: r(17) },
-        usb: { health: r(21), recoveries: r(22), checks: r(23), firstSpi: r(24) & 15, search: r(24) >> 4, startTenths: r(25) },
+        sub: { health: r(18), recoveries: r(19), checks: r(20), firstSpi: r(16) & 15, search: r(16) >> 4, startTenths: r(17), ...recovery(reply, 28) },
+        usb: { health: r(21), recoveries: r(22), checks: r(23), firstSpi: r(24) & 15, search: r(24) >> 4, startTenths: r(25), ...recovery(reply, 26) },
     };
 }
 
@@ -92,6 +104,11 @@ function health(h: number, checks: number): string {
     return `${what}; ${checks} checks run (counts wrap at 256)`;
 }
 
+function recovered(c: SensorCounters): string {
+    const n = (v: number | null) => (v === null ? "?" : v >= 15 ? "15 or more" : String(v));
+    return `${c.recoveries} recoveries, ${n(c.unsticks)} unstick resets sent, ${n(c.slowStarts)} slow-probe starts, ${n(c.giveUps)} give-ups`;
+}
+
 function started(c: SensorCounters): string {
     if (c.search === 15) return "not started yet";
     const how = c.search === 14 ? "the boot-time probe" : `search ${c.search}`;
@@ -107,7 +124,7 @@ export function ballDiagLines(d: BallDiag): string[] {
     const lines = [
         `Master (USB, ${usbSide} half): booted ${d.usbBoots} time${d.usbBoots === 1 ? "" : "s"} since power-on`,
         `Master trackball: ${sensor(d.usb)}`,
-        `Master trackball health: ${health(d.usb.health, d.usb.checks)}; ${d.usb.recoveries} recoveries`,
+        `Master trackball health: ${health(d.usb.health, d.usb.checks)}; ${recovered(d.usb)}`,
         `Split link: ${d.linkUp ? "up" : "down"}`,
     ];
     if (d.subValid) {
@@ -115,7 +132,7 @@ export function ballDiagLines(d: BallDiag): string[] {
         lines.push(
             `Sub (${subSide} half): booted ${d.subBoots} time${d.subBoots === 1 ? "" : "s"} since power-on; split link first answered ${link} after boot`,
             `Sub trackball: ${sensor(d.sub)}`,
-            `Sub trackball health: ${health(d.sub.health, d.sub.checks)}; ${d.sub.recoveries} recoveries`,
+            `Sub trackball health: ${health(d.sub.health, d.sub.checks)}; ${recovered(d.sub)}`,
         );
     } else {
         lines.push(`Sub (${subSide} half): no counters (split link down, or the sub has not answered since the master booted)`);

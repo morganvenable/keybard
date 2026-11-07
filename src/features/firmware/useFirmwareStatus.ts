@@ -30,7 +30,10 @@ export function firmwareStatusFor(board: BoardSummary | null, releases: Firmware
     if (!board || !newest || board.unread) return { newest, updateAvailable: false };
     if (!board.updater) return { newest, updateAvailable: true };
     const behind = board.halves.some((h) => h.answered && h.fwVersion < newest.fwVersion);
-    return { newest, updateAvailable: behind || board.differ };
+    // The same version number, another build (one test build over another).
+    const otherBuild = board.fwVersion === newest.fwVersion && board.tag !== newest.tag && !releases.some((r) => r.tag === board.tag && r.fwVersion === board.fwVersion)
+        && board.halves.every((h) => h.answered);
+    return { newest, updateAvailable: behind || board.differ || otherBuild };
 }
 
 export function useFirmwareStatus(board: BoardSummary | null, o: { site?: Site; releases?: FirmwareReleasePin[] } = {}): FirmwareStatus {
