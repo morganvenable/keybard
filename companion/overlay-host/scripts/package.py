@@ -41,8 +41,16 @@ def package():
                 if path.is_file() and '__pycache__' not in path.parts:
                     archive.write(path, Path('KeybardOverlay') / path.relative_to(HOST))
         archive.writestr('KeybardOverlay/keybard_host/build.json', build_json())
-        for name in ('Start-Windows.cmd', 'Start-Paranoid.cmd', 'Open-Paranoid.cmd', 'README.md', 'RELEASE-NOTES.md', 'requirements.txt', 'start-linux.sh', 'start-macos.sh'):
+        for name in ('Start-Windows.cmd', 'Start-Paranoid.cmd', 'Open-Paranoid.cmd', 'README.md', 'RELEASE-NOTES.md', 'requirements.txt'):
             archive.write(HOST / name, Path('KeybardOverlay') / name)
+        # Linux and macOS scripts: LF line endings and the executable bit, whatever the build machine is.
+        for source, name in ((HOST / 'start-linux.sh', 'start-linux.sh'), (HOST / 'start-macos.sh', 'start-macos.sh'),
+                             (HOST / 'packaging' / 'linux' / '60-svalboard.rules', '60-svalboard.rules'),
+                             (HOST / 'packaging' / 'linux' / 'install-udev-rule.sh', 'install-udev-rule.sh')):
+            info = zipfile.ZipInfo(f'KeybardOverlay/{name}', (2026, 1, 1, 0, 0, 0))
+            info.external_attr = (0o755 if name.endswith('.sh') else 0o644) << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, source.read_bytes().replace(b'\r\n', b'\n'))
         for path in web_files:
             archive.write(path, Path('KeybardOverlay/web') / path.relative_to(DIST))
         # Paranoid mode serves the single-file build; it is also usable on its own.
