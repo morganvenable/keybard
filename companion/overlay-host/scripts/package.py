@@ -50,6 +50,7 @@ def package():
             info = zipfile.ZipInfo(f'KeybardOverlay/{name}', (2026, 1, 1, 0, 0, 0))
             info.external_attr = (0o755 if name.endswith('.sh') else 0o644) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3  # Unix, so the mode above applies when extracted on Linux
             archive.writestr(info, source.read_bytes().replace(b'\r\n', b'\n'))
         for path in web_files:
             archive.write(path, Path('KeybardOverlay/web') / path.relative_to(DIST))
