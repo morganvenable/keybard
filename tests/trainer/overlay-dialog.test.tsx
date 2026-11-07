@@ -44,52 +44,21 @@ describe('Desktop overlay dialog', () => {
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('keeps the overlay on Keybard’s keyboard language, and only when it differs', () => {
-        host.state = connected('us');
-        const { unmount } = show();
-        const update = host.configure.mock.calls[0][0] as (c: object) => object;
-        expect(update({ ...DEFAULTS, layoutId: 'us' })).toMatchObject({ layoutId: 'de' });
-        unmount(); vi.clearAllMocks();
-        host.state = connected('de');
-        show();
-        expect(host.configure).not.toHaveBeenCalled();
-    });
-
-    it('keeps the overlay on the Shifted Key Symbols and AltGr Symbols settings, and only when they differ', () => {
-        settings.showAltGrLegends = true;
-        host.state = connected('de', { shiftedLegends: true, altgrLegends: false });
-        const { unmount } = show();
-        const update = host.configure.mock.calls[0][0] as (c: object) => object;
-        expect(update({ ...DEFAULTS })).toMatchObject({ altgrLegends: true });
-        unmount(); vi.clearAllMocks();
-        host.state = connected('de', { shiftedLegends: true, altgrLegends: true });
-        show();
-        expect(host.configure).not.toHaveBeenCalled();
-    });
-
-    it('sends the language and the legend settings in one write when several differ', () => {
+    it('does not write settings itself; HostSettingsSync does, dialog open or not', () => {
         settings.showAltGrLegends = true;
         host.state = connected('us', { shiftedLegends: true, altgrLegends: false });
         show();
-        expect(host.configure).toHaveBeenCalledTimes(1);
-        const update = host.configure.mock.calls[0][0] as (c: object) => object;
-        expect(update({ ...DEFAULTS, layoutId: 'us', shiftedLegends: true, altgrLegends: false })).toMatchObject({ layoutId: 'de', altgrLegends: true });
-    });
-
-    it('leaves an older overlay app alone: it has neither legend field and rejects unknown ones', () => {
-        settings.showAltGrLegends = true;
-        host.state = { ...(connected('de') as object), config: { ...DEFAULTS, layoutId: 'de', highlightPressed: true, manualDefault: 1 } };
-        show();
         expect(host.configure).not.toHaveBeenCalled();
-        expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('tries a legend change once per connection, never in a loop', () => {
-        settings.showAltGrLegends = true;
-        host.state = connected('de', { shiftedLegends: true, altgrLegends: false });
-        const { rerender } = show();
-        rerender(<OverlayDialog open onOpenChange={() => {}} />);
-        expect(host.configure).toHaveBeenCalledTimes(1);
+    it('says so when the board firmware does not report held modifiers', () => {
+        host.state = { ...(connected() as object), modifiersFromBoard: false };
+        const { unmount } = show();
+        expect(screen.getByRole('status').textContent).toMatch(/older than x4\.5.*Install x4\.5 in Firmware/);
+        unmount();
+        host.state = { ...(connected() as object), modifiersFromBoard: true };
+        show();
+        expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('opens from the Host’s link and from older Hosts’ link', () => {

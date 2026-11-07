@@ -145,6 +145,7 @@ class HostState:
         self.follow = 'auto'          # 'auto', or the id of the pinned board
         self.paused = False
         self.modifiers = None
+        self.modifiers_reported = None  # the shown board's firmware reports Shift, Caps Lock and AltGr (None: not known yet)
         self.active = 0
         self.default = None
         self.valid = False
@@ -261,7 +262,7 @@ class HostState:
                 layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device,
                 boards=self.boards, follow=self.follow, pointingDevice=self.pointing_device, paused=self.paused, active=self.active, default=self.default, valid=self.valid,
-                modifiers=self.modifiers, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
+                modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
 
 
 def serialize_profile(profile):

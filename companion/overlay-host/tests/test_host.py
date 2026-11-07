@@ -72,3 +72,15 @@ class StateTests(unittest.TestCase):
         for name in ('shiftedLegends', 'altgrLegends'):
             for value in (None, 1, 'on'):
                 with self.assertRaises(ValueError): validate_config({name: value})
+
+
+class ModifierReportTest(unittest.TestCase):
+    def test_snapshot_says_whether_the_board_reports_modifiers(self):
+        state = HostState('/nonexistent/keybard-test.json')
+        self.assertIsNone(state.snapshot()['modifiersFromBoard'])  # not known before the first layer read
+        state.modifiers_reported = False  # firmware before x4.5
+        self.assertIs(state.snapshot()['modifiersFromBoard'], False)
+
+    def test_tray_note_names_the_fix(self):
+        from keybard_host.modifiers import MODIFIER_NOTE
+        self.assertIn('x4.5', MODIFIER_NOTE)

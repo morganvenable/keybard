@@ -6,6 +6,7 @@ import AltRepeatArrowsIcon from "@/components/icons/AltRepeatArrowsIcon";
 import GraduationCapIcon from "@/components/icons/GraduationCapIcon";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { OverlayDialog, overlayRequested } from "@/features/trainer/OverlayDialog";
+import { HostSettingsSync } from "@/features/trainer/HostSettingsSync";
 
 import ComboIcon from "@/components/ComboIcon";
 import { isExcludedMenu, getIconForMenu } from "@/constants/custom-ui-exclusions";
@@ -450,6 +451,7 @@ const AppSidebar = () => {
 
     return (
         <>
+            <HostSettingsSync />
             <OverlayDialog open={overlayOpen} onOpenChange={setOverlayOpen} />
             {/* Hidden file input for import */}
 

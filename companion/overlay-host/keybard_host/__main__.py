@@ -39,7 +39,7 @@ from .boards import Board, Follower, composite, device_keys, kinds, lent_sides, 
 from .state import BALL_NAMES, DEFAULT_BALL, DEFAULTS, EFFECTS, PRESETS, HostState, serialize_profile
 from .host_pointing import demo_motion
 from .colors import ColorsPanel
-from .modifiers import ModifierReader
+from .modifiers import ModifierReader, MODIFIER_NOTE
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info
 from .browser import open_contained
@@ -386,6 +386,7 @@ class Host(QObject):
         self.icon_timer = QTimer(self); self.icon_timer.timeout.connect(self.update_icon); self.icon_timer.start(3000)
         menu = QMenu()
         self.status_action = menu.addAction('Keybard Overlay · waiting for board'); self.status_action.setEnabled(False)
+        self.firmware_action = menu.addAction(MODIFIER_NOTE); self.firmware_action.setEnabled(False); self.firmware_action.setVisible(False)
         menu.addSeparator(); menu.addAction('Open Keybard', self.open_controls)
         self.show_action = QAction('Show overlay', menu, checkable=True, checked=True)
         self.show_action.triggered.connect(lambda value: self.command(dict(op='show', value=value)))
@@ -758,9 +759,11 @@ class Host(QObject):
                 state.matrix_available = shown.matrix_available
                 state.pressed = list(shown.pressed) if state.config['highlightPressed'] else []
                 if shown.modifiers is not None: state.modifiers = shown.modifiers
+                state.modifiers_reported = shown.modifiers_reported
                 state.status = shown.status if len(self.boards) < 2 else f'{shown.name} · {shown.status}'
             else:
                 state.active, state.default, state.valid, state.pressed, state.matrix_available = 0, None, False, [], None
+                state.modifiers_reported = None
                 state.status = ('Disconnected by user' if self.paused is not None
                     else 'Waiting for the chosen board' if state.pinned is not None
                     else next((b.status for b in self.boards.values()), 'Waiting for a Svalboard'))
@@ -795,6 +798,7 @@ class Host(QObject):
         board.active, board.default = snapshot.active, snapshot.default
         # Shift and Caps Lock come from this board alone when it reports them.
         board.modifiers = snapshot.modifiers
+        board.modifiers_reported = snapshot.modifiers is not None
         mask = snapshot.active | (snapshot.default if snapshot.default is not None else self.state.config['manualDefault'])
         board.valid = not (mask >> len(board.board['keymap']))
         if not board.valid: board.status = 'Board refers to an unknown layer; reload the layout'
@@ -839,6 +843,7 @@ class Host(QObject):
         # What is on show changes outside follow() too: shown, collapsed, a page polling.
         for board in self.boards.values(): self.track_pointing(board); self.track_polling(board)
         self.status_action.setText(self.state.status[:65])
+        self.firmware_action.setVisible(self.state.modifiers_reported is False)
         self.sync_menu()
         self.publish_state()
 

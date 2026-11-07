@@ -1,11 +1,8 @@
-import { useEffect, useRef } from 'react';
 import { Download, PlugZap, Unplug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import { PARANOID } from '@/lib/paranoid';
-import { DEFAULT_SHIFTED_LEGENDS } from '@/lib/shiftedLegends';
-import { useHost, type HostConfig } from './host';
+import { useHost } from './host';
 import { HOST_DOWNLOAD, HostVersion } from './HostInstall';
 
 /** Links that open the overlay dialog: the overlay app's Open Keybard, and older versions' #trainer. */
@@ -23,29 +20,8 @@ export function OverlayDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 }
 
 function OverlayDialogBody() {
-    // Mounted only while open, so Keybard talks to the overlay app only then.
     const host = useHost();
-    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
-    // The overlay draws what Keybard's Settings say: the keyboard language, Shifted Key Symbols and AltGr Symbols.
-    const shiftedLegends = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS, altgrLegends = showAltGrLegends === true;
-    // One sync for everything Keybard sends: the keyboard language, Shifted Key Symbols and AltGr Symbols. They share
-    // one write, because two writes started in the same render race: the second finds the first still in flight and
-    // is dropped, which once left AltGr Symbols unsent. An older overlay app has neither legend field and rejects
-    // unknown ones, so only fields it reports are sent. A write that did not start (busy) is tried again when the
-    // busy flag clears; one that started and failed is not repeated for the same values on this connection.
-    const tried = useRef('');
-    useEffect(() => {
-        const config = host.state?.config;
-        if (!config || host.busy) return;
-        const fields: Partial<Pick<HostConfig, 'layoutId' | 'shiftedLegends' | 'altgrLegends'>> = {};
-        if (config.layoutId !== internationalLayout) fields.layoutId = internationalLayout;
-        if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
-        if ('altgrLegends' in config && config.altgrLegends !== altgrLegends) fields.altgrLegends = altgrLegends;
-        if (!Object.keys(fields).length) { tried.current = ''; return; }
-        const attempt = `${host.state?.session}:${host.state?.revision}:${JSON.stringify(fields)}`;
-        if (tried.current === attempt) return;
-        void Promise.resolve(host.configure(latest => ({ ...latest, ...fields }))).then(started => { if (started !== null) tried.current = attempt; });
-    }, [internationalLayout, shiftedLegends, altgrLegends, host.state?.session, host.state?.config, host.busy]);
+    // Keybard's language, Shifted Key Symbols and AltGr Symbols reach the overlay from HostSettingsSync, dialog open or not.
     const board = host.state?.devices.find(d => d.id === host.state?.selectedDevice);
     const description = host.state
         ? board ? `The overlay app is following ${board.name}.` : 'The overlay app is running. Choose a board from its menu.'
@@ -57,6 +33,9 @@ function OverlayDialogBody() {
             <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {host.error && !host.state && <p role="alert" className="text-sm text-destructive">{host.error}</p>}
+        {host.state?.modifiersFromBoard === false && <p role="status" className="text-sm text-muted-foreground">
+            This board's firmware is older than x4.5, so it can't tell the overlay when Shift or AltGr is held. The overlay asks your computer instead, which doesn't work on Wayland. Install x4.5 in Firmware.
+        </p>}
         <HostVersion build={host.build} />
         <DialogFooter>
             {host.state ? board && <Button variant="outline" onClick={() => void host.command({ op: 'disconnect' })}><Unplug /> Disconnect</Button>

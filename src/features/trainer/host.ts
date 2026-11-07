@@ -10,6 +10,7 @@ import { PARANOID } from '@/lib/paranoid';
 // permission prompt, so hosted pages only connect after the user asks to.
 export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string | undefined) || 'http://127.0.0.1:5178';
 const REMOTE_KEY = 'keybard-host-remote';
+const CONNECT_EVENT = 'keybard-host-connect';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
 function rememberedRemote() { try { return appStorage.getItem(REMOTE_KEY) === '1'; } catch { return false; } }
 export interface HostConfig extends Preferences { highlightPressed: boolean; manualDefault: number; capitalAlphas?: boolean; adaptiveContrast?: boolean;
@@ -17,6 +18,8 @@ export interface HostConfig extends Preferences { highlightPressed: boolean; man
     shiftedLegends?: boolean; altgrLegends?: boolean }
 export interface HostSnapshot {
     modifiers?: { shift: boolean; capsLock: boolean; altgr?: boolean } | null;
+    /** false: the board's firmware (before x4.5) doesn't report held Shift/AltGr, so the Overlay asks the computer. */
+    modifiersFromBoard?: boolean | null;
     apiVersion: number; config: HostConfig; revision: number; layoutRevision: number;
     board: (KeyboardInfo & { trainerLabels: Record<string, string> }) | null;
     selectedDevice: string | null; status: string; devices: { id: string; name: string; serial: string }[];
@@ -110,7 +113,14 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
         return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
     }, [attempt, base, local, bootstrap, overlay]);
     /** Connect a hosted Keybard page to a running Keybard Overlay (user-initiated). */
-    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
+    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); window.dispatchEvent(new Event(CONNECT_EVENT)); }, []);
+    // Another copy of this hook (the settings sync) joins once the user connects from the Overlay dialog.
+    useEffect(() => {
+        if (PARANOID) return;
+        const join = () => setAttempt(n => n || 1);
+        window.addEventListener(CONNECT_EVENT, join);
+        return () => window.removeEventListener(CONNECT_EVENT, join);
+    }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
             await post('/api/host/command', () => value); setError('');

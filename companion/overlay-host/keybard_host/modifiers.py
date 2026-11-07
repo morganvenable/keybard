@@ -7,6 +7,9 @@ import ctypes
 import os
 import sys
 
+# Shown when the shown board's firmware does not report held modifiers (it needs x4.5 or newer).
+MODIFIER_NOTE = 'Board firmware is older than x4.5: Shift/AltGr come from this computer'
+
 
 class ModifierReader:
     def __init__(self):
