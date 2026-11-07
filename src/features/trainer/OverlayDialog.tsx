@@ -28,25 +28,24 @@ function OverlayDialogBody() {
     const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
     // The overlay draws what Keybard's Settings say: the keyboard language, Shifted Key Symbols and AltGr Symbols.
     const shiftedLegends = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS, altgrLegends = showAltGrLegends === true;
-    useEffect(() => {
-        if (!host.state || host.busy || host.state.config.layoutId === internationalLayout) return;
-        void host.configure(latest => ({ ...latest, layoutId: internationalLayout }));
-    }, [internationalLayout, host.state?.session, host.state?.config.layoutId, host.busy]);
-    // An older overlay app has neither field and rejects unknown ones: sync only fields it reports, and
-    // try each value once per connection, so a failure never loops.
+    // One sync for everything Keybard sends: the keyboard language, Shifted Key Symbols and AltGr Symbols. They share
+    // one write, because two writes started in the same render race: the second finds the first still in flight and
+    // is dropped, which once left AltGr Symbols unsent. An older overlay app has neither legend field and rejects
+    // unknown ones, so only fields it reports are sent. A write that did not start (busy) is tried again when the
+    // busy flag clears; one that started and failed is not repeated for the same values on this connection.
     const tried = useRef('');
     useEffect(() => {
         const config = host.state?.config;
         if (!config || host.busy) return;
-        const fields: Partial<Record<'shiftedLegends' | 'altgrLegends', boolean>> = {};
+        const fields: Partial<Record<'layoutId' | 'shiftedLegends' | 'altgrLegends', string | boolean>> = {};
+        if (config.layoutId !== internationalLayout) fields.layoutId = internationalLayout;
         if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
         if ('altgrLegends' in config && config.altgrLegends !== altgrLegends) fields.altgrLegends = altgrLegends;
-        if (!Object.keys(fields).length) return;
-        const attempt = `${host.state?.session}:${JSON.stringify(fields)}`;
+        if (!Object.keys(fields).length) { tried.current = ''; return; }
+        const attempt = `${host.state?.session}:${host.state?.revision}:${JSON.stringify(fields)}`;
         if (tried.current === attempt) return;
-        tried.current = attempt;
-        void host.configure(latest => ({ ...latest, ...fields }));
-    }, [shiftedLegends, altgrLegends, host.state?.session, host.state?.config, host.busy]);
+        void Promise.resolve(host.configure(latest => ({ ...latest, ...fields }))).then(started => { if (started !== null) tried.current = attempt; });
+    }, [internationalLayout, shiftedLegends, altgrLegends, host.state?.session, host.state?.config, host.busy]);
     const board = host.state?.devices.find(d => d.id === host.state?.selectedDevice);
     const description = host.state
         ? board ? `The overlay app is following ${board.name}.` : 'The overlay app is running. Choose a board from its menu.'

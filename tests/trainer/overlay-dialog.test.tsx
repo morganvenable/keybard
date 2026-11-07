@@ -67,6 +67,15 @@ describe('Desktop overlay dialog', () => {
         expect(host.configure).not.toHaveBeenCalled();
     });
 
+    it('sends the language and the legend settings in one write when several differ', () => {
+        settings.showAltGrLegends = true;
+        host.state = connected('us', { shiftedLegends: true, altgrLegends: false });
+        show();
+        expect(host.configure).toHaveBeenCalledTimes(1);
+        const update = host.configure.mock.calls[0][0] as (c: object) => object;
+        expect(update({ ...DEFAULTS, layoutId: 'us', shiftedLegends: true, altgrLegends: false })).toMatchObject({ layoutId: 'de', altgrLegends: true });
+    });
+
     it('leaves an older overlay app alone: it has neither legend field and rejects unknown ones', () => {
         settings.showAltGrLegends = true;
         host.state = { ...(connected('de') as object), config: { ...DEFAULTS, layoutId: 'de', highlightPressed: true, manualDefault: 1 } };

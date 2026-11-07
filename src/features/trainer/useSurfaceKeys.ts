@@ -8,7 +8,7 @@ import { geometry, resolveBinding } from './core';
 
 /** What Keybard's Settings decide about legends, sent by Keybard: Shifted Key Symbols and AltGr Symbols. Both off when absent (an older Overlay app sends neither). */
 export type SurfaceLegendOptions = Pick<LegendOptions, 'shifted' | 'altgr'>;
-export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<string, string> }, active: number, defaults: number, hands: string, layoutId = 'us', modifiers?: { shift: boolean; capsLock: boolean } | null, legends: SurfaceLegendOptions = {}) {
+export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<string, string> }, active: number, defaults: number, hands: string, layoutId = 'us', modifiers?: { shift: boolean; capsLock: boolean; altgr?: boolean } | null, legends: SurfaceLegendOptions = {}) {
     const wantShifted = legends.shifted === true, wantAltGr = legends.altgr === true;
     if (!board.keymap?.length) return [];
     return geometry(board).filter(k => hands === 'Both' || k.hand === hands).map(k => {
@@ -53,6 +53,11 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
         // With AltGr Symbols on, RALT(KC_2) shows the character it types, and KC_RALT is labeled AltGr.
         const altgrOnly = wantAltGr ? altgrOnlyLegend(keycode, keyContents, layoutId) : null;
         const isAltGrKey = wantAltGr && keycode === 'KC_RALT' && hasAltGr(layoutId);
+        // AltGr held on this board (or this computer): keys that type an AltGr character show it, as Shift's held state shows
+        // the shifted one. With Shift too, AltGr alone: the data has no shifted-AltGr level.
+        const altgrHeld = wantAltGr && modifiers?.altgr === true && hasAltGr(layoutId);
+        const heldChar = altgrHeld && !altgrOnly ? dualLegendFor(keycode, label, keyContents, layoutId, { shifted: true, altgr: true })?.altgr : undefined;
+        if (heldChar) { dual = null; letter = heldChar; if (!keyContents?.type || keyContents.type === 'basic') text.bottomStr = ''; }
         if (altgrOnly) { text.bottomStr = ''; letter = altgrOnly; }
         if (isAltGrKey) { text.topLabel = ''; text.bottomStr = ''; letter = 'AltGr'; }
         return { ...k, ...binding, legend: { keycode, keyContents, ...text, ...(dual ? { dual } : {}), displayLabel: needsDeviceLabel && deviceLabel && keyContents?.type !== 'tapdance' ? deviceLabel : letter }, label: needsDeviceLabel && deviceLabel ? deviceLabel :

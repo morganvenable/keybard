@@ -67,4 +67,20 @@ describe('overlay keycap legends follow Keybard settings', () => {
         expect(draw('RALT(KC_2)', 'german', { altgr: true }).center).toBe('²');
         expect(draw('KC_RALT', 'german', {}).center).not.toBe('AltGr');
     });
+
+    it('shows the AltGr character while AltGr is held on the board, with or without Shift', () => {
+        const held = (key: string, mods: { shift: boolean; capsLock: boolean; altgr?: boolean }, legends: SurfaceLegendOptions = { shifted: true, altgr: true }) => {
+            const code = keyService.parse(key)!;
+            return surfaceKeys({ rows: 10, cols: 6, keymap: [[code]], keylayout: { 0: { row: 0, col: 0, x: 0, y: 0, w: 1, h: 1 } } }, 0, 1, 'Both', 'german', mods, legends)[0].legend!;
+        };
+        for (const [key, char] of [['KC_Q', '@'], ['KC_E', '€'], ['KC_2', '²'], ['KC_M', 'µ']]) {
+            expect(held(key, { shift: false, capsLock: false, altgr: true }).displayLabel).toBe(char);
+            expect(held(key, { shift: true, capsLock: false, altgr: true }).displayLabel).toBe(char);
+            expect(held(key, { shift: false, capsLock: false, altgr: true }).dual).toBeUndefined();
+        }
+        // Not held, a key with no AltGr character, AltGr Symbols off, or a layout without AltGr: unchanged.
+        expect(held('KC_Q', { shift: false, capsLock: false, altgr: false }).displayLabel).not.toBe('@');
+        expect(held('KC_A', { shift: false, capsLock: false, altgr: true }).displayLabel).toBe('a');
+        expect(held('KC_Q', { shift: false, capsLock: false, altgr: true }, { shifted: true }).displayLabel).not.toBe('@');
+    });
 });

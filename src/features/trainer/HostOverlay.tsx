@@ -14,7 +14,7 @@ export default function HostOverlay() {
         if (!state?.valid || !state.board) return [];
         try { return surfaceKeys(state.board, state.active, state.default ?? state.config.manualDefault, state.config.hands, state.config.layoutId, state.modifiers, { shifted: state.config.shiftedLegends, altgr: state.config.altgrLegends }); }
         catch { return []; }
-    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands, state?.config.layoutId, state?.config.shiftedLegends, state?.config.altgrLegends, state?.modifiers?.shift, state?.modifiers?.capsLock]);
+    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands, state?.config.layoutId, state?.config.shiftedLegends, state?.config.altgrLegends, state?.modifiers?.shift, state?.modifiers?.capsLock, state?.modifiers?.altgr]);
     useEffect(() => {
         document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
         document.body.style.margin = '0'; document.body.style.overflow = 'hidden';

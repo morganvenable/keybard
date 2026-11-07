@@ -10,20 +10,20 @@ class ModifierReaderTest(unittest.TestCase):
         user = SimpleNamespace(GetAsyncKeyState=Mock(return_value=-32768), GetKeyState=Mock(return_value=1))
         with patch('keybard_host.modifiers.sys.platform', 'win32'), patch('ctypes.WinDLL', return_value=user, create=True):
             reader = ModifierReader()
-        self.assertEqual(reader.read(), dict(shift=True, capsLock=True))
+        self.assertEqual(reader.read(), dict(shift=True, capsLock=True, altgr=True))
         user.GetAsyncKeyState.return_value = 1  # "pressed since last call" is NOT currently held
         user.GetKeyState.return_value = -32768  # held Caps is NOT the toggle flag
-        self.assertEqual(reader.read(), dict(shift=False, capsLock=False))
-        user.GetAsyncKeyState.assert_called_with(0x10)
+        self.assertEqual(reader.read(), dict(shift=False, capsLock=False, altgr=False))
+        user.GetAsyncKeyState.assert_called_with(0xA5)
         user.GetKeyState.assert_called_with(0x14)
 
     def test_mac_combined_session_flags(self):
         core = SimpleNamespace(CGEventSourceFlagsState=Mock(return_value=0x30000))
         with patch('keybard_host.modifiers.sys.platform', 'darwin'), patch('ctypes.CDLL', return_value=core):
             reader = ModifierReader()
-        self.assertEqual(reader.read(), dict(shift=True, capsLock=True))
+        self.assertEqual(reader.read(), dict(shift=True, capsLock=True, altgr=False))
         core.CGEventSourceFlagsState.return_value = 0x10000
-        self.assertEqual(reader.read(), dict(shift=False, capsLock=True))
+        self.assertEqual(reader.read(), dict(shift=False, capsLock=True, altgr=False))
 
     def test_wayland_is_explicitly_unavailable_even_with_xwayland(self):
         with patch('keybard_host.modifiers.sys.platform', 'linux'), patch.dict('os.environ', {'DISPLAY': ':0', 'WAYLAND_DISPLAY': 'wayland-0'}):

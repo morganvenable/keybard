@@ -16,7 +16,7 @@ export interface HostConfig extends Preferences { highlightPressed: boolean; man
     /** Keybard's Settings > General > Shifted Key Symbols and AltGr Symbols, which Keybard sends (like layoutId). */
     shiftedLegends?: boolean; altgrLegends?: boolean }
 export interface HostSnapshot {
-    modifiers?: { shift: boolean; capsLock: boolean } | null;
+    modifiers?: { shift: boolean; capsLock: boolean; altgr?: boolean } | null;
     apiVersion: number; config: HostConfig; revision: number; layoutRevision: number;
     board: (KeyboardInfo & { trainerLabels: Record<string, string> }) | null;
     selectedDevice: string | null; status: string; devices: { id: string; name: string; serial: string }[];
@@ -117,7 +117,7 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
         } catch (e) { setError(e instanceof Error ? e.message : 'The overlay app could not do that'); }
     }, [post]);
     const configure = useCallback(async (config: HostConfig | ((latest: HostConfig) => HostConfig)) => {
-        if (!current.current || busyRef.current) return false;
+        if (!current.current || busyRef.current) return null; // null: nothing was sent
         busyRef.current = true; setBusy(true);
         try {
             // The config and revision are read at send time: a retry after a host restart uses the new
