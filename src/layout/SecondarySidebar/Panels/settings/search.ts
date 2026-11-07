@@ -49,6 +49,7 @@ export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
     touchpad: ["touchpad", "trackpad", "tap", "tap to click", "dead zone", "deadzone", "tap time", "hold time", "press and hold", "drag", "scroll", "tuning", "visualizer"],
     firmware: ["update", "upgrade", "install", "flash", "version", "release", "qmk", "wipe", "reset", "bootloader"],
     board: ["board name", "serial", "rename", "identity"],
+    balldiag: ["trackball diagnostics", "trackball", "ball", "diagnostics", "copy"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],
     typing: typingBehaviorWords(),
     about: ["version", "help", "manual", "docs", "community", "discord", "support", "release notes", "credits"],
