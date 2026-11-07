@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import { PARANOID } from '@/lib/paranoid';
 import { DEFAULT_SHIFTED_LEGENDS } from '@/lib/shiftedLegends';
-import { useHost } from './host';
+import { useHost, type HostConfig } from './host';
 import { HOST_DOWNLOAD, HostVersion } from './HostInstall';
 
 /** Links that open the overlay dialog: the overlay app's Open Keybard, and older versions' #trainer. */
@@ -37,7 +37,7 @@ function OverlayDialogBody() {
     useEffect(() => {
         const config = host.state?.config;
         if (!config || host.busy) return;
-        const fields: Partial<Record<'layoutId' | 'shiftedLegends' | 'altgrLegends', string | boolean>> = {};
+        const fields: Partial<Pick<HostConfig, 'layoutId' | 'shiftedLegends' | 'altgrLegends'>> = {};
         if (config.layoutId !== internationalLayout) fields.layoutId = internationalLayout;
         if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
         if ('altgrLegends' in config && config.altgrLegends !== altgrLegends) fields.altgrLegends = altgrLegends;
