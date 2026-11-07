@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import { PARANOID } from '@/lib/paranoid';
+import { DEFAULT_SHIFTED_LEGENDS } from '@/lib/shiftedLegends';
 import { useHost } from './host';
 import { HOST_DOWNLOAD, HostVersion } from './HostInstall';
 
@@ -24,11 +25,18 @@ export function OverlayDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 function OverlayDialogBody() {
     // Mounted only while open, so Keybard talks to the overlay app only then.
     const host = useHost();
-    const { internationalLayout } = useLayoutSettings();
+    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
+    // The overlay draws what Keybard's Settings say: the keyboard language, Shifted Key Symbols and AltGr Symbols.
+    const shiftedLegends = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS, altgrLegends = showAltGrLegends === true;
     useEffect(() => {
         if (!host.state || host.busy || host.state.config.layoutId === internationalLayout) return;
         void host.configure(latest => ({ ...latest, layoutId: internationalLayout }));
     }, [internationalLayout, host.state?.session, host.state?.config.layoutId, host.busy]);
+    useEffect(() => {
+        const config = host.state?.config;
+        if (!config || host.busy || (config.shiftedLegends === shiftedLegends && config.altgrLegends === altgrLegends)) return;
+        void host.configure(latest => ({ ...latest, shiftedLegends, altgrLegends }));
+    }, [shiftedLegends, altgrLegends, host.state?.session, host.state?.config.shiftedLegends, host.state?.config.altgrLegends, host.busy]);
     const board = host.state?.devices.find(d => d.id === host.state?.selectedDevice);
     const description = host.state
         ? board ? `The overlay app is following ${board.name}.` : 'The overlay app is running. Choose a board from its menu.'
