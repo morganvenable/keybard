@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Download, PlugZap, Unplug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -32,11 +32,21 @@ function OverlayDialogBody() {
         if (!host.state || host.busy || host.state.config.layoutId === internationalLayout) return;
         void host.configure(latest => ({ ...latest, layoutId: internationalLayout }));
     }, [internationalLayout, host.state?.session, host.state?.config.layoutId, host.busy]);
+    // An older overlay app has neither field and rejects unknown ones: sync only fields it reports, and
+    // try each value once per connection, so a failure never loops.
+    const tried = useRef('');
     useEffect(() => {
         const config = host.state?.config;
-        if (!config || host.busy || (config.shiftedLegends === shiftedLegends && config.altgrLegends === altgrLegends)) return;
-        void host.configure(latest => ({ ...latest, shiftedLegends, altgrLegends }));
-    }, [shiftedLegends, altgrLegends, host.state?.session, host.state?.config.shiftedLegends, host.state?.config.altgrLegends, host.busy]);
+        if (!config || host.busy) return;
+        const fields: Partial<Record<'shiftedLegends' | 'altgrLegends', boolean>> = {};
+        if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
+        if ('altgrLegends' in config && config.altgrLegends !== altgrLegends) fields.altgrLegends = altgrLegends;
+        if (!Object.keys(fields).length) return;
+        const attempt = `${host.state?.session}:${JSON.stringify(fields)}`;
+        if (tried.current === attempt) return;
+        tried.current = attempt;
+        void host.configure(latest => ({ ...latest, ...fields }));
+    }, [shiftedLegends, altgrLegends, host.state?.session, host.state?.config, host.busy]);
     const board = host.state?.devices.find(d => d.id === host.state?.selectedDevice);
     const description = host.state
         ? board ? `The overlay app is following ${board.name}.` : 'The overlay app is running. Choose a board from its menu.'

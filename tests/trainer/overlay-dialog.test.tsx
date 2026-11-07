@@ -60,11 +60,27 @@ describe('Desktop overlay dialog', () => {
         host.state = connected('de', { shiftedLegends: true, altgrLegends: false });
         const { unmount } = show();
         const update = host.configure.mock.calls[0][0] as (c: object) => object;
-        expect(update({ ...DEFAULTS })).toMatchObject({ shiftedLegends: true, altgrLegends: true });
+        expect(update({ ...DEFAULTS })).toMatchObject({ altgrLegends: true });
         unmount(); vi.clearAllMocks();
         host.state = connected('de', { shiftedLegends: true, altgrLegends: true });
         show();
         expect(host.configure).not.toHaveBeenCalled();
+    });
+
+    it('leaves an older overlay app alone: it has neither legend field and rejects unknown ones', () => {
+        settings.showAltGrLegends = true;
+        host.state = { ...(connected('de') as object), config: { ...DEFAULTS, layoutId: 'de', highlightPressed: true, manualDefault: 1 } };
+        show();
+        expect(host.configure).not.toHaveBeenCalled();
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('tries a legend change once per connection, never in a loop', () => {
+        settings.showAltGrLegends = true;
+        host.state = connected('de', { shiftedLegends: true, altgrLegends: false });
+        const { rerender } = show();
+        rerender(<OverlayDialog open onOpenChange={() => {}} />);
+        expect(host.configure).toHaveBeenCalledTimes(1);
     });
 
     it('opens from the Host’s link and from older Hosts’ link', () => {
