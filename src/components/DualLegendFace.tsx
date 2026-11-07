@@ -1,8 +1,7 @@
 import { DIAGONAL_INSET_PX, DUAL_LEGEND_LINE_HEIGHT, type LegendPlan } from "@/lib/shiftedLegends";
 
-/** Shared by the editor's keys (Key.tsx) and the Keybard Overlay's keys, so both draw the same keycap grid. */
 /**
- * The legends of a digit, punctuation or AltGr key, like a printed keycap: the shifted
+ * Shared by the editor's keys (Key.tsx) and the Keybard Overlay's keys. The legends of a digit, punctuation or AltGr key, like a printed keycap: the shifted
  * symbol upper right, the base legend lower left and the AltGr character lower right,
  * pulled in from the corners, one color and one size. The face is the room between the
  * key's bands; planLegends (shiftedLegends.ts) sizes every legend to the room, so every

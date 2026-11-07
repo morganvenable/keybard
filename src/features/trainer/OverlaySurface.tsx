@@ -59,7 +59,8 @@ function KeyLegend({ legend: l, width, height, color, opacity, halo, capitals }:
     // Digit and punctuation keys draw the keycap grid (shifted top left, base bottom left, AltGr bottom
     // right) with the same planner as Keybard's keys, at its small size; a key without room keeps one centered legend.
     const bands = (icons.length > 0 || top ? 1 : 0) + (l.bottomStr ? 1 : 0);
-    const plan = l.dual ? planLegends(l.dual, 'small', height - KEY_BAND_PX.small * bands, width - 2 * DIAGONAL_INSET_PX.small.x, false) : null;
+    const dual = l.dual?.letter && l.dual.shifted && capitals ? { ...l.dual, shifted: capital(l.dual.shifted) } : l.dual;
+    const plan = dual ? planLegends(dual, 'small', height - KEY_BAND_PX.small * bands, width - 2 * DIAGONAL_INSET_PX.small.x, false) : null;
     if (plan) return <div className="trainer-key-legend" style={{ color, opacity, filter: halo ? HALO(haloColor(color)) : undefined, justifyContent: 'flex-start' }}>
         {(icons.length > 0 || top) && <div className="trainer-key-heading">{icons.length ? icons : top}</div>}
         <DualLegendFace plan={plan} variant="small" />

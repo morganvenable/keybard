@@ -47,7 +47,9 @@ export function surfaceKeys(board: KeyboardInfo & { trainerLabels?: Record<strin
         // The keycap grid and the AltGr character, from the same code Keybard's keys use. A key typing
         // its shifted symbol (Shift held on this board, or Shift assigned to the key) keeps one legend.
         const assignedShiftKey = keyContents?.type === 'modmask' && !!(binding.code & 0x0200);
-        const dual: DualLegend | null = modifiers?.shift || assignedShiftKey ? null : dualLegendFor(keycode, label, keyContents, layoutId, { shifted: wantShifted, altgr: wantAltGr });
+        let dual: DualLegend | null = modifiers?.shift || assignedShiftKey ? null : dualLegendFor(keycode, label, keyContents, layoutId, { shifted: wantShifted, altgr: wantAltGr });
+        // A letter's capital (top left) follows the case the other letters draw (lowercase unless Shift or Caps Lock).
+        if (dual?.letter && dual.shifted && letter === letter.toLowerCase() && letter !== letter.toUpperCase()) dual = { ...dual, shifted: dual.shifted.toLowerCase() };
         // With AltGr Symbols on, RALT(KC_2) shows the character it types, and KC_RALT is labeled AltGr.
         const altgrOnly = wantAltGr ? altgrOnlyLegend(keycode, keyContents, layoutId) : null;
         const isAltGrKey = wantAltGr && keycode === 'KC_RALT' && hasAltGr(layoutId);
