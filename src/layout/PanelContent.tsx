@@ -13,6 +13,7 @@ import OneShotComposerPanel from "./SecondarySidebar/Panels/OneShotComposerPanel
 import QmkKeyPanel from "./SecondarySidebar/Panels/QmkKeysPanel";
 import MousePanel from "./SecondarySidebar/Panels/MousePanel";
 import ScanLabPanel from "./SecondarySidebar/Panels/ScanLabPanel";
+import TrackballPanel from "./SecondarySidebar/Panels/TrackballPanel";
 import SettingsPanel from "./SecondarySidebar/Panels/SettingsPanel";
 import TapdancePanel from "./SecondarySidebar/Panels/TapdancePanel";
 import QuickStartPanel from "./SecondarySidebar/Panels/QuickStartPanel";
@@ -48,6 +49,7 @@ export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUI
         pointing: "Pointing Devices",
         settings: "Settings",
         scanlab: "Scan Lab",
+        trackball: "Trackball",
         quickstart: "Quick Start",
     };
 
@@ -70,7 +72,7 @@ export function PanelContent({ panel, horizontal = false, isPicker = false, tray
         altrepeat: AltRepeatPanel, leaders: LeadersPanel,
         layouts: LayoutsPanel, pointing: PointingPanel, qmk: QmkKeyPanel,
         oneshot: OneShotComposerPanel, special: SpecialKeysPanel, mouse: MousePanel,
-        scanlab: ScanLabPanel, settings: SettingsPanel,
+        scanlab: ScanLabPanel, trackball: TrackballPanel, settings: SettingsPanel,
         quickstart: QuickStartPanel,
     };
     if (panel === "keyboard") return <BasicKeyboards trayPortal={trayPortal} />;

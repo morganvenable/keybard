@@ -17,6 +17,7 @@ import { CMD_SVIL_DEBUG_CONSOLE, hasDebugConsole, parseDebugConsoleReply, type D
 import { CMD_SVIL_TYPING_PAUSE, hasTypingPause, parseTypingPauseReply, type TypingPauseReply } from "@/services/typing-pause";
 import { parsePointingHardware, SVIL_FLAG2_POINTING_HARDWARE } from "@/utils/pointing-hardware";
 import { parsePointingContacts, SVIL_FLAG2_POINTING_CONTACTS, withPadContacts, type PointingContactsReport } from "@/utils/pointing-contacts";
+import { hasPointingSensor, parseSensorSamples, SENSOR_OP_SAMPLES, type SensorSamples } from "@/utils/pointing-sensor";
 import { KEYBARD_MOTION_READER, parsePointingMotion, SVIL_FLAG2_POINTING_MOTION, SVIL_FLAG2_POINTING_MOTION_READERS, type PointingMotionReport } from "@/utils/pointing-motion";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/keyboard.types";
 
@@ -687,6 +688,26 @@ export class KeyboardService {
         try {
             const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_POINTING_CONTACTS, [], { uint8: true }) as Uint8Array;
             return parsePointingContacts(reply, SvilUSB.CMD_SVIL_POINTING_CONTACTS);
+        } catch {
+            return null;
+        }
+    }
+
+    /** Whether the board answers POINTING_SENSOR (0x39, GET_INFO byte 21 bit 3). */
+    hasPointingSensor(kbinfo: KeyboardInfo | null | undefined): boolean {
+        return hasPointingSensor(kbinfo?.feature_flags4);
+    }
+
+    /**
+     * One read of a hand's trackball sensor bins from a cursor (POINTING_SENSOR, 0x39,
+     * SAMPLES; a read, never a write). Null without sending on firmware that doesn't
+     * advertise it, and null on a failed read or a hand with no sensor.
+     */
+    async getPointingSensorSamples(kbinfo: KeyboardInfo, hand: 0 | 1, cursor: number): Promise<SensorSamples | null> {
+        if (!this.hasPointingSensor(kbinfo)) return null;
+        try {
+            const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_POINTING_SENSOR, [SENSOR_OP_SAMPLES, hand, cursor & 0xff, (cursor >> 8) & 0xff], { uint8: true }) as Uint8Array;
+            return parseSensorSamples(reply, SvilUSB.CMD_SVIL_POINTING_SENSOR);
         } catch {
             return null;
         }
