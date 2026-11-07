@@ -8,7 +8,7 @@ vi.mock('@/features/trainer/host', async (original) => ({
     useHost: () => ({ state: host.state, busy: host.busy, error: '', local: false, build: null, configure: host.configure, command: vi.fn(), connect: vi.fn() }),
 }));
 const settings = vi.hoisted(() => ({ lang: 'de', showShiftedLegends: true as boolean | undefined, showAltGrLegends: false }));
-vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ internationalLayout: settings.lang, showShiftedLegends: settings.showShiftedLegends, showAltGrLegends: settings.showAltGrLegends }) }));
+vi.mock('@/contexts/LayoutSettingsContext', () => ({ useOptionalLayoutSettings: () => ({ internationalLayout: settings.lang, showShiftedLegends: settings.showShiftedLegends, showAltGrLegends: settings.showAltGrLegends }) }));
 import { HostSettingsSync } from '@/features/trainer/HostSettingsSync';
 
 const connected = (layoutId = 'de', legends: { shiftedLegends?: boolean; altgrLegends?: boolean } = { shiftedLegends: true, altgrLegends: false }) => ({

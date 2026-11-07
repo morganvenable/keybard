@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
+import { useOptionalLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import { DEFAULT_SHIFTED_LEGENDS } from '@/lib/shiftedLegends';
 import { useHost, type HostConfig } from './host';
 
@@ -15,12 +15,13 @@ import { useHost, type HostConfig } from './host';
  */
 export function HostSettingsSync() {
     const host = useHost();
-    const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
+    const settings = useOptionalLayoutSettings();
+    const internationalLayout = settings?.internationalLayout, showShiftedLegends = settings?.showShiftedLegends, showAltGrLegends = settings?.showAltGrLegends;
     const shiftedLegends = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS, altgrLegends = showAltGrLegends === true;
     const tried = useRef('');
     useEffect(() => {
         const config = host.state?.config;
-        if (!config || host.busy) return;
+        if (!config || host.busy || internationalLayout === undefined) return;
         const fields: Partial<Pick<HostConfig, 'layoutId' | 'shiftedLegends' | 'altgrLegends'>> = {};
         if (config.layoutId !== internationalLayout) fields.layoutId = internationalLayout;
         if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
