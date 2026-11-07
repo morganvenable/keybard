@@ -64,7 +64,7 @@ export const CARRIED_RELEASES: FirmwareReleasePin[] = PADTEST
 /** The updater protocol a carried release must speak. */
 export const CARRIED_UPDATER_PROTOCOL = 4;
 
-const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-padtest)?$/;
+const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-(?:pad|ball)test)?$/;
 
 /** "v3.1" -> { kind: "v", parts: [3, 1] }; null for any other tag. */
 export function parseReleaseTag(tag: string): { kind: ReleaseKind; parts: number[] } | null {
