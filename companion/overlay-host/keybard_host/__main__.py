@@ -1091,7 +1091,8 @@ def main():
             from PySide6.QtGui import QDesktopServices
             QDesktopServices.openUrl(QUrl(controls_url(False, url, args.keybard_url))); return
         if outcome.action == 'refuse':
-            print(outcome.message, flush=True)
+            try: print(outcome.message, flush=True)
+            except (OSError, UnicodeError): pass
             try: refuse(outcome.message, 'Keybard Overlay')
             except Exception: pass
             sys.exit(REFUSED)
