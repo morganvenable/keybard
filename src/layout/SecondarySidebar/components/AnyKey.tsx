@@ -82,7 +82,8 @@ export const AnyKeyButton = () => {
             <Button variant="ghost" size="sm" onClick={() => setOpen(true)} data-testid="any-key-button">
                 Any key
             </Button>
-            <AnyKeyDialog open={open} onOpenChange={setOpen} />
+            {/* Mounted only while open, so a closed button needs no binding context. */}
+            {open && <AnyKeyDialog open onOpenChange={setOpen} />}
         </>
     );
 };
@@ -103,7 +104,8 @@ export const AnyKeyTile = () => {
                     Any key
                 </button>
             </div>
-            <AnyKeyDialog open={open} onOpenChange={setOpen} />
+            {/* Mounted only while open, so a closed button needs no binding context. */}
+            {open && <AnyKeyDialog open onOpenChange={setOpen} />}
         </div>
     );
 };
