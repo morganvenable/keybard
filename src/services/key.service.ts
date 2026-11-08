@@ -164,7 +164,7 @@ export class KeyService {
       }
     }
 
-    return `0x${keynum.toString(16)}`;
+    return `0x${keynum.toString(16).padStart(4, '0')}`;
   }
 
   /**

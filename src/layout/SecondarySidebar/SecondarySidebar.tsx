@@ -3,6 +3,7 @@ import "./SecondarySidebar.css";
 import * as React from "react";
 import { ArrowLeft, Pin, X } from "lucide-react";
 
+import { AnyKeyButton } from "./components/AnyKey";
 import BindingEditorContainer from "./components/BindingEditor/BindingEditorContainer";
 import EditorSidePanel from "./components/EditorSidePanel";
 import { ComboEditorTitle } from "./components/ComboEditorTitle";
@@ -92,6 +93,7 @@ const AlternativeHeader = ({ onBack, menus, holdEditorTitle = false, showBack = 
                 </h2>
                 {shownSubtitle && <p className="mt-1.5 text-sm leading-tight text-muted-foreground truncate max-w-[18rem]" data-binding-editor-subtitle>{shownSubtitle}</p>}
             </div>}
+            {!editing && !holding && <div className="ml-auto"><AnyKeyButton /></div>}
         </div>
     );
 };
