@@ -9,6 +9,7 @@ const layoutSettings = { keyVariant: 'default', layoutMode: 'sidebar' as 'sideba
 const keyRenders = vi.fn();
 const mouseKeysSectionRenders = vi.fn();
 
+vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ setActivePanel: vi.fn() }) }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
 vi.mock('@/contexts/KeyboardContext', () => ({
     useKeyboard: () => ({ keyboard: { menus: [{ label: 'Pointing Device', content: [] }] }, isConnected: true, connect: vi.fn() }),

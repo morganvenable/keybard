@@ -69,7 +69,7 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
         expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_SCROLL_HOLD') + 1);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL')!;
-        expect(key.getAttribute('data-label')).toBe('Vel Scroll');
+        expect(key.getAttribute('data-label')).toBe('Velocity Scroll');
         fireEvent.click(key);
         expect(assignKeycode).toHaveBeenCalledWith('SV_VELOCITY_SCROLL');
     });
@@ -79,7 +79,7 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
         expect(keys.indexOf('SV_VELOCITY_SCROLL_TOGGLE')).toBe(keys.indexOf('SV_VELOCITY_SCROLL') + 1);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL_TOGGLE')!;
-        expect(key.getAttribute('data-label')).toBe('Vel Scroll Toggle');
+        expect(key.getAttribute('data-label')).toBe('Velocity Scroll Toggle');
         fireEvent.click(key);
         expect(assignKeycode).toHaveBeenCalledWith('SV_VELOCITY_SCROLL_TOGGLE');
     });

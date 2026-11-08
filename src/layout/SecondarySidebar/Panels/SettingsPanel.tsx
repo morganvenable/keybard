@@ -16,13 +16,11 @@ import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import AboutSection from "./settings/AboutSection";
 import DebugConsoleRow from "./settings/DebugConsoleRow";
-import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
-import { Button } from "@/components/ui/button";
-import { boardHasTouchpad } from "@/utils/touchpad-taps";
-import { hasPadTuning, TUNE_TOUCHPAD_LABEL } from "@/utils/touchpad-tuning";
+import PointingSection from "./settings/PointingSection";
+import { hasPointingCards } from "@/utils/pointing-settings";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
-import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
+import { onSettingsSectionRequest, requestPointingAdvanced, takeSettingsSectionRequest } from "./settings/anchor";
 import { SETTINGS_PAGE, shownPage, type SettingsBlock, type SettingsRow, type SettingsSection } from "./settings/layout";
 import { hasDebugConsole } from "@/services/debug-console";
 import { useStickySections } from "./settings/useStickySections";
@@ -88,13 +86,13 @@ const SettingsPanel = () => {
 
     const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState("");
-    // Touchpad tuning shows only on a board with a touchpad and firmware that has the setting;
+    // Pointing shows only on a connected board with a pointing module on a half;
     // the Debug console row only on firmware with the command.
-    const touchpadShown = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
+    const pointingShown = isConnected && hasPointingCards(keyboard);
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
     const { internationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
-    const pageSections = useMemo(() => shownPage({ touchpad: touchpadShown, debugConsole: debugShown, altgr: altgrShown }), [touchpadShown, debugShown, altgrShown]);
+    const pageSections = useMemo(() => shownPage({ pointing: pointingShown, debugConsole: debugShown, altgr: altgrShown }), [pointingShown, debugShown, altgrShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 
@@ -132,7 +130,10 @@ const SettingsPanel = () => {
     };
 
     // A chip, a link or the rail opens a card for this visit only: what is remembered stays.
-    const scrollToSection = (id: string) => {
+    const scrollToSection = (requested: string) => {
+        // The Advanced disclosure lives inside the Pointing card: open both for this visit.
+        const id = requested === "pointing-advanced" ? "pointing" : requested;
+        if (requested === "pointing-advanced") requestPointingAdvanced();
         if (SETTINGS_PAGE.some((s) => s.id === id)) sticky.openForVisit(id);
         const jump = () => {
             const card = document.getElementById(sectionDomId(id));
@@ -173,13 +174,8 @@ const SettingsPanel = () => {
                 return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
-            case "touchpad":
-                return (
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2.5" data-touchpad-entry>
-                        <p className="text-sm text-muted-foreground">See each touch on the pads live, and set when a touch clicks.</p>
-                        <Button variant="outline" size="sm" onClick={openTouchpadTuning}>{TUNE_TOUCHPAD_LABEL}</Button>
-                    </div>
-                );
+            case "pointing":
+                return <PointingSection />;
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
             case "about":

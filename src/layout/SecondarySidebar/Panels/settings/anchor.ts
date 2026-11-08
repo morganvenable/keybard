@@ -41,9 +41,39 @@ export const PANELS_IN_SETTINGS: Record<string, string> = {
     firmware: "firmware",
     // Not an old panel either: Settings at Backups (?panel=backups).
     backups: "backups",
+    // Pointer speed, scroll speed, gestures and the auto mouse layer: Settings at Pointing
+    // (?panel=pointing is the rail's Pointing Devices keys).
+    "pointing-settings": "pointing",
+    // The same card with its Advanced disclosure open.
+    "pointing-advanced": "pointing-advanced",
 };
 
 /** The Settings section an old panel name opens, if it is one. */
 export function settingsSectionForPanel(panel: string): string | undefined {
     return Object.prototype.hasOwnProperty.call(PANELS_IN_SETTINGS, panel) ? PANELS_IN_SETTINGS[panel] : undefined;
+}
+
+/**
+ * Opening Pointing's Advanced disclosure for this visit (a link to the live
+ * view, ?panel=pointing-advanced). Held until the card mounts, like the
+ * section request above.
+ */
+const ADVANCED_EVENT = "keybard-pointing-advanced";
+let advancedPending = false;
+
+export function requestPointingAdvanced(): void {
+    advancedPending = true;
+    window.dispatchEvent(new CustomEvent(ADVANCED_EVENT));
+}
+
+export function takePointingAdvancedRequest(): boolean {
+    const pending = advancedPending;
+    advancedPending = false;
+    return pending;
+}
+
+export function onPointingAdvancedRequest(handler: () => void): () => void {
+    const listener = () => { advancedPending = false; handler(); };
+    window.addEventListener(ADVANCED_EVENT, listener);
+    return () => window.removeEventListener(ADVANCED_EVENT, listener);
 }

@@ -12,6 +12,7 @@ import { TYPING_BEHAVIOR_SECTIONS, type SettingsBlock, type SettingsRow, type Se
 /** Words people search with that are not on screen, by section. */
 export const SECTION_SYNONYMS: Record<string, string[]> = {
     hardware: ["clusters", "fragments", "pointing devices"],
+    pointing: ["pointer speed", "dpi", "scroll speed", "scroll mode", "gestures", "touchpad", "trackpad", "trackball", "trackpoint", "auto mouse", "natural scroll", "axis lock", "palm rejection", "tap", "drag", "live view"],
     firmware: ["update", "flash", "uf2"],
     backups: ["backup", "back up", "files", "layout files"],
     appearance: ["look", "display", "editor", "keymap"],
@@ -45,7 +46,7 @@ function typingBehaviorWords(): string[] {
 export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
     hardware: ["clusters", "cluster presets", "fragments", "finger", "thumb", "5-key", "6-key", "pointing", "trackball",
         "touchpad", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
-    touchpad: ["touchpad", "trackpad", "tap", "tap to click", "dead zone", "deadzone", "tap time", "hold time", "press and hold", "drag", "scroll", "tuning", "visualizer"],
+    pointing: ["pointing", "pointer", "pointer speed", "dpi", "scroll speed", "scroll mode", "gestures", "built-in gestures", "touchpad", "trackpad", "trackball", "trackpoint", "auto mouse", "natural scroll", "axis lock", "tap to click", "dead zone", "tap time", "hold time", "press and hold", "drag", "palm rejection", "scroll start", "live view", "sensor", "characterization"],
     firmware: ["update", "upgrade", "install", "flash", "version", "release", "qmk", "wipe", "reset", "bootloader"],
     board: ["board name", "serial", "rename", "identity"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],

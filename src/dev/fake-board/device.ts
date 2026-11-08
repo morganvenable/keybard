@@ -25,6 +25,10 @@ export interface FakeSvalboardOptions {
     timingUsOnly?: boolean;
     /** Firmware with the touchpad tap setting (VIA values 51-54). Default true. */
     padGestures?: boolean;
+    /** Firmware with Scroll speed (VIA 61 and 62). Default true. */
+    scrollSpeed?: boolean;
+    /** A PMW3389 trackball on the left half, the touchpad on the right. Default false. */
+    leftTrackball?: boolean;
     /** An Azoteq touchpad on each half. Default false. */
     touchpad?: boolean;
     /** The computer asks for touchpad mode (Input Mode 3), as Windows and Linux do. Default false. */
@@ -183,6 +187,8 @@ export class FakeSvalboardDevice extends EventTarget {
             debounceSwitch: options.debounceSwitch ?? true,
             timingUsOnly: options.timingUsOnly ?? true,
             padGestures: options.padGestures ?? true,
+            scrollSpeed: options.scrollSpeed ?? true,
+            leftTrackball: options.leftTrackball ?? false,
             touchpad: options.touchpad ?? false,
             hostTouchpad: options.hostTouchpad ?? false,
             multiFinger: options.multiFinger ?? true,
