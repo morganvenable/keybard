@@ -9,6 +9,7 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { customKeycodeShortName } from "@/constants/custom-keycode-labels";
+import { customKeycodesAt } from "@/constants/custom-keycode-homes";
 import { keyService } from "@/services/key.service";
 import { KeyContent } from "@/types/keyboard.types";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
@@ -72,12 +73,11 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
 
     const isHorizontal = layoutMode === "bottombar";
 
-    // Standard QMK mouse keys + every SV_* custom keycode advertised by the
-    // firmware (svalboard convention: any name starting with "SV_"). New
-    // firmware keycodes appear automatically — no UI changes required.
+    // Standard QMK mouse keys + the firmware's pointer keys, placed by name
+    // (custom-keycode-homes.ts). Other SV_* keys, including ones this version
+    // does not know, are on Special Keys under Svalboard.
     const mouseKeys = useMemo<readonly MouseKeyDefinition[]>(() => {
-        const customSv = (keyboard?.custom_keycodes ?? [])
-            .filter((ck) => ck.name.startsWith("SV_"))
+        const customSv = customKeycodesAt(keyboard?.custom_keycodes, "mouse")
             .map((ck) => ({
                 keycode: ck.name,
                 label: customKeycodeShortName(ck).replace(/\n/g, " "),
@@ -148,7 +148,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                 {renderKeyGroup(mouseMovement, "Move")}
                 {renderKeyGroup(mouseWheel, "Wheel")}
                 {renderKeyGroup(mouseAccel, "Accel")}
-                {svalKeys.length > 0 && renderKeyGroup(svalKeys, "Svalboard")}
+                {svalKeys.length > 0 && renderKeyGroup(svalKeys, "Pointer")}
                 {!isPicker && <MouseMovementSection />}
             </div>
         );
