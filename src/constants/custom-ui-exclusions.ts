@@ -15,6 +15,7 @@ export const EXCLUDED_MENU_LABELS = [
     'Lighting',         // Covered by existing lighting controls
     'Pointing Devices', // Now a static sidebar item
     'Pointing Device',  // Singular variant - content rendered in unified PointingPanel
+    'Power and scanning', // Firmware's idle and scan menu - rendered in Settings > Power and scanning
 ] as const;
 
 /**

@@ -4,12 +4,13 @@ import { selectPointingMenu } from "@/utils/pointing-menu";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import DynamicMenuPanel from "./DynamicMenuPanel";
 
-/** The menu that carries the firmware's developer tuning values, or -1. */
+/**
+ * The menu that carries the firmware's developer tuning values, or -1. Found by
+ * value id: older firmware has them under Pointing Device > Advanced, newer
+ * firmware in a top-level "Power and scanning" menu.
+ */
 export function developerTuningMenuIndex(menus: CustomUIMenuItem[] | undefined): number {
-    const index = menus?.findIndex((menu) => menu.label?.toLowerCase().includes("pointing")) ?? -1;
-    if (index < 0) return -1;
-    const items = (menus?.[index]?.content ?? []) as CustomUIMenuItem[];
-    return selectPointingMenu(items, "developer").length > 0 ? index : -1;
+    return menus?.findIndex((menu) => selectPointingMenu((menu.content ?? []) as CustomUIMenuItem[], "developer").length > 0) ?? -1;
 }
 
 /**
