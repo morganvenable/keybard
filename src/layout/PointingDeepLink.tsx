@@ -23,7 +23,7 @@ export default function PointingDeepLink() {
         const panel = pointingDemo()?.panel;
         if (!keyboard || !panel || done.current) return;
         done.current = true;
-        if (panel === "scanlab" || panel === "trackball" || panel === "pointing" || panel === "keyboard") {
+        if (panel === "scanlab" || panel === "trackball" || panel === "pointing" || panel === "keyboard" || ["special", "mouse", "layers", "altrepeat", "more"].includes(panel)) {
             setActivePanel(panel);
             setPanelToGoBack(null);
             setItemToEdit(null);

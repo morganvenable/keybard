@@ -32,6 +32,9 @@ import { TOUCHPAD_MM } from "@/components/pointing-viz/webgl/materials";
 import { velocityStateFor } from "@/utils/velocity-scroll";
 import { settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 
+/** Rail panels a review link can open (?panel=special). */
+const RAIL_PANELS = ["special", "mouse", "layers", "altrepeat", "more"];
+
 export type DemoKind = "trackball" | "touchpad" | "none";
 export interface PointingDemo {
     /** ?demo=pointing: the demo devices are drawn even on a layout without pointing instances. */
@@ -78,7 +81,7 @@ export function pointingDemoFromSearch(search: string): PointingDemo | null {
     const left = kindParam(p.get("left")), right = kindParam(p.get("right"));
     const sniper = on(p.get("sniper")), boost = on(p.get("boost")), velocity = on(p.get("velocity"));
     const panelRaw = p.get("panel")?.trim().toLowerCase();
-    const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "trackball" || panelRaw === "pointing" || panelRaw === "keyboard" || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
+    const panel = panelRaw === "settings" || panelRaw === "scanlab" || panelRaw === "trackball" || panelRaw === "pointing" || panelRaw === "keyboard" || (!!panelRaw && RAIL_PANELS.includes(panelRaw)) || (!!panelRaw && !!settingsSectionForPanel(panelRaw)) ? panelRaw : undefined;
     const contactsRaw = parseInt(p.get("contacts") ?? "", 10);
     const contacts = Number.isFinite(contactsRaw) && contactsRaw > 0 ? Math.min(MAX_CONTACTS, contactsRaw) : undefined;
     const factorParam = (k: string) => { const n = parseInt(p.get(k) ?? "", 10); return Number.isInteger(n) && n >= 1 && n <= 255 ? n : undefined; };

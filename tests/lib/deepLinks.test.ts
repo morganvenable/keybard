@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+    anyKeyFromSearch, fakeBoardFromSearch, moreKeysOpenFromSearch,
     claimDemoStart, claimEditStart, demoFromSearch, editFromSearch, editTargetExists,
     resetDeepLinksForTests, themeFromSearch, withDemoFeatures,
 } from "@/lib/deepLinks";
@@ -71,5 +72,19 @@ describe("?edit", () => {
     it("opens once per page load", () => {
         expect(claimEditStart()).toBe(true);
         expect(claimEditStart()).toBe(false);
+    });
+});
+
+describe("key organization review params", () => {
+    it("?moreKeys opens every group or the named one", () => {
+        expect(moreKeysOpenFromSearch("?moreKeys", "special")).toBe(true);
+        expect(moreKeysOpenFromSearch("?moreKeys=mouse", "mouse")).toBe(true);
+        expect(moreKeysOpenFromSearch("?moreKeys=mouse", "special")).toBe(false);
+        expect(moreKeysOpenFromSearch("", "special")).toBe(false);
+    });
+    it("?anyKey and ?fakeBoard=altrepeat are read", () => {
+        expect(anyKeyFromSearch("?anyKey")).toBe(true);
+        expect(anyKeyFromSearch("")).toBe(false);
+        expect(fakeBoardFromSearch("?fakeBoard=altrepeat")).toBe("altrepeat");
     });
 });

@@ -2,7 +2,7 @@
 // by the simulated firmware (firmware.ts) instead of a USB keyboard.
 import { loadStoredBoard, storeBoard, wipeFakeBoard, type FakeBoardState } from "./board";
 import { FakeSvalFirmware } from "./firmware";
-import { seedBoard, seedKeymap, seedLegends } from "./seed";
+import { seedAltRepeat, seedBoard, seedKeymap, seedLegends } from "./seed";
 
 /** What the simulated board calls itself, so nobody takes it for a real one. */
 export const FAKE_BOARD_PRODUCT_NAME = "Simulated Svalboard";
@@ -50,6 +50,8 @@ export interface FakeSvalboardOptions {
     seedUnread?: boolean;
     /** Digit and punctuation keys with every kind of indicator (seedLegends). Fresh on every load. */
     seedLegends?: boolean;
+    /** One Alt-Repeat entry (seedAltRepeat). Fresh on every load. */
+    seedAltRepeat?: boolean;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -149,7 +151,7 @@ export class FakeSvalboardDevice extends EventTarget {
         super();
         this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
         this.collections = [rawHidCollection(this.reportLength)];
-        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero && !options.seedUnread && !options.seedLegends);
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero && !options.seedUnread && !options.seedLegends && !options.seedAltRepeat);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
@@ -164,6 +166,7 @@ export class FakeSvalboardDevice extends EventTarget {
                 state.qmkSettings[42] = 0; // leader_options
             }
             if (options.seedLegends) seedLegends(state);
+            if (options.seedAltRepeat) seedAltRepeat(state);
             if (options.seedUnread) {
                 state.tapDance[1 * 10 + 8] = 0; // tap dance 1: term 0, stored off (an older firmware's unused slot)
                 state.tapDance[1 * 10 + 9] = 0;

@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 
+import { moreKeysOpenFromSearch } from "@/lib/deepLinks";
+
 const STORAGE_KEY = "keybard-more-keys-open";
 
 function readOpen(id: string): boolean {
@@ -35,7 +37,7 @@ interface Props {
  * The search slot is a labeled placeholder until key search lands.
  */
 const MoreKeysDisclosure = ({ category, count, children, compact }: Props) => {
-    const [open, setOpen] = useState(() => readOpen(category));
+    const [open, setOpen] = useState(() => readOpen(category) || moreKeysOpenFromSearch(window.location.search, category));
     return (
         <details
             className="flex flex-col gap-2"
