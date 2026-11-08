@@ -27,6 +27,11 @@ export function resolveAnyKey(input: string): AnyKeyResult {
     if (!text) return { status: "empty" };
 
     let code = parseNumber(text);
+    // keyService.parse falls back to parseInt, which reads "5KC" as 5 and
+    // "0x1G" as 1, so anything that is not a clean number must start like a name.
+    if (code === null && !/^[A-Za-z_]/.test(text)) {
+        return { status: "invalid", message: `"${text}" is not a keycode name, expression or number.` };
+    }
     if (code === null) {
         const parsed = [text, text.toUpperCase()]
             .map((t) => keyService.parse(t))

@@ -25,6 +25,10 @@ describe('resolveAnyKey', () => {
         expect(resolveAnyKey('0xFFFF').status).not.toBe('invalid');
     });
 
+    it('rejects text that only starts with a number', () => {
+        for (const t of ['5KC', '0x1G', '12abc', '1e3', '-1', '4 4']) expect(resolveAnyKey(t).status, t).toBe('invalid');
+    });
+
     it('warns on a number Keybard has no name for', () => {
         const r = resolveAnyKey('0x9999');
         expect(r).toMatchObject({ status: 'unknown', code: 0x9999 });
