@@ -4,6 +4,7 @@ import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { keyService } from "@/services/key.service";
+import { readableKeyLabel } from "@/lib/tileLabel";
 import type { SpecialKeyDef } from "@/constants/special-key-groups";
 
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
@@ -34,7 +35,7 @@ const SpecialKeyGroup = ({ title, keys, note, compact, variant: variantOverride,
 
     const shown = keys.map((key) => ({
         ...key,
-        displayLabel: key.fixedLabel ? key.label : keyService.define(key.keycode)?.str || key.label,
+        displayLabel: key.fixedLabel ? key.label : readableKeyLabel(keyService.define(key.keycode)?.str, key.label),
     }));
     if (sort) shown.sort((a, b) => a.displayLabel.localeCompare(b.displayLabel));
 
@@ -60,6 +61,7 @@ const SpecialKeyGroup = ({ title, keys, note, compact, variant: variantOverride,
                         col={0}
                         keycode={key.keycode}
                         label={key.displayLabel}
+                        fullName={key.label}
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative

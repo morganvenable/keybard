@@ -32,10 +32,10 @@ export const EDITING_KEYS: SpecialKeyDef[] = [
 
 /** Media keeps everything it had except the editing keys. */
 export const MEDIA_KEYS: SpecialKeyDef[] = [
-    k("KC_BRID", "Bright. Down"),
-    k("KC_BRIU", "Bright. Up"),
+    k("KC_BRID", "Brightness Down"),
+    k("KC_BRIU", "Brightness Up"),
     k("KC_WBAK", "Browser Back"),
-    k("KC_WFAV", "Browser Fav."),
+    k("KC_WFAV", "Browser Favorites"),
     k("KC_WFWD", "Browser Forward"),
     k("KC_WHOM", "Browser Home"),
     k("KC_WREF", "Browser Refresh"),
@@ -49,13 +49,13 @@ export const MEDIA_KEYS: SpecialKeyDef[] = [
     k("KC_MNXT", "Media Next"),
     k("KC_MPLY", "Media Play"),
     k("KC_MSEL", "Media Player"),
-    k("KC_MPRV", "Media Prev"),
+    k("KC_MPRV", "Media Previous"),
     k("KC_MSTP", "Media Stop"),
     k("KC_MUTE", "Mute"),
     k("KC_MYCM", "My PC"),
     k("KC_MFFD", "Next Track (macOS)"),
     k("KC_PWR", "Power"),
-    k("KC_MRWD", "Prev Track (macOS)"),
+    k("KC_MRWD", "Previous Track (macOS)"),
     k("KC_SLEP", "Sleep"),
     k("KC_STOP", "Stop"),
     k("KC_VOLU", "Vol +"),
@@ -75,8 +75,8 @@ export const FEATURE_SWITCH_KEYS: SpecialKeyDef[] = [
 /** The layer LEDs are RGB lighting, so these work. RGB_TOG turns them off. */
 export const LIGHTING_KEYS: SpecialKeyDef[] = [
     k("RGB_TOG", "LEDs On/Off", true),
-    k("RGB_VAI", "Bright +"),
-    k("RGB_VAD", "Bright -"),
+    k("RGB_VAI", "Brightness +"),
+    k("RGB_VAD", "Brightness -"),
     k("RGB_HUI", "Hue +"),
     k("RGB_HUD", "Hue -"),
     k("RGB_SAI", "Sat +"),

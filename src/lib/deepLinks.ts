@@ -82,7 +82,7 @@ export function moreKeysOpenFromSearch(search: string, category: string): boolea
     return value !== undefined && value !== null && (value === "" || value === "1" || value === "on" || value === category);
 }
 
-/** ?anyKey opens the Any key dialog once a key is selected (review links). */
+/** ?anyKey opens the Custom keycode dialog once a key is selected (review links). */
 export function anyKeyFromSearch(search: string): boolean {
     return param(search, ANY_KEY_PARAM) !== null;
 }

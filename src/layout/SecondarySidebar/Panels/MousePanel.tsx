@@ -15,6 +15,7 @@ import { KeyContent } from "@/types/keyboard.types";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
 import { MOUSE_EXTRA_BUTTON_KEYS } from "@/constants/special-key-groups";
+import { readableKeyLabel } from "@/lib/tileLabel";
 import MouseMovementSection from "./MouseMovementSection";
 
 /**
@@ -120,7 +121,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                 <div className="flex flex-row gap-1 flex-wrap">
                     {keys.map((mouseKey) => {
                         const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
-                        const displayLabel = keyService.define(mouseKey.keycode)?.str || mouseKey.label;
+                        const displayLabel = readableKeyLabel(keyService.define(mouseKey.keycode)?.str, mouseKey.label);
                         return (
                             <Key
                                 key={mouseKey.keycode}
@@ -173,7 +174,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                 <div className="pr-[26px]">
                     {mouseKeys.map((mouseKey, index) => {
                         const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
-                        const displayLabel = keyService.define(mouseKey.keycode)?.str || mouseKey.label;
+                        const displayLabel = readableKeyLabel(keyService.define(mouseKey.keycode)?.str, mouseKey.label);
 
                         return (
                             <SidebarItemRow
@@ -203,7 +204,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                                 index={index}
                                 keyboard={keyboard}
                                 keycode={mouseKey.keycode}
-                                label={keyService.define(mouseKey.keycode)?.str || mouseKey.label}
+                                label={readableKeyLabel(keyService.define(mouseKey.keycode)?.str, mouseKey.label)}
                                 keyContents={getKeyContents(keyboard, mouseKey.keycode) as KeyContent}
                                 onAssignKeycode={assignKeycode}
                                 hoverBorderColor={hoverStyles.hoverBorderColor}
