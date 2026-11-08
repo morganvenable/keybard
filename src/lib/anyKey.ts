@@ -19,7 +19,7 @@ function parseNumber(text: string): number | null {
 }
 
 /**
- * Resolve what someone typed into Any key: a 0x hex or decimal number, a QMK
+ * Resolve what someone typed into Custom keycode: a 0x hex or decimal number, a QMK
  * name such as QK_BOOT, or an expression such as LCTL(KC_A) or MO(3).
  */
 export function resolveAnyKey(input: string): AnyKeyResult {

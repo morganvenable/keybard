@@ -31,9 +31,9 @@ export const AnyKeyDialog = ({ open, onOpenChange }: DialogProps) => {
         <Dialog open={open} onOpenChange={close}>
             <DialogContent className="max-w-sm" data-testid="any-key-dialog">
                 <DialogHeader>
-                    <DialogTitle>Any key</DialogTitle>
+                    <DialogTitle>Enter a custom keycode</DialogTitle>
                     <DialogDescription>
-                        A keycode name, an expression like LCTL(KC_A) or MO(3), or a number in hex or decimal.
+                        Hex, decimal or QMK name, for example LCTL(KC_A)
                     </DialogDescription>
                 </DialogHeader>
                 <input
@@ -79,8 +79,8 @@ export const AnyKeyButton = () => {
     const [open, setOpen] = useState(false);
     return (
         <>
-            <Button variant="ghost" size="sm" onClick={() => setOpen(true)} data-testid="any-key-button">
-                Any key
+            <Button variant="ghost" size="sm" onClick={() => setOpen(true)} data-testid="any-key-button" title="Custom keycode" aria-label="Custom keycode">
+                Custom keycode
             </Button>
             {/* Mounted only while open, so a closed button needs no binding context. */}
             {open && <AnyKeyDialog open onOpenChange={setOpen} />}
@@ -93,15 +93,17 @@ export const AnyKeyTile = () => {
     const [open, setOpen] = useState(false);
     return (
         <div className="flex flex-col gap-1">
-            <span className="font-semibold text-base text-kb-ink">Any keycode</span>
+            <span className="font-semibold text-base text-kb-ink">Custom keycode</span>
             <div className="flex flex-wrap gap-1">
                 <button
                     type="button"
                     onClick={() => setOpen(true)}
                     data-testid="any-key-tile"
-                    className="h-[60px] w-[60px] rounded-md border border-kb-gray-border bg-kb-sidebar-dark text-xs text-kb-ink"
+                    aria-label="Enter keycode"
+                    className="group flex h-[60px] w-[60px] cursor-pointer select-none flex-col items-center justify-start overflow-hidden rounded-md border border-kb-key-border bg-kb-sidebar-base text-white transition-all duration-200 hover:ring-2 hover:ring-inset hover:ring-red-500"
                 >
-                    Any key
+                    <span className="h-3 w-full bg-kb-sidebar-dark" aria-hidden="true" />
+                    <span className="flex flex-1 items-center px-1 text-center text-[11px] font-medium uppercase leading-tight">Enter keycode</span>
                 </button>
             </div>
             {/* Mounted only while open, so a closed button needs no binding context. */}

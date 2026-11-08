@@ -10,7 +10,7 @@ const type = (v: string) => fireEvent.change(screen.getByTestId('any-key-input')
 
 beforeEach(() => assignKeycode.mockClear());
 
-describe('Any key', () => {
+describe('Custom keycode', () => {
     it('opens from the header button and assigns a name', () => {
         render(<AnyKeyButton />);
         expect(screen.queryByTestId('any-key-dialog')).toBeNull();
@@ -20,6 +20,27 @@ describe('Any key', () => {
         fireEvent.click(screen.getByTestId('any-key-assign'));
         expect(assignKeycode).toHaveBeenCalledWith(0x0104);
         expect(screen.queryByTestId('any-key-dialog')).toBeNull();
+    });
+
+    it('uses the Custom keycode wording everywhere', () => {
+        render(<><AnyKeyButton /><AnyKeyTile /></>);
+        const button = screen.getByTestId('any-key-button');
+        expect(button.textContent).toBe('Custom keycode');
+        expect(button.getAttribute('aria-label')).toBe('Custom keycode');
+        expect(button.getAttribute('title')).toBe('Custom keycode');
+        expect(screen.getByText('Custom keycode', { selector: 'span' })).toBeTruthy();
+        expect(screen.getByTestId('any-key-tile').textContent).toBe('Enter keycode');
+        fireEvent.click(screen.getByTestId('any-key-tile'));
+        expect(screen.getByText('Enter a custom keycode')).toBeTruthy();
+        expect(screen.getByText('Hex, decimal or QMK name, for example LCTL(KC_A)')).toBeTruthy();
+        expect(document.body.textContent).not.toMatch(/Any key/);
+    });
+
+    it('draws the tile with the key tokens, not a solid black square', () => {
+        render(<AnyKeyTile />);
+        const cls = screen.getByTestId('any-key-tile').className;
+        expect(cls).toContain('bg-kb-sidebar-base');
+        expect(cls).not.toContain('bg-kb-sidebar-dark');
     });
 
     it('opens from the More tile', () => {
