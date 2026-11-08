@@ -9,6 +9,7 @@
 // and says it's done, names the half that still needs the file, or (one-image firmware)
 // asks which half is which first.
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { carriedFileUrl, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { SVALBOARD_FIRMWARE_URL } from "@/constants/firmware";
@@ -17,6 +18,7 @@ import type { Afterwards } from "@/services/updater/flow";
 import { manualHalves, manualPending, type ManualCheck, type ManualHalfState, type ManualResult } from "@/services/updater/manual";
 import { handName, otherHand, type Hand } from "@/services/updater/protocol";
 import type { SideWrite } from "@/services/side-decision";
+import { carriedBytes, saveBytes } from "./file-bytes";
 import { LayoutChoice } from "./LayoutChoice";
 import { FwTitle, Problem, SectionLabel, Spinner } from "./parts";
 import { SideFix } from "./SideFix";
@@ -62,13 +64,33 @@ function Files({ release }: { release: FirmwareReleasePin | null }) {
             ? <p className="text-sm">Download the firmware file from <code className="select-all break-all font-mono text-xs">{SVALBOARD_FIRMWARE_URL}</code></p>
             : <a className="text-sm font-medium text-kb-primary underline" href={SVALBOARD_FIRMWARE_URL} target="_blank" rel="noreferrer">Download the firmware file from the Svalboard firmware releases ↗</a>;
     }
+    return <FileCard release={release} />;
+}
+
+/** The file card: downloads the in-memory copy (checked against its pin) under its own name, else the usual URL. */
+function FileCard({ release }: { release: FirmwareReleasePin }) {
     const name = release.file.uf2;
+    const [problem, setProblem] = useState<string | null>(null);
+    const onClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        setProblem(null);
+        try {
+            const bytes = await carriedBytes(release);
+            if (bytes) saveBytes(bytes, name);
+            else window.open(carriedFileUrl(release, name), "_blank", "noreferrer");
+        } catch (err) {
+            setProblem(err instanceof Error ? err.message : String(err));
+        }
+    };
     return (
-        <a href={carriedFileUrl(release, name)} download={name} data-file="both"
-            className="flex min-w-0 flex-col gap-0.5 rounded-md border border-kb-gray-border px-3 py-2.5 text-kb-ink hover:border-kb-primary">
-            <span className="text-sm font-semibold">{release.tag} for both halves</span>
-            <span className="break-all font-mono text-xs text-muted-foreground">{name}</span>
-        </a>
+        <div className="flex min-w-0 flex-col gap-1">
+            <a href={carriedFileUrl(release, name)} download={name} data-file="both" onClick={onClick}
+                className="flex min-w-0 flex-col gap-0.5 rounded-md border border-kb-gray-border px-3 py-2.5 text-kb-ink hover:border-kb-primary">
+                <span className="text-sm font-semibold">{release.tag} for both halves</span>
+                <span className="break-all font-mono text-xs text-muted-foreground">{name}</span>
+            </a>
+            {problem && <p role="alert" className="text-sm text-kb-warn-ink">{problem}</p>}
+        </div>
     );
 }
 
