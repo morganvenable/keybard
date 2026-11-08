@@ -14,7 +14,8 @@ interface UndoControlProps {
     /** Label of the step Undo would reverse, or null when there is nothing to undo. */
     label: string | null;
     disabled?: boolean;
-    onUndo: () => Promise<void> | void;
+    /** Resolves false when nothing was undone, such as when the undo write failed. */
+    onUndo: () => Promise<boolean | void> | boolean | void;
 }
 
 /** One-step Undo with an in-app "Undone" toast. */
@@ -36,8 +37,7 @@ export const UndoControl: FC<UndoControlProps> = ({ label, disabled, onUndo }) =
                         disabled={off}
                         onClick={async (e) => {
                             e.stopPropagation();
-                            await onUndo();
-                            setToast(true);
+                            if ((await onUndo()) !== false) setToast(true);
                         }}
                         className={cn(ICON_BUTTON, off ? DISABLED : ENABLED)}
                     >
@@ -46,14 +46,16 @@ export const UndoControl: FC<UndoControlProps> = ({ label, disabled, onUndo }) =
                 </TooltipTrigger>
                 <TooltipContent side="top">{label ? `Undo ${label}` : "Nothing to undo"}</TooltipContent>
             </Tooltip>
-            {toast && (
-                <div
-                    role="status"
-                    className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-kb-gray-border bg-kb-popover px-5 py-2 text-sm text-kb-ink shadow-lg"
-                >
-                    Undone
-                </div>
-            )}
+            {/* Always mounted, so screen readers announce the text when it appears. */}
+            <div
+                role="status"
+                aria-live="polite"
+                className={toast
+                    ? "fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-kb-gray-border bg-kb-popover px-5 py-2 text-sm text-kb-ink shadow-lg"
+                    : "sr-only"}
+            >
+                {toast ? "Undone" : ""}
+            </div>
         </>
     );
 };

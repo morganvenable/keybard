@@ -4,7 +4,8 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 interface ChangesContextType {
     registerUndo: (label: string, callback: () => Promise<void> | void) => void;
-    undo: () => Promise<void>;
+    /** Reverses the last registered step. True when it was undone. */
+    undo: () => Promise<boolean>;
     undoLabel: string | null;
     todo: Record<string, PendingChange>;
     isInstant: boolean;
@@ -103,16 +104,18 @@ export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPu
         };
     }), [engine, registerTargetChangeGuard]);
     const undo = useCallback(async () => {
-        if (!undoRef.current || engine.isSaving || undoing.current) return;
+        if (!undoRef.current || engine.isSaving || undoing.current) return false;
         const callback = undoRef.current;
         undoing.current = true;
         try {
             await callback();
             undoRef.current = null;
             setUndoLabel(null);
+            return true;
         } catch (error) {
             engine.error = error instanceof Error ? error.message : String(error);
             render(n => n + 1);
+            return false;
         } finally { undoing.current = false; }
     }, [engine]);
     const todo = engine.pending;

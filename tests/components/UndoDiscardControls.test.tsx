@@ -18,6 +18,14 @@ describe('Undo', () => {
         expect(onUndo).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Undone'));
     });
+    it('shows no Undone toast when the undo failed', async () => {
+        const onUndo = vi.fn().mockResolvedValue(false);
+        wrap(<UndoControl label="key on layer 0" onUndo={onUndo} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+        await waitFor(() => expect(onUndo).toHaveBeenCalledTimes(1));
+        await Promise.resolve();
+        expect(screen.getByRole('status')).not.toHaveTextContent('Undone');
+    });
 });
 
 describe('Discard all', () => {
