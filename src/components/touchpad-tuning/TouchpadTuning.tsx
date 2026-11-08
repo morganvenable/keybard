@@ -236,15 +236,23 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         <StepControl label="Palm rejection" value={palmValue} table={palmTable} format={formatPalm} onChange={(v) => setNow(PAD_PALM_KEY, v)}
             note="Ignores a contact wider than this, like a resting palm." />
     );
+    // The test firmware's two-finger scroll speed: a multiplier on the DPI-driven scroll the firmware makes
+    // from the built-in gestures. Shown in both layouts, so a Mac (Automatic, the OS never asks) always has it,
+    // even before the pads first answer; the note says when it applies.
+    const speedControl = speedOn && (
+        <StepControl label="Two-finger scroll speed" value={speedValue} table={speedTable} format={(v) => `${v}%`} onChange={(v) => setNow(PAD_SPEED_KEY, v)}
+            note={osMode ? "Applies only with Built-in gestures, when the pad scrolls without the computer's touchpad driver." : "Two fingers on the pad, on top of the pointer DPI. 100% is the usual speed."} />
+    );
     // A write the board didn't take says so here; the line holds its place, so nothing moves when it does.
     const errorLine = <p className="min-h-5 text-sm text-kb-touch-cancel" role={error ? "alert" : undefined} data-write-error={error ? true : undefined}>{error}</p>;
 
     const controls = osMode ? (
         <div className="flex flex-col gap-1.5">
             {/* Touchpad mode: the mode and palm rejection, the only settings that apply, together. */}
-            <div className={cn("grid gap-2", palmControl && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
+            <div className={cn("grid gap-2", (palmControl || speedControl) && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
                 {mode}
                 {palmControl}
+                {speedControl}
             </div>
             {modeChange.confirm}
             {errorLine}
@@ -263,11 +271,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
                     note={holdOn ? `Hold still this much longer to start a drag: ${tapMs + holdMs} ms in all.` : "Press and Hold to Drag is off in Pointing Devices."} />
                 <StepControl label="Scroll start" value={scroll} table={scrollTable} format={formatMm} onChange={(v) => setNow(PAD_SCROLL_KEY, v)}
                     note="How far two fingers move before they scroll." />
-                {/* The test firmware's two-finger scroll speed: a multiplier on the DPI-driven scroll, in the built-in gestures only. */}
-                {speedOn && (
-                    <StepControl label="Two-finger scroll speed" value={speedValue} table={speedTable} format={(v) => `${v}%`} onChange={(v) => setNow(PAD_SPEED_KEY, v)}
-                        note="Two fingers on the pad, on top of the pointer DPI. 100% is the usual speed." />
-                )}
+                {speedControl}
                 {palmControl}
             </div>
         </div>
