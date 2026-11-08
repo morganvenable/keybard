@@ -17,7 +17,7 @@ import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLeg
  * description for this page) or a block this page renders itself. To add a
  * preference, add its definition to SETTINGS and its name to a section here.
  */
-export type SettingsBlock = "hardware" | "pointing" | "firmware" | "board" | "backups" | "typing" | "about" | "debug";
+export type SettingsBlock = "hardware" | "pointing" | "firmware" | "board" | "backups" | "typing" | "power" | "about" | "debug";
 
 export type SettingsRow =
     | { setting: string; label?: string; description?: string }
@@ -115,6 +115,16 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         summary: "Tap-hold, Auto Shift, one-shot keys and key swaps",
     },
     {
+        id: "power",
+        title: "Power and scanning",
+        chip: "Power",
+        // Set once, if ever: closed until someone opens it.
+        defaultOpen: false,
+        // Only on a board whose firmware carries these values (SettingsPanel).
+        rows: [{ block: "power" }],
+        summary: "Idle timing, scan pacing and the trackball rest mode",
+    },
+    {
         id: "about",
         title: "About",
         chip: "About",
@@ -131,7 +141,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
 ];
 
 /** Sections shown only on some boards: Pointing needs a half with a pointing module. */
-export const CONDITIONAL_SECTIONS = ["pointing"] as const;
+export const CONDITIONAL_SECTIONS = ["pointing", "power"] as const;
 
 /** Blocks shown only on some boards: the debug console needs firmware with the command. */
 export const CONDITIONAL_BLOCKS = ["debug"] as const;
@@ -141,9 +151,9 @@ export const CONDITIONAL_BLOCKS = ["debug"] as const;
  * chosen keyboard layout no AltGr symbols row.
  * Search and rendering both use it, so a search never finds a hidden row.
  */
-export function shownPage(board: { pointing: boolean; debugConsole: boolean; altgr?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
+export function shownPage(board: { pointing: boolean; debugConsole: boolean; altgr?: boolean; power?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
     return page
-        .filter((section) => section.id !== "pointing" || board.pointing)
+        .filter((section) => (section.id !== "pointing" || board.pointing) && (section.id !== "power" || board.power !== false))
         .map((section) => ({
             ...section,
             rows: section.rows.filter((row) =>
