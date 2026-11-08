@@ -134,9 +134,9 @@ describe("dualLegendFor with AltGr Symbols (the keycap grid)", () => {
         }
     });
 
-    it("wrapped keys: modifiers, mod-taps and layer-taps get their base key's legends", () => {
-        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "german", on)).toEqual({ base: "2", shifted: "\"", altgr: "²", grid: true });
-        expect(dualLegendFor("LT1(KC_Q)", "q", { type: "layerhold" } as never, "german", on)).toEqual({ base: "q", shifted: "Q", altgr: "@", letter: true, grid: true });
+    it("wrapped keys: modifiers, mod-taps and layer-taps keep one base legend", () => {
+        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "german", on)).toBeNull();
+        expect(dualLegendFor("LT1(KC_Q)", "q", { type: "layerhold" } as never, "german", on)).toBeNull();
         // Shift and AltGr wrappers draw what they type: no extra legends.
         expect(dualLegendFor("LSFT(KC_2)", "\"", { type: "modmask", modids: 0x0200 } as never, "german", on)).toBeNull();
         expect(dualLegendFor("RALT(KC_2)", "2", { type: "modmask", modids: 0x1400 } as never, "german", on)).toBeNull();

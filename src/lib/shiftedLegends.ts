@@ -49,8 +49,6 @@ export function hasAltGr(layoutId: string): boolean {
 const NO_ALTGR = "{none}";
 
 const PLAIN_KEYCODE = /^KC_[A-Z0-9_]+$/;
-/** Key kinds that draw their base key in the middle, with a band above or below it. */
-const WRAPPED_TYPES = new Set(["modmask", "modtap", "layerhold"]);
 
 /**
  * True when a wrapper keycode (LSFT(...), LSFT_T(...), C_S(...), MEH_T(...)) holds
@@ -103,7 +101,6 @@ export interface LegendOptions {
 
 /** Wrappers that hold AltGr alone (RALT(KC_2), ALGR(KC_2)): the key types the AltGr character. */
 const ALTGR_ONLY_WRAPPER = /^(RALT|ALGR)$/;
-const ALTGR_WRAPPER = /^(RALT|ALGR|RCAG|RCA|RSA|SAGR|RCS)/;
 
 /**
  * The legends of a key on this OS layout: the base legend, the shifted symbol and,
@@ -113,8 +110,8 @@ const ALTGR_WRAPPER = /^(RALT|ALGR|RCAG|RCA|RSA|SAGR|RCS)/;
  * letters (its shift is only the capital letter), so a letter gets two legends only
  * with an AltGr character (Q is "@" on German).
  *
- * A modifier (LCTL(KC_1)), mod-tap (LCTL_T(KC_2)) or layer-tap (LT1(KC_3)) key gets
- * the legends of its base key. For a plain key, `label` is what the key would draw
+ * A modifier (LCTL(KC_1)), mod-tap (LCTL_T(KC_2)) or layer-tap (LT1(KC_3)) key keeps
+ * one legend, the base key's. For a plain key, `label` is what the key would draw
  * with one legend; a key drawing something else (the picker while its Shift is on)
  * keeps that one legend.
  */
@@ -128,18 +125,10 @@ export function dualLegendFor(
     const wantShifted = options.shifted ?? true;
     const wantAltGr = options.altgr ?? false;
     if (!wantShifted && !wantAltGr) return null;
-    let code = keycode.toUpperCase();
-    let wrapped = false;
-    if (keyContents?.type) {
-        if (!WRAPPED_TYPES.has(keyContents.type)) return null;
-        const m = /^([A-Z0-9_]+)\((KC_[A-Z0-9_]+)\)$/.exec(code);
-        if (!m) return null;
-        if (wrapperHasShift(m[1], keyContents.modids)) return null;
-        // AltGr types its own symbol (altgrOnlyLegend), or with other modifiers is unknown: no extra legends.
-        if (ALTGR_WRAPPER.test(m[1]) || (typeof keyContents.modids === "number" && (keyContents.modids & 0x1400) === 0x1400)) return null;
-        code = m[2];
-        wrapped = true;
-    }
+    // Modifier, mod-tap and layer-tap keys show their base legend only: one legend, no
+    // shifted symbol and no AltGr character (the center legend comes from key-display.ts).
+    if (keyContents?.type) return null;
+    const code = keycode.toUpperCase();
     if (!PLAIN_KEYCODE.test(code)) return null;
     if (code in US_SHIFT_ALIASES) return null; // already a shifted symbol (KC_QUES)
     // Numpad (KC_KP_*, KC_P1, KC_PDOT...) and KC_PSCR-style keys: never dual. KC_P is a letter.
@@ -148,7 +137,7 @@ export function dualLegendFor(
     if (!legends) return null;
     const { base, shifted, altgr } = legends;
     if ([...base].length > 2 || [...shifted].length > 2) return null; // "Space", "enter", "backsp"
-    if (!wrapped && label) {
+    if (label) {
         // A key drawing something else (the picker while its Shift is on) keeps that legend.
         // Exact, not case-insensitive: the picker's shifted letter is the capital of the base.
         const same = (a: string | null) => !!a && (a === label || (DIGIT.test(shifted) && a.toLocaleUpperCase() === label.toLocaleUpperCase()));
