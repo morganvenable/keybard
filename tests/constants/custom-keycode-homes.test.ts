@@ -23,9 +23,13 @@ describe('custom keycode placement', () => {
     });
 
     it('puts non-pointer keys in Svalboard', () => {
-        for (const n of ['SV_CAPS_WORD', 'SV_TOGGLE_23_67', 'SV_TOGGLE_45_67', 'SV_TURBO_SCAN', 'SV_OUTPUT_STATUS']) {
+        for (const n of ['SV_CAPS_WORD', 'SV_TOGGLE_23_67', 'SV_TOGGLE_45_67']) {
             expect(customKeycodeHome(n)).toBe('svalboard');
         }
+    });
+
+    it('puts Turbo Scan and Output Status in Board and firmware', () => {
+        for (const n of ['SV_TURBO_SCAN', 'SV_OUTPUT_STATUS']) expect(customKeycodeHome(n)).toBe('board');
     });
 
     it('sends an unknown future key to Svalboard, never Mouse', () => {
@@ -40,11 +44,12 @@ describe('custom keycode placement', () => {
 
     it('places every built-in key in exactly one group', () => {
         const all = SVALBOARD_VIAL_CUSTOM_KEYCODES as unknown as { name: string; shortName: string; title: string }[];
-        const total = (['mouse', 'pointing', 'svalboard'] as const)
+        const total = (['mouse', 'pointing', 'board', 'svalboard'] as const)
             .map(h => all.filter(k => customKeycodeHome(k.name) === h).length)
             .reduce((a, b) => a + b, 0);
         expect(total).toBe(all.length);
         expect(customKeycodesAt(all, 'svalboard').map(k => k.name)).toEqual(
-            expect.arrayContaining(['SV_CAPS_WORD', 'SV_TOGGLE_23_67', 'SV_TOGGLE_45_67', 'SV_TURBO_SCAN', 'SV_OUTPUT_STATUS']));
+            expect.arrayContaining(['SV_CAPS_WORD', 'SV_TOGGLE_23_67', 'SV_TOGGLE_45_67']));
+        expect(customKeycodesAt(all, 'board').map(k => k.name)).toEqual(['SV_OUTPUT_STATUS', 'SV_TURBO_SCAN']);
     });
 });

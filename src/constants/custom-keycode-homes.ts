@@ -5,13 +5,14 @@ import type { CustomKeycode } from "@/types/keyboard.types";
  *
  * - "mouse": Mouse Keys lists it.
  * - "pointing": Pointing Devices already lists it, so Mouse Keys does not.
+ * - "board": Special Keys, More keys, Board and firmware.
  * - "svalboard": the Svalboard group on Special Keys.
  *
  * A key is placed by name. A name this table does not know, such as a key a
  * newer firmware adds, goes to "svalboard", never to Mouse Keys, so a new key
  * is visible without a Keybard release.
  */
-export type CustomKeycodeHome = "mouse" | "pointing" | "svalboard";
+export type CustomKeycodeHome = "mouse" | "pointing" | "board" | "svalboard";
 
 const MOUSE_KEYS: ReadonlySet<string> = new Set([
     "SV_LEFT_DPI_INC",
@@ -39,11 +40,14 @@ const POINTING_KEYS: ReadonlySet<string> = new Set([
     "SV_VELOCITY_SCROLL",
     "SV_VELOCITY_SCROLL_TOGGLE",
 ]);
+/** Firmware housekeeping keys, grouped with Bootloader, Reboot and Debug. */
+const BOARD_KEYS: ReadonlySet<string> = new Set(["SV_TURBO_SCAN", "SV_OUTPUT_STATUS"]);
 
 export function customKeycodeHome(name: string): CustomKeycodeHome {
     if (MOUSE_KEYS.has(name)) return "mouse";
     if (POINTING_KEYS.has(name)) return "pointing";
-    // Not about the pointer (Caps Word, MO 23, MO 45, Turbo Scan, Output Status)
+    if (BOARD_KEYS.has(name)) return "board";
+    // Not about the pointer (Caps Word, MO 23, MO 45)
     // and every key this table does not know.
     return "svalboard";
 }
