@@ -1,4 +1,5 @@
 import AltRepeatPanel from "./SecondarySidebar/Panels/AltRepeatPanel";
+import MorePanel from "./SecondarySidebar/Panels/MorePanel";
 import BasicKeyboards from "./SecondarySidebar/Panels/BasicKeyboards";
 import CombosPanel from "./SecondarySidebar/Panels/CombosPanel";
 import DynamicMenuPanel from "./SecondarySidebar/Panels/DynamicMenuPanel";
@@ -44,6 +45,7 @@ export const getPanelTitle = (panel: string | null | undefined, menus?: CustomUI
         combos: "Combos",
         overrides: "Overrides",
         altrepeat: "Alt-Repeat Keys",
+        more: "More",
         leaders: "Leader Sequences",
         layouts: "Layouts",
         pointing: "Pointing Devices",
@@ -69,7 +71,7 @@ export function PanelContent({ panel, horizontal = false, isPicker = false, tray
     const panels = {
         keyboard: BasicKeyboards, layers: LayersPanel, tapdances: TapdancePanel,
         macros: MacrosPanel, combos: CombosPanel, overrides: OverridesPanel,
-        altrepeat: AltRepeatPanel, leaders: LeadersPanel,
+        altrepeat: AltRepeatPanel, more: MorePanel, leaders: LeadersPanel,
         layouts: LayoutsPanel, pointing: PointingPanel, qmk: QmkKeyPanel,
         oneshot: OneShotComposerPanel, special: SpecialKeysPanel, mouse: MousePanel,
         scanlab: ScanLabPanel, trackball: TrackballPanel, settings: SettingsPanel,
