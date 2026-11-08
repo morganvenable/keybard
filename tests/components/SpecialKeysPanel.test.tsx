@@ -3,6 +3,7 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import SpecialKeysPanel from '../../src/layout/SecondarySidebar/Panels/SpecialKeysPanel/SpecialKeysPanel';
 import {
     EDITING_KEYS, MEDIA_KEYS, FEATURE_SWITCH_KEYS, LIGHTING_KEYS, BOARD_KEYS, AUTO_SHIFT_TIMING_KEYS,
+    MODIFIER_TRICK_KEYS, MAGIC_KEYS, MORE_SWITCH_KEYS, SYSTEM_EXTRA_KEYS,
 } from '../../src/constants/special-key-groups';
 import { isUnbuiltKeycode } from '../../src/constants/unbuilt-keycodes';
 
@@ -87,7 +88,7 @@ describe('Special Keys regroup', () => {
 
     it('lists every key once across the data groups', () => {
         const all = [...EDITING_KEYS, ...MEDIA_KEYS, ...FEATURE_SWITCH_KEYS, ...LIGHTING_KEYS, ...BOARD_KEYS,
-            ...AUTO_SHIFT_TIMING_KEYS].map(k => k.keycode);
+            ...AUTO_SHIFT_TIMING_KEYS, ...MODIFIER_TRICK_KEYS, ...MAGIC_KEYS, ...MORE_SWITCH_KEYS, ...SYSTEM_EXTRA_KEYS].map(k => k.keycode);
         expect(new Set(all).size).toBe(all.length);
     });
 });

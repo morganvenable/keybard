@@ -43,6 +43,9 @@ import {
 } from "@/utils/modifierUtils";
 import { hasAltGr } from "@/lib/shiftedLegends";
 import { pickerAltGrFromSearch } from "@/lib/deepLinks";
+import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
+import SpecialKeyGroup from "./SpecialKeysPanel/SpecialKeyGroup";
+import { LOCKING_KEYS } from "@/constants/special-key-groups";
 
 interface Props {
     isPicker?: boolean;
@@ -512,6 +515,11 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                         })}
                     </div>
                 </div>
+
+                {/* Locking keys left Media for here, so the bottom bar needs them too. */}
+                <MoreKeysDisclosure category="keyboard" count={LOCKING_KEYS.length} compact>
+                    <SpecialKeyGroup nested compact title="Locking keys" keys={LOCKING_KEYS} sort={false} />
+                </MoreKeysDisclosure>
             </div>
         );
     }
@@ -694,6 +702,9 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                     <span className="font-semibold text-lg text-kb-ink">Function Keys</span>
                     {renderKeyGrid(functionKeys)}
                 </div>
+                <MoreKeysDisclosure category="keyboard" count={LOCKING_KEYS.length}>
+                    <SpecialKeyGroup nested title="Locking keys" keys={LOCKING_KEYS} sort={false} />
+                </MoreKeysDisclosure>
             </div>
         </div >
     );

@@ -45,9 +45,6 @@ export const MEDIA_KEYS: SpecialKeyDef[] = [
     k("KC_EJCT", "Eject"),
     k("KC_EXEC", "Exec"),
     k("KC_HELP", "Help"),
-    k("KC_LCAP", "Locking Caps"),
-    k("KC_LNUM", "Locking Num"),
-    k("KC_LSCR", "Locking Scroll"),
     k("KC_MAIL", "Mail"),
     k("KC_MNXT", "Media Next"),
     k("KC_MPLY", "Media Play"),
@@ -103,4 +100,79 @@ export const AUTO_SHIFT_TIMING_KEYS: SpecialKeyDef[] = [
     k("KC_ASRP", "Auto Shift Report"),
 ];
 
-export const MORE_KEYS_STORAGE = "keybard-special-more-open";
+/** Working keys with no home before: each shows in a closed More keys group in its picker. */
+export const MODIFIER_TRICK_KEYS: SpecialKeyDef[] = [
+    k("QK_GESC", "Grave Esc"),
+    k("SC_LSPO", "LShift ("),
+    k("SC_RSPC", "RShift )"),
+    k("SC_LCPO", "LCtrl ("),
+    k("SC_RCPC", "RCtrl )"),
+    k("SC_LAPO", "LAlt ("),
+    k("SC_RAPC", "RAlt )"),
+    k("SC_SENT", "Shift Enter"),
+];
+
+export const MAGIC_KEYS: SpecialKeyDef[] = [
+    k("NK_TOGG", "NKRO Toggle"),
+    k("NK_ON", "NKRO On"),
+    k("NK_OFF", "NKRO Off"),
+    k("CL_SWAP", "Swap Ctrl Caps"),
+    k("CL_NORM", "Unswap Ctrl Caps"),
+    k("CL_CTRL", "Caps as Ctrl"),
+    k("CL_CAPS", "Ctrl as Caps"),
+    k("CL_TOGG", "Toggle Ctrl Caps"),
+    k("AG_SWAP", "Swap Alt GUI"),
+    k("AG_NORM", "Unswap Alt GUI"),
+    k("AG_TOGG", "Toggle Alt GUI"),
+    k("CG_SWAP", "Swap Ctrl GUI"),
+    k("CG_NORM", "Unswap Ctrl GUI"),
+    k("CG_TOGG", "Toggle Ctrl GUI"),
+    k("GU_ON", "GUI On"),
+    k("GU_OFF", "GUI Off"),
+    k("GU_TOGG", "Toggle GUI"),
+    k("EC_SWAP", "Swap Esc Caps"),
+    k("EC_NORM", "Unswap Esc Caps"),
+    k("EC_TOGG", "Toggle Esc Caps"),
+    k("BS_SWAP", "Swap Bksp Bslash"),
+    k("BS_NORM", "Unswap Bksp Bslash"),
+    k("BS_TOGG", "Toggle Bksp Bslash"),
+];
+
+/** Key Override and One Shot on/off. */
+export const MORE_SWITCH_KEYS: SpecialKeyDef[] = [
+    k("KO_TOGG", "Overrides Toggle"),
+    k("KO_ON", "Overrides On"),
+    k("KO_OFF", "Overrides Off"),
+    k("OS_TOGG", "One Shot Toggle"),
+    k("OS_ON", "One Shot On"),
+    k("OS_OFF", "One Shot Off"),
+];
+
+export const SYSTEM_EXTRA_KEYS: SpecialKeyDef[] = [
+    k("KC_CONTROL_PANEL", "Control Panel"),
+    k("KC_ASSISTANT", "Assistant"),
+    k("KC_MISSION_CONTROL", "Mission Control"),
+    k("KC_LAUNCHPAD", "Launchpad"),
+];
+
+/** Standard Keys, More keys. */
+export const LOCKING_KEYS: SpecialKeyDef[] = [
+    k("KC_LCAP", "Locking Caps"),
+    k("KC_LNUM", "Locking Num"),
+    k("KC_LSCR", "Locking Scroll"),
+];
+
+/** Mouse Keys, More keys. */
+export const MOUSE_EXTRA_BUTTON_KEYS: SpecialKeyDef[] = [
+    k("KC_BTN6", "Mouse 6"),
+    k("KC_BTN7", "Mouse 7"),
+    k("KC_BTN8", "Mouse 8"),
+];
+
+/** Modifiers a Layer-Mod key can hold, in the order QMK numbers them. */
+export const LM_MODIFIERS = [
+    { id: "LCTL", label: "Ctrl", bit: 0x01 },
+    { id: "LSFT", label: "Shift", bit: 0x02 },
+    { id: "LALT", label: "Alt", bit: 0x04 },
+    { id: "LGUI", label: "GUI", bit: 0x08 },
+] as const;
