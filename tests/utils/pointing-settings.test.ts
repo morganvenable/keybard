@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomUIMenuItem, KeyboardInfo } from '../../src/types/keyboard.types';
+import { CustomValueService } from '../../src/services/custom-value.service';
 import {
     dpiChoices, effectiveDpiIndex, findMenuItem, formatScrollSpeed, hasPointingCards, maxDpiFor, pointingHands, SCROLL_SPEED_STEPS,
     scrollSpeedIndex, scrollSpeedPercent, SVIL_FLAG4_SCROLL_SPEED, withScrollSpeed,
@@ -64,7 +65,7 @@ describe('Pointer speed lists only what does something', () => {
         expect(dpiChoices(DPI, 1200).map((c) => c.index)).toEqual([0, 1, 2, 3, 4]);
     });
 
-    it('gives a TrackPoint no list until the firmware scales it, then the whole list', () => {
+    it('gives a TrackPoint no list until the firmware scales it, then up to its 3200 maximum', () => {
         expect(maxDpiFor('trackpoint', false)).toBeUndefined();
         expect(maxDpiFor('trackpoint', true)).toBe(3200);
         expect(dpiChoices(DPI, 3200).map((c) => c.dpi)).toEqual([200, 400, 600, 800, 1200, 1600, 2400, 3200]);
@@ -117,6 +118,12 @@ describe('Scroll speed in the menu', () => {
         expect(withScrollSpeed(menus, undefined)).toBe(menus);
     });
 
+    it('adds nothing for the sensor-page bit or the value-60 bit of the test build', () => {
+        expect(withScrollSpeed(menus, 0x08)).toBe(menus);
+        expect(withScrollSpeed(menus, 0x10)).toBe(menus);
+        expect(SVIL_FLAG4_SCROLL_SPEED).toBe(0x20);
+    });
+
     it('adds VIA 61 and 62 as two-byte percents before Scroll Settings when the flag is set', () => {
         const out = withScrollSpeed(menus, SVIL_FLAG4_SCROLL_SPEED);
         const left = findMenuItem(out[0].content as CustomUIMenuItem[], 'id_left_scroll_speed')!;
@@ -131,5 +138,53 @@ describe('Scroll speed in the menu', () => {
     it('does not add them twice', () => {
         const once = withScrollSpeed(menus, SVIL_FLAG4_SCROLL_SPEED);
         expect(withScrollSpeed(once, SVIL_FLAG4_SCROLL_SPEED)).toBe(once);
+    });
+});
+
+describe('Scroll speed log mapping and firmware units', () => {
+    // The firmware stores a little-endian u16 percent (protocol.md, values 61 and 62).
+    const toWire = (percent: number): number[] => [percent & 0xff, (percent >> 8) & 0xff];
+    const fromWire = (b: number[]): number => b[0] | (b[1] << 8);
+    const item = { label: 'Left Scroll speed', type: 'range', options: [20, 1000, 1], content: ['id_left_scroll_speed', 0, 61] } as CustomUIMenuItem;
+    const service = new CustomValueService({} as never);
+
+    it('steps are evenly spread on a log scale within a factor of 1.5', () => {
+        for (let i = 1; i < SCROLL_SPEED_STEPS.length; i++) {
+            const ratio = SCROLL_SPEED_STEPS[i] / SCROLL_SPEED_STEPS[i - 1];
+            expect(ratio).toBeGreaterThan(1);
+            expect(ratio).toBeLessThanOrEqual(1.34);
+        }
+        expect(Math.log(10 / 0.2) / (SCROLL_SPEED_STEPS.length - 1)).toBeLessThan(0.21);
+    });
+
+    it('every detent survives the slider to wire to slider round trip', () => {
+        SCROLL_SPEED_STEPS.forEach((step, i) => {
+            const percent = scrollSpeedPercent(i);
+            expect(percent).toBe(Math.round(step * 100));
+            expect(fromWire(toWire(percent))).toBe(percent);
+            expect(scrollSpeedIndex(fromWire(toWire(percent)))).toBe(i);
+        });
+    });
+
+    it('reads a 1000 percent value as two bytes through the board reader', () => {
+        expect(service.getByteWidth(item)).toBe(2);
+        expect(toWire(1000)).toEqual([0xe8, 0x03]);
+        expect(service.bytesToInt([0xe8, 0x03], 2)).toBe(1000);
+        expect(service.intToBytes(1000, 2)).toEqual([0xe8, 0x03]);
+        expect(service.intToBytes(100, 2)).toEqual([100, 0]);
+    });
+
+    it('the readout of a stored percent is its nearest detent', () => {
+        expect(formatScrollSpeed(SCROLL_SPEED_STEPS[scrollSpeedIndex(100)])).toBe('1.0×');
+        expect(formatScrollSpeed(SCROLL_SPEED_STEPS[scrollSpeedIndex(151)])).toBe('1.5×');
+        expect(formatScrollSpeed(SCROLL_SPEED_STEPS[scrollSpeedIndex(1000)])).toBe('10×');
+        expect(formatScrollSpeed(SCROLL_SPEED_STEPS[scrollSpeedIndex(20)])).toBe('0.2×');
+    });
+
+    it('migrated DPI over 800 values land on the nearest detent', () => {
+        // 1210/800 on a pad, 1600/800, 12000/800 clamps to the top of the range
+        expect(SCROLL_SPEED_STEPS[scrollSpeedIndex(151)]).toBe(1.5);
+        expect(SCROLL_SPEED_STEPS[scrollSpeedIndex(200)]).toBe(2);
+        expect(SCROLL_SPEED_STEPS[scrollSpeedIndex(1500)]).toBe(10);
     });
 });
