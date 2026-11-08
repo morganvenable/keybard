@@ -48,16 +48,16 @@ const MoreKeysDisclosure = ({ category, count, children, compact }: Props) => {
             }}
         >
             <summary className="cursor-pointer select-none font-semibold text-lg text-kb-ink">
-                More keys <span className="text-sm font-normal text-kb-gray-border">{count} keys</span>
+                More keys <span className="text-sm font-normal text-muted-foreground">{count === 1 ? "1 key" : `${count} keys`}</span>
             </summary>
             <div className="flex flex-col gap-4 pt-2">
                 {!compact && (
                     <div
-                        className="flex items-center gap-2 rounded-lg border border-dashed border-kb-gray-border px-3 py-1 text-sm text-kb-gray-border"
+                        className="flex items-center gap-2 rounded-lg border border-dashed border-kb-gray-border px-3 py-1 text-sm text-muted-foreground"
                         data-testid="more-keys-search-slot"
                         aria-disabled="true"
                     >
-                        <span>Search (later)</span>
+                        <span>Key search comes later</span>
                     </div>
                 )}
                 {children}

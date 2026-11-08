@@ -128,7 +128,7 @@ const LayersPanel = ({ isPicker }: Props) => {
         <MoreKeysDisclosure category="layers" count={keyboard.layers || 16} compact={small}>
             <div className="flex flex-col gap-2" data-testid="layer-mod-group">
                 <span className="font-semibold text-base text-kb-ink">Layer and modifier</span>
-                <span className="text-xs text-kb-gray-border">Turns a layer on while holding the chosen modifiers.</span>
+                <span className="text-xs text-muted-foreground">Turns a layer on while holding the chosen modifiers.</span>
                 <div className="flex flex-wrap gap-1">
                     {LM_MODIFIERS.map((m) => {
                         const on = lmMods.includes(m.id);
@@ -166,6 +166,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 hoverBackgroundColor={hoverBackgroundColor}
                                 hoverLayerColor={layerColorName}
                                 onClick={lmBits ? () => assignKeycode(code) : undefined}
+                                disableDrag={!lmBits}
                                 disableTooltip={true}
                             />
                         );

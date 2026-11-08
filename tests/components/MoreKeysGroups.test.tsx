@@ -73,7 +73,7 @@ describe('Special Keys More keys', () => {
     it('shows a labeled search slot that is not a control', () => {
         render(<SpecialKeysPanel isPicker />);
         const slot = screen.getByTestId('special-more-keys').querySelector('[data-testid="more-keys-search-slot"]')!;
-        expect(slot.textContent).toBe('Search (later)');
+        expect(slot.textContent).toBe('Key search comes later');
         expect(slot.querySelector('input,button')).toBeNull();
     });
 });

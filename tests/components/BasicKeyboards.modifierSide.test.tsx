@@ -128,3 +128,13 @@ describe('MouseKeysSection: Left/Right modifier toggle', () => {
         expect(keycodes()).toContain('RGUI(KC_BTN1)');
     });
 });
+
+describe('BasicKeyboards: More keys', () => {
+    it.each(['sidebar', 'bottombar'] as const)('offers the locking keys in %s mode', (mode) => {
+        layoutSettings.layoutMode = mode;
+        render(<BasicKeyboards />);
+        const more = screen.getByTestId('keyboard-more-keys');
+        const codes = Array.from(more.querySelectorAll('[data-testid="key"]')).map((el) => el.getAttribute('data-keycode'));
+        expect(codes).toEqual(['KC_LCAP', 'KC_LNUM', 'KC_LSCR']);
+    });
+});

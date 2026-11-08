@@ -515,6 +515,11 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                         })}
                     </div>
                 </div>
+
+                {/* Locking keys left Media for here, so the bottom bar needs them too. */}
+                <MoreKeysDisclosure category="keyboard" count={LOCKING_KEYS.length} compact>
+                    <SpecialKeyGroup nested compact title="Locking keys" keys={LOCKING_KEYS} sort={false} />
+                </MoreKeysDisclosure>
             </div>
         );
     }
