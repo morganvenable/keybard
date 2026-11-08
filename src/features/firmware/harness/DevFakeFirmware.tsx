@@ -4,6 +4,7 @@
 //   &proto=3                   a board on updater protocol 3, which installs by hand
 //   &nochord=1  &fault=...  &speed=4  &differ=1  &usb=left
 //   &chord=never|<ms>          when the person presses the two keys (default 3000 ms)
+//   &embedfw=1                the x4 file is carried inside the page (Install by hand downloads it from memory)
 //   &badfile=1                 the carried x4 file misses its pin: the install is refused
 //   &sides=<scenario>          one-image sides (services/updater/fake-sides-scenarios.ts)
 // Install by hand: Connect stands for plugging the keyboard back in after the copy.
@@ -43,6 +44,7 @@ import { readBoardSummary, type BoardSummary } from "../board-summary";
 import { FirmwareUpdateProvider, useFirmwareUpdates } from "../FirmwareUpdateProvider";
 import type { FirmwareUiHost, UpdateBackup } from "../useFirmwareUpdate";
 import { OPEN_BACKUPS_EVENT } from "../useHalvesDiffer";
+import { EMBEDDED_FILES } from "../embedded";
 import { pinOf, ScaledClock } from "./HarnessApp";
 
 class DevFakeHost extends FakeHost implements FirmwareUiHost {
@@ -180,6 +182,9 @@ export default function DevFakeFirmware({ children }: { children: ReactNode }) {
             });
             // &othersilent=1: the half without USB doesn't answer from the start (it runs Vial or
             // firmware before the updater, which can't link to this one).
+            // &embedfw=1: the page carries the x4 file inside it, as a single-file test build does.
+            if (p.has("embedfw")) EMBEDDED_FILES[x4.tag] = btoa(Array.from(x4.files[HAND_LEFT].bytes, (c) => String.fromCharCode(c)).join(""));
+            (window as unknown as { __pinSha?: string }).__pinSha = pinOf(x4).file.sha256;
             if (p.has("othersilent")) board.setAnswering(otherHand(board.usbHand), false);
             const host = new DevFakeHost(board, clock);
             host.sides = fakeSides?.host;
