@@ -28,17 +28,21 @@ const MOUSE_KEYS: ReadonlySet<string> = new Set([
     "SV_MH_CHANGE_TIMEOUTS",
 ]);
 
-/** Sniper, Boost and scroll keys: the Pointing Devices panel shows these. */
+/**
+ * Sniper, Boost and scroll keys: exactly the ones the Pointing Devices panel
+ * lists (MouseKeysSection.tsx). A new Sniper or Boost key it does not list is
+ * not matched here, so it lands in Svalboard instead of nowhere.
+ */
 const POINTING_KEYS: ReadonlySet<string> = new Set([
+    ...["2", "3", "5", "2_TG", "3_TG", "5_TG"].flatMap((m) => [`SV_SNIPER_${m}`, `SV_BOOST_${m}`]),
     "SV_SCROLL_HOLD",
     "SV_VELOCITY_SCROLL",
     "SV_VELOCITY_SCROLL_TOGGLE",
 ]);
-const POINTING_PREFIXES = ["SV_SNIPER_", "SV_BOOST_"] as const;
 
 export function customKeycodeHome(name: string): CustomKeycodeHome {
     if (MOUSE_KEYS.has(name)) return "mouse";
-    if (POINTING_KEYS.has(name) || POINTING_PREFIXES.some((p) => name.startsWith(p))) return "pointing";
+    if (POINTING_KEYS.has(name)) return "pointing";
     // Not about the pointer (Caps Word, MO 23, MO 45, Turbo Scan, Output Status)
     // and every key this table does not know.
     return "svalboard";

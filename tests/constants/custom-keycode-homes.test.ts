@@ -17,6 +17,11 @@ describe('custom keycode placement', () => {
         }
     });
 
+    it('sends a Sniper or Boost key the Pointing panel does not list to Svalboard', () => {
+        expect(customKeycodeHome('SV_SNIPER_7')).toBe('svalboard');
+        expect(customKeycodeHome('SV_BOOST_10_TG')).toBe('svalboard');
+    });
+
     it('puts non-pointer keys in Svalboard', () => {
         for (const n of ['SV_CAPS_WORD', 'SV_TOGGLE_23_67', 'SV_TOGGLE_45_67', 'SV_TURBO_SCAN', 'SV_OUTPUT_STATUS']) {
             expect(customKeycodeHome(n)).toBe('svalboard');
