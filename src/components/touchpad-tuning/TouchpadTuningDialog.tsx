@@ -20,8 +20,8 @@ export default function TouchpadTuningDialog() {
                 data-touchpad-tuning-dialog
             >
                 <DialogHeader className="shrink-0">
-                    <DialogTitle>Touchpad tuning</DialogTitle>
-                    <DialogDescription>Touch a pad to see each touch as it happens.</DialogDescription>
+                    <DialogTitle>Live view</DialogTitle>
+                    <DialogDescription>Touch a pad to see each touch as it happens. Dead zone, tap and hold times are set under Advanced in Settings.</DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-touchpad-tuning-body>
                     {open && <TouchpadTuning place="dialog" />}

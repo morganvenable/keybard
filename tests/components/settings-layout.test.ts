@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS } from '../../src/contexts/SettingsContext';
-import { HARDWARE_OPEN_SETTING, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
+import { HARDWARE_OPEN_SETTING, POINTING_ADVANCED, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
 import { searchSettings } from '../../src/layout/SecondarySidebar/Panels/settings/search';
 
 describe('Settings page declaration', () => {
@@ -35,8 +35,8 @@ describe('Settings page declaration', () => {
     });
 
     it('is seven cards, each with a chip, a summary and a sentence-case title', () => {
-        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Touchpad tuning', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About']);
-        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Touchpad', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
         for (const s of SETTINGS_PAGE) {
             expect(s.summary, s.id).not.toBe('');
             expect(s.title.slice(1), s.title).toBe(s.title.slice(1).toLowerCase());
@@ -50,17 +50,31 @@ describe('Settings page declaration', () => {
     });
 
     it('holds Hardware, Typing behavior and every block once', () => {
-        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'touchpad', 'typing']);
+        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'pointing', 'typing']);
     });
 
-    it('shows Touchpad tuning only on some boards, beside Hardware', () => {
-        expect([...CONDITIONAL_SECTIONS]).toEqual(['touchpad']);
-        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'touchpad')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'hardware') + 1);
-        expect(SETTINGS_PAGE.find((s) => s.id === 'touchpad')!.rows).toEqual([{ block: 'touchpad' }]);
+    it('shows Pointing only on some boards, beside Hardware, and no Touchpad tuning card', () => {
+        expect([...CONDITIONAL_SECTIONS]).toEqual(['pointing']);
+        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'pointing')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'hardware') + 1);
+        expect(SETTINGS_PAGE.find((s) => s.id === 'pointing')!.rows).toEqual([{ block: 'pointing' }]);
+        expect(SETTINGS_PAGE.some((s) => s.id === 'touchpad')).toBe(false);
     });
 
-    it('opens only Hardware, and the one-line Touchpad tuning entry, on a first visit', () => {
-        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware', 'touchpad']);
+    it('opens only Hardware and Pointing on a first visit', () => {
+        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware', 'pointing']);
+    });
+
+    it('keeps trackball characterization out of About: it is Pointing > Advanced > Live view', () => {
+        expect(onPage).not.toContain('trackball-characterization');
+        expect(SETTINGS_SHOWN_ELSEWHERE['trackball-characterization']).toMatch(/Live view/);
+    });
+
+    it('remembers Advanced and its groups like the cards: Advanced closed, its groups open', () => {
+        expect(POINTING_ADVANCED.map((s) => [s.id, s.defaultOpen])).toEqual([
+            ['pointing-advanced', false], ['pointing-automouse', true], ['pointing-taps', true], ['pointing-scrolling', true], ['pointing-live', true],
+        ]);
+        const keys = [...SETTINGS_PAGE, ...POINTING_ADVANCED].map((s) => sectionStateSetting(s.id));
+        expect(new Set(keys).size).toBe(keys.length);
     });
 
     it('remembers each card under its own setting, Hardware under the one it already used', () => {
@@ -76,18 +90,18 @@ describe('the page a board shows', () => {
     const lookup = () => undefined;
     const debugRow = (page: ReturnType<typeof shownPage>) => page.find((s) => s.id === 'about')!.rows.some((r) => 'block' in r && r.block === 'debug');
 
-    it('has the Debug console row and the Touchpad card only when the board has them', () => {
-        expect(debugRow(shownPage({ touchpad: false, debugConsole: true }))).toBe(true);
-        expect(debugRow(shownPage({ touchpad: false, debugConsole: false }))).toBe(false);
-        expect(shownPage({ touchpad: false, debugConsole: true }).some((s) => s.id === 'touchpad')).toBe(false);
-        expect(shownPage({ touchpad: true, debugConsole: true }).some((s) => s.id === 'touchpad')).toBe(true);
+    it('has the Debug console row and the Pointing card only when the board has them', () => {
+        expect(debugRow(shownPage({ pointing: false, debugConsole: true }))).toBe(true);
+        expect(debugRow(shownPage({ pointing: false, debugConsole: false }))).toBe(false);
+        expect(shownPage({ pointing: false, debugConsole: true }).some((s) => s.id === 'pointing')).toBe(false);
+        expect(shownPage({ pointing: true, debugConsole: true }).some((s) => s.id === 'pointing')).toBe(true);
     });
 
     it('never finds the Debug console row in search when the firmware has no command', () => {
         for (const query of ['debug console', 'console', 'logging']) {
-            const hidden = searchSettings(shownPage({ touchpad: false, debugConsole: false }), query, lookup);
+            const hidden = searchSettings(shownPage({ pointing: false, debugConsole: false }), query, lookup);
             expect(hidden?.get('about')?.rows.has('block:debug') ?? false).toBe(false);
-            const shown = searchSettings(shownPage({ touchpad: false, debugConsole: true }), query, lookup);
+            const shown = searchSettings(shownPage({ pointing: false, debugConsole: true }), query, lookup);
             expect(shown?.get('about')?.rows.has('block:debug')).toBe(true);
         }
     });

@@ -19,7 +19,7 @@ export const SVALBOARD_VIAL_CUSTOM_KEYCODES = [
     { name: 'SV_RECALIBRATE_POINTER', title: "Reset the calibration of the pointing device", shortName: "Fix\nDrift" },
     { name: 'SV_MH_CHANGE_TIMEOUTS', title: "Cycles the auto mouse layer timeout through 200, 300, 400, 500 and 800 ms and no timeout, and saves it.", shortName: "Mouse\nKey\nTimer" },
     { name: 'SV_CAPS_WORD', title: "Toggle Caps Word.", shortName: "Caps\nWord\nToggle" },
-    { name: 'SV_AXIS_SCROLL_LOCK', title: "Toggle Axis Scroll Lock.", shortName: "Axis\nScroll\nLock" },
+    { name: 'SV_AXIS_SCROLL_LOCK', title: "Toggle Axis Lock.", shortName: "Axis\nScroll\nLock" },
     { name: 'SV_TOGGLE_23_67', title: "Toggle layer 2 and 3, if 4 and 5 also active toggle 6 and 7", shortName: "MO 23\n(45=67)" },
     { name: 'SV_TOGGLE_45_67', title: "Toggle layer 4 and 5, if 2 and 3 also active toggle 6 and 7", shortName: "MO 45\n(23=67)" },
     { name: 'SV_SNIPER_2', title: "Slow the cursor 2x more.", shortName: "Sniper\n2x" },

@@ -63,6 +63,8 @@ export const FLAG4_PAD_MODE = 0x02;
 export const FLAG4_DEBUG_CONSOLE = 0x04;
 // flags4 bit 3: the trackball sensor samples (Sval 0x39).
 export const FLAG4_POINTING_SENSOR = 0x08;
+// flags4 bit 4: Scroll speed per hand (VIA 61 left, 62 right: percent, 20-1000, 100 the default).
+export const FLAG4_SCROLL_SPEED = 0x10;
 // pad_gestures.c sval_pad_hold_ms: the hold times the board stores, the default (300) first.
 /** The build's own scroll distance on the native touchpad (50 pixels at 2048 across 43 mm). */
 const FAKE_SCROLL_BUILD_MM100 = 105;
@@ -145,6 +147,10 @@ export interface FakeFirmwareOptions {
     timingUsOnly?: boolean;
     /** Firmware with the touchpad tap setting: VIA values 51-54, GET_INFO byte 20 bit 4. Default true. */
     padGestures?: boolean;
+    /** Firmware with Scroll speed (VIA 61 and 62, GET_INFO byte 21 bit 4). Default true. */
+    scrollSpeed?: boolean;
+    /** A PMW3389 trackball on the left half and the touchpad on the right (with touchpad). Default false. */
+    leftTrackball?: boolean;
     /** An Azoteq touchpad on each half (0x2C, 0x18), instead of no pointing module. Default false. */
     touchpad?: boolean;
     /** The computer asks for touchpad mode (Input Mode 3), as Windows and Linux do. Default false. */
@@ -228,6 +234,10 @@ export class FakeSvalFirmware {
     readonly debounceSwitch: boolean;
     readonly timingUsOnly: boolean;
     readonly padGestures: boolean;
+    readonly scrollSpeed: boolean;
+    readonly leftTrackball: boolean;
+    /** Scroll speed per hand, percent: left, right. */
+    scrollSpeedPct: [number, number] = [100, 100];
     readonly touchpad: boolean;
     /** The computer asks for touchpad mode (Input Mode 3); tests may flip it. */
     hostTouchpad: boolean;
@@ -314,6 +324,9 @@ export class FakeSvalFirmware {
         this.debounceSwitch = options.debounceSwitch ?? true;
         this.timingUsOnly = options.timingUsOnly ?? true;
         this.padGestures = options.padGestures ?? true;
+        this.scrollSpeed = options.scrollSpeed ?? true;
+        this.leftTrackball = options.leftTrackball ?? false;
+        if (this.leftTrackball) this.leftMissing = true;
         this.touchpad = options.touchpad ?? false;
         this.hostTouchpad = options.hostTouchpad ?? false;
         this.multiFinger = options.multiFinger ?? true;
@@ -776,6 +789,18 @@ export class FakeSvalFirmware {
             }
             return;
         }
+        if (this.scrollSpeed && (valueId === 61 || valueId === 62)) {
+            const hand = valueId === 61 ? 0 : 1;
+            if (command === 0x07) {
+                this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
+                this.scrollSpeedPct[hand] = Math.max(20, Math.min(1000, value[0] | (value[1] << 8)));
+                this.changed();
+            } else if (command === 0x08) {
+                value[0] = this.scrollSpeedPct[hand] & 0xff;
+                value[1] = this.scrollSpeedPct[hand] >> 8;
+            }
+            return;
+        }
         if (this.padGestures && this.touchpad && this.multiFinger && valueId === 59) {
             if (command === 0x07) {
                 this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
@@ -1056,7 +1081,7 @@ export class FakeSvalFirmware {
                 data[19] = this.featureFlags2;
                 if (length > 20) data[20] = this.featureFlags3;
                 if (length > 21) data[21] = (this.padGestures && this.touchpad && this.multiFinger ? FLAG4_PAD_PALM | FLAG4_PAD_MODE : 0)
-                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0) | FLAG4_POINTING_SENSOR;
+                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0) | FLAG4_POINTING_SENSOR | (this.scrollSpeed ? FLAG4_SCROLL_SPEED : 0);
                 break;
             }
             case 0x2a: // STORAGE_RESET_CLEAR
@@ -1169,7 +1194,9 @@ export class FakeSvalFirmware {
                             // Bit 4: the pad is a touchpad now (?fakeBoard=touchpad, in Automatic).
                             const os = this.padsOs ? 0x10 : 0;
                             out.set([0x01 | 0x04 | 0x08 | os, 5, 5, 0, 40], 1);
-                            out.set([0x01 | 0x02 | 0x04 | 0x08 | os, 5, 5, 0, 40], 6);
+                            // ?fakeBoard=pointing: a PMW3389 trackball on the left half instead.
+                            if (this.leftTrackball) out.set([0x01 | 0x02 | 0x04 | 0x08, 2, 2, 0x47, 0xb8], 6);
+                            else out.set([0x01 | 0x02 | 0x04 | 0x08 | os, 5, 5, 0, 40], 6);
                         } else {
                             out.set([0x01 | 0x08, 0, 3, 0, 0], 1);
                             out.set([0x01 | 0x02 | 0x08, 0, 3, 0, 0], 6);
