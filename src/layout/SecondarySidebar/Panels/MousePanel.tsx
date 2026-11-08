@@ -13,6 +13,8 @@ import { customKeycodesAt } from "@/constants/custom-keycode-homes";
 import { keyService } from "@/services/key.service";
 import { KeyContent } from "@/types/keyboard.types";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
+import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
+import { MOUSE_EXTRA_BUTTON_KEYS } from "@/constants/special-key-groups";
 import MouseMovementSection from "./MouseMovementSection";
 
 /**
@@ -149,6 +151,9 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                 {renderKeyGroup(mouseWheel, "Wheel")}
                 {renderKeyGroup(mouseAccel, "Accel")}
                 {svalKeys.length > 0 && renderKeyGroup(svalKeys, "Pointer")}
+                <MoreKeysDisclosure category="mouse" count={MOUSE_EXTRA_BUTTON_KEYS.length} compact>
+                    {renderKeyGroup(MOUSE_EXTRA_BUTTON_KEYS, "Buttons 6 to 8")}
+                </MoreKeysDisclosure>
                 {!isPicker && <MouseMovementSection />}
             </div>
         );
@@ -189,6 +194,28 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                         />
                     );
                 })}
+                </div>
+                <div className="pr-[26px] pt-3">
+                    <MoreKeysDisclosure category="mouse" count={MOUSE_EXTRA_BUTTON_KEYS.length}>
+                        {MOUSE_EXTRA_BUTTON_KEYS.map((mouseKey, index) => (
+                            <SidebarItemRow
+                                key={mouseKey.keycode}
+                                index={index}
+                                keyboard={keyboard}
+                                keycode={mouseKey.keycode}
+                                label={keyService.define(mouseKey.keycode)?.str || mouseKey.label}
+                                keyContents={getKeyContents(keyboard, mouseKey.keycode) as KeyContent}
+                                onAssignKeycode={assignKeycode}
+                                hoverBorderColor={hoverStyles.hoverBorderColor}
+                                hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
+                                hoverLayerColor={hoverStyles.layerColorName}
+                                hoverHeaderClass={hoverStyles.hoverHeaderClass}
+                                showIndex={false}
+                                dottedLineAfterLabel
+                                className="py-2"
+                            />
+                        ))}
+                    </MoreKeysDisclosure>
                 </div>
                 {!isPicker && <MouseMovementSection />}
             </div>
