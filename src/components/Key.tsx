@@ -7,6 +7,8 @@ import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { getKeyDisplayText } from "@/utils/key-display";
+import { FittedLabel } from "@/components/FittedLabel";
+import { shortTileLabel } from "@/lib/tileLabel";
 import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
 import type { ComboIndicatorMode } from "@/lib/comboIndicators";
@@ -84,6 +86,12 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     style?: React.CSSProperties;
     unitSize?: number;
     combo?: KeyComboProps;
+    /** The key's full name, for the tooltip and accessible name of a picker tile whose
+     *  label is shortened or wrapped. Defaults to the label on one line. */
+    fullName?: string;
+    /** Fit the label into the tile (wrap between words, shrink, then a short name).
+     *  On by default for tiles laid out in a row (isRelative); keymap keys keep theirs. */
+    fitLabel?: boolean;
 }
 
 /** Focus that came from the keyboard (Tab, arrows), not from a click. */
@@ -101,7 +109,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
-        style, unitSize, combo,
+        style, unitSize, combo, fullName, fitLabel,
         ...rest
     } = props;
 
@@ -119,8 +127,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     // --- Data processing ---
     const { internationalLayout, showShiftedLegends, showAltGrLegends } = useLayoutSettings();
     const baseKeyData = useMemo(() => {
-        return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
-    }, [label, keyContents, keycode, forceLabel, internationalLayout]);
+        return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout, isSmall);
+    }, [label, keyContents, keycode, forceLabel, internationalLayout, isSmall]);
     // With AltGr Symbols on and an AltGr layout, RALT(KC_2) shows the character it types ("²" on
     // German), not "RALT", and the KC_RALT key is labeled AltGr. With it off they keep the RALT band
     // and the normal label.
@@ -236,7 +244,11 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             className
         );
 
-        return { boxStyle, textStyle, bottomTextStyle, containerClasses };
+        // The size the label is drawn at when it fits as it is (the classes below and textStyle).
+        const baseLabelPx = isSmall ? 10 : isMedium ? 12 : (typeof keyData.centerContent === "string" && keyData.centerContent.length === 1 ? 16 : 15);
+        const nominalLabelPx = fontSize ? (fontSize.endsWith("rem") ? parseFloat(fontSize) * 16 : parseFloat(fontSize)) : baseLabelPx;
+
+        return { boxStyle, textStyle, bottomTextStyle, containerClasses, nominalLabelPx };
     }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className, style, comboFocusable]);
 
     // Forced height logic for strict grid alignment without !important
@@ -349,6 +361,13 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     }
 
     // --- Regular key render ---
+    // A tile in a picker row fits its label (src/lib/tileLabel.ts); keymap keys keep theirs.
+    const centerLabelText = typeof (altgrOnly ?? keyData.centerContent) === "string" ? (altgrOnly ?? keyData.centerContent) as string : null;
+    const fitsLabel = (fitLabel ?? isRelative) && centerLabelText !== null && centerLabelText !== "";
+    const tileName = fullName ?? label.replace(/\s+/g, " ").trim();
+    const tileTitle = props.disableTooltip ? (fitsLabel ? tileName : undefined) : (title || keycode);
+    const tileAria = fitsLabel && !comboInteractive ? { "aria-label": tileName } : {};
+
     return (
         <div
             ref={ref}
@@ -361,7 +380,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             onMouseLeave={handleMouseLeave}
             onMouseDown={drag.handleMouseDown}
             onMouseUp={drag.handleMouseUp}
-            title={props.disableTooltip ? undefined : (title || keycode)}
+            title={tileTitle}
+            {...tileAria}
             {...comboAttrs}
             {...rest}
         >
@@ -375,6 +395,14 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
 
             {legendPlan ? (
                 <DualLegendFace plan={legendPlan} variant={variant} />
+            ) : fitsLabel ? (
+                <FittedLabel
+                    text={centerLabelText!}
+                    shortText={shortTileLabel(keycode)}
+                    size={variant}
+                    nominalPx={styles.nominalLabelPx}
+                    className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "px-0" : isMedium ? "px-px" : "px-0.5", (altgrOnly || isAltGrKey) && "normal-case")}
+                />
             ) : (
             <div
                 className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"), (altgrOnly || isAltGrKey) && "normal-case")}
@@ -426,7 +454,8 @@ function processKeyData(
     label: string,
     keyContents: KeyContent | undefined,
     forceLabel: boolean,
-    layoutId: string
+    layoutId: string,
+    small = false
 ) {
     const text = getKeyDisplayText(keycode, label, keyContents, forceLabel, layoutId);
     const { displayLabel, bottomStr } = text;
@@ -436,6 +465,6 @@ function processKeyData(
         topLabel = <div className="flex items-center justify-center gap-1">{icons}</div>;
     }
 
-    const centerContent = getCenterContent(displayLabel, keycode, isMouse);
+    const centerContent = getCenterContent(displayLabel, keycode, isMouse, false, small);
     return { displayLabel, bottomStr, topLabel, centerContent };
 }

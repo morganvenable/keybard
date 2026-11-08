@@ -30,6 +30,7 @@
         "test:e2e:scan-timing": "python tests/e2e/scan_timing_e2e.py",
         "test:e2e:select-contrast": "python tests/e2e/select_contrast_e2e.py",
         "test:e2e:international": "python tests/e2e/international_keys_e2e.py",
+        "test:e2e:tile-labels": "python tests/e2e/picker_tile_labels_e2e.py",
         "test:e2e:import-settings": "python tests/e2e/import_settings_e2e.py",
         "test:e2e:leader-timeout": "python tests/e2e/leader_timeout_e2e.py",
         "test:e2e:touchpad-taps": "python tests/e2e/touchpad_taps_e2e.py",

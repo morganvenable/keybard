@@ -26,10 +26,10 @@ const OtherKeys = ({ compact, variant: variantOverride }: Props) => {
     const keySizeClass = effectiveVariant === 'small' ? 'h-[30px] w-[30px]' : effectiveVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
     const keys = [
-        { keycode: "QK_REPEAT_KEY", label: "Repeat" },
-        { keycode: "QK_ALT_REPEAT_KEY", label: "Alt-Rep" },
-        { keycode: "QK_LAYER_LOCK", label: "Lyr Lock" },
-        { keycode: "QK_LEADER", label: "Leader" },
+        { keycode: "QK_REPEAT_KEY", label: "Repeat", name: "Repeat" },
+        { keycode: "QK_ALT_REPEAT_KEY", label: "Alt-Rep", name: "Alt Repeat" },
+        { keycode: "QK_LAYER_LOCK", label: "Lyr Lock", name: "Layer Lock" },
+        { keycode: "QK_LEADER", label: "Leader", name: "Leader" },
     ];
 
     return (
@@ -51,6 +51,7 @@ const OtherKeys = ({ compact, variant: variantOverride }: Props) => {
                             col={0}
                             keycode={k.keycode}
                             label={displayLabel}
+                            fullName={k.name}
                             layerColor="sidebar"
                             headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                             isRelative
