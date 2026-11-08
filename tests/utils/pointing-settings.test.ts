@@ -67,7 +67,8 @@ describe('Pointer speed lists only what does something', () => {
 
     it('gives a TrackPoint no list until the firmware scales it, then the whole list', () => {
         expect(maxDpiFor('trackpoint', false)).toBeUndefined();
-        expect(maxDpiFor('trackpoint', true)).toBeNull();
+        expect(maxDpiFor('trackpoint', true)).toBe(3200);
+        expect(dpiChoices(DPI, 3200).map((c) => c.dpi)).toEqual([200, 400, 600, 800, 1200, 1600, 2400, 3200]);
         expect(dpiChoices(DPI, null)).toHaveLength(DPI.length);
     });
 

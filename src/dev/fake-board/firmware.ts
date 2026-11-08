@@ -63,8 +63,8 @@ export const FLAG4_PAD_MODE = 0x02;
 export const FLAG4_DEBUG_CONSOLE = 0x04;
 // flags4 bit 3: the trackball sensor samples (Sval 0x39).
 export const FLAG4_POINTING_SENSOR = 0x08;
-// flags4 bit 4: Scroll speed per hand (VIA 61 left, 62 right: percent, 20-1000, 100 the default).
-export const FLAG4_SCROLL_SPEED = 0x10;
+// flags4 bit 5: Scroll speed per hand (VIA 61 left, 62 right: percent, 20-1000, 100 the default).
+export const FLAG4_SCROLL_SPEED = 0x20;
 // pad_gestures.c sval_pad_hold_ms: the hold times the board stores, the default (300) first.
 /** The build's own scroll distance on the native touchpad (50 pixels at 2048 across 43 mm). */
 const FAKE_SCROLL_BUILD_MM100 = 105;
