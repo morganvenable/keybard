@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import SpecialKeysPanel from '../../src/layout/SecondarySidebar/Panels/SpecialKeysPanel/SpecialKeysPanel';
 import {
-    EDITING_KEYS, MEDIA_KEYS, FEATURE_SWITCH_KEYS, LIGHTING_KEYS, BOARD_KEYS, NOT_BUILT_GROUPS, AUTO_SHIFT_TIMING_KEYS,
+    EDITING_KEYS, MEDIA_KEYS, FEATURE_SWITCH_KEYS, LIGHTING_KEYS, BOARD_KEYS, AUTO_SHIFT_TIMING_KEYS,
 } from '../../src/constants/special-key-groups';
+import { isUnbuiltKeycode } from '../../src/constants/unbuilt-keycodes';
 
 const keyboardState: { keyboard: unknown } = { keyboard: null };
 vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardState }));
@@ -56,14 +57,12 @@ describe('Special Keys regroup', () => {
         expect(within(lighting).getByText('LEDs On/Off')).toBeTruthy();
     });
 
-    it('keeps More keys closed, and holds board keys and unbuilt features', () => {
+    it('keeps More keys closed, and holds board keys and Auto Shift timing', () => {
         render(<SpecialKeysPanel isPicker />);
         const more = screen.getByTestId('special-more-keys') as HTMLDetailsElement;
         expect(more.open).toBe(false);
         expect(codesIn(more)).toEqual(expect.arrayContaining(['RESET', 'QK_REBOOT', 'QK_DEBUG_TOGGLE', 'SV_TURBO_SCAN', 'SV_OUTPUT_STATUS']));
         expect(codesIn(more)).not.toContain('QK_CLEAR_EEPROM');
-        const unbuilt = NOT_BUILT_GROUPS.flatMap(g => g.keys.map(k => k.keycode));
-        for (const c of unbuilt) expect(codesIn(more)).toContain(c);
         for (const c of AUTO_SHIFT_TIMING_KEYS.map(k => k.keycode)) expect(codesIn(more)).toContain(c);
     });
 
@@ -77,16 +76,18 @@ describe('Special Keys regroup', () => {
         expect((screen.getByTestId('special-more-keys') as HTMLDetailsElement).open).toBe(true);
     });
 
-    it('never shows an unbuilt key outside More', () => {
+    it('shows no key for a feature the firmware does not build, anywhere in the picker', () => {
         render(<SpecialKeysPanel isPicker />);
-        const more = screen.getByTestId('special-more-keys');
-        const outside = screen.getAllByTestId('key').filter(k => !more.contains(k)).map(k => k.getAttribute('data-keycode'));
-        for (const g of NOT_BUILT_GROUPS) for (const k of g.keys) expect(outside).not.toContain(k.keycode);
+        const shown = screen.getAllByTestId('key').map(k => k.getAttribute('data-keycode') as string);
+        expect(shown.length).toBeGreaterThan(40);
+        expect(shown.filter(isUnbuiltKeycode)).toEqual([]);
+        for (const c of ['AU_ON', 'MU_ON', 'HPT_ON', 'BL_TOGG', 'RGB_MOD', 'RGB_M_B', 'CLICKY_TOGGLE']) expect(shown).not.toContain(c);
+        expect(screen.queryByText(/does nothing|without these features|Haptic|Backlight/i)).toBeNull();
     });
 
     it('lists every key once across the data groups', () => {
         const all = [...EDITING_KEYS, ...MEDIA_KEYS, ...FEATURE_SWITCH_KEYS, ...LIGHTING_KEYS, ...BOARD_KEYS,
-            ...AUTO_SHIFT_TIMING_KEYS, ...NOT_BUILT_GROUPS.flatMap(g => g.keys)].map(k => k.keycode);
+            ...AUTO_SHIFT_TIMING_KEYS].map(k => k.keycode);
         expect(new Set(all).size).toBe(all.length);
     });
 });

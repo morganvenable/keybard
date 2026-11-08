@@ -7,8 +7,6 @@ import {
     AUTO_SHIFT_TIMING_KEYS,
     BOARD_KEYS,
     MORE_KEYS_STORAGE,
-    NOT_BUILT_GROUPS,
-    NOT_BUILT_NOTE,
     type SpecialKeyDef,
 } from "@/constants/special-key-groups";
 
@@ -37,7 +35,7 @@ const MoreKeys = ({ compact, variant }: Props) => {
     }));
     const boardKeys = [...BOARD_KEYS, ...firmwareBoardKeys];
     const count =
-        boardKeys.length + AUTO_SHIFT_TIMING_KEYS.length + NOT_BUILT_GROUPS.reduce((n, g) => n + g.keys.length, 0);
+        boardKeys.length + AUTO_SHIFT_TIMING_KEYS.length;
 
     return (
         <details
@@ -60,12 +58,6 @@ const MoreKeys = ({ compact, variant }: Props) => {
             <div className="flex flex-col gap-4 pt-2">
                 <SpecialKeyGroup nested title="Board and firmware" keys={boardKeys} compact={compact} variant={variant} sort={false} />
                 <SpecialKeyGroup nested title="Auto Shift timing" keys={AUTO_SHIFT_TIMING_KEYS} compact={compact} variant={variant} sort={false} />
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs text-kb-gray-border">{NOT_BUILT_NOTE}</span>
-                    {NOT_BUILT_GROUPS.map((g) => (
-                        <SpecialKeyGroup nested key={g.id} title={g.title} keys={g.keys} compact={compact} variant={variant} sort={false} />
-                    ))}
-                </div>
             </div>
         </details>
     );

@@ -1,14 +1,9 @@
 /**
  * Special Keys groups. Each key lives where its job is.
  *
- * The "not built" groups are checked against the Svalboard firmware build
- * (svalboard/qmk, branch svalboard, keyboards/svalboard):
- *   info.json   audio, backlight, midi and fauxclicky are all false
- *   rules.mk    no HAPTIC_ENABLE anywhere in the keyboard
- *   rgblight    on (it drives the layer LEDs), but no RGBLIGHT_EFFECT_* or
- *               RGBLIGHT_ANIMATIONS define, so rgblight_modes.h builds the
- *               single static mode only: mode and effect keys do nothing
- * Auto Shift, Combos and the console are built, so their keys stay visible.
+ * Only keys that do something on a Svalboard are listed. Keys for features the
+ * firmware does not build are in unbuilt-keycodes.ts, which says why, and no
+ * picker shows them.
  */
 export interface SpecialKeyDef {
     keycode: string;
@@ -107,78 +102,5 @@ export const AUTO_SHIFT_TIMING_KEYS: SpecialKeyDef[] = [
     k("KC_ASUP", "Auto Shift Up"),
     k("KC_ASRP", "Auto Shift Report"),
 ];
-
-/** Keys for features this firmware does not build. They stay assignable, under More. */
-export const NOT_BUILT_GROUPS: SpecialKeyGroupDef[] = [
-    {
-        id: "not-built-audio",
-        title: "Audio, music and clicky",
-        keys: [
-            k("AU_ON", "Audio ON"),
-            k("AU_OFF", "Audio OFF"),
-            k("AU_TOG", "Audio Toggle"),
-            k("CLICKY_TOGGLE", "Clicky Toggle"),
-            k("CLICKY_UP", "Clicky Up"),
-            k("CLICKY_DOWN", "Clicky Down"),
-            k("CLICKY_RESET", "Clicky Reset"),
-            k("MU_ON", "Music On"),
-            k("MU_OFF", "Music Off"),
-            k("MU_TOG", "Music Toggle"),
-            k("MU_MOD", "Music Cycle"),
-        ],
-    },
-    {
-        id: "not-built-haptic",
-        title: "Haptic",
-        keys: [
-            k("HPT_ON", "Haptic On"),
-            k("HPT_OFF", "Haptic Off"),
-            k("HPT_TOG", "Haptic Toggle"),
-            k("HPT_RST", "Haptic Reset"),
-            k("HPT_FBK", "Haptic Feedback"),
-            k("HPT_BUZ", "Haptic Buzz"),
-            k("HPT_MODI", "Haptic Next"),
-            k("HPT_MODD", "Haptic Prev"),
-            k("HPT_CONT", "Haptic Cont."),
-            k("HPT_CONI", "Haptic +"),
-            k("HPT_COND", "Haptic -"),
-            k("HPT_DWLI", "Haptic Dwell+"),
-            k("HPT_DWLD", "Haptic Dwell-"),
-        ],
-    },
-    {
-        id: "not-built-backlight",
-        title: "Backlight",
-        keys: [
-            k("BL_TOGG", "BL Toggle"),
-            k("BL_STEP", "BL Cycle"),
-            k("BL_BRTG", "BL Breath"),
-            k("BL_ON", "BL On"),
-            k("BL_OFF", "BL Off"),
-            k("BL_INC", "BL +"),
-            k("BL_DEC", "BL -"),
-        ],
-    },
-    {
-        id: "not-built-effects",
-        title: "Lighting effects",
-        keys: [
-            k("RGB_MOD", "Mode +"),
-            k("RGB_RMOD", "Mode -"),
-            k("RGB_SPI", "Effect +"),
-            k("RGB_SPD", "Effect -"),
-            k("RGB_M_B", "RGB Mode B"),
-            k("RGB_M_R", "RGB Mode R"),
-            k("RGB_M_SW", "RGB Mode SW"),
-            k("RGB_M_SN", "RGB Mode SN"),
-            k("RGB_M_K", "RGB Mode K"),
-            k("RGB_M_X", "RGB Mode X"),
-            k("RGB_M_G", "RGB Mode G"),
-            k("RGB_M_T", "RGB Mode T"),
-        ],
-    },
-];
-
-export const NOT_BUILT_NOTE = "The Svalboard firmware is built without these features, so they do nothing on the keyboard.";
 
 export const MORE_KEYS_STORAGE = "keybard-special-more-open";
