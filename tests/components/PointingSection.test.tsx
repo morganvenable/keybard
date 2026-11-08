@@ -55,7 +55,7 @@ vi.mock('@/hooks/useMenuValues', async (orig) => ({
 vi.mock('@/components/touchpad-tuning/tuning-open', () => ({ openTouchpadTuning: vi.fn() }));
 
 const FLAGS3_PAD = 0x10 | 0x20 | 0x40;
-const FLAGS4_PAD = 0x01 | 0x02 | 0x10;
+const FLAGS4_PAD = 0x01 | 0x02 | 0x20; // palm, mode, Scroll speed
 
 function setBoard(halves: unknown[], flags3 = 0, flags4 = 0) {
     state.halves = halves; state.flags3 = flags3; state.flags4 = flags4;
@@ -148,9 +148,11 @@ describe('Settings > Pointing', () => {
         expect(within(hand('left')).queryByText('Pointer speed')).toBeNull();
         expect(within(hand('left')).getByText('Scroll Mode')).toBeInTheDocument();
         unmount();
-        setBoard([half('left', 'trackpoint')], 0, FLAGS4_PAD | 0x20);
+        setBoard([half('left', 'trackpoint')], 0, FLAGS4_PAD | 0x40);
         render(<PointingSection />);
         expect(within(hand('left')).getByText('Pointer speed')).toBeInTheDocument();
+        fireEvent.click(within(hand('left')).getByRole('combobox', { name: 'Pointer speed' }));
+        expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['200', '400', '600', '800', '1200', '1600', '2400', '3200']);
     });
 
     it('writes a chosen Pointer speed as the stored index', () => {

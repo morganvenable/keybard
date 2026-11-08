@@ -65,9 +65,10 @@ describe('Pointer speed lists only what does something', () => {
         expect(dpiChoices(DPI, 1200).map((c) => c.index)).toEqual([0, 1, 2, 3, 4]);
     });
 
-    it('gives a TrackPoint no list until the firmware scales it, then the whole list', () => {
+    it('gives a TrackPoint no list until the firmware scales it, then up to its 3200 maximum', () => {
         expect(maxDpiFor('trackpoint', false)).toBeUndefined();
-        expect(maxDpiFor('trackpoint', true)).toBeNull();
+        expect(maxDpiFor('trackpoint', true)).toBe(3200);
+        expect(dpiChoices(DPI, 3200).map((c) => c.dpi)).toEqual([200, 400, 600, 800, 1200, 1600, 2400, 3200]);
         expect(dpiChoices(DPI, null)).toHaveLength(DPI.length);
     });
 
@@ -115,6 +116,12 @@ describe('Scroll speed in the menu', () => {
     it('adds nothing for firmware without the flag', () => {
         expect(withScrollSpeed(menus, 0)).toBe(menus);
         expect(withScrollSpeed(menus, undefined)).toBe(menus);
+    });
+
+    it('adds nothing for the sensor-page bit or the value-60 bit of the test build', () => {
+        expect(withScrollSpeed(menus, 0x08)).toBe(menus);
+        expect(withScrollSpeed(menus, 0x10)).toBe(menus);
+        expect(SVIL_FLAG4_SCROLL_SPEED).toBe(0x20);
     });
 
     it('adds VIA 61 and 62 as two-byte percents before Scroll Settings when the flag is set', () => {
