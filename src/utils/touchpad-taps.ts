@@ -77,7 +77,7 @@ export function touchpadTuningItems(channel: number, featureFlags4?: number | nu
         { label: "Scroll Start (0.01 mm)", type: "range", options: [0, 1000, 5], content: [PAD_SCROLL_KEY, channel, 57] },
         // Palm rejection (VIA 58, GET_INFO byte 21 bit 0): an area in the chip's channels, 0 off.
         ...(hasPadPalm(featureFlags4) ? [{ label: "Palm Rejection (channels)", type: "range" as const, options: [0, 56, 1], content: [PAD_PALM_KEY, channel, 58] }] : []),
-        // Touchpad scroll speed (VIA 60, GET_INFO byte 21 bit 3), percent: the test firmware only.
+        // Touchpad scroll speed (VIA 60, GET_INFO byte 21 bit 4), percent: the test firmware only. Hidden from Pointing Devices (PAD_TUNING_KEYS); the touchpad tuner shows it.
         ...(hasPadSpeed(featureFlags4) ? [{ label: "Touchpad Scroll Speed (%)", type: "range" as const, options: [25, 400, 5], content: [PAD_SPEED_KEY, channel, 60] }] : []),
     ];
 }

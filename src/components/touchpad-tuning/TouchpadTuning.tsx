@@ -236,11 +236,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         <StepControl label="Palm rejection" value={palmValue} table={palmTable} format={formatPalm} onChange={(v) => setNow(PAD_PALM_KEY, v)}
             note="Ignores a contact wider than this, like a resting palm." />
     );
-    // The test firmware's scroll speed: on the board at once, in either touchpad mode.
-    const speedControl = speedOn && (
-        <StepControl label="Touchpad scroll speed" value={speedValue} table={speedTable} format={(v) => `${v / 100}x`} onChange={(v) => setNow(PAD_SPEED_KEY, v)}
-            note="How fast two fingers scroll. 1x is the usual speed." />
-    );
     // A write the board didn't take says so here; the line holds its place, so nothing moves when it does.
     const errorLine = <p className="min-h-5 text-sm text-kb-touch-cancel" role={error ? "alert" : undefined} data-write-error={error ? true : undefined}>{error}</p>;
 
@@ -250,7 +245,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
             <div className={cn("grid gap-2", palmControl && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
                 {mode}
                 {palmControl}
-                {speedControl}
             </div>
             {modeChange.confirm}
             {errorLine}
@@ -260,8 +254,7 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
             {mode}
             {modeChange.confirm}
             {errorLine}
-            {speedControl}
-            <div className={cn("grid gap-2 @lg:grid-cols-2", palmOn ? "@5xl:grid-cols-5" : "@5xl:grid-cols-4")} data-tuning-controls>
+            <div className={cn("grid gap-2 @lg:grid-cols-2", (palmOn ? 1 : 0) + (speedOn ? 1 : 0) === 2 ? "@5xl:grid-cols-6" : (palmOn || speedOn) ? "@5xl:grid-cols-5" : "@5xl:grid-cols-4")} data-tuning-controls>
                 <StepControl label="Dead zone" value={deadZone} table={PAD_DEAD_ZONE_MM100} format={formatMm} onChange={(v) => setNow(PAD_DEAD_ZONE_KEY, v)}
                     note="How far a finger can move and still tap or hold." />
                 <StepControl label="Tap time" value={tapMs} table={PAD_TAP_MS} format={(v) => `${v} ms`} onChange={(v) => setNow(PAD_TAP_MS_KEY, v)}
@@ -270,6 +263,11 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
                     note={holdOn ? `Hold still this much longer to start a drag: ${tapMs + holdMs} ms in all.` : "Press and Hold to Drag is off in Pointing Devices."} />
                 <StepControl label="Scroll start" value={scroll} table={scrollTable} format={formatMm} onChange={(v) => setNow(PAD_SCROLL_KEY, v)}
                     note="How far two fingers move before they scroll." />
+                {/* The test firmware's two-finger scroll speed: a multiplier on the DPI-driven scroll, in the built-in gestures only. */}
+                {speedOn && (
+                    <StepControl label="Two-finger scroll speed" value={speedValue} table={speedTable} format={(v) => `${v}%`} onChange={(v) => setNow(PAD_SPEED_KEY, v)}
+                        note="Two fingers on the pad, on top of the pointer DPI. 100% is the usual speed." />
+                )}
                 {palmControl}
             </div>
         </div>
