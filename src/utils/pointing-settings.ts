@@ -9,10 +9,14 @@ import type { PointingHalfReport, PointingModule, Side } from "./pointing-hardwa
 
 // ---------------------------------------------------------------- flags
 
-/** GET_INFO byte 21 (feature_flags4) bit 4: Scroll speed per hand (VIA values 61 and 62). */
-export const SVIL_FLAG4_SCROLL_SPEED = 0x10;
-/** GET_INFO byte 21 bit 5: a TrackPoint's Pointer speed is software scaling, so its DPI choices do something. */
-export const SVIL_FLAG4_TRACKPOINT_SPEED = 0x20;
+/**
+ * GET_INFO byte 21 (feature_flags4) bit 5: Scroll speed per hand (VIA values 61 and 62).
+ * Bit 3 is the trackball sensor page (0x39), and the test build set bit 4 for its
+ * touchpad-only value 60, so neither means 61 and 62.
+ */
+export const SVIL_FLAG4_SCROLL_SPEED = 0x20;
+/** GET_INFO byte 21 bit 6: a TrackPoint's Pointer speed is software scaling, so its DPI choices up to 3200 do something. */
+export const SVIL_FLAG4_TRACKPOINT_SPEED = 0x40;
 
 export const hasScrollSpeed = (flags4: number | undefined | null): boolean => ((flags4 ?? 0) & SVIL_FLAG4_SCROLL_SPEED) !== 0;
 export const hasTrackpointSpeed = (flags4: number | undefined | null): boolean => ((flags4 ?? 0) & SVIL_FLAG4_TRACKPOINT_SPEED) !== 0;
@@ -74,16 +78,16 @@ export function formatScrollSpeed(multiplier: number): string {
 
 // ---------------------------------------------------------------- pointer speed
 
-/** The highest DPI that does something on a module: the pad's resolution limit, then each sensor's own. */
-export const MODULE_MAX_DPI: Partial<Record<PointingModule, number>> = { azoteq: 1200, pmw3360: 12000, pmw3389: 16000 };
+/** The highest DPI that does something on a module: the pad's resolution limit, each sensor's own, and the TrackPoint's software speed (4x). */
+export const MODULE_MAX_DPI: Record<PointingModule, number> = { azoteq: 1200, pmw3360: 12000, pmw3389: 16000, trackpoint: 3200 };
 
 /**
  * The highest DPI worth listing for a module, or null for no limit. A TrackPoint
- * has no Pointer speed until the firmware scales it in software (then the whole
- * list does something): undefined means the card shows none.
+ * has no Pointer speed until the firmware scales it in software (then up to
+ * 3200): undefined means the card shows none.
  */
 export function maxDpiFor(module: PointingModule | null, trackpointSpeed: boolean): number | null | undefined {
-    if (module === "trackpoint") return trackpointSpeed ? null : undefined;
+    if (module === "trackpoint" && !trackpointSpeed) return undefined;
     if (!module) return null;
     return MODULE_MAX_DPI[module] ?? null;
 }
