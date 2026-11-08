@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { anyKeyFromSearch } from "@/lib/deepLinks";
 import { resolveAnyKey } from "@/lib/anyKey";
 
 interface DialogProps {
@@ -76,7 +77,7 @@ export const AnyKeyDialog = ({ open, onOpenChange }: DialogProps) => {
 
 /** The quiet button in a picker's header. */
 export const AnyKeyButton = () => {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(() => anyKeyFromSearch(window.location.search));
     return (
         <>
             <Button variant="ghost" size="sm" onClick={() => setOpen(true)} data-testid="any-key-button" title="Custom keycode" aria-label="Custom keycode">

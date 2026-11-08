@@ -30,7 +30,6 @@ export const ROW_SYNONYMS: Record<string, string[]> = {
     "altgr-legends": ["alt gr", "euro", "third legend", "german", "qwertz", "azerty", "keycap"],
     "combo-indicators": ["corner", "fold", "marker"],
     "colorblind-combo-colors": ["color blind", "accessibility", "texture", "contrast"],
-    "show-alt-repeat": ["rail", "repeat"],
     import: ["open", "load", "restore", "svil", "vil"],
     export: ["save", "download", "print", "svil", "vil"],
 };

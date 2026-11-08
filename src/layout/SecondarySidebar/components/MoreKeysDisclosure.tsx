@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
+import { moreKeysOpenFromSearch } from "@/lib/deepLinks";
 
 const STORAGE_KEY = "keybard-more-keys-open";
 
@@ -35,9 +37,16 @@ interface Props {
  * The search slot is a labeled placeholder until key search lands.
  */
 const MoreKeysDisclosure = ({ category, count, children, compact }: Props) => {
-    const [open, setOpen] = useState(() => readOpen(category));
+    const fromLink = useRef(moreKeysOpenFromSearch(window.location.search, category));
+    const [open, setOpen] = useState(() => readOpen(category) || fromLink.current);
+    const ref = useRef<HTMLDetailsElement>(null);
+    // A review link (?moreKeys) lands with the group in view.
+    useEffect(() => {
+        if (fromLink.current) ref.current?.scrollIntoView?.({ block: "start" });
+    }, []);
     return (
         <details
+            ref={ref}
             className="flex flex-col gap-2"
             open={open}
             data-testid={`${category}-more-keys`}

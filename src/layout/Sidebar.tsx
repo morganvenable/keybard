@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Keyboard, ListOrdered, LucideIcon, Mouse, PanelLeftClose, PanelLeftOpen, Piano, Rocket, Settings } from "lucide-react";
+import { ArrowLeft, BookOpen, Ellipsis, Keyboard, ListOrdered, LucideIcon, Mouse, PanelLeftClose, PanelLeftOpen, Piano, Rocket, Settings } from "lucide-react";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -32,8 +32,7 @@ import { MANUAL_URL } from "@/lib/manual";
 import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
 import { bindingEditorKind, currentRailMode, isBindingEditorOpen, modalRailExitLabel, pickerCategoryForRail, effectivePickerMode, nudgeBindingEditor, reviewChoice, RAIL_BARS, RAIL_BAR_PARAM, usablePickerCategories } from "@/lib/bindingSpotlight";
-import { ALT_REPEAT_PANEL, panelAllowed, SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
-import { useSettings } from "@/contexts/SettingsContext";
+import { ALT_REPEAT_PANEL, hasAltRepeatEntries, MORE_PANEL } from "@/lib/altRepeatVisibility";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
@@ -82,15 +81,18 @@ export const primarySidebarItems: SidebarItem[] = [
 const SHOW_LEADERS = true;
 
 /**
- * The binding group of the rail: Combos, Leaders, Overrides. Alt-Repeat is the last item, only when its app
- * preference is on. Typing behavior is set up once, so it lives in Settings.
+ * The binding group of the rail: Combos, Leaders, Overrides. Alt-Repeat is the last item when the board has
+ * Alt-Repeat entries; otherwise More is, and Alt-Repeat waits inside it. Typing behavior is set up once, so it
+ * lives in Settings.
  */
-export function featureSidebarItemsFor(showAltRepeat: boolean): SidebarItem[] {
+export function featureSidebarItemsFor(hasAltRepeat: boolean): SidebarItem[] {
     return [
         { title: "Combos", url: "combos", icon: ComboIcon },
         ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
         { title: "Overrides", url: "overrides", icon: OverridesIcon },
-        ...(showAltRepeat ? [{ title: "Alt-Repeat", url: ALT_REPEAT_PANEL, icon: AltRepeatArrowsIcon }] : []),
+        hasAltRepeat
+            ? { title: "Alt-Repeat", url: ALT_REPEAT_PANEL, icon: AltRepeatArrowsIcon }
+            : { title: "More", url: MORE_PANEL, icon: Ellipsis },
     ];
 }
 
@@ -242,7 +244,6 @@ const AppSidebar = () => {
         itemToEdit,
         pickerMode,
         setPickerMode,
-        bindingTypeToEdit,
         handleCloseEditor,
     } = usePanels();
     // While a binding editor is open, the rail's picker categories switch the
@@ -287,21 +288,9 @@ const AppSidebar = () => {
     // Owner review: ?railBar=flush|gap2|kiss (unset is flush).
     const railBar = useMemo(() => reviewChoice(window.location.search, RAIL_BAR_PARAM, RAIL_BARS), []);
 
-    // Alt-Repeat is an app preference, off by default. Turning it off while its
-    // panel or editor is open closes them; the board's entries are untouched.
-    const { getSetting } = useSettings();
-    const showAltRepeat = getSetting(SHOW_ALT_REPEAT_SETTING) === true;
-    const featureSidebarItems = useMemo(() => featureSidebarItemsFor(showAltRepeat), [showAltRepeat]);
-    useEffect(() => {
-        const editingAltRepeat = itemToEdit !== null && !panelAllowed(bindingTypeToEdit, showAltRepeat);
-        if (panelAllowed(activePanel, showAltRepeat) && !editingAltRepeat) return;
-        setItemToEdit(null);
-        setAlternativeHeader(false);
-        setPanelToGoBack(null);
-        handleCloseDetails();
-    }, [activePanel, itemToEdit, bindingTypeToEdit, showAltRepeat, setItemToEdit, setAlternativeHeader, setPanelToGoBack, handleCloseDetails]);
-
-
+    // Alt-Repeat has its own rail item once the board has entries; until then it waits under More.
+    const hasAltRepeat = hasAltRepeatEntries(keyboard);
+    const featureSidebarItems = useMemo(() => featureSidebarItemsFor(hasAltRepeat), [hasAltRepeat]);
 
     const handleItemSelect = useCallback(
         (selected: SidebarItem) => {
@@ -337,7 +326,6 @@ const AppSidebar = () => {
             if (window.innerWidth < 900) setNavigationOpen(false);
             // The desktop overlay is a separate app: a small dialog, not a panel.
             if (item.url === "trainer") { setOverlayOpen(true); return; }
-            if (!panelAllowed(item.url, showAltRepeat)) return;
             if (item.url === "matrixtester") {
                 if (activePanel === item.url) {
                     setActivePanel(null);
@@ -360,7 +348,7 @@ const AppSidebar = () => {
                 setItemToEdit(null);
             }
         },
-        [editing, railModal, railCollapse, showAltRepeat, setPickerMode, setNavigationOpen, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
+        [editing, railModal, railCollapse, setPickerMode, setNavigationOpen, activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
 

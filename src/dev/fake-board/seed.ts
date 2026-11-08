@@ -108,6 +108,15 @@ export function seedLegends(state: FakeBoardState) {
     });
 }
 
+/** One Alt-Repeat entry: after A, repeat sends S (keycode, alt keycode, allowed mods, options). */
+export function seedAltRepeat(state: FakeBoardState) {
+    const kc = keycodeParser();
+    put16(state.altRepeatKey, 0, kc("KC_A"));
+    put16(state.altRepeatKey, 2, kc("KC_S"));
+    state.altRepeatKey[4] = 0;
+    state.altRepeatKey[5] = 0;
+}
+
 /** QMK macro buffer bytes for one macro: text and single-key taps (SS_QMK_PREFIX, SS_TAP_CODE). */
 function macroBytes(actions: readonly (readonly (string | number)[])[], kc: (name: string) => number): number[] {
     const out: number[] = [];

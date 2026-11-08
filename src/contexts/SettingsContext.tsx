@@ -6,7 +6,6 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 
 import { SettingsService } from "@/services/settings.service";
 import { DEFAULT_THEME_PREF, THEME_SETTING_NAME } from "@/lib/theme";
-import { DEFAULT_SHOW_ALT_REPEAT, SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING, DEFAULT_COMBO_INDICATORS_ON } from "@/lib/comboIndicators";
 import { KEY_LEGENDS_ITEMS } from "@/lib/keyLegendsSetting";
 import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
@@ -64,13 +63,6 @@ export const SETTINGS: SettingDefinition[] = [
         label: "AltGr Symbols",
         description: "Also show what AltGr types on each key, lower right, for keyboard layouts that have one.",
         defaultValue: DEFAULT_ALTGR_LEGENDS,
-        type: "boolean",
-    },
-    {
-        name: SHOW_ALT_REPEAT_SETTING,
-        label: "Show Alt-Repeat",
-        description: "Add Alt-Repeat to the rail.",
-        defaultValue: DEFAULT_SHOW_ALT_REPEAT,
         type: "boolean",
     },
     {
@@ -161,7 +153,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         name: "general",
         label: "General",
         icon: SettingsIcon,
-        settings: [THEME_SETTING_NAME, "typing-binds-key", COMBO_INDICATOR_SETTING, COMBO_COLORBLIND_SETTING, SHOW_ALT_REPEAT_SETTING, "serial-assignment", "international-keyboards", SHIFTED_LEGENDS_SETTING, ALTGR_LEGENDS_SETTING, "qmk-settings", "print"],
+        settings: [THEME_SETTING_NAME, "typing-binds-key", COMBO_INDICATOR_SETTING, COMBO_COLORBLIND_SETTING, "serial-assignment", "international-keyboards", SHIFTED_LEGENDS_SETTING, ALTGR_LEGENDS_SETTING, "qmk-settings", "print"],
     },
     {
         name: "fragments",

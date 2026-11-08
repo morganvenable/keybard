@@ -24,6 +24,8 @@
  *   ?fakeBoard=legends is this firmware with a few digit and punctuation keys
  *   wrapped in a modifier, a mod-tap and a layer-tap, some in combos (the
  *   shifted-legends checks, LEGEND_SEED_KEYS in seed.ts; fresh on every load).
+ *   ?fakeBoard=altrepeat is this firmware with one Alt-Repeat entry, so the rail
+ *   shows Alt-Repeat as its own item (fresh on every load).
  *   ?fakeBoard=leader0 is firmware from before x4.3.3 whose settings reset
  *   stored a leader timeout of 0 (fresh on every load).
  *   Its settings stay in this browser across reloads (except turbo6 and leader0).
@@ -71,6 +73,20 @@ export function altgrLegendsFromSearch(search: string): boolean | null {
     return null;
 }
 
+export const MORE_KEYS_PARAM = "moreKeys";
+export const ANY_KEY_PARAM = "anyKey";
+
+/** ?moreKeys opens every More keys group (or only ?moreKeys=special, mouse...), for this load only. */
+export function moreKeysOpenFromSearch(search: string, category: string): boolean {
+    const value = param(search, MORE_KEYS_PARAM)?.trim().toLowerCase();
+    return value !== undefined && value !== null && (value === "" || value === "1" || value === "on" || value === category);
+}
+
+/** ?anyKey opens the Any key dialog once a key is selected (review links). */
+export function anyKeyFromSearch(search: string): boolean {
+    return param(search, ANY_KEY_PARAM) !== null;
+}
+
 export type DemoChoice = "qwerty" | "combos";
 
 function param(search: string, name: string): string | null {
@@ -98,14 +114,14 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
  * "combo-names": this firmware (combo names, typing pause); "old": firmware
  * without combo names; "no-pause": firmware that can't pause typing.
  */
-export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "unread" | "legends";
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "unread" | "legends" | "altrepeat";
 
 /** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
     const v = value.trim().toLowerCase();
-    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "unread" ? "unread" : v === "legends" ? "legends" : "combo-names";
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "unread" ? "unread" : v === "legends" ? "legends" : v === "altrepeat" ? "altrepeat" : "combo-names";
 }
 
 /** ?tester: open the matrix tester on start. */
