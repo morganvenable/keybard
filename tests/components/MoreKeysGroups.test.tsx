@@ -70,6 +70,12 @@ describe('Special Keys More keys', () => {
         for (const c of ['QK_GESC', 'NK_TOGG', 'KO_TOGG', 'OS_TOGG']) expect(outside).not.toContain(c);
     });
 
+    it('ends with the Custom keycode tile', () => {
+        render(<SpecialKeysPanel isPicker />);
+        const more = screen.getByTestId('special-more-keys');
+        expect(within(more).getByTestId('any-key-tile')).toBeTruthy();
+    });
+
     it('shows a labeled search slot that is not a control', () => {
         render(<SpecialKeysPanel isPicker />);
         const slot = screen.getByTestId('special-more-keys').querySelector('[data-testid="more-keys-search-slot"]')!;

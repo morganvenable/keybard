@@ -1,5 +1,6 @@
 import SpecialKeyGroup from "./SpecialKeyGroup";
 import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
+import { AnyKeyTile } from "@/layout/SecondarySidebar/components/AnyKey";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { customKeycodeShortName } from "@/constants/custom-keycode-labels";
 import { customKeycodesAt } from "@/constants/custom-keycode-homes";
@@ -42,6 +43,7 @@ const MoreKeys = ({ compact, variant }: Props) => {
             <SpecialKeyGroup nested title="Overrides and One Shot" keys={MORE_SWITCH_KEYS} compact={compact} variant={variant} sort={false} />
             <SpecialKeyGroup nested title="Auto Shift timing" keys={AUTO_SHIFT_TIMING_KEYS} compact={compact} variant={variant} sort={false} />
             <SpecialKeyGroup nested title="System extras" keys={SYSTEM_EXTRA_KEYS} compact={compact} variant={variant} sort={false} />
+            <AnyKeyTile />
         </MoreKeysDisclosure>
     );
 };
