@@ -5,6 +5,7 @@ import InternationalKeys from "./InternationalKeys";
 import MediaKeys from "./MediaKeys";
 import OtherKeys from "./OtherKeys";
 import StenoKeys from "./StenoKeys";
+import SvalboardKeys from "./SvalboardKeys";
 
 interface Props {
     isPicker?: boolean;
@@ -18,6 +19,7 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
         return (
             <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
                 <OtherKeys variant="medium" />
+                <SvalboardKeys variant="medium" />
                 <MediaKeys variant="medium" />
                 <AudioKeys variant="medium" />
                 <BacklightsKeys variant="medium" />
@@ -35,6 +37,7 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
                 </div>
             )}
             <OtherKeys />
+            <SvalboardKeys />
             <MediaKeys />
             <AudioKeys />
             <BacklightsKeys />
