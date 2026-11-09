@@ -16,3 +16,13 @@ export const isKeySizePreference = (value: unknown): value is KeySizePreference 
 
 export const isPanelPositionPreference = (value: unknown): value is PanelPositionPreference =>
     value === "auto" || value === "sidebar" || value === "bottombar";
+
+/** ?panelPosition=bottombar or sidebar: where the panel sits for this load only (review links). */
+export function panelPositionFromSearch(search: string): "sidebar" | "bottombar" | null {
+    try {
+        const v = new URLSearchParams(search).get("panelPosition")?.trim().toLowerCase();
+        return v === "bottombar" || v === "tray" ? "bottombar" : v === "sidebar" ? "sidebar" : null;
+    } catch {
+        return null;
+    }
+}

@@ -17,7 +17,7 @@ import {
     ChipModel, nearest, packPadFingers, packPadTouch, PAD_DEAD_ZONE_MM100, PAD_HEIGHT_MM100, PAD_SCROLL_MM100, PAD_TAP_MS, PAD_WIDTH_MM100, type ChipSettings,
 } from "@/utils/touchpad-tuning";
 import { SCRIPT_MS, scriptSample } from "./touch-script";
-import { DEFINITION_BYTES, FRAGMENT_INSTANCE_COUNT, POINTING_AZOTEQ_FRAGMENT_ID, POINTING_FRAGMENT_INSTANCES, POINTING_NONE_FRAGMENT_ID } from "./definition";
+import { DEFINITION_BYTES, FRAGMENT_INSTANCE_COUNT, POINTING_FRAGMENT_BY_MODULE, POINTING_FRAGMENT_INSTANCES, POINTING_INSTANCE_SIDE } from "./definition";
 
 // ---- client wrapper (client_wrapper.c / .h) --------------------------------
 const WRAPPER_PREFIX = 0xdd;
@@ -63,6 +63,19 @@ export const FLAG4_PAD_MODE = 0x02;
 export const FLAG4_DEBUG_CONSOLE = 0x04;
 // flags4 bit 3: the trackball sensor samples (Sval 0x39).
 export const FLAG4_POINTING_SENSOR = 0x08;
+// flags4 bit 5: Scroll speed per hand (VIA 61 left, 62 right: percent, 20-1000, 100 the default).
+export const FLAG4_SCROLL_SPEED = 0x20;
+// flags4 bit 6: a TrackPoint's pointer speed is software scaling (DPI choices up to 3200).
+export const FLAG4_TRACKPOINT_SPEED = 0x40;
+
+/** What a half's pointing slot holds (the 0x2C reply's detected module). */
+export type FakeModule = "pmw3389" | "azoteq" | "trackpoint" | "none";
+const MODULE_BLOCK: Record<FakeModule, { built: number; detected: number; id0: number; id1: number }> = {
+    pmw3389: { built: 2, detected: 2, id0: 0x47, id1: 0xb8 },
+    azoteq: { built: 5, detected: 5, id0: 0, id1: 40 },
+    trackpoint: { built: 6, detected: 6, id0: 0, id1: 0 },
+    none: { built: 0, detected: 3, id0: 0, id1: 0 },
+};
 // pad_gestures.c sval_pad_hold_ms: the hold times the board stores, the default (300) first.
 /** The build's own scroll distance on the native touchpad (50 pixels at 2048 across 43 mm). */
 const FAKE_SCROLL_BUILD_MM100 = 105;
@@ -145,8 +158,17 @@ export interface FakeFirmwareOptions {
     timingUsOnly?: boolean;
     /** Firmware with the touchpad tap setting: VIA values 51-54, GET_INFO byte 20 bit 4. Default true. */
     padGestures?: boolean;
+    /** Firmware with Scroll speed (VIA 61 and 62, GET_INFO byte 21 bit 4). Default true. */
+    scrollSpeed?: boolean;
+    /** A PMW3389 trackball on the left half and the touchpad on the right (with touchpad). Default false. */
+    leftTrackball?: boolean;
     /** An Azoteq touchpad on each half (0x2C, 0x18), instead of no pointing module. Default false. */
     touchpad?: boolean;
+    /**
+     * The module on each half, instead of leftTrackball and touchpad:
+     * ?fakeBoard=two-balls, ball-trackpoint and no-module use it.
+     */
+    modules?: { left: FakeModule; right: FakeModule };
     /** The computer asks for touchpad mode (Input Mode 3), as Windows and Linux do. Default false. */
     hostTouchpad?: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode (after v4.3.4). Default true. */
@@ -228,7 +250,13 @@ export class FakeSvalFirmware {
     readonly debounceSwitch: boolean;
     readonly timingUsOnly: boolean;
     readonly padGestures: boolean;
+    readonly scrollSpeed: boolean;
+    readonly leftTrackball: boolean;
+    /** Scroll speed per hand, percent: left, right. */
+    scrollSpeedPct: [number, number] = [100, 100];
     readonly touchpad: boolean;
+    /** The module on each half. */
+    readonly modules: { left: FakeModule; right: FakeModule };
     /** The computer asks for touchpad mode (Input Mode 3); tests may flip it. */
     hostTouchpad: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode; false is v4.3.4's touch page only. */
@@ -314,7 +342,14 @@ export class FakeSvalFirmware {
         this.debounceSwitch = options.debounceSwitch ?? true;
         this.timingUsOnly = options.timingUsOnly ?? true;
         this.padGestures = options.padGestures ?? true;
-        this.touchpad = options.touchpad ?? false;
+        this.scrollSpeed = options.scrollSpeed ?? true;
+        const padBoard = options.touchpad ?? false;
+        this.modules = options.modules
+            ?? (padBoard ? { left: options.leftTrackball ? "pmw3389" : "azoteq", right: "azoteq" } : { left: "none", right: "none" });
+        // A pad on at least one half: the pad pages answer (the half without one reads as missing).
+        this.touchpad = this.modules.left === "azoteq" || this.modules.right === "azoteq";
+        this.leftTrackball = this.modules.left === "pmw3389";
+        if (this.touchpad && this.modules.left !== "azoteq") this.leftMissing = true;
         this.hostTouchpad = options.hostTouchpad ?? false;
         this.multiFinger = options.multiFinger ?? true;
         this.onChange = options.onChange;
@@ -776,6 +811,18 @@ export class FakeSvalFirmware {
             }
             return;
         }
+        if (this.scrollSpeed && (valueId === 61 || valueId === 62)) {
+            const hand = valueId === 61 ? 0 : 1;
+            if (command === 0x07) {
+                this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
+                this.scrollSpeedPct[hand] = Math.max(20, Math.min(1000, value[0] | (value[1] << 8)));
+                this.changed();
+            } else if (command === 0x08) {
+                value[0] = this.scrollSpeedPct[hand] & 0xff;
+                value[1] = this.scrollSpeedPct[hand] >> 8;
+            }
+            return;
+        }
         if (this.padGestures && this.touchpad && this.multiFinger && valueId === 59) {
             if (command === 0x07) {
                 this.customWrites.push({ id: valueId, value: Array.from(value.subarray(0, 2)) });
@@ -1056,7 +1103,8 @@ export class FakeSvalFirmware {
                 data[19] = this.featureFlags2;
                 if (length > 20) data[20] = this.featureFlags3;
                 if (length > 21) data[21] = (this.padGestures && this.touchpad && this.multiFinger ? FLAG4_PAD_PALM | FLAG4_PAD_MODE : 0)
-                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0) | FLAG4_POINTING_SENSOR;
+                    | (this.debugConsole ? FLAG4_DEBUG_CONSOLE : 0) | FLAG4_POINTING_SENSOR | (this.scrollSpeed ? FLAG4_SCROLL_SPEED : 0)
+                    | (this.modules.left === "trackpoint" || this.modules.right === "trackpoint" ? FLAG4_TRACKPOINT_SPEED : 0);
                 break;
             }
             case 0x2a: // STORAGE_RESET_CLEAR
@@ -1163,17 +1211,15 @@ export class FakeSvalFirmware {
                     if (out.length >= 11) {
                         out[0] = 1; // format
                         // This half (the USB half: right), then the other (left).
-                        // flags: reported | auto (the build drives whatever answers); built for none; none answered.
-                        if (this.touchpad) {
-                            // An Azoteq pad on each half (IQS550: product 40).
-                            // Bit 4: the pad is a touchpad now (?fakeBoard=touchpad, in Automatic).
-                            const os = this.padsOs ? 0x10 : 0;
-                            out.set([0x01 | 0x04 | 0x08 | os, 5, 5, 0, 40], 1);
-                            out.set([0x01 | 0x02 | 0x04 | 0x08 | os, 5, 5, 0, 40], 6);
-                        } else {
-                            out.set([0x01 | 0x08, 0, 3, 0, 0], 1);
-                            out.set([0x01 | 0x02 | 0x08, 0, 3, 0, 0], 6);
-                        }
+                        // flags: reported | driver started (a module answered) | auto (the build drives whatever answers) | bit 4 the pad is a touchpad (Automatic).
+                        const os = this.padsOs ? 0x10 : 0;
+                        const block = (m: FakeModule, left: boolean): number[] => {
+                            const b = MODULE_BLOCK[m];
+                            const flags = 0x01 | 0x08 | (left ? 0x02 : 0) | (m === "none" ? 0 : 0x04) | (m === "azoteq" ? os : 0);
+                            return [flags, b.built, b.detected, b.id0, b.id1];
+                        };
+                        out.set(block(this.modules.right, false), 1);
+                        out.set(block(this.modules.left, true), 6);
                     }
                 }
                 break;
@@ -1188,6 +1234,9 @@ export class FakeSvalFirmware {
                 const op = data[2], hand = data[3] & 1, cursor = le16(data, 4);
                 if (length > 2) data.subarray(2, length).fill(0);
                 if (op !== 0 || length < 2 + 25) break;
+                // Only a half with a PMW trackball has a sensor to read; the other half answers "not present".
+                const handModule = hand ? this.modules.right : this.modules.left;
+                if (handModule !== "pmw3389") { data[2] = 1; data[3] = hand ? 0x10 : 0; break; }
                 const head = Math.floor(this.now() / 50) & 0xffff;
                 const behind = (head - cursor) & 0xffff;
                 const lost = behind > 256 || behind === 0 && cursor !== head;
@@ -1220,7 +1269,7 @@ export class FakeSvalFirmware {
             case 0x18: { // FRAGMENT_GET_HARDWARE: [count][21 ids]
                 data[2] = FRAGMENT_INSTANCE_COUNT;
                 for (let i = 0; i < FRAGMENT_MAX_INSTANCES; i++) {
-                    data[3 + i] = POINTING_FRAGMENT_INSTANCES.includes(i) ? (this.touchpad ? POINTING_AZOTEQ_FRAGMENT_ID : POINTING_NONE_FRAGMENT_ID) : 0xff;
+                    data[3 + i] = POINTING_FRAGMENT_INSTANCES.includes(i) ? POINTING_FRAGMENT_BY_MODULE[this.modules[POINTING_INSTANCE_SIDE[i]]] : 0xff;
                 }
                 break;
             }

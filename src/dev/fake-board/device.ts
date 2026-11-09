@@ -1,8 +1,8 @@
 // FakeSvalboardDevice: the parts of WebHID's HIDDevice Keybard uses, answered
 // by the simulated firmware (firmware.ts) instead of a USB keyboard.
 import { loadStoredBoard, storeBoard, wipeFakeBoard, type FakeBoardState } from "./board";
-import { FakeSvalFirmware } from "./firmware";
-import { seedBoard, seedKeymap, seedLegends } from "./seed";
+import { FakeSvalFirmware, type FakeModule } from "./firmware";
+import { seedAltRepeat, seedBoard, seedKeymap, seedLegends } from "./seed";
 
 /** What the simulated board calls itself, so nobody takes it for a real one. */
 export const FAKE_BOARD_PRODUCT_NAME = "Simulated Svalboard";
@@ -25,8 +25,14 @@ export interface FakeSvalboardOptions {
     timingUsOnly?: boolean;
     /** Firmware with the touchpad tap setting (VIA values 51-54). Default true. */
     padGestures?: boolean;
+    /** Firmware with Scroll speed (VIA 61 and 62). Default true. */
+    scrollSpeed?: boolean;
+    /** A PMW3389 trackball on the left half, the touchpad on the right. Default false. */
+    leftTrackball?: boolean;
     /** An Azoteq touchpad on each half. Default false. */
     touchpad?: boolean;
+    /** The module on each half, instead of leftTrackball and touchpad. */
+    modules?: { left: FakeModule; right: FakeModule };
     /** The computer asks for touchpad mode (Input Mode 3), as Windows and Linux do. Default false. */
     hostTouchpad?: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode. Default true. */
@@ -50,6 +56,8 @@ export interface FakeSvalboardOptions {
     seedUnread?: boolean;
     /** Digit and punctuation keys with every kind of indicator (seedLegends). Fresh on every load. */
     seedLegends?: boolean;
+    /** One Alt-Repeat entry (seedAltRepeat). Fresh on every load. */
+    seedAltRepeat?: boolean;
     /** The raw HID report size: 32 (default, as older firmware) or 64 (current firmware). */
     reportLength?: number;
     /** The board's stored settings; default: localStorage, else a freshly seeded board. */
@@ -149,7 +157,7 @@ export class FakeSvalboardDevice extends EventTarget {
         super();
         this.reportLength = options.reportLength ?? FAKE_BOARD_REPORT_LENGTH;
         this.collections = [rawHidCollection(this.reportLength)];
-        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero && !options.seedUnread && !options.seedLegends);
+        const persist = options.persist ?? (!options.state && options.seedTurbo === undefined && !options.seedLeaderZero && !options.seedUnread && !options.seedLegends && !options.seedAltRepeat);
         this.persisting = persist;
         let state = options.state ?? (persist ? loadStoredBoard() : null);
         if (!state) {
@@ -164,6 +172,7 @@ export class FakeSvalboardDevice extends EventTarget {
                 state.qmkSettings[42] = 0; // leader_options
             }
             if (options.seedLegends) seedLegends(state);
+            if (options.seedAltRepeat) seedAltRepeat(state);
             if (options.seedUnread) {
                 state.tapDance[1 * 10 + 8] = 0; // tap dance 1: term 0, stored off (an older firmware's unused slot)
                 state.tapDance[1 * 10 + 9] = 0;
@@ -180,7 +189,10 @@ export class FakeSvalboardDevice extends EventTarget {
             debounceSwitch: options.debounceSwitch ?? true,
             timingUsOnly: options.timingUsOnly ?? true,
             padGestures: options.padGestures ?? true,
+            scrollSpeed: options.scrollSpeed ?? true,
+            leftTrackball: options.leftTrackball ?? false,
             touchpad: options.touchpad ?? false,
+            modules: options.modules,
             hostTouchpad: options.hostTouchpad ?? false,
             multiFinger: options.multiFinger ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },

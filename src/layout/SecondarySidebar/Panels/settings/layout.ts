@@ -1,6 +1,5 @@
 import { THEME_SETTING_NAME } from "@/lib/theme";
 import { KEY_SIZE_SETTING, PANEL_POSITION_SETTING } from "@/lib/appearance-settings";
-import { SHOW_ALT_REPEAT_SETTING } from "@/lib/altRepeatVisibility";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING } from "@/lib/comboIndicators";
 import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 
@@ -18,7 +17,7 @@ import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLeg
  * description for this page) or a block this page renders itself. To add a
  * preference, add its definition to SETTINGS and its name to a section here.
  */
-export type SettingsBlock = "hardware" | "touchpad" | "firmware" | "board" | "backups" | "typing" | "about" | "debug";
+export type SettingsBlock = "hardware" | "firmware" | "board" | "backups" | "typing" | "power" | "about" | "debug";
 
 export type SettingsRow =
     | { setting: string; label?: string; description?: string }
@@ -56,17 +55,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         // Set up once when the board arrives: open until someone collapses it.
         defaultOpen: true,
         rows: [{ block: "hardware" }, { block: "board" }],
-        summary: "Clusters, pointing devices, ball color and board name",
-    },
-    {
-        id: "touchpad",
-        title: "Touchpad tuning",
-        chip: "Touchpad",
-        // One line and a button that opens the tuning dialog: always open, it is that small.
-        defaultOpen: true,
-        // Only on a board with a touchpad and firmware that has the setting (SettingsPanel).
-        rows: [{ block: "touchpad" }],
-        summary: "Dead zone, tap and hold times, and each pad live",
+        summary: "Clusters, pointing modules, ball color and board name",
     },
     {
         id: "firmware",
@@ -102,7 +91,6 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             { setting: "international-keyboards", label: "Key legends", description: "The keyboard layout your computer uses, so keys show what they type." },
             { setting: SHIFTED_LEGENDS_SETTING, label: "Shifted Key Symbols" },
             { setting: ALTGR_LEGENDS_SETTING, label: "AltGr Symbols" },
-            { setting: SHOW_ALT_REPEAT_SETTING },
             { setting: COMBO_INDICATOR_SETTING, label: "Combo indicators" },
             { setting: COMBO_COLORBLIND_SETTING, label: "Colorblind-friendly combo colors" },
         ],
@@ -117,6 +105,16 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         summary: "Tap-hold, Auto Shift, one-shot keys and key swaps",
     },
     {
+        id: "power",
+        title: "Power and scanning",
+        chip: "Power",
+        // Set once, if ever: closed until someone opens it.
+        defaultOpen: false,
+        // Only on a board whose firmware carries these values (SettingsPanel).
+        rows: [{ block: "power" }],
+        summary: "Idle timing, scan pacing and the trackball rest mode",
+    },
+    {
         id: "about",
         title: "About",
         chip: "About",
@@ -126,28 +124,26 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             // Only on firmware with the debug console command (DebugConsoleRow).
             { block: "debug" },
             { setting: "scan-lab", label: "Scan Lab", description: "Measure key scanning and sensor timing." },
-            { setting: "trackball-characterization", label: "Trackball characterization", description: "Watch each trackball sensor's surface quality and readings live." },
             { setting: "key-proof-sheet", label: "Key proof sheet", description: "Every key rendering at every size, for visual checks." },
         ],
         summary: "Version, manual, community and developer tools",
     },
 ];
 
-/** Sections shown only on some boards: Touchpad tuning needs a touchpad and firmware with the setting. */
-export const CONDITIONAL_SECTIONS = ["touchpad"] as const;
+/** Sections shown only on some boards: Power needs firmware that carries its values. */
+export const CONDITIONAL_SECTIONS = ["power"] as const;
 
 /** Blocks shown only on some boards: the debug console needs firmware with the command. */
 export const CONDITIONAL_BLOCKS = ["debug"] as const;
 
 /**
- * The page this board shows: without a touchpad (and the setting) no Touchpad
- * tuning card, and without the debug console command no Debug console row, and without AltGr data on the
+ * The page this board shows: without the debug console command no Debug console row, and without AltGr data on the
  * chosen keyboard layout no AltGr symbols row.
  * Search and rendering both use it, so a search never finds a hidden row.
  */
-export function shownPage(board: { touchpad: boolean; debugConsole: boolean; altgr?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
+export function shownPage(board: { debugConsole: boolean; altgr?: boolean; power?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
     return page
-        .filter((section) => section.id !== "touchpad" || board.touchpad)
+        .filter((section) => (section.id !== "power" || board.power !== false))
         .map((section) => ({
             ...section,
             rows: section.rows.filter((row) =>
@@ -163,6 +159,7 @@ export function shownPage(board: { touchpad: boolean; debugConsole: boolean; alt
  */
 export const SETTINGS_SHOWN_ELSEWHERE: Record<string, string> = {
     "live-updating": "the toolbar (Live Updating / Manual Updates)",
+    "trackball-characterization": "Pointing Devices, the Trackball sensors button on a trackball card",
 };
 
 /** Every setting name the page renders, in page order. */
@@ -174,3 +171,9 @@ export function settingsOnPage(page: SettingsSection[] = SETTINGS_PAGE): string[
 export function blocksOnPage(page: SettingsSection[] = SETTINGS_PAGE): SettingsBlock[] {
     return page.flatMap((s) => s.rows.flatMap((r) => ("block" in r ? [r.block] : [])));
 }
+
+/**
+ * The Pointing Devices panel's AutoMouse group (the Auto Mouse settings, then its keys), always open
+ * like the other key groups. ?panel=pointing-automouse scrolls to it.
+ */
+export const POINTING_AUTOMOUSE_ID = "pointing-automouse";

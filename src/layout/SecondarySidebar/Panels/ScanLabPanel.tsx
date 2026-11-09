@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useKeyboard } from "@/contexts/KeyboardContext";
-import DeveloperTuningSection from "./DeveloperTuningSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 import { customValueService } from "@/services/custom-value.service";
@@ -733,7 +732,6 @@ const ScanLabPanel = () => {
                 <div className="flex flex-col gap-2 min-w-0 w-full max-w-[520px]">{statusCards}{feedback}{debounceSection}{powerSection}{applySection}{firmwareSection}</div>
                 <div className="min-w-0 w-full max-w-[520px]">{probeSection}</div>
                 <div className="min-w-0 w-full max-w-[520px]">{sweepSection}</div>
-                <div className="min-w-0 w-full max-w-[520px]"><DeveloperTuningSection /></div>
             </div>
         );
     }
@@ -752,7 +750,6 @@ const ScanLabPanel = () => {
                 {sweepSection}
                 {applySection}
                 {firmwareSection}
-                <DeveloperTuningSection />
             </div>
         </section>
     );

@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { ChevronDown, Search, X } from "lucide-react";
 import ExportDialog from "@/components/ExportDialog";
 import { useNavigation } from "@/App";
@@ -14,12 +15,9 @@ import BackupsSection from "./BackupsSection";
 import BoardIdentitySection from "./BoardIdentitySection";
 import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
+import DeveloperTuningSection, { developerTuningMenuIndex } from "./DeveloperTuningSection";
 import AboutSection from "./settings/AboutSection";
 import DebugConsoleRow from "./settings/DebugConsoleRow";
-import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
-import { Button } from "@/components/ui/button";
-import { boardHasTouchpad } from "@/utils/touchpad-taps";
-import { hasPadTuning, TUNE_TOUCHPAD_LABEL } from "@/utils/touchpad-tuning";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
 import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
@@ -88,13 +86,12 @@ const SettingsPanel = () => {
 
     const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState("");
-    // Touchpad tuning shows only on a board with a touchpad and firmware that has the setting;
-    // the Debug console row only on firmware with the command.
-    const touchpadShown = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
+    // The Debug console row shows only on firmware with the command.
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
     const { internationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
-    const pageSections = useMemo(() => shownPage({ touchpad: touchpadShown, debugConsole: debugShown, altgr: altgrShown }), [touchpadShown, debugShown, altgrShown]);
+    const powerShown = isConnected && developerTuningMenuIndex(keyboard?.menus) >= 0;
+    const pageSections = useMemo(() => shownPage({ debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [debugShown, altgrShown, powerShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 
@@ -132,7 +129,8 @@ const SettingsPanel = () => {
     };
 
     // A chip, a link or the rail opens a card for this visit only: what is remembered stays.
-    const scrollToSection = (id: string) => {
+    const scrollToSection = (requested: string) => {
+        const id = requested;
         if (SETTINGS_PAGE.some((s) => s.id === id)) sticky.openForVisit(id);
         const jump = () => {
             const card = document.getElementById(sectionDomId(id));
@@ -157,7 +155,7 @@ const SettingsPanel = () => {
         if (action === "import-settings") fileInputRef.current?.click();
         else if (action === "export-settings") setIsExportOpen(true);
         else if (action === "open-scan-lab") setActivePanel("scanlab");
-        else if (action === "open-trackball") setActivePanel("trackball");
+        else if (action === "open-trackball") openTrackballSensor();
         else if (action === "open-proof-sheet") navigateTo("proof-sheet");
     };
 
@@ -173,15 +171,10 @@ const SettingsPanel = () => {
                 return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
-            case "touchpad":
-                return (
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2.5" data-touchpad-entry>
-                        <p className="text-sm text-muted-foreground">See each touch on the pads live, and set when a touch clicks.</p>
-                        <Button variant="outline" size="sm" onClick={openTouchpadTuning}>{TUNE_TOUCHPAD_LABEL}</Button>
-                    </div>
-                );
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
+            case "power":
+                return <DeveloperTuningSection bare />;
             case "about":
                 return <AboutSection />;
             case "debug":

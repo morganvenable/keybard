@@ -1,6 +1,6 @@
 """
 Browser flow of the Trackball characterization panel against the simulated
-Svalboard (?fakeBoard), which answers POINTING_SENSOR (0x39) with synthetic
+Svalboard with a trackball on each half (?fakeBoard=two-balls), which answers POINTING_SENSOR (0x39) with synthetic
 samples. Opens the panel by its deep link (?panel=trackball), checks that both
 hands fill in SQUAL numbers and the charts draw, that the window buttons and
 Reset min/max work, and saves light and dark screenshots when
@@ -24,7 +24,7 @@ def run(url: str, scheme: str) -> list:
         ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme=scheme, reduced_motion="reduce")
         page = ctx.new_page()
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto(f"{url}?comboEditor=panel&theme={scheme}&fakeBoard&panel=trackball")
+        page.goto(f"{url}?comboEditor=panel&theme={scheme}&fakeBoard=two-balls&panel=trackball")
         wait_connected(page)
         panel = page.get_by_test_id("trackball-panel")
         expect(panel).to_be_visible(timeout=15000)

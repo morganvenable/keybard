@@ -4,12 +4,13 @@ import { selectPointingMenu } from "@/utils/pointing-menu";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import DynamicMenuPanel from "./DynamicMenuPanel";
 
-/** The menu that carries the firmware's developer tuning values, or -1. */
+/**
+ * The menu that carries the firmware's developer tuning values, or -1. Found by
+ * value id: older firmware has them under Pointing Device > Advanced, newer
+ * firmware in a top-level "Power and scanning" menu.
+ */
 export function developerTuningMenuIndex(menus: CustomUIMenuItem[] | undefined): number {
-    const index = menus?.findIndex((menu) => menu.label?.toLowerCase().includes("pointing")) ?? -1;
-    if (index < 0) return -1;
-    const items = (menus?.[index]?.content ?? []) as CustomUIMenuItem[];
-    return selectPointingMenu(items, "developer").length > 0 ? index : -1;
+    return menus?.findIndex((menu) => selectPointingMenu((menu.content ?? []) as CustomUIMenuItem[], "developer").length > 0) ?? -1;
 }
 
 /**
@@ -17,12 +18,14 @@ export function developerTuningMenuIndex(menus: CustomUIMenuItem[] | undefined):
  * menu (scan period, idle and deep-idle timing, clocks, idle RGB dimming,
  * pointer rest). It is developer-only and has no customer home in the editor.
  * Kept in its own component so it can move or be renamed without touching
- * the panel that hosts it (today, Scan Lab).
+ * the panel that hosts it (today, Settings > Power and scanning).
  */
-const DeveloperTuningSection: React.FC<{ title?: string }> = ({ title = "Tuning" }) => {
+const DeveloperTuningSection: React.FC<{ title?: string; bare?: boolean }> = ({ title = "Tuning", bare = false }) => {
     const { keyboard } = useKeyboard();
     const menuIndex = developerTuningMenuIndex(keyboard?.menus);
     if (menuIndex < 0) return null;
+    // Inside a Settings card the card's own heading names it.
+    if (bare) return <div className="px-3 py-2" data-power-section><DynamicMenuPanel menuIndex={menuIndex} section="developer" embedded /></div>;
     return (
         <section aria-labelledby="developer-tuning-heading" className="flex flex-col gap-2">
             <h3 id="developer-tuning-heading" className="font-semibold text-lg text-kb-ink">{title}</h3>

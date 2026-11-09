@@ -7,7 +7,8 @@ import { PanelsProvider, usePanels } from '../../src/contexts/PanelsContext';
 import AppSidebar from '../../src/layout/Sidebar';
 
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
-vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: null }) }));
+let board: { alt_repeat_keys: { keycode: string; alt_keycode: string }[] } | null = null;
+vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => ({ keyboard: board }) }));
 const settings: Record<string, unknown> = {};
 vi.mock('@/contexts/SettingsContext', () => ({
     useSettings: () => ({ getSetting: (name: string) => settings[name] ?? false }),
@@ -17,7 +18,7 @@ vi.mock('@/features/trainer/OverlayDialog', () => ({ OverlayDialog: () => null, 
 beforeAll(() => {
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
 });
-afterEach(() => { cleanup(); for (const k of Object.keys(settings)) delete settings[k]; });
+afterEach(() => { board = null; cleanup(); for (const k of Object.keys(settings)) delete settings[k]; });
 
 let panels: ReturnType<typeof usePanels>;
 const Probe = () => { panels = usePanels(); return null; };
@@ -59,7 +60,7 @@ describe('the rail while a binding editor is open', () => {
     });
 
     it('does not navigate from covered rail items', () => {
-        settings['show-alt-repeat'] = true;
+        board = withEntries;
         renderRail();
         openEditor('combos', 1);
         for (const name of ['Combos', 'Overrides', 'Alt-Repeat', 'Leaders', 'Layouts', 'Overlay', 'Quick Start', 'Settings']) {
@@ -132,25 +133,32 @@ describe('the rail while a binding editor is open', () => {
     });
 });
 
-describe('Alt-Repeat behind its app preference', () => {
+const withEntries = { alt_repeat_keys: [{ keycode: 'KC_NO', alt_keycode: 'KC_NO' }, { keycode: 'KC_Z', alt_keycode: 'KC_Y' }] };
+const emptySlots = { alt_repeat_keys: [{ keycode: 'KC_NO', alt_keycode: 'KC_NO' }] };
+
+describe('Alt-Repeat placement in the rail', () => {
     const railNames = () => [...document.querySelectorAll('[data-sidebar="menu"] button[aria-label]')].map(b => b.getAttribute('aria-label'));
 
-    it('is absent from the rail by default, also while an editor is open', () => {
+    it('waits under More when the board has no entries, also while an editor is open', () => {
+        board = emptySlots;
         renderRail();
         expect(screen.queryByRole('button', { name: 'Alt-Repeat' })).toBeNull();
+        expect(rail('More')).toBeInTheDocument();
         openEditor('combos', 0);
         expect(screen.queryByRole('button', { name: 'Alt-Repeat' })).toBeNull();
     });
 
-    it('orders the binding group Combos, Leaders, Overrides', () => {
+    it('opens More, which leads to the Alt-Repeat panel', () => {
         renderRail();
-        const names = railNames().filter((n) => ['Combos', 'Leaders', 'Overrides'].includes(n ?? ''));
-        expect(names).toEqual(['Combos', 'Leaders', 'Overrides']);
+        fireEvent.click(rail('More'));
+        expect(panels.activePanel).toBe('more');
+        expect(screen.queryByRole('button', { name: 'Alt-Repeat' })).toBeNull();
     });
 
-    it('sits last in the binding group, after Overrides, when on', () => {
-        settings['show-alt-repeat'] = true;
+    it('shows Alt-Repeat in the rail, with no More, once the board has entries', () => {
+        board = withEntries;
         renderRail();
+        expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
         const names = railNames();
         expect(names.indexOf('Alt-Repeat')).toBe(names.indexOf('Overrides') + 1);
         expect(names.indexOf('Combos')).toBeLessThan(names.indexOf('Leaders'));
@@ -158,12 +166,18 @@ describe('Alt-Repeat behind its app preference', () => {
         expect(panels.activePanel).toBe('altrepeat');
     });
 
-    it('closes its panel and editor when the preference is off', () => {
+    it('orders the binding group Combos, Leaders, Overrides, More', () => {
+        renderRail();
+        const names = railNames().filter((n) => ['Combos', 'Leaders', 'Overrides', 'More'].includes(n ?? ''));
+        expect(names).toEqual(['Combos', 'Leaders', 'Overrides', 'More']);
+    });
+
+    it('keeps the Alt-Repeat panel and editor open when reached from More', () => {
         renderRail();
         act(() => { panels.setActivePanel('altrepeat'); panels.openDetails(); });
-        expect(panels.activePanel).toBeNull();
+        expect(panels.activePanel).toBe('altrepeat');
         openEditor('altrepeat', 2);
-        expect(panels.activePanel).toBeNull();
-        expect(panels.itemToEdit).toBeNull();
+        expect(panels.activePanel).toBe('altrepeat');
+        expect(panels.itemToEdit).toBe(2);
     });
 });

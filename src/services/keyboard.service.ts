@@ -1,4 +1,5 @@
 import { withTouchpadTaps } from "@/utils/touchpad-taps";
+import { withScrollSpeed } from "@/utils/pointing-settings";
 import {
     hasPadFingers, hasPadTouch as hasPadTouchFlag, PAD_FINGERS_PAGE, PAD_TOUCH_PAGE, parsePadFingers, parsePadTouch, type PadTouchReport,
 } from "@/utils/touchpad-tuning";
@@ -351,7 +352,7 @@ export class KeyboardService {
         // Extract VIA3 custom UI menus for dynamic settings panels
         if (payloadData.menus && Array.isArray(payloadData.menus)) {
             // Firmware with the touchpad tap setting: its switches join the pointing menu.
-            kbinfo.menus = withTouchpadTaps(payloadData.menus, kbinfo.feature_flags3, kbinfo.feature_flags4);
+            kbinfo.menus = withScrollSpeed(withTouchpadTaps(payloadData.menus, kbinfo.feature_flags3, kbinfo.feature_flags4), kbinfo.feature_flags4);
             console.log("Loaded custom UI menus:", payloadData.menus.map((m: { label?: string }) => m.label).filter(Boolean));
         }
 

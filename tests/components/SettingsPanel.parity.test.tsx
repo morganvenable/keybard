@@ -4,7 +4,7 @@ import SettingsPanel from '../../src/layout/SecondarySidebar/Panels/SettingsPane
 import { SETTINGS } from '../../src/contexts/SettingsContext';
 import { CONDITIONAL_SECTIONS, SETTINGS_PAGE as DECLARED, sectionStateSetting } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
 
-// These boards have no touchpad: Touchpad tuning isn't on their page.
+// These boards have no pointing module: Pointing isn't on their page.
 const SETTINGS_PAGE = DECLARED.filter((s) => !(CONDITIONAL_SECTIONS as readonly string[]).includes(s.id));
 import { requestSettingsSection } from '../../src/layout/SecondarySidebar/Panels/settings/anchor';
 

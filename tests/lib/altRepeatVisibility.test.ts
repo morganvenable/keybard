@@ -1,20 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
 import { SETTINGS, SETTINGS_CATEGORIES } from '../../src/contexts/SettingsContext';
-import { panelAllowed, SHOW_ALT_REPEAT_SETTING } from '../../src/lib/altRepeatVisibility';
+import { hasAltRepeatEntries } from '../../src/lib/altRepeatVisibility';
 
-describe('Show Alt-Repeat preference', () => {
-    it('is an app preference in General, off by default', () => {
-        const def = SETTINGS.find(s => s.name === SHOW_ALT_REPEAT_SETTING);
-        expect(def).toMatchObject({ label: 'Show Alt-Repeat', type: 'boolean', defaultValue: false });
-        expect(def?.scope).toBeUndefined();
-        const general = SETTINGS_CATEGORIES.find(c => c.name === 'general')!;
-        expect(general.settings).toContain(SHOW_ALT_REPEAT_SETTING);
+const entry = (keycode: string, alt_keycode: string) => ({ keycode, alt_keycode, allowed_mods: 0, options: 0 });
+
+describe('Alt-Repeat placement', () => {
+    it('has no Settings switch any more', () => {
+        expect(SETTINGS.find(s => s.name === 'show-alt-repeat')).toBeUndefined();
+        for (const category of SETTINGS_CATEGORIES) expect(category.settings).not.toContain('show-alt-repeat');
     });
 
-    it('only gates the Alt-Repeat panel', () => {
-        expect(panelAllowed('altrepeat', false)).toBe(false);
-        expect(panelAllowed('altrepeat', true)).toBe(true);
-        for (const panel of ['combos', 'overrides', 'leaders', null, undefined]) expect(panelAllowed(panel, false)).toBe(true);
+    it('counts a board with a key in any entry as having entries', () => {
+        expect(hasAltRepeatEntries({ alt_repeat_keys: [entry('KC_NO', 'KC_NO'), entry('KC_A', 'KC_NO')] })).toBe(true);
+        expect(hasAltRepeatEntries({ alt_repeat_keys: [entry('KC_NO', 'KC_B')] })).toBe(true);
+    });
+
+    it('counts empty slots, no slots and no board as having none', () => {
+        expect(hasAltRepeatEntries({ alt_repeat_keys: [entry('KC_NO', 'KC_NO'), entry('', '')] })).toBe(false);
+        expect(hasAltRepeatEntries({ alt_repeat_keys: [] })).toBe(false);
+        expect(hasAltRepeatEntries({})).toBe(false);
+        expect(hasAltRepeatEntries(null)).toBe(false);
     });
 });

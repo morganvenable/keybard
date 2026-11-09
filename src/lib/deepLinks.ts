@@ -21,9 +21,19 @@
  *   Mac (the computer never asks for touchpad mode); ?fakeBoard=touchpad-434
  *   v4.3.4's firmware in touchpad mode (the touch page only: no fingers page,
  *   palm rejection or touchpad mode setting).
+ *   ?fakeBoard=pointing is this board with a PMW3389 trackball on the left half and
+ *   the touchpad (built-in gestures) on the right: the Pointing Devices panel with a card of each.
+ *   ?fakeBoard=pointing-os is the same board on a computer that drives the touchpad
+ *   (Windows or Linux in Automatic): the touchpad card grays its speed and Scroll Mode.
+ *   ?fakeBoard=two-balls is a PMW3389 trackball on each half, ?fakeBoard=ball-trackpoint
+ *   a trackball on the left and a TrackPoint on the right, and ?fakeBoard=no-module this
+ *   firmware with no pointing module on either half: each is a layout of the Pointing
+ *   Devices panel to review.
  *   ?fakeBoard=legends is this firmware with a few digit and punctuation keys
  *   wrapped in a modifier, a mod-tap and a layer-tap, some in combos (the
  *   shifted-legends checks, LEGEND_SEED_KEYS in seed.ts; fresh on every load).
+ *   ?fakeBoard=altrepeat is this firmware with one Alt-Repeat entry, so the rail
+ *   shows Alt-Repeat as its own item (fresh on every load).
  *   ?fakeBoard=leader0 is firmware from before x4.3.3 whose settings reset
  *   stored a leader timeout of 0 (fresh on every load).
  *   Its settings stay in this browser across reloads (except turbo6 and leader0).
@@ -32,11 +42,13 @@
  * - ?tester opens the matrix tester once a board is connected or a layout loaded.
  * - ?panel=scanlab opens the Scan Lab once a board is connected (PointingDeepLink.tsx,
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
- *   Pointing Devices panel, where the auto mouse settings are; ?panel=keyboard opens
- *   Standard Keys. ?panel=firmware and
- *   ?panel=backups open Settings at that card. ?panel=settings&tune=touchpad
- *   opens Settings with the Touchpad tuning dialog open, and
- *   ?panel=pointing&tune=touchpad Pointing Devices with it open.
+ *   Pointing Devices panel, the keys you assign; ?panel=keyboard opens
+ *   Standard Keys. ?panel=pointing-settings is the same panel, and
+ *   ?panel=pointing-automouse the same, scrolled to AutoMouse (old name: pointing-advanced). ?panel=firmware and
+ *   ?panel=backups open Settings at that card. ?tune=touchpad and ?tune=trackball open
+ *   that tuner modal over the panel the link lands on (?panel=pointing,
+ *   ?panel=hardware for Settings > Hardware); ?panelPosition=bottombar shows the
+ *   tray for this load.
  */
 import type { ResolvedTheme } from "@/lib/theme";
 
@@ -71,6 +83,20 @@ export function altgrLegendsFromSearch(search: string): boolean | null {
     return null;
 }
 
+export const MORE_KEYS_PARAM = "moreKeys";
+export const ANY_KEY_PARAM = "anyKey";
+
+/** ?moreKeys opens every More keys group (or only ?moreKeys=special, mouse...), for this load only. */
+export function moreKeysOpenFromSearch(search: string, category: string): boolean {
+    const value = param(search, MORE_KEYS_PARAM)?.trim().toLowerCase();
+    return value !== undefined && value !== null && (value === "" || value === "1" || value === "on" || value === category);
+}
+
+/** ?anyKey opens the Custom keycode dialog once a key is selected (review links). */
+export function anyKeyFromSearch(search: string): boolean {
+    return param(search, ANY_KEY_PARAM) !== null;
+}
+
 export type DemoChoice = "qwerty" | "combos";
 
 function param(search: string, name: string): string | null {
@@ -98,14 +124,14 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
  * "combo-names": this firmware (combo names, typing pause); "old": firmware
  * without combo names; "no-pause": firmware that can't pause typing.
  */
-export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "unread" | "legends";
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "pointing" | "pointing-os" | "two-balls" | "ball-trackpoint" | "no-module" | "unread" | "legends" | "altrepeat";
 
 /** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
     const v = value.trim().toLowerCase();
-    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "unread" ? "unread" : v === "legends" ? "legends" : "combo-names";
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "pointing" ? "pointing" : v === "pointing-os" ? "pointing-os" : v === "two-balls" ? "two-balls" : v === "ball-trackpoint" ? "ball-trackpoint" : v === "no-module" ? "no-module" : v === "unread" ? "unread" : v === "legends" ? "legends" : v === "altrepeat" ? "altrepeat" : "combo-names";
 }
 
 /** ?tester: open the matrix tester on start. */
@@ -223,7 +249,13 @@ export function resetDeepLinksForTests() {
     testerStarted = false;
 }
 
-/** ?tune=touchpad: open the Touchpad tuning dialog (with ?panel=settings or ?panel=pointing). */
+/** ?tune=touchpad or trackball: open that tuner modal over the panel the link lands on (with ?panel=settings, ?panel=pointing or ?panel=hardware). */
+export function tuneKindFromSearch(search: string): "touchpad" | "trackball" | null {
+    const v = param(search, "tune")?.trim().toLowerCase();
+    return v === "touchpad" || v === "trackball" ? v : null;
+}
+
+/** ?tune=touchpad: open the Tune touchpad modal. */
 export function tuneFromSearch(search: string): boolean {
-    return param(search, "tune")?.trim().toLowerCase() === "touchpad";
+    return tuneKindFromSearch(search) === "touchpad";
 }

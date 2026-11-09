@@ -945,6 +945,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             h={layout.h}
                             keycode={keycodeName}
                             label={label}
+                            fitLabel
                             combo={combo}
                             row={row}
                             col={col}
