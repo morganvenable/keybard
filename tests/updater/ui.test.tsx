@@ -45,7 +45,7 @@ describe("carried releases per site", () => {
 
     it("carries x4.5 on next; production waits for a v release", () => {
         expect(releasesForSite("production")).toEqual([]);
-        expect(releasesForSite("next").map((r) => r.tag)).toEqual(["x4.5"]);
+        expect(releasesForSite("next").map((r) => r.tag)).toEqual(["x4.6-altgr-rc"]); // TEST BUILD ONLY
     });
 
     it("every pinned file is in public/firmware/<tag>/ and matches its pin", () => {

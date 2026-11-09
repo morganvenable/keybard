@@ -38,6 +38,33 @@ export interface FirmwareReleasePin {
 
 /** Releases pinned into this build. */
 export const CARRIED_RELEASES: FirmwareReleasePin[] = [
+    // TEST BUILD ONLY (test/x4.6-altgr-rc): the private rc, and padtest4 to go back to.
+    {
+        tag: "x4.6-altgr-rc",
+        kind: "x",
+        fwVersion: 26,
+        updaterProtocol: 4,
+        svalProtocol: 3,
+        file: {
+            uf2: "svalboard_sval_x4.6-altgr-rc.uf2",
+            sha256: "6884cdec18122ace4db0401d561a84a8b3ca8e429836b439d57b272487de12b2",
+            size: 360448,
+        },
+        notesUrl: "",
+    },
+    {
+        tag: "x4.5-padtest4",
+        kind: "x",
+        fwVersion: 25,
+        updaterProtocol: 4,
+        svalProtocol: 3,
+        file: {
+            uf2: "svalboard_sval_x4.5-padtest4.uf2",
+            sha256: "2fb5eb6e31f2b6a9f40cd7f852079ebce1f67805bb01609eedcf4e89c43f7bee",
+            size: 360448,
+        },
+        notesUrl: "",
+    },
     {
         tag: "x4.5",
         kind: "x",
@@ -56,7 +83,7 @@ export const CARRIED_RELEASES: FirmwareReleasePin[] = [
 /** The updater protocol a carried release must speak. */
 export const CARRIED_UPDATER_PROTOCOL = 4;
 
-const TAG = /^([vx])(\d+(?:\.\d+)*)$/;
+const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-altgr-rc|-padtest\d+)?$/; // TEST BUILD ONLY: test suffixes
 
 /** "v3.1" -> { kind: "v", parts: [3, 1] }; null for any other tag. */
 export function parseReleaseTag(tag: string): { kind: ReleaseKind; parts: number[] } | null {
