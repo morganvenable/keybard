@@ -13,10 +13,9 @@ const ChannelBanner: React.FC = () => {
             <div
                 role="note"
                 data-padtest-banner
-                className="fixed top-1 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-1rem)] rounded-full bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
+                className="fixed top-1 left-1/2 -translate-x-1/2 z-[100] max-w-[calc(100vw-1rem)] rounded-full bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
             >
-                Test build for touchpad scroll speed. This Keybard and its firmware are for testing only.
-                To go back, install x4.5 from Firmware.
+                Test build for touchpad scroll speed. To go back, install x4.5 from Firmware.
             </div>
         );
     }
