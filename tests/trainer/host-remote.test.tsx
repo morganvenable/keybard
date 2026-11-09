@@ -30,6 +30,23 @@ it('does not probe loopback from a hosted page until the user connects, then rem
     again.unmount();
 });
 
+it('a copy that found no overlay at page load joins when the user connects later', async () => {
+    localStorage.setItem('keybard-host-remote', '1');
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch')); // the Overlay isn't running yet
+    const sync = renderHook(() => useHost());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async (url: string) => String(url).endsWith('/api/host/bootstrap')
+        ? new Response(JSON.stringify({ token: 't', apiVersion: 1 })) : new Response('{}', { status: 503 }));
+    const dialog = renderHook(() => useHost());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    fetchMock.mockClear();
+    act(() => dialog.result.current.connect());
+    // Both copies ask again: the dialog's and the sync's.
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/api/host/bootstrap')).length).toBeGreaterThanOrEqual(2));
+    sync.unmount(); dialog.unmount();
+});
+
 it('reports an unreachable host only when the user asked to connect', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
     const { result } = renderHook(() => useHost());
@@ -52,13 +69,13 @@ it("keeps the host's release and bundled Keybard from bootstrap; older hosts are
         ? new Response(JSON.stringify({ token: 't', apiVersion: 1, version: 'vLaunch2', keybardCommit: '5954334' }))
         : new Response('{}', { status: 503 }));
     const current = renderHook(() => useHost());
-    await waitFor(() => expect(current.result.current.build).toEqual({ version: 'vLaunch2', keybardCommit: '5954334' }));
+    await waitFor(() => expect(current.result.current.build).toEqual({ version: 'vLaunch2', keybardCommit: '5954334', testBuild: false }));
     current.unmount();
     fetchMock.mockImplementation(async (url: string) => String(url).endsWith('/api/host/bootstrap')
         ? new Response(JSON.stringify({ token: 't', apiVersion: 1 }))
         : new Response('{}', { status: 503 }));
     const older = renderHook(() => useHost());
-    await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null }));
+    await waitFor(() => expect(older.result.current.build).toEqual({ version: 'unknown', keybardCommit: null, testBuild: false }));
     older.unmount();
 });
 

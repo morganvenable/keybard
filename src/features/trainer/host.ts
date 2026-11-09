@@ -9,12 +9,19 @@ import { PARANOID } from '@/lib/paranoid';
 // the host allows for that origin. Probing loopback can show a browser
 // permission prompt, so hosted pages only connect after the user asks to.
 export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string | undefined) || 'http://127.0.0.1:5178';
+/** How often a background copy looks for the Overlay or a restarted one. */
+export const HOST_SLOW_POLL_MS = 2000;
 const REMOTE_KEY = 'keybard-host-remote';
+const CONNECT_EVENT = 'keybard-host-connect';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
 function rememberedRemote() { try { return appStorage.getItem(REMOTE_KEY) === '1'; } catch { return false; } }
-export interface HostConfig extends Preferences { highlightPressed: boolean; manualDefault: number; capitalAlphas?: boolean; adaptiveContrast?: boolean }
+export interface HostConfig extends Preferences { highlightPressed: boolean; manualDefault: number; capitalAlphas?: boolean; adaptiveContrast?: boolean;
+    /** Keybard's Settings > General > Shifted Key Symbols and AltGr Symbols, which Keybard sends (like layoutId). */
+    shiftedLegends?: boolean; altgrLegends?: boolean }
 export interface HostSnapshot {
-    modifiers?: { shift: boolean; capsLock: boolean } | null;
+    modifiers?: { shift: boolean; capsLock: boolean; altgr?: boolean } | null;
+    /** false: the board's firmware (before x4.5) doesn't report held Shift/AltGr, so the Overlay asks the computer. */
+    modifiersFromBoard?: boolean | null;
     apiVersion: number; config: HostConfig; revision: number; layoutRevision: number;
     board: (KeyboardInfo & { trainerLabels: Record<string, string> }) | null;
     selectedDevice: string | null; status: string; devices: { id: string; name: string; serial: string }[];
@@ -23,13 +30,15 @@ export interface HostSnapshot {
     matrixAvailable: boolean | null; visible: boolean; session: string;
 }
 /** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
-export interface HostBuild { version: string; keybardCommit: string | null }
+export interface HostBuild { version: string; keybardCommit: string | null; testBuild?: boolean }
 declare global { interface Window { __keybardNativeState?: boolean } }
 /**
  * The Keybard Overlay's state and commands. overlay: this page draws the overlay (?hostOverlay),
  * so its polls tell the Overlay app that the layer and held keys are on show and worth reading fast.
+ * background: the settings sync, which has no live display. It reads state once on connecting, then only
+ * every HOST_SLOW_POLL_MS and only while the tab is visible (it also notices an Overlay that starts later).
  */
-export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
+export function useHost({ overlay = false, background = false }: { overlay?: boolean; background?: boolean } = {}) {
     const [state, setState] = useState<HostSnapshot | null>(null);
     const [error, setError] = useState('');
     const token = useRef('');
@@ -49,7 +58,7 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
         const data = await r.json();
         if (data.apiVersion !== 1) return false;
         token.current = data.token;
-        setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null });
+        setBuild({ version: typeof data.version === 'string' ? data.version : 'unknown', keybardCommit: typeof data.keybardCommit === 'string' ? data.keybardCommit : null, testBuild: data.testBuild === true });
         return true;
     }, [base]);
     /**
@@ -68,7 +77,7 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
         let alive = true, timer: ReturnType<typeof setTimeout>;
         const abort = new AbortController();
         let lastReceived = Date.now();
-        const watchdog = setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setError('Connection to the overlay app is stale. The preview is paused.'); } }, 200);
+        const watchdog = background ? undefined : setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setError('Connection to the overlay app is stale. The preview is paused.'); } }, 200);
         function receive(data: HostSnapshot) {
             if (!alive || data.apiVersion !== 1) return;
             lastReceived = Date.now();
@@ -79,6 +88,7 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
             current.current = data; setState(data);
         }
         const native = !!window.__keybardNativeState;
+        const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
         const onState = (event: Event) => receive((event as CustomEvent<HostSnapshot>).detail);
         const onHeartbeat = () => { lastReceived = Date.now(); if (!current.current) void poll(); };
         if (native) {
@@ -95,7 +105,26 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
             }
             if (alive && !native) timer = setTimeout(poll, 80);
         }
+        /** Background copy: one look now, then one every HOST_SLOW_POLL_MS; nothing at all while the tab is hidden. */
+        async function slowTick() {
+            clearTimeout(timer);
+            if (!alive || hidden()) return; // visibilitychange restarts it
+            try {
+                if (!current.current && !await bootstrap(abort.signal)) throw new Error('not an overlay');
+                if (!alive) return;
+                if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
+                const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
+                if (!r.ok) throw new Error('Connection to the overlay app lost');
+                receive(await r.json() as HostSnapshot);
+            } catch {
+                if (alive && current.current) { current.current = null; setState(null); }
+            }
+            if (alive && !native && !hidden()) timer = setTimeout(slowTick, HOST_SLOW_POLL_MS);
+        }
+        const onVisible = () => { if (!hidden()) void slowTick(); else clearTimeout(timer); };
+        if (background && !native) document.addEventListener('visibilitychange', onVisible);
         void (async () => {
+            if (background && !native) { void slowTick(); return; }
             try {
                 if (!await bootstrap(abort.signal) || !alive) return;
                 if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
@@ -105,17 +134,25 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
                 if (alive && asked.current) setError(`Could not reach the overlay app at ${HOST_ORIGIN}. Start Keybard Overlay, allow this site to access apps on your device if the browser asks, then try again.`);
             }
         })();
-        return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
-    }, [attempt, base, local, bootstrap, overlay]);
+        return () => { alive = false; clearTimeout(timer); clearInterval(watchdog); abort.abort(); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('keybard-host-state', onState); window.removeEventListener('keybard-host-heartbeat', onHeartbeat); };
+    }, [attempt, base, local, bootstrap, overlay, background]);
     /** Connect a hosted Keybard page to a running Keybard Overlay (user-initiated). */
-    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); }, []);
+    const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); window.dispatchEvent(new Event(CONNECT_EVENT)); }, []);
+    // Another copy of this hook (the settings sync) joins once the user connects from the Overlay dialog,
+    // also when it tried before and found no overlay running (a remembered connection at page load).
+    useEffect(() => {
+        if (PARANOID) return;
+        const join = () => { if (!current.current) setAttempt(n => n + 1); };
+        window.addEventListener(CONNECT_EVENT, join);
+        return () => window.removeEventListener(CONNECT_EVENT, join);
+    }, []);
     const command = useCallback(async (value: Record<string, unknown>) => {
         try {
             await post('/api/host/command', () => value); setError('');
         } catch (e) { setError(e instanceof Error ? e.message : 'The overlay app could not do that'); }
     }, [post]);
     const configure = useCallback(async (config: HostConfig | ((latest: HostConfig) => HostConfig)) => {
-        if (!current.current || busyRef.current) return false;
+        if (!current.current || busyRef.current) return null; // null: nothing was sent
         busyRef.current = true; setBusy(true);
         try {
             // The config and revision are read at send time: a retry after a host restart uses the new

@@ -1,8 +1,6 @@
-import { useEffect } from 'react';
 import { Download, PlugZap, Unplug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useLayoutSettings } from '@/contexts/LayoutSettingsContext';
 import { PARANOID } from '@/lib/paranoid';
 import { useHost } from './host';
 import { HOST_DOWNLOAD, HostVersion } from './HostInstall';
@@ -22,13 +20,8 @@ export function OverlayDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 }
 
 function OverlayDialogBody() {
-    // Mounted only while open, so Keybard talks to the overlay app only then.
     const host = useHost();
-    const { internationalLayout } = useLayoutSettings();
-    useEffect(() => {
-        if (!host.state || host.busy || host.state.config.layoutId === internationalLayout) return;
-        void host.configure(latest => ({ ...latest, layoutId: internationalLayout }));
-    }, [internationalLayout, host.state?.session, host.state?.config.layoutId, host.busy]);
+    // Keybard's language, Shifted Key Symbols and AltGr Symbols reach the overlay from HostSettingsSync, dialog open or not.
     const board = host.state?.devices.find(d => d.id === host.state?.selectedDevice);
     const description = host.state
         ? board ? `The overlay app is following ${board.name}.` : 'The overlay app is running. Choose a board from its menu.'
@@ -40,6 +33,9 @@ function OverlayDialogBody() {
             <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {host.error && !host.state && <p role="alert" className="text-sm text-destructive">{host.error}</p>}
+        {host.state?.modifiersFromBoard === false && <p role="status" className="text-sm text-muted-foreground">
+            This board's firmware is older than x4.5, so it can't tell the overlay when Shift or AltGr is held. The overlay asks your computer instead, which doesn't work on Wayland. Install x4.5 in Firmware.
+        </p>}
         <HostVersion build={host.build} />
         <DialogFooter>
             {host.state ? board && <Button variant="outline" onClick={() => void host.command({ op: 'disconnect' })}><Unplug /> Disconnect</Button>

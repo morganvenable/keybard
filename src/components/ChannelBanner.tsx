@@ -7,6 +7,17 @@ export const STABLE_URL = "https://keybard.svalboard.com/";
  * mistakes it for the stable site, and links back to stable. Other builds show nothing.
  */
 const ChannelBanner: React.FC = () => {
+    const testBanner = import.meta.env.VITE_TEST_BANNER;
+    if (testBanner) {
+        return (
+            <div
+                role="note"
+                className="fixed top-1 left-1/2 -translate-x-1/2 z-50 max-w-[95vw] rounded-full bg-kb-yellow px-3 py-0.5 text-center text-xs font-medium text-kb-sidebar-dark shadow"
+            >
+                {testBanner}
+            </div>
+        );
+    }
     if (import.meta.env.VITE_CHANNEL !== "next") return null;
 
     return (

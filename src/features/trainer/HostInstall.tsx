@@ -13,7 +13,7 @@ export function HostVersion({ build }: { build: HostBuild | null }) {
     const outdated = build.version !== 'dev' && build.version !== HOST_RELEASE_TAG;
     const name = build.version === 'unknown' ? 'an older Keybard Overlay' : `Keybard Overlay ${build.version}`;
     return <p className="text-xs text-muted-foreground">
-        Connected to {name}{build.keybardCommit ? ` · Keybard ${build.keybardCommit}` : ''}.
+        Connected to {name}{build.keybardCommit ? ` · Keybard ${build.keybardCommit}` : ''}{build.testBuild ? ' · test build' : ''}.
         {outdated && <> Keybard Overlay {HOST_RELEASE_TAG} is available: <a className="underline" href={HOST_RELEASE} target="_blank" rel="noreferrer">download it</a>.</>}
     </p>;
 }

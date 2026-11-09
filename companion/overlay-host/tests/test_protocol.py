@@ -156,7 +156,11 @@ class ProtocolTests(unittest.TestCase):
                                           (0x01 | 0x04 | 0x08, 0, False, False), (0, 2, False, True),
                                           (0, 1, False, True), (0, 3, False, False), (0x02, 1, True, True)]:
             device.mods, device.status = mods, status
-            self.assertEqual(reader.layer_snapshot().modifiers, dict(shift=shift, capsLock=caps), (mods, status))
+            self.assertEqual(reader.layer_snapshot().modifiers, dict(shift=shift, capsLock=caps, altgr=False), (mods, status))
+        # Right Alt (0x40) is AltGr, with or without Shift.
+        for mods, shift in [(0x40, False), (0x42, True)]:
+            device.mods, device.status = mods, 0
+            self.assertEqual(reader.layer_snapshot().modifiers, dict(shift=shift, capsLock=False, altgr=True), mods)
         device.feature_flags2 = 0  # A downgrade drops it on the next handshake.
         reader.info()
         self.assertIsNone(reader.layer_snapshot().modifiers)
