@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
+import MacroTextWarning from "./MacroTextWarning";
 import { useBindingChanges } from "@/hooks/useBindingChanges";
 import { isEditorInput } from "@/utils/editor-input";
 import EditorKey from "./EditorKey";
@@ -72,6 +73,7 @@ const BarTextAction: FC<{ type: string; value: string | number; onChange: (value
                     <X className="w-3 h-3" />
                 </button>
             </div>
+            {type === "text" && <MacroTextWarning text={String(value)} className="w-36" />}
         </BarSlot>
     );
 };
