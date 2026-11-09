@@ -7,6 +7,7 @@ import DeployBadge from "./components/DeployBadge";
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
 import ThemeSync from "./components/ThemeSync";
+import MouseLayerNotice from "./components/MouseLayerNotice";
 import ExploreLayoutsPage from "./pages/ExploreLayoutsPage";
 import { ProofSheetPage } from "./pages/ProofSheet";
 
@@ -113,6 +114,7 @@ function App() {
             <ChannelBanner />
             <SettingsProvider>
                 <ThemeSync />
+                <MouseLayerNotice />
                 <ChangesProviderWithKeyboard>
                     <BackupProvider>
                         <KeyBindingProvider>

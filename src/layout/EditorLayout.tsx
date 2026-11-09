@@ -47,6 +47,7 @@ import BindingSpotlight, { useBindingSpotlight } from "./BindingSpotlight";
 import DeepLinkEditor from "./DeepLinkEditor";
 import PointingDeepLink from "./PointingDeepLink";
 import TouchpadTuningDialog from "@/components/touchpad-tuning/TouchpadTuningDialog";
+import TrackballSensorDialog from "@/components/trackball-sensor/TrackballSensorDialog";
 import PickerTray from "./PickerTray";
 import { PickerTrayProvider, type PickerTrayValue } from "@/contexts/PickerTrayContext";
 import { CANVAS_CONTROLS_INSET_PX, effectivePickerShape, isLShape, layoutCanvasNeed, layoutFitScale, openTraySizing, pickerShapeFromSearch, standardKeysInPlay, TRAY_MOTION_MS, trayReserve, trayState } from "@/lib/pickerShape";
@@ -1359,6 +1360,7 @@ const EditorLayoutInner = () => {
             <DeepLinkEditor />
             <PointingDeepLink />
             <TouchpadTuningDialog />
+            <TrackballSensorDialog />
             <div className="contents">
             {/* Keep the panel mounted when its placement changes. */}
             <PickerTrayProvider value={trayValue}>

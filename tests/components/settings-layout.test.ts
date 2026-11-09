@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS } from '../../src/contexts/SettingsContext';
-import { HARDWARE_OPEN_SETTING, POINTING_ADVANCED, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
+import { HARDWARE_OPEN_SETTING, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
 import { searchSettings } from '../../src/layout/SecondarySidebar/Panels/settings/search';
 
 describe('Settings page declaration', () => {
@@ -34,9 +34,9 @@ describe('Settings page declaration', () => {
         }
     });
 
-    it('is eight cards, each with a chip, a summary and a sentence-case title', () => {
-        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'Power and scanning', 'About']);
-        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance', 'Typing', 'Power', 'About']);
+    it('is seven cards, each with a chip, a summary and a sentence-case title', () => {
+        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'Power and scanning', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance', 'Typing', 'Power', 'About']);
         for (const s of SETTINGS_PAGE) {
             expect(s.summary, s.id).not.toBe('');
             expect(s.title.slice(1), s.title).toBe(s.title.slice(1).toLowerCase());
@@ -50,14 +50,22 @@ describe('Settings page declaration', () => {
     });
 
     it('holds Hardware, Typing behavior and every block once', () => {
-        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'pointing', 'power', 'typing']);
+        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'power', 'typing']);
     });
 
-    it('shows Pointing only on some boards, beside Hardware, and no Touchpad tuning card', () => {
-        expect([...CONDITIONAL_SECTIONS]).toEqual(['pointing', 'power']);
-        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'pointing')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'hardware') + 1);
-        expect(SETTINGS_PAGE.find((s) => s.id === 'pointing')!.rows).toEqual([{ block: 'pointing' }]);
+    it('has no Pointing card and no Touchpad tuning card: they live in Pointing Devices', () => {
+        expect([...CONDITIONAL_SECTIONS]).toEqual(['power']);
+        expect(SETTINGS_PAGE.some((s) => s.id === 'pointing')).toBe(false);
         expect(SETTINGS_PAGE.some((s) => s.id === 'touchpad')).toBe(false);
+        expect(blocksOnPage()).not.toContain('pointing');
+    });
+
+    it('does not find pointer speed, scroll speed or gestures as a Settings card in search', () => {
+        const page = shownPage({ debugConsole: false });
+        for (const query of ['pointer speed', 'scroll speed', 'gestures', 'auto mouse', 'natural scroll']) {
+            const hit = searchSettings(page, query, () => undefined);
+            expect(hit?.has('pointing') ?? false, query).toBe(false);
+        }
     });
 
     it('puts Power and scanning before About, closed by default, with its one block', () => {
@@ -68,27 +76,19 @@ describe('Settings page declaration', () => {
     });
 
     it('shows Power and scanning only when the firmware carries the values, and never finds it otherwise', () => {
-        expect(shownPage({ pointing: false, debugConsole: false, power: false }).some((s) => s.id === 'power')).toBe(false);
-        expect(shownPage({ pointing: false, debugConsole: false, power: true }).some((s) => s.id === 'power')).toBe(true);
-        expect(searchSettings(shownPage({ pointing: false, debugConsole: false, power: false }), 'deep idle', () => undefined)?.has('power') ?? false).toBe(false);
-        expect(searchSettings(shownPage({ pointing: false, debugConsole: false, power: true }), 'deep idle', () => undefined)?.has('power')).toBe(true);
+        expect(shownPage({ debugConsole: false, power: false }).some((s) => s.id === 'power')).toBe(false);
+        expect(shownPage({ debugConsole: false, power: true }).some((s) => s.id === 'power')).toBe(true);
+        expect(searchSettings(shownPage({ debugConsole: false, power: false }), 'deep idle', () => undefined)?.has('power') ?? false).toBe(false);
+        expect(searchSettings(shownPage({ debugConsole: false, power: true }), 'deep idle', () => undefined)?.has('power')).toBe(true);
     });
 
-    it('opens only Hardware and Pointing on a first visit', () => {
-        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware', 'pointing']);
+    it('opens only Hardware on a first visit', () => {
+        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware']);
     });
 
-    it('keeps trackball characterization out of About: it is Pointing > Advanced > Live view', () => {
+    it('keeps trackball characterization out of About: it is the Trackball sensors button in Pointing Devices', () => {
         expect(onPage).not.toContain('trackball-characterization');
-        expect(SETTINGS_SHOWN_ELSEWHERE['trackball-characterization']).toMatch(/Live view/);
-    });
-
-    it('remembers Advanced and its groups like the cards: Advanced closed, its groups open', () => {
-        expect(POINTING_ADVANCED.map((s) => [s.id, s.defaultOpen])).toEqual([
-            ['pointing-advanced', false], ['pointing-automouse', true], ['pointing-taps', true], ['pointing-scrolling', true], ['pointing-live', true],
-        ]);
-        const keys = [...SETTINGS_PAGE, ...POINTING_ADVANCED].map((s) => sectionStateSetting(s.id));
-        expect(new Set(keys).size).toBe(keys.length);
+        expect(SETTINGS_SHOWN_ELSEWHERE['trackball-characterization']).toMatch(/Trackball sensors/);
     });
 
     it('remembers each card under its own setting, Hardware under the one it already used', () => {
@@ -104,18 +104,16 @@ describe('the page a board shows', () => {
     const lookup = () => undefined;
     const debugRow = (page: ReturnType<typeof shownPage>) => page.find((s) => s.id === 'about')!.rows.some((r) => 'block' in r && r.block === 'debug');
 
-    it('has the Debug console row and the Pointing card only when the board has them', () => {
-        expect(debugRow(shownPage({ pointing: false, debugConsole: true }))).toBe(true);
-        expect(debugRow(shownPage({ pointing: false, debugConsole: false }))).toBe(false);
-        expect(shownPage({ pointing: false, debugConsole: true }).some((s) => s.id === 'pointing')).toBe(false);
-        expect(shownPage({ pointing: true, debugConsole: true }).some((s) => s.id === 'pointing')).toBe(true);
+    it('has the Debug console row only when the board has it', () => {
+        expect(debugRow(shownPage({ debugConsole: true }))).toBe(true);
+        expect(debugRow(shownPage({ debugConsole: false }))).toBe(false);
     });
 
     it('never finds the Debug console row in search when the firmware has no command', () => {
         for (const query of ['debug console', 'console', 'logging']) {
-            const hidden = searchSettings(shownPage({ pointing: false, debugConsole: false }), query, lookup);
+            const hidden = searchSettings(shownPage({ debugConsole: false }), query, lookup);
             expect(hidden?.get('about')?.rows.has('block:debug') ?? false).toBe(false);
-            const shown = searchSettings(shownPage({ pointing: false, debugConsole: true }), query, lookup);
+            const shown = searchSettings(shownPage({ debugConsole: true }), query, lookup);
             expect(shown?.get('about')?.rows.has('block:debug')).toBe(true);
         }
     });

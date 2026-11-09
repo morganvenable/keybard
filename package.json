@@ -36,6 +36,7 @@
         "test:e2e:touchpad-taps": "python tests/e2e/touchpad_taps_e2e.py",
         "test:e2e:touchpad-tuning": "python tests/e2e/touchpad_tuning_e2e.py",
         "test:e2e:pointing-settings": "python tests/e2e/pointing_settings_e2e.py",
+        "test:e2e:pointing-modals": "python tests/e2e/pointing_modals_e2e.py",
         "test:e2e:no-guess": "python tests/e2e/no_guessed_state_e2e.py",
         "test:e2e:mouse-limits": "python tests/e2e/mouse_key_limits_e2e.py",
         "test:e2e:shifted-legends": "python tests/e2e/shifted_legends_e2e.py",

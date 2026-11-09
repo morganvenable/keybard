@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import { NotReadNote } from "@/components/CustomUI/controls/NotRead";
@@ -8,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 /**
- * The rows of Settings > Pointing. Every row is a label with one plain line under
+ * The rows of the Pointing Devices panel. Every row is a label with one plain line under
  * it on the left and its control on the right; a slider row puts the value beside
  * the label and the slider below. A value the board didn't give says "Not read"
  * and never shows a stand-in.
@@ -24,14 +23,25 @@ export function RowLabel({ label, hint, id }: { label: string; hint?: ReactNode;
     );
 }
 
-export function ToggleRow({ label, hint, value, onChange }: { label: string; hint?: ReactNode; value: number | undefined; onChange: (v: number) => void }) {
+/**
+ * A row that has no effect right now: its value stays in sight, grayed, and the control takes
+ * no input. `describedBy` names the line that says why (aria-describedby).
+ */
+export interface DisabledProps {
+    disabled?: boolean;
+    describedBy?: string;
+}
+const DISABLED_ROW = "opacity-60";
+
+export function ToggleRow({ label, hint, value, onChange, disabled, describedBy }: { label: string; hint?: ReactNode; value: number | undefined; onChange: (v: number) => void } & DisabledProps) {
     return (
-        <div className={cn(ROW, "flex-row items-center justify-between gap-3")} data-row={label}>
+        <div className={cn(ROW, "flex-row items-center justify-between gap-3", disabled && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <RowLabel label={label} hint={hint} />
-            <div className="flex shrink-0 items-center gap-2">
+            <fieldset disabled={disabled} className="m-0 flex shrink-0 items-center gap-2 border-0 p-0">
                 {value === undefined && <NotReadNote />}
-                <OnOffToggle label={label} unknown={value === undefined} value={value === 1} onToggle={(on) => onChange(on ? 1 : 0)} />
-            </div>
+                <OnOffToggle label={label} unknown={value === undefined} value={value === 1} onToggle={(on) => { if (!disabled) onChange(on ? 1 : 0); }} />
+            </fieldset>
         </div>
     );
 }
@@ -46,14 +56,17 @@ interface SliderRowProps {
     format: (index: number) => string;
     onCommit: (index: number) => void;
     disabled?: boolean;
+    /** With disabled: the line that says why (aria-describedby). */
+    describedBy?: string;
 }
 
 /** A slider over a fixed list of positions, written when it is let go. */
-export function SliderRow({ label, hint, index, max, format, onCommit, disabled }: SliderRowProps) {
+export function SliderRow({ label, hint, index, max, format, onCommit, disabled, describedBy }: SliderRowProps) {
     const [draft, setDraft] = useState(index ?? 0);
     useEffect(() => { if (index !== undefined) setDraft(index); }, [index]);
     return (
-        <div className={ROW} data-row={label} data-disabled={disabled || undefined}>
+        <div className={cn(ROW, disabled && describedBy && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <div className="flex items-baseline justify-between gap-3">
                 <RowLabel label={label} hint={hint} />
                 {index === undefined
@@ -63,6 +76,7 @@ export function SliderRow({ label, hint, index, max, format, onCommit, disabled 
             <Slider
                 aria-label={label}
                 aria-valuetext={index === undefined ? undefined : format(draft)}
+                aria-describedby={disabled ? describedBy : undefined}
                 min={0}
                 max={max}
                 step={1}
@@ -104,19 +118,20 @@ export function RangeRow({ label, hint, value, min, max, step = 1, format = Stri
     );
 }
 
-export function SelectRow({ label, hint, value, options, onChange }: {
+export function SelectRow({ label, hint, value, options, onChange, disabled, describedBy }: {
     label: string;
     hint?: ReactNode;
     value: number | undefined;
     options: { value: number; label: string }[];
     onChange: (v: number) => void;
-}) {
+} & DisabledProps) {
     const known = value !== undefined && options.some((o) => o.value === value);
     return (
-        <div className={cn(ROW, "flex-row items-center justify-between gap-3")} data-row={label}>
+        <div className={cn(ROW, "flex-row items-center justify-between gap-3", disabled && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <RowLabel label={label} hint={hint} />
-            <Select value={known ? String(value) : ""} onValueChange={(v) => onChange(parseInt(v, 10))}>
-                <SelectTrigger aria-label={label} className="w-32 shrink-0">
+            <Select value={known ? String(value) : ""} onValueChange={(v) => onChange(parseInt(v, 10))} disabled={disabled}>
+                <SelectTrigger aria-label={label} aria-describedby={disabled ? describedBy : undefined} className="w-32 shrink-0">
                     <SelectValue placeholder={value === undefined ? "Not read" : `Value ${value}`} />
                 </SelectTrigger>
                 <SelectContent>
@@ -164,38 +179,3 @@ export function ChoiceRow({ label, hint, value, choices, onChange }: {
     );
 }
 
-/**
- * A heading that opens and collapses its body, remembered by the caller
- * (useStickySections). Used for the Advanced disclosure and its groups.
- */
-export function Disclosure({ id, title, summary, open, onToggle, children, level = 5 }: {
-    id: string;
-    title: string;
-    summary?: string;
-    open: boolean;
-    onToggle: () => void;
-    children: ReactNode;
-    level?: 5 | 6;
-}) {
-    const Heading = level === 5 ? "h5" : "h6";
-    return (
-        <section className="flex flex-col" data-disclosure={id} aria-labelledby={`${id}-title`}>
-            <Heading id={`${id}-title`} className="text-sm font-semibold text-kb-ink">
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls={`${id}-body`}
-                    onClick={onToggle}
-                    className="flex w-full flex-row items-center justify-between gap-2 py-2 text-left"
-                >
-                    <span>
-                        {title}
-                        {summary && <span className="ml-2 text-xs font-normal text-muted-foreground">{summary}</span>}
-                    </span>
-                    <ChevronDown aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
-                </button>
-            </Heading>
-            {open && <div id={`${id}-body`} className="flex flex-col gap-2 pb-2">{children}</div>}
-        </section>
-    );
-}

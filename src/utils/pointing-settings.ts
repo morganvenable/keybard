@@ -1,4 +1,4 @@
-// Settings > Pointing: what each hand's card shows, from what the board reports.
+// Pointing Devices panel: what each hand's card shows, from what the board reports.
 //
 // One card per hand, named by the module detected on that half. Pointer speed
 // lists only the DPI values that do something on that module; Scroll speed is
@@ -76,6 +76,18 @@ export function formatScrollSpeed(multiplier: number): string {
     return `${Number.isInteger(multiplier * 10) ? multiplier.toFixed(1) : multiplier.toFixed(2)}×`;
 }
 
+/**
+ * The Scroll speed an older backup's DPI stands for: DPI / 800 as a percent, rounded to nearest,
+ * the same rule as the firmware's one-time migration (scroll_speed.c). The touchpad counts at
+ * most 1210 DPI, a TrackPoint stays 1.0x, and the result is held to 20-1000.
+ */
+export function scrollSpeedFromDpi(dpi: number, module: PointingModule | null): number {
+    if (module === "trackpoint") return SCROLL_SPEED_DEFAULT;
+    const counted = module === "azoteq" ? Math.min(dpi, 1210) : dpi;
+    const percent = Math.floor((counted * 100 + 400) / 800);
+    return Math.max(SCROLL_SPEED_MIN, Math.min(SCROLL_SPEED_MAX, percent));
+}
+
 // ---------------------------------------------------------------- pointer speed
 
 /** The highest DPI that does something on a module: the pad's resolution limit, each sensor's own, and the TrackPoint's software speed (4x). */
@@ -123,9 +135,15 @@ export interface HandModel {
     module: PointingModule | null;
     /** What the card says it is. */
     moduleName: string;
+    /**
+     * The computer drives this hand's touchpad as a Precision Touchpad (0x2C flags bit 4,
+     * SVAL_POINTER_OS_TOUCHPAD: Windows or Linux in Automatic), so the pad's own Pointer speed,
+     * Scroll speed and Scroll Mode have no effect. False on a Mac and with Built-in gestures.
+     */
+    osDriven?: boolean;
 }
 
-function moduleOf(half: PointingHalfReport): PointingModule | null {
+export function moduleOf(half: PointingHalfReport): PointingModule | null {
     if (half.detected && half.detected !== "none" && half.detected !== "unknown") return half.detected;
     return half.builtFor !== "none" ? half.builtFor : null;
 }
@@ -142,7 +160,7 @@ export function pointingHands(keyboard: KeyboardInfo | null | undefined): HandMo
         for (const half of halves) {
             const module = moduleOf(half);
             if (!module) continue;
-            out.push({ side: half.side, module, moduleName: MODULE_CARD_NAMES[module] });
+            out.push({ side: half.side, module, moduleName: MODULE_CARD_NAMES[module], ...(module === "azoteq" && half.osTouchpad ? { osDriven: true } : {}) });
         }
         return out.sort((a, b) => (a.side === b.side ? 0 : a.side === "left" ? -1 : 1));
     }

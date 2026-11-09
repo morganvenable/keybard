@@ -1,7 +1,7 @@
 // FakeSvalboardDevice: the parts of WebHID's HIDDevice Keybard uses, answered
 // by the simulated firmware (firmware.ts) instead of a USB keyboard.
 import { loadStoredBoard, storeBoard, wipeFakeBoard, type FakeBoardState } from "./board";
-import { FakeSvalFirmware } from "./firmware";
+import { FakeSvalFirmware, type FakeModule } from "./firmware";
 import { seedAltRepeat, seedBoard, seedKeymap, seedLegends } from "./seed";
 
 /** What the simulated board calls itself, so nobody takes it for a real one. */
@@ -31,6 +31,8 @@ export interface FakeSvalboardOptions {
     leftTrackball?: boolean;
     /** An Azoteq touchpad on each half. Default false. */
     touchpad?: boolean;
+    /** The module on each half, instead of leftTrackball and touchpad. */
+    modules?: { left: FakeModule; right: FakeModule };
     /** The computer asks for touchpad mode (Input Mode 3), as Windows and Linux do. Default false. */
     hostTouchpad?: boolean;
     /** Firmware with the fingers page, palm rejection and the touchpad mode. Default true. */
@@ -190,6 +192,7 @@ export class FakeSvalboardDevice extends EventTarget {
             scrollSpeed: options.scrollSpeed ?? true,
             leftTrackball: options.leftTrackball ?? false,
             touchpad: options.touchpad ?? false,
+            modules: options.modules,
             hostTouchpad: options.hostTouchpad ?? false,
             multiFinger: options.multiFinger ?? true,
             onChange: (state) => { if (this.persisting) storeBoard(state); },

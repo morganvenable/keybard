@@ -5,22 +5,27 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Modifier, modifierOptions, applyModifiers } from "@/utils/modifierUtils";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/keyboard.types";
-import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
 import ModifierSideToggle from "@/components/ModifierSideToggle";
 import { useModifierSide } from "@/hooks/useModifierSide";
+import { pointingKeyDescription } from "@/constants/pointing-key-info";
+import { POINTING_AUTOMOUSE_ID } from "./settings/layout";
 
 interface Props {
     compact?: boolean;
     variant?: "small" | "medium" | "default";
+    /** The bottom tray: each group is a column that keeps its width and scrolls sideways with the rest. */
+    columns?: boolean;
+    /** The Auto Mouse settings, drawn in the AutoMouse group above its keys (the panel passes them). */
+    autoMouseSettings?: ReactNode;
 }
 
-const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
+const MouseKeysSection = ({ compact, variant: variantOverride, columns, autoMouseSettings }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
@@ -57,10 +62,10 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "KC_BTN5", label: "Mouse 5" },
     ];
 
-    // Row 2: 6 sniper keys. Toggle labels are "NxTG" (4 chars after the family
-    // word is stripped) so they stay at the variant's native text size instead of
-    // falling into Key.tsx's long-label shrink/wrap rule, which cropped "TOGGLE"
-    // at the small and medium key sizes. Matches the firmware shortName "Sniper\n2xTG".
+    // Sniper and Boost, as they always were: one row each, the momentary 2x, 3x, 5x then their toggles.
+    // Toggle labels are "NxTG" (4 chars after the family word is stripped) so they stay at the
+    // variant's native text size instead of falling into Key.tsx's long-label shrink/wrap rule,
+    // which cropped "TOGGLE" at the small and medium key sizes. Matches the firmware shortName "Sniper\n2xTG".
     const sniperKeys = [
         { keycode: "SV_SNIPER_2", label: "Sniper 2x" },
         { keycode: "SV_SNIPER_3", label: "Sniper 3x" },
@@ -69,8 +74,6 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_SNIPER_3_TG", label: "Sniper 3xTG" },
         { keycode: "SV_SNIPER_5_TG", label: "Sniper 5xTG" },
     ];
-
-    // Row 3: 6 boost keys (multiplier mirror of sniper)
     const boostKeys = [
         { keycode: "SV_BOOST_2", label: "Boost 2x" },
         { keycode: "SV_BOOST_3", label: "Boost 3x" },
@@ -80,44 +83,53 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_BOOST_5_TG", label: "Boost 5xTG" },
     ];
 
-    // Row 4: hold to scroll with the pointer (firmware SV_SCROLL_HOLD), and
-    // hold to scroll at a speed set by how far the pointer moves
-    // (SV_VELOCITY_SCROLL), and its toggle (SV_VELOCITY_SCROLL_TOGGLE: tap on,
-    // tap off). The labels match the layout's (CUSTOM_KEYCODE_LABELS). Each
-    // Velocity Scroll key is offered unless the connected firmware has no such
-    // key (they came after Drag Scroll, the toggle after the hold key).
+    // Each key below is offered unless the connected firmware has no such key. The labels match
+    // the layout's (CUSTOM_KEYCODE_LABELS).
     const firmwareKeycodes = keyboard?.custom_keycodes;
     const firmwareHas = (name: string) => !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === name);
-    const optional = (keycode: string, label: string) => (firmwareHas(keycode) ? [{ keycode, label }] : []);
+    const optional = (keycode: string, label: string, fullName?: string) => (firmwareHas(keycode) ? [{ keycode, label, ...(fullName ? { fullName } : {}) }] : []);
+    // Scroll: Scroll Toggle and Scroll Hold (flips Scroll Mode on both hands while held), then
+    // Velocity Scroll (hold to scroll at a speed set by how far the pointer moves) and its toggle.
+    // Natural Scroll and Axis Lock are settings under the hand cards, hidden in custom-keycode-homes.ts.
+    // Scroll is two sets. First the keys that act while held or until pressed again, kept in memory
+    // only. Then the per-hand scroll toggles, which flip a saved setting and write it to the
+    // keyboard's flash on every press (write_eeprom_kb), and which the firmware ignores while Auto
+    // Mouse has the mouse layer on (BAD_KEYCODE_CONDITONAL in keymap_support.c).
     const scrollKeys = [
-        ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
-        ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
         ...optional("SV_SCROLL_TOGGLE", "Scroll Toggle"),
+        ...optional("SV_SCROLL_HOLD", "Scroll Hold"),
         ...optional("SV_VELOCITY_SCROLL", "Velocity Scroll"),
         ...optional("SV_VELOCITY_SCROLL_TOGGLE", "Velocity Scroll Toggle"),
-        ...optional("SV_NATURAL_SCROLL_TOGGLE", "Natural Scroll"),
-        ...optional("SV_AXIS_SCROLL_LOCK", "Axis Lock"),
     ];
-    // Drag Scroll is out of sight, in the closed More keys group at the end.
-    const moreKeys = [{ keycode: "SV_SCROLL_HOLD", label: "Drag Scroll" }];
-    // Pointer speed: the DPI keys, one pair per hand.
-    const speedKeys = [
+    const savedScrollKeys = [
+        ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
+        ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
+    ];
+    // TrackPoint: Fix Drift recalibrates a TrackPoint, the only module whose driver has a
+    // recalibrate step. Offered on every board: keys are layout content, and modules change.
+    const trackpointKeys = [
+        ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
+    ];
+    // AutoMouse: its own group after Scroll, the Auto Mouse settings (when passed) above these keys.
+    const autoMouseKeys = [
+        ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
+        // Key.tsx drops "Mouse" and "Timer" from a label (the mouse and clock icons stand for them), which left
+        // just "KEY": the tile reads "Layer Time" with the clock icon, and its name on hover is the full one.
+        ...optional("SV_MH_CHANGE_TIMEOUTS", "Layer Time", "Mouse Key Timer"),
+    ];
+    // DPI, one pair per hand: the least used keys (the hand cards set DPI; Sniper and Boost change it
+    // on the fly), so they come last.
+    const dpiKeys = [
         ...optional("SV_LEFT_DPI_INC", "Left DPI +"),
         ...optional("SV_LEFT_DPI_DEC", "Left DPI -"),
         ...optional("SV_RIGHT_DPI_INC", "Right DPI +"),
         ...optional("SV_RIGHT_DPI_DEC", "Right DPI -"),
     ];
-    // Pointer: calibration and the auto mouse layer.
-    const pointerKeys = [
-        ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
-        ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
-        ...optional("SV_MH_CHANGE_TIMEOUTS", "Mouse Key Timer"),
-    ];
 
     // Every key row in this section MUST go through renderKey so it picks up the
     // same effectiveVariant / keySizeClass. Do not render <Key> directly in the
     // panels that embed this section (see CLAUDE.md: key sizing consistency).
-    const renderKey = (k: { keycode: string; label: string }, withModifiers: boolean = false) => {
+    const renderKey = (k: { keycode: string; label: string; fullName?: string }, withModifiers: boolean = false) => {
         const finalKeycode = withModifiers ? applyModifiers(k.keycode, activeModifiers, false, modifierSide) : k.keycode;
         const keyContents = keyboard ? getKeyContents(keyboard, finalKeycode) : undefined;
 
@@ -135,6 +147,8 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 col={0}
                 keycode={finalKeycode}
                 label={k.label}
+                fullName={k.fullName}
+                description={pointingKeyDescription(k.keycode)}
                 forceLabel={true}
                 keyContents={keyContents as KeyContent | undefined}
                 layerColor="sidebar"
@@ -151,9 +165,59 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         );
     };
 
+    const title = (text: string) => (
+        <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>{text}</span>
+    );
+    // One key group, every key in sight: the panel has no More keys rows, the least used group is last.
+    const group = (name: string, keys: { keycode: string; label: string; fullName?: string }[]) => {
+        if (!keys.length) return null;
+        return (
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group={name}>
+                {title(name)}
+                <div className="flex flex-wrap gap-1">{keys.map((k) => renderKey(k, false))}</div>
+            </div>
+        );
+    };
+
+    // The AutoMouse group: the same heading as the other groups, always open, then the Auto Mouse
+    // settings and the AutoMouse keys. A link to AutoMouse scrolls to its id.
+    const autoMouseGroup = () => {
+        if (!autoMouseKeys.length && !autoMouseSettings) return null;
+        return (
+            <div id={POINTING_AUTOMOUSE_ID} className={cn("flex flex-col gap-1", columns && (autoMouseSettings ? "w-[17rem] shrink-0" : "w-[15rem] shrink-0"))} data-key-group="AutoMouse">
+                {title("AutoMouse")}
+                {autoMouseSettings}
+                {autoMouseKeys.length > 0 && <div className="flex flex-wrap gap-1">{autoMouseKeys.map((k) => renderKey(k, false))}</div>}
+            </div>
+        );
+    };
+
+    // The Scroll group: the momentary and session keys, then the saved per-hand toggles under their
+    // own heading and one note on where to put them.
+    const scrollGroup = () => {
+        if (!scrollKeys.length && !savedScrollKeys.length) return null;
+        return (
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group="Scroll">
+                {title("Scroll")}
+                {scrollKeys.length > 0 && <div className="flex flex-wrap gap-1">{scrollKeys.map((k) => renderKey(k, false))}</div>}
+                {savedScrollKeys.length > 0 && (
+                    <div className={cn("flex flex-col gap-1", compact ? "pt-1" : "pt-2")} data-key-subgroup="saved">
+                        <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "text-sm font-semibold text-kb-ink"}>
+                            Saved on the keyboard
+                        </span>
+                        <p className={cn("text-slate-500 dark:text-neutral-400", compact ? "text-[10px] leading-snug" : "text-xs")} data-saved-note>
+                            Each press changes a setting saved in the keyboard's memory. Keep these keys off the mouse layer, where the keyboard ignores them, and away from spots you press often, since every press writes to its flash.
+                        </p>
+                        <div className="flex flex-wrap gap-1">{savedScrollKeys.map((k) => renderKey(k, false))}</div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
-            <div className="flex flex-col gap-1">
+        <div className={columns ? "flex flex-row flex-nowrap items-start gap-4" : compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group="Mouse Buttons">
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Mouse Buttons
                 </span>
@@ -164,7 +228,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
             </div>
 
             {/* Modifiers section */}
-            <div className="flex flex-col gap-2">
+            <div className={cn("flex flex-col gap-2", columns && "w-[15rem] shrink-0")} data-key-group="Modifiers">
                 <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
                     <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                         Modifiers
@@ -245,63 +309,12 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 )}
             </div>
 
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Sniper Keys
-                </span>
-                {/* Row 2: Sniper keys */}
-                <div className="flex flex-wrap gap-1">
-                    {sniperKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Boost
-                </span>
-                {/* Row 3: Boost keys */}
-                <div className="flex flex-wrap gap-1">
-                    {boostKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Scroll
-                </span>
-                {/* Row 4: Drag Scroll, scroll toggles, Velocity Scroll, Natural Scroll, Axis Lock */}
-                <div className="flex flex-wrap gap-1">
-                    {scrollKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            {speedKeys.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                        Pointer Speed
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                        {speedKeys.map((k) => renderKey(k, false))}
-                    </div>
-                </div>
-            )}
-
-            {pointerKeys.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                        Pointer
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                        {pointerKeys.map((k) => renderKey(k, false))}
-                    </div>
-                </div>
-            )}
-
-            <MoreKeysDisclosure category="pointing" count={moreKeys.length} compact={compact}>
-                <div className="flex flex-wrap gap-1">
-                    {moreKeys.map((k) => renderKey(k, false))}
-                </div>
-            </MoreKeysDisclosure>
+            {group("Sniper Keys", sniperKeys)}
+            {group("Boost", boostKeys)}
+            {scrollGroup()}
+            {autoMouseGroup()}
+            {group("TrackPoint", trackpointKeys)}
+            {group("DPI", dpiKeys)}
         </div>
     );
 };

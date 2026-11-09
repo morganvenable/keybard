@@ -63,3 +63,16 @@ describe('Key: sniper/boost toggle labels fit at every key size', () => {
         expect(tile.getAttribute('aria-label')).toBe('Browser Back');
     });
 });
+
+describe('Key: a picker tile with a description', () => {
+    it('adds it to the hover tooltip and gives it as the accessible description', () => {
+        const { container } = render(
+            <Key x={0} y={0} w={1} h={1} row={0} col={0} keycode="SV_SCROLL_TOGGLE" label="Scroll Toggle"
+                 forceLabel isRelative variant="medium" disableTooltip description="Switches between pointing and scrolling." />
+        );
+        const tile = container.querySelector('[data-keycap]')!;
+        expect(tile.getAttribute('title')).toBe('Scroll Toggle\nSwitches between pointing and scrolling.');
+        expect(tile.getAttribute('aria-description')).toBe('Switches between pointing and scrolling.');
+        expect(tile.getAttribute('aria-label')).toBe('Scroll Toggle');
+    });
+});

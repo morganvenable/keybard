@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ModelNotices, PointingModelProvider, TouchpadSettings } from "@/layout/SecondarySidebar/Panels/pointing/PointingModel";
 import { TouchpadTuning } from "./TouchpadTuning";
 import { closeTouchpadTuning, useTouchpadTuningOpen } from "./tuning-open";
 
 /**
- * Touchpad tuning as a dialog, opened from Pointing Devices ("Tune
- * touchpad…"). The same view as the Settings card. Mounted once per page.
+ * Tune touchpad, a modal over whatever opened it (the Pointing Devices panel or
+ * tray, or Settings > Hardware): the live pads, then taps, hold, dead zone, scroll
+ * start and palm rejection. Closing leaves that panel as it was. Mounted once per page.
  */
 export default function TouchpadTuningDialog() {
     const open = useTouchpadTuningOpen();
@@ -20,11 +22,16 @@ export default function TouchpadTuningDialog() {
                 data-touchpad-tuning-dialog
             >
                 <DialogHeader className="shrink-0">
-                    <DialogTitle>Live view</DialogTitle>
-                    <DialogDescription>Touch a pad to see each touch as it happens. Dead zone, tap and hold times are set under Advanced in Settings.</DialogDescription>
+                    <DialogTitle>Tune touchpad</DialogTitle>
+                    <DialogDescription>Touch a pad to see each touch as it happens, and set taps, hold, dead zone, scrolling and palm rejection against it.</DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-touchpad-tuning-body>
-                    {open && <TouchpadTuning place="dialog" />}
+                    {open && (
+                        <PointingModelProvider>
+                            <TouchpadTuning place="dialog" />
+                            <div className="flex flex-col gap-2 pt-4"><ModelNotices /><TouchpadSettings /></div>
+                        </PointingModelProvider>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

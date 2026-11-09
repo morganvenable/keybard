@@ -17,7 +17,7 @@ import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLeg
  * description for this page) or a block this page renders itself. To add a
  * preference, add its definition to SETTINGS and its name to a section here.
  */
-export type SettingsBlock = "hardware" | "pointing" | "firmware" | "board" | "backups" | "typing" | "power" | "about" | "debug";
+export type SettingsBlock = "hardware" | "firmware" | "board" | "backups" | "typing" | "power" | "about" | "debug";
 
 export type SettingsRow =
     | { setting: string; label?: string; description?: string }
@@ -55,17 +55,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         // Set up once when the board arrives: open until someone collapses it.
         defaultOpen: true,
         rows: [{ block: "hardware" }, { block: "board" }],
-        summary: "Clusters, pointing devices, ball color and board name",
-    },
-    {
-        id: "pointing",
-        title: "Pointing",
-        chip: "Pointing",
-        // Pointer speed, scroll speed and gestures are set once and used all day: open until someone collapses it.
-        defaultOpen: true,
-        // Only on a board with a pointing module on a half (SettingsPanel).
-        rows: [{ block: "pointing" }],
-        summary: "Pointer speed, scroll speed and gestures for each hand",
+        summary: "Clusters, pointing modules, ball color and board name",
     },
     {
         id: "firmware",
@@ -140,20 +130,20 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     },
 ];
 
-/** Sections shown only on some boards: Pointing needs a half with a pointing module. */
-export const CONDITIONAL_SECTIONS = ["pointing", "power"] as const;
+/** Sections shown only on some boards: Power needs firmware that carries its values. */
+export const CONDITIONAL_SECTIONS = ["power"] as const;
 
 /** Blocks shown only on some boards: the debug console needs firmware with the command. */
 export const CONDITIONAL_BLOCKS = ["debug"] as const;
 
 /**
- * The page this board shows: without a pointing module no Pointing card, and without the debug console command no Debug console row, and without AltGr data on the
+ * The page this board shows: without the debug console command no Debug console row, and without AltGr data on the
  * chosen keyboard layout no AltGr symbols row.
  * Search and rendering both use it, so a search never finds a hidden row.
  */
-export function shownPage(board: { pointing: boolean; debugConsole: boolean; altgr?: boolean; power?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
+export function shownPage(board: { debugConsole: boolean; altgr?: boolean; power?: boolean }, page: SettingsSection[] = SETTINGS_PAGE): SettingsSection[] {
     return page
-        .filter((section) => (section.id !== "pointing" || board.pointing) && (section.id !== "power" || board.power !== false))
+        .filter((section) => (section.id !== "power" || board.power !== false))
         .map((section) => ({
             ...section,
             rows: section.rows.filter((row) =>
@@ -169,7 +159,7 @@ export function shownPage(board: { pointing: boolean; debugConsole: boolean; alt
  */
 export const SETTINGS_SHOWN_ELSEWHERE: Record<string, string> = {
     "live-updating": "the toolbar (Live Updating / Manual Updates)",
-    "trackball-characterization": "Pointing > Advanced > Live view",
+    "trackball-characterization": "Pointing Devices, the Trackball sensors button on a trackball card",
 };
 
 /** Every setting name the page renders, in page order. */
@@ -183,18 +173,7 @@ export function blocksOnPage(page: SettingsSection[] = SETTINGS_PAGE): SettingsB
 }
 
 /**
- * The groups of Pointing's one Advanced disclosure, and the disclosure itself.
- * They open and collapse like the cards (useStickySections) and are remembered
- * the same way: Advanced closed on a first visit, its groups open inside it.
+ * The Pointing Devices panel's AutoMouse group (the Auto Mouse settings, then its keys), always open
+ * like the other key groups. ?panel=pointing-automouse scrolls to it.
  */
-export const POINTING_ADVANCED_ID = "pointing-advanced";
-export const POINTING_GROUP_IDS = ["pointing-automouse", "pointing-taps", "pointing-scrolling", "pointing-live"] as const;
-const advancedSection = (id: string, title: string, defaultOpen: boolean): SettingsSection =>
-    ({ id, title, chip: title, rows: [], defaultOpen, summary: "" });
-export const POINTING_ADVANCED: SettingsSection[] = [
-    advancedSection(POINTING_ADVANCED_ID, "Advanced", false),
-    advancedSection("pointing-automouse", "Auto mouse layer", true),
-    advancedSection("pointing-taps", "Touchpad taps and drag", true),
-    advancedSection("pointing-scrolling", "Touchpad scrolling", true),
-    advancedSection("pointing-live", "Live view", true),
-];
+export const POINTING_AUTOMOUSE_ID = "pointing-automouse";

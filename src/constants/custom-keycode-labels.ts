@@ -6,11 +6,11 @@ import type { CustomKeycode } from "@/types/keyboard.types";
  * names; Keybard shows these on the layout and in every picker, so a key reads
  * the same wherever it appears. Prefer a space to "\n": keys wrap a label at
  * its spaces, while a binding editor's key slot shows only the last line of a
- * multi-line label ("Drag\nScroll" would read "Scroll" there).
+ * multi-line label ("Scroll\nHold" would read "Hold" there).
  */
 export const CUSTOM_KEYCODE_LABELS: Readonly<Record<string, string>> = {
-    // Firmware: "Scroll\nToggle\nHold". While held, pointer motion scrolls.
-    SV_SCROLL_HOLD: "Drag Scroll",
+    // Firmware: "Scroll\nToggle\nHold". While held, Scroll Mode is flipped on both hands.
+    SV_SCROLL_HOLD: "Scroll Hold",
     // Firmware: "Velocity\nScroll". Hold: how far the pointer moves from where
     // it was sets a scroll speed, and it keeps scrolling while the pointer is still.
     // One name everywhere: Velocity Scroll (never "Vel Scroll").

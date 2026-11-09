@@ -13,6 +13,7 @@ import { sameCombo } from '../utils/combo-names';
 import { boardMenuRefs, migrateCustomValues, type SettingReplacement } from './settings-migrate';
 import { customValueLabel, qmkSettingLabel } from '../utils/setting-labels';
 import { VARIABLE_LIMITS, ZERO_REPLACED_SETTINGS, ZERO_SETTINGS_RELEASE } from '../constants/qmk-settings';
+import { HAND_KEYS, findMenuItem, hasScrollSpeed, moduleOf, scrollSpeedFromDpi, VIA_LEFT_SCROLL_SPEED, VIA_RIGHT_SCROLL_SPEED } from "../utils/pointing-settings";
 import { NOT_LAYOUT_VALUES } from "../utils/touchpad-tuning";
 
 export interface ImportReview {
@@ -61,6 +62,34 @@ function holdSettingsAtLimits(settings: Record<number, number>): SettingReplacem
         settings[qsid] = limit;
     }
     return replaced;
+}
+
+type CustomEntry = NonNullable<KeyboardInfo['custom_values']>[number];
+
+/**
+ * A backup from before Scroll speed has no value for it, and firmware with it starts at 1.0x.
+ * For each hand the file has none for, write what the firmware's own migration would have:
+ * the hand's restored DPI / 800 (see scrollSpeedFromDpi). Firmware without Scroll speed
+ * (no flag) gets nothing, so 61 and 62 are never written to it. A value in the file is restored as is.
+ */
+function scrollSpeedFromOldBackup(file: KeyboardInfo, current: KeyboardInfo, restored: CustomEntry[]): CustomEntry[] {
+    if (!hasScrollSpeed(current.feature_flags4)) return [];
+    const out: CustomEntry[] = [];
+    const via = { left: VIA_LEFT_SCROLL_SPEED, right: VIA_RIGHT_SCROLL_SPEED };
+    for (const half of current.pointing_hardware?.halves ?? []) {
+        const keys = HAND_KEYS[half.side];
+        const speed = findMenuItem(current.menus, keys.scrollSpeed);
+        const dpiItem = findMenuItem(current.menus, keys.dpi);
+        if (!speed || !dpiItem) continue;
+        if (file.custom_values?.some(entry => entry.key === keys.scrollSpeed)) continue;
+        const dpiEntry = restored.find(entry => entry.key === keys.dpi) ?? current.custom_values?.find(entry => entry.key === keys.dpi);
+        const dpi = Number(dpiItem.options?.[dpiEntry?.data?.[0] ?? -1]);
+        if (!dpiEntry || !Number.isFinite(dpi) || dpi <= 0) continue;
+        const percent = scrollSpeedFromDpi(dpi, moduleOf(half));
+        const channel = Array.isArray(speed.content) && typeof speed.content[1] === 'number' ? speed.content[1] : 0;
+        out.push({ key: keys.scrollSpeed, channel, valueId: via[half.side], data: [percent & 0xff, percent >> 8] });
+    }
+    return out;
 }
 
 /** Pure preflight: never queues commands or touches the device. */
@@ -155,6 +184,7 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
         unavailable.push(customValueLabel(entry.key, file.menus));
         return false;
     });
+    supportedValues.push(...scrollSpeedFromOldBackup(file, current, supportedValues));
     next.custom_values = [...(current.custom_values ?? []).filter(entry => !supportedValues.some(value => value.key === entry.key)), ...supportedValues];
     next.cosmetic = { ...current.cosmetic };
     for (const entry of supportedValues) {

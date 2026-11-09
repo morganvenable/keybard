@@ -89,6 +89,8 @@ export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'on
     /** The key's full name, for the tooltip and accessible name of a picker tile whose
      *  label is shortened or wrapped. Defaults to the label on one line. */
     fullName?: string;
+    /** What the key does: added to the tile's tooltip and given as its accessible description. */
+    description?: string;
     /** Fit the label into the tile (wrap between words, shrink, then a short name).
      *  On by default for tiles laid out in a row (isRelative); keymap keys keep theirs. */
     fitLabel?: boolean;
@@ -109,7 +111,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
         hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
-        style, unitSize, combo, fullName, fitLabel,
+        style, unitSize, combo, fullName, description, fitLabel,
         ...rest
     } = props;
 
@@ -365,7 +367,9 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const centerLabelText = typeof (altgrOnly ?? keyData.centerContent) === "string" ? (altgrOnly ?? keyData.centerContent) as string : null;
     const fitsLabel = (fitLabel ?? isRelative) && centerLabelText !== null && centerLabelText !== "";
     const tileName = fullName ?? label.replace(/\s+/g, " ").trim();
-    const tileTitle = props.disableTooltip ? (fitsLabel ? tileName : undefined) : (title || keycode);
+    const baseTitle = props.disableTooltip ? (fitsLabel ? tileName : undefined) : (title || keycode);
+    const tileTitle = description ? [baseTitle ?? tileName, description].join("\n") : baseTitle;
+    const tileDescription = description ? { "aria-description": description } : {};
     // A keymap key (fitLabel set on a non-relative key) keeps its own accessible name.
     const tileAria = fitsLabel && !comboInteractive && !(fitLabel && !isRelative) ? { "aria-label": tileName } : {};
 
@@ -383,6 +387,7 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             onMouseUp={drag.handleMouseUp}
             title={tileTitle}
             {...tileAria}
+            {...tileDescription}
             {...comboAttrs}
             {...rest}
         >

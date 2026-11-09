@@ -157,8 +157,8 @@ interface TouchpadTuningProps {
 /**
  * The live view of the touchpads: each pad drawn as it is touched, so a touch
  * shows why it clicked or not. The settings it explains (dead zone, tap and
- * hold times, scroll start, palm rejection) are in Settings > Pointing >
- * Advanced. Shown only on firmware that has the tuning setting and a board
+ * hold times, scroll start, palm rejection) sit under the pads in the same modal (TouchpadSettings).
+ * Shown only on firmware that has the tuning setting and a board
  * with a touchpad; the live pads need the touch page as well.
  */
 export function TouchpadTuning({ place }: TouchpadTuningProps) {

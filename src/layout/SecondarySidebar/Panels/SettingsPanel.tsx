@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { ChevronDown, Search, X } from "lucide-react";
 import ExportDialog from "@/components/ExportDialog";
 import { useNavigation } from "@/App";
@@ -17,11 +18,9 @@ import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import DeveloperTuningSection, { developerTuningMenuIndex } from "./DeveloperTuningSection";
 import AboutSection from "./settings/AboutSection";
 import DebugConsoleRow from "./settings/DebugConsoleRow";
-import PointingSection from "./settings/PointingSection";
-import { hasPointingCards } from "@/utils/pointing-settings";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
-import { onSettingsSectionRequest, requestPointingAdvanced, takeSettingsSectionRequest } from "./settings/anchor";
+import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
 import { SETTINGS_PAGE, shownPage, type SettingsBlock, type SettingsRow, type SettingsSection } from "./settings/layout";
 import { hasDebugConsole } from "@/services/debug-console";
 import { useStickySections } from "./settings/useStickySections";
@@ -87,14 +86,12 @@ const SettingsPanel = () => {
 
     const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState("");
-    // Pointing shows only on a connected board with a pointing module on a half;
-    // the Debug console row only on firmware with the command.
-    const pointingShown = isConnected && hasPointingCards(keyboard);
+    // The Debug console row shows only on firmware with the command.
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
     const { internationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
     const powerShown = isConnected && developerTuningMenuIndex(keyboard?.menus) >= 0;
-    const pageSections = useMemo(() => shownPage({ pointing: pointingShown, debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [pointingShown, debugShown, altgrShown, powerShown]);
+    const pageSections = useMemo(() => shownPage({ debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [debugShown, altgrShown, powerShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 
@@ -133,9 +130,7 @@ const SettingsPanel = () => {
 
     // A chip, a link or the rail opens a card for this visit only: what is remembered stays.
     const scrollToSection = (requested: string) => {
-        // The Advanced disclosure lives inside the Pointing card: open both for this visit.
-        const id = requested === "pointing-advanced" ? "pointing" : requested;
-        if (requested === "pointing-advanced") requestPointingAdvanced();
+        const id = requested;
         if (SETTINGS_PAGE.some((s) => s.id === id)) sticky.openForVisit(id);
         const jump = () => {
             const card = document.getElementById(sectionDomId(id));
@@ -160,7 +155,7 @@ const SettingsPanel = () => {
         if (action === "import-settings") fileInputRef.current?.click();
         else if (action === "export-settings") setIsExportOpen(true);
         else if (action === "open-scan-lab") setActivePanel("scanlab");
-        else if (action === "open-trackball") setActivePanel("trackball");
+        else if (action === "open-trackball") openTrackballSensor();
         else if (action === "open-proof-sheet") navigateTo("proof-sheet");
     };
 
@@ -176,8 +171,6 @@ const SettingsPanel = () => {
                 return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":
                 return <div className="px-3 pt-3"><ClustersPanel /></div>;
-            case "pointing":
-                return <PointingSection />;
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
             case "power":
