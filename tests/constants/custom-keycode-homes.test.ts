@@ -7,16 +7,23 @@ const fake = (name: string) => ({ name, shortName: 'x', title: 'x' });
 describe('custom keycode placement', () => {
     it('puts every Svalboard pointing key in Pointing Devices, none in Mouse Keys', () => {
         for (const n of ['SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
-            'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE', 'SV_NATURAL_SCROLL_TOGGLE',
-            'SV_AXIS_SCROLL_LOCK', 'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']) {
+            'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE',
+            'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']) {
             expect(customKeycodeHome(n)).toBe('pointing');
         }
     });
 
     it('treats Sniper, Boost and scroll keys as shown in Pointing Devices', () => {
-        for (const n of ['SV_SNIPER_2_TG', 'SV_BOOST_5', 'SV_SCROLL_HOLD', 'SV_VELOCITY_SCROLL_TOGGLE']) {
+        for (const n of ['SV_SNIPER_2_TG', 'SV_BOOST_5', 'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE']) {
             expect(customKeycodeHome(n)).toBe('pointing');
         }
+    });
+
+    it('hides Drag Scroll, Natural Scroll and Axis Lock: no picker lists them, and they never fall through to Svalboard', () => {
+        const hidden = ['SV_SCROLL_HOLD', 'SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK'];
+        for (const n of hidden) expect(customKeycodeHome(n)).toBe('hidden');
+        const all = hidden.map(fake);
+        for (const h of ['mouse', 'pointing', 'board', 'svalboard'] as const) expect(customKeycodesAt(all, h)).toEqual([]);
     });
 
     it('sends a Sniper or Boost key the Pointing panel does not list to Svalboard', () => {
@@ -47,7 +54,7 @@ describe('custom keycode placement', () => {
     it('places every built-in key in exactly one group, and none in Mouse Keys', () => {
         const all = SVALBOARD_VIAL_CUSTOM_KEYCODES as unknown as { name: string; shortName: string; title: string }[];
         expect(customKeycodesAt(all, 'mouse')).toEqual([]);
-        const total = (['mouse', 'pointing', 'board', 'svalboard'] as const)
+        const total = (['mouse', 'pointing', 'board', 'svalboard', 'hidden'] as const)
             .map(h => all.filter(k => customKeycodeHome(k.name) === h).length)
             .reduce((a, b) => a + b, 0);
         expect(total).toBe(all.length);

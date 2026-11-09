@@ -23,6 +23,8 @@
  *   palm rejection or touchpad mode setting).
  *   ?fakeBoard=pointing is this board with a PMW3389 trackball on the left half and
  *   the touchpad (built-in gestures) on the right: the Pointing Devices panel with a card of each.
+ *   ?fakeBoard=pointing-os is the same board on a computer that drives the touchpad
+ *   (Windows or Linux in Automatic): the touchpad card grays its speed and Scroll Mode.
  *   ?fakeBoard=two-balls is a PMW3389 trackball on each half, ?fakeBoard=ball-trackpoint
  *   a trackball on the left and a TrackPoint on the right, and ?fakeBoard=no-module this
  *   firmware with no pointing module on either half: each is a layout of the Pointing
@@ -122,14 +124,14 @@ export function themeFromSearch(search: string): ResolvedTheme | null {
  * "combo-names": this firmware (combo names, typing pause); "old": firmware
  * without combo names; "no-pause": firmware that can't pause typing.
  */
-export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "pointing" | "two-balls" | "ball-trackpoint" | "no-module" | "unread" | "legends" | "altrepeat";
+export type FakeBoardChoice = "combo-names" | "old" | "no-pause" | "turbo6" | "leader0" | "touchpad" | "touchpad-gestures" | "touchpad-434" | "pointing" | "pointing-os" | "two-balls" | "ball-trackpoint" | "no-module" | "unread" | "legends" | "altrepeat";
 
 /** ?fakeBoard (any value but "old" or "nopause") is the simulated board with combo names; absent is null. */
 export function fakeBoardFromSearch(search: string): FakeBoardChoice | null {
     const value = param(search, FAKE_BOARD_PARAM);
     if (value === null) return null;
     const v = value.trim().toLowerCase();
-    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "pointing" ? "pointing" : v === "two-balls" ? "two-balls" : v === "ball-trackpoint" ? "ball-trackpoint" : v === "no-module" ? "no-module" : v === "unread" ? "unread" : v === "legends" ? "legends" : v === "altrepeat" ? "altrepeat" : "combo-names";
+    return v === "old" ? "old" : v === "nopause" || v === "no-pause" ? "no-pause" : v === "turbo6" ? "turbo6" : v === "leader0" ? "leader0" : v === "touchpad" || v === "touchpad-os" ? "touchpad" : v === "touchpad-gestures" ? "touchpad-gestures" : v === "touchpad-434" ? "touchpad-434" : v === "pointing" ? "pointing" : v === "pointing-os" ? "pointing-os" : v === "two-balls" ? "two-balls" : v === "ball-trackpoint" ? "ball-trackpoint" : v === "no-module" ? "no-module" : v === "unread" ? "unread" : v === "legends" ? "legends" : v === "altrepeat" ? "altrepeat" : "combo-names";
 }
 
 /** ?tester: open the matrix tester on start. */

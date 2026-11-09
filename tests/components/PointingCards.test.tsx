@@ -38,13 +38,22 @@ const half = (side: 'left' | 'right', detected: string, osTouchpad = false) =>
 const state = vi.hoisted(() => ({
     halves: [] as unknown[], menus: [] as unknown[], flags3: 0, flags4: 0, values: new Map<string, number>(), setValue: vi.fn(async () => true),
     stored: {} as Record<string, string>, connected: true, setActivePanel: vi.fn(),
+    applyBoardState: vi.fn(), readHalves: null as unknown[] | null,
 }));
 
 vi.mock('@/contexts/KeyboardContext', () => ({
     useKeyboard: () => ({
         keyboard: { menus: state.menus, pointing_hardware: { halves: state.halves }, feature_flags3: state.flags3, feature_flags4: state.flags4 },
-        isConnected: state.connected, applyBoardState: vi.fn(),
+        isConnected: state.connected, applyBoardState: state.applyBoardState,
     }),
+}));
+// The live re-read of POINTING_HARDWARE: answers state.readHalves.
+vi.mock('@/services/keyboard.service', () => ({
+    keyboardService: {
+        getPointingHardware: vi.fn(async (kb: { pointing_hardware?: unknown }) => {
+            if (state.readHalves) kb.pointing_hardware = { halves: state.readHalves };
+        }),
+    },
 }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ setActivePanel: state.setActivePanel }) }));
 vi.mock('@/contexts/SettingsContext', () => ({
@@ -285,6 +294,85 @@ describe('Pointing Devices cards', () => {
         fireEvent.click(radios[1]);
         expect(state.setValue).not.toHaveBeenCalled();
         expect(screen.getByText('Use built-in gestures?')).toBeInTheDocument();
+    });
+});
+
+describe('Touchpad card while the computer drives the pad', () => {
+    const disabledRows = () => [...hand('right').querySelectorAll('[data-row][aria-disabled=true]')].map((r) => r.getAttribute('data-row'));
+
+    it('Windows or Linux in Automatic (0x2C bit 4): grays Pointer speed, Scroll speed and Scroll Mode, with one line why', () => {
+        setBoard([half('left', 'pmw3389'), half('right', 'azoteq', true)], FLAGS3_PAD, FLAGS4_PAD);
+        state.values.set('id_pad_touchpad_mode', 0);
+        render(<PointingSection />);
+        expect(disabledRows()).toEqual(['Pointer speed', 'Scroll speed', 'Scroll Mode']);
+        const note = hand('right').querySelector('[data-os-driven-note]') as HTMLElement;
+        expect(note.textContent).toBe('The computer is driving this touchpad, so these settings apply only with Built-in gestures.');
+        expect(note.textContent).not.toMatch(/[()]/);
+        // The note sits right under Gestures, and every grayed row points at it.
+        expect(hand('right').querySelector('[data-row=Gestures]')!.nextElementSibling).toBe(note);
+        for (const row of hand('right').querySelectorAll('[data-row][aria-disabled=true]')) expect(row.getAttribute('aria-describedby')).toBe(note.id);
+        // The values stay in sight, and the controls take no input.
+        const right = within(hand('right'));
+        expect(right.getByRole('combobox', { name: 'Pointer speed' })).toBeDisabled();
+        expect(right.getByRole('combobox', { name: 'Pointer speed' }).textContent).toBe('1200');
+        expect(right.getByRole('slider', { name: 'Scroll speed' })).toHaveAttribute('data-disabled');
+        expect(right.getByText('2.0×')).toBeInTheDocument();
+        fireEvent.click(right.getByRole('group', { name: 'Scroll Mode' }).querySelectorAll('button')[1]);
+        expect(state.setValue).not.toHaveBeenCalled();
+        // Gestures stays live, and the trackball hand is untouched.
+        expect(right.getAllByRole('radio').every((r) => !(r as HTMLButtonElement).disabled)).toBe(true);
+        expect(hand('left').querySelectorAll('[aria-disabled=true]').length).toBe(0);
+    });
+
+    it('a Mac in Automatic (no bit 4): the pad runs its built-in gestures, so every control stays live', () => {
+        setBoard([half('left', 'pmw3389'), half('right', 'azoteq', false)], FLAGS3_PAD, FLAGS4_PAD);
+        state.values.set('id_pad_touchpad_mode', 0);
+        render(<PointingSection />);
+        expect(disabledRows()).toEqual([]);
+        expect(hand('right').querySelector('[data-os-driven-note]')).toBeNull();
+        expect(within(hand('right')).getByRole('combobox', { name: 'Pointer speed' })).not.toBeDisabled();
+    });
+
+    it('Built-in gestures: every control stays live', () => {
+        setBoard([half('right', 'azoteq', false)], FLAGS3_PAD, FLAGS4_PAD);
+        state.values.set('id_pad_touchpad_mode', 1);
+        render(<PointingSection />);
+        expect(disabledRows()).toEqual([]);
+        expect(hand('right').querySelector('[data-os-driven-note]')).toBeNull();
+    });
+
+    it('follows the board live: a new bit is applied once two reads in a row agree', async () => {
+        vi.useFakeTimers();
+        try {
+            setBoard([half('right', 'azoteq', false)], FLAGS3_PAD, FLAGS4_PAD);
+            state.readHalves = [half('right', 'azoteq', true)];
+            render(<PointingSection />);
+            await vi.advanceTimersByTimeAsync(1500);
+            expect(state.applyBoardState).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(1500);
+            expect(state.applyBoardState).toHaveBeenCalledTimes(1);
+            const next = state.applyBoardState.mock.calls[0][0]({}) as { pointing_hardware: { halves: { osTouchpad: boolean }[] } };
+            expect(next.pointing_hardware.halves[0].osTouchpad).toBe(true);
+        } finally {
+            state.readHalves = null;
+            vi.useRealTimers();
+        }
+    });
+
+    it('ignores a single read that disagrees', async () => {
+        vi.useFakeTimers();
+        try {
+            setBoard([half('right', 'azoteq', true)], FLAGS3_PAD, FLAGS4_PAD);
+            state.readHalves = [half('right', 'azoteq', false)];
+            render(<PointingSection />);
+            await vi.advanceTimersByTimeAsync(1500);
+            state.readHalves = [half('right', 'azoteq', true)];
+            await vi.advanceTimersByTimeAsync(3000);
+            expect(state.applyBoardState).not.toHaveBeenCalled();
+        } finally {
+            state.readHalves = null;
+            vi.useRealTimers();
+        }
     });
 });
 

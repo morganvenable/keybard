@@ -8,12 +8,16 @@ One size (1440 x 900) and one theme (light). Run with
   1. Panel order on the trackball + touchpad board: one card per hand titled by
      its module, Pointer speed, Scroll speed and Scroll Mode in each, Gestures
      first on the touchpad hand, then Natural Scroll and Axis Lock (visible, not
-     under Advanced), then the keys, then a closed Advanced. The pad lists DPI up
+     under Advanced), then the key groups (Mouse Buttons, Modifiers, Sniper Keys,
+     Boost, Scroll, Pointer, DPI last; no More keys), then a closed Advanced. The pad lists DPI up
      to 1200 only. Settings has no Pointing or Touchpad cards.
   2. Advanced: closed on a first visit, holds Auto Mouse only, and is still open
      on the next visit once opened.
   3. Deep links: ?panel=pointing-advanced opens Advanced for that visit only.
-  4. Scroll speed writes VIA 61 as a percent and reads it back.
+  4. Scroll speed writes VIA 61 as a percent and reads it back. With
+     ?fakeBoard=pointing-os (Windows driving the pad) the touchpad card grays
+     Pointer speed, Scroll speed and Scroll Mode with one line why, and follows
+     the board live; on a Mac (?fakeBoard=pointing) they stay live.
   5. The other boards: two balls (no Gestures, no touchpad tuner), ball plus
      TrackPoint (speed list 200 to 3200, no tuner), no module (one line, no
      Natural Scroll or Axis Lock, the keys stay).
@@ -55,6 +59,12 @@ def main() -> int:
                 expect(page.locator("[data-pointing-top], [data-pointing-tray]").first).to_be_visible(timeout=20000)
             page.wait_for_timeout(500)
 
+        def no_more_keys() -> bool:
+            """The Pointing Devices panel (the section or tray holding its key groups) has no More keys disclosure."""
+            return page.evaluate("""() => { const g = document.querySelector('[data-key-group]');
+              const panel = g && g.closest('[data-pointing-tray], section');
+              return !!panel && !/more keys/i.test(panel.textContent) && !panel.querySelector('[data-testid$=more-keys], details'); }""")
+
         def advanced():
             return page.locator("[data-disclosure=pointing-advanced] > h5 button")
 
@@ -76,13 +86,26 @@ def main() -> int:
         check(shared == ["Natural Scroll", "Axis Lock"], f"Natural Scroll and Axis Lock shared once {shared}")
         check(page.locator("[data-shared]").is_visible(), "Natural Scroll and Axis Lock are visible, not under Advanced")
         check(left.locator("[data-row-value]").first.inner_text() == "1.0×", "Scroll speed reads 1.0×")
-        # Order down the page: cards, shared rows, keys, Advanced.
+        # Order down the page: cards, shared rows, the key groups (DPI last), Advanced.
+        GROUPS = ["Mouse Buttons", "Modifiers", "Sniper Keys", "Boost", "Scroll", "Pointer", "DPI"]
+        groups = page.locator("[data-key-group]").evaluate_all("e => e.map(g => g.dataset.keyGroup)")
+        check(groups == GROUPS, f"key groups, most used first, DPI last {groups}")
         ys = page.evaluate("""() => {
           const y = s => document.querySelector(s).getBoundingClientRect().top;
-          return [y('[data-hand=left]'), y('[data-hand=right]'), y('[data-shared]'), y('[data-key-group=Scroll]'),
-                  y('[data-key-group="Pointer Speed"]'), y('[data-key-group=Pointer]'), y('[data-disclosure=pointing-advanced]')];
+          return [y('[data-hand=left]'), y('[data-hand=right]'), y('[data-shared]'), y('[data-key-group="Mouse Buttons"]'),
+                  y('[data-key-group="Sniper Keys"]'), y('[data-key-group=Boost]'), y('[data-key-group=Scroll]'),
+                  y('[data-key-group=Pointer]'), y('[data-key-group=DPI]'), y('[data-disclosure=pointing-advanced]')];
         }""")
-        check(ys[0] <= ys[1] <= ys[2] < ys[3] < ys[4] < ys[5] < ys[6], f"order: cards, shared, Scroll, Pointer Speed, Pointer, Advanced {ys}")
+        check(ys[0] <= ys[1] <= ys[2] < ys[3] < ys[4] < ys[5] < ys[6] < ys[7] < ys[8] < ys[9],
+              f"order: cards, shared, Mouse Buttons, Sniper, Boost, Scroll, Pointer, DPI, Advanced {ys}")
+        check(no_more_keys(), "the panel has no More keys disclosure")
+        tiles = page.locator("[data-key-group] [data-keycap]").count()
+        dpi_last = page.evaluate("""() => { const t = [...document.querySelectorAll('[data-key-group] [data-keycap]')];
+          const d = [...document.querySelectorAll('[data-key-group=DPI] [data-keycap]')];
+          return d.length === 4 && t.slice(-4).every((e, i) => e === d[i]); }""")
+        check(dpi_last, f"the four DPI keys are the last key tiles ({tiles} tiles)")
+        faces = page.locator("[data-key-group] [data-keycap]").all_inner_texts()
+        check(not any("Drag" in f or "Natural" in f or "Axis" in f for f in faces), "no Drag Scroll, Natural Scroll or Axis Lock key tile")
         right.get_by_role("combobox", name="Pointer speed").click()
         options = page.get_by_role("option").all_inner_texts()
         check(options == ["200", "400", "600", "800", "1200"], f"the pad lists DPI up to 1200 only {options}")
@@ -124,6 +147,21 @@ def main() -> int:
         page.wait_for_timeout(500)
         check(page.locator("[data-hand=left] [data-row-value]").first.inner_text() == "1.2×", "reads back as 1.2×")
 
+        # 4b. The touchpad card while the computer drives the pad (0x2C bit 4).
+        grayed = lambda: page.locator("[data-hand=right] [data-row][aria-disabled=true]").evaluate_all("e => e.map(r => r.dataset.row)")  # noqa: E731
+        check(grayed() == [] and page.locator("[data-os-driven-note]").count() == 0, "a Mac in Automatic: the touchpad controls stay live")
+        go("panel=pointing", "fakeBoard=pointing-os&theme=light")
+        check(grayed() == ["Pointer speed", "Scroll speed", "Scroll Mode"], f"Windows driving: speed and Scroll Mode grayed {grayed()}")
+        note = page.locator("[data-hand=right] [data-os-driven-note]")
+        check(note.is_visible() and note.inner_text() == "The computer is driving this touchpad, so these settings apply only with Built-in gestures.", "Windows driving: the one line under Gestures")
+        check(page.locator("[data-hand=right]").get_by_role("combobox", name="Pointer speed").is_disabled(), "Windows driving: Pointer speed takes no input")
+        page.evaluate("window.keybardFakeBoard.device.firmware.hostTouchpad = false")
+        page.wait_for_function("!document.querySelector('[data-os-driven-note]')", timeout=8000)
+        check(grayed() == [], "live: the controls come back when the computer lets go of the pad")
+        page.evaluate("window.keybardFakeBoard.device.firmware.hostTouchpad = true")
+        page.wait_for_function("!!document.querySelector('[data-os-driven-note]')", timeout=8000)
+        check(grayed() == ["Pointer speed", "Scroll speed", "Scroll Mode"], "live: grayed again when the computer drives the pad")
+
         # 5. The other boards.
         go("panel=pointing", "fakeBoard=two-balls&theme=light")
         check(page.locator("[data-hand]").count() == 2 and page.locator("[data-hand] [data-row=Gestures]").count() == 0, "two balls: two cards, no Gestures")
@@ -148,6 +186,9 @@ def main() -> int:
         xs = page.evaluate("""() => ['[data-tray-column=hand-left]', '[data-key-group=Scroll]', '[data-tray-column=advanced]']
             .map(s => document.querySelector(s).getBoundingClientRect().left)""")
         check(xs[0] < xs[1] < xs[2], f"tray: hands, then keys, then Advanced, left to right {xs}")
+        tray_groups = page.locator("[data-pointing-tray] [data-key-group]").evaluate_all("e => e.map(g => g.dataset.keyGroup)")
+        check(tray_groups == GROUPS, f"tray key groups, DPI last {tray_groups}")
+        check(no_more_keys(), "the tray has no More keys disclosure")
 
         check(not errors, f"no page errors: {errors}")
         context.close()

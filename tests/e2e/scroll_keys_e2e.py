@@ -3,8 +3,8 @@ Browser test of the Scroll key row as a person uses it: the built app, the
 QWERTY Example, no keyboard. Run with `npm run test:e2e:scroll-keys`.
 
   1. Add a tap dance, and pick its Tap key from Pointing Devices: the Scroll
-     row has one key per scroll key, each reading its label (Drag Scroll, Velocity Scroll,
-     Velocity Scroll Toggle).
+     row has one key per scroll key, each reading its label (Velocity Scroll,
+     Velocity Scroll Toggle). Drag Scroll is hidden: no key reads it.
   2. At Normal and Medium key sizes each label fits its key face. (At Small,
      30px keys, the word "Scroll" is wider than the key; the label is still
      checked to be there.)
@@ -36,7 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 BASE_PATH = "/keybard-e2e/"
 NPX = shutil.which("npx") or "npx"
 # The Scroll row's keys, in order, by the label each shows on its key face.
-SCROLL_KEYS = ["Drag Scroll", "Velocity Scroll", "Velocity Scroll Toggle"]
+SCROLL_KEYS = ["Velocity Scroll", "Velocity Scroll Toggle"]
 # Key sizes (the editor's size buttons) at which every label must fit its key.
 FIT_SIZES = ["Normal", "Medium"]
 
@@ -142,21 +142,21 @@ def open_pointing_picker(page: Page):
 
 
 SCROLL_FACES = {
-    "Drag Scroll": r"^\s*Drag\s*Scroll\s*$",
     "Velocity Scroll": r"^\s*(Velocity|Vel)\s*Scroll\s*$",
     "Velocity Scroll Toggle": r"^\s*(Velocity|Vel)\s*Scroll\s*Toggle\s*$",
 }
 
 
 def check_scroll_row(page: Page, where: str, must_fit: bool, failures: list):
-    """Each scroll key is in the Pointing Devices picker (Drag Scroll in the closed More keys group of Pointer, the
-    Velocity Scroll keys in Scroll). A long label is wrapped or shortened on the face ("Vel Scroll"), so the face is matched
+    """Each scroll key is in the Pointing Devices picker (the Velocity Scroll keys in Scroll; Drag Scroll is hidden). A long label is wrapped or shortened on the face ("Vel Scroll"), so the face is matched
     by its words. Whether each face fits its tile is checked for every key at every size by
     `npm run test:e2e:tile-labels`."""
     for label in SCROLL_KEYS:
         keys = page.locator("[data-keycap]").filter(has_text=re.compile(SCROLL_FACES[label]))
         if keys.count() < 1:
             failures.append(f"{where}: no key reading {label!r} in the Pointing Devices picker")
+    if page.locator("[data-keycap]").filter(has_text=re.compile(r"^\s*Drag\s*Scroll\s*$")).count():
+        failures.append(f"{where}: Drag Scroll is listed in the Pointing Devices picker; it is hidden")
 
 
 def main() -> int:

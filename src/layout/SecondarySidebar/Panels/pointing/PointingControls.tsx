@@ -24,14 +24,25 @@ export function RowLabel({ label, hint, id }: { label: string; hint?: ReactNode;
     );
 }
 
-export function ToggleRow({ label, hint, value, onChange }: { label: string; hint?: ReactNode; value: number | undefined; onChange: (v: number) => void }) {
+/**
+ * A row that has no effect right now: its value stays in sight, grayed, and the control takes
+ * no input. `describedBy` names the line that says why (aria-describedby).
+ */
+export interface DisabledProps {
+    disabled?: boolean;
+    describedBy?: string;
+}
+const DISABLED_ROW = "opacity-60";
+
+export function ToggleRow({ label, hint, value, onChange, disabled, describedBy }: { label: string; hint?: ReactNode; value: number | undefined; onChange: (v: number) => void } & DisabledProps) {
     return (
-        <div className={cn(ROW, "flex-row items-center justify-between gap-3")} data-row={label}>
+        <div className={cn(ROW, "flex-row items-center justify-between gap-3", disabled && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <RowLabel label={label} hint={hint} />
-            <div className="flex shrink-0 items-center gap-2">
+            <fieldset disabled={disabled} className="m-0 flex shrink-0 items-center gap-2 border-0 p-0">
                 {value === undefined && <NotReadNote />}
-                <OnOffToggle label={label} unknown={value === undefined} value={value === 1} onToggle={(on) => onChange(on ? 1 : 0)} />
-            </div>
+                <OnOffToggle label={label} unknown={value === undefined} value={value === 1} onToggle={(on) => { if (!disabled) onChange(on ? 1 : 0); }} />
+            </fieldset>
         </div>
     );
 }
@@ -46,14 +57,17 @@ interface SliderRowProps {
     format: (index: number) => string;
     onCommit: (index: number) => void;
     disabled?: boolean;
+    /** With disabled: the line that says why (aria-describedby). */
+    describedBy?: string;
 }
 
 /** A slider over a fixed list of positions, written when it is let go. */
-export function SliderRow({ label, hint, index, max, format, onCommit, disabled }: SliderRowProps) {
+export function SliderRow({ label, hint, index, max, format, onCommit, disabled, describedBy }: SliderRowProps) {
     const [draft, setDraft] = useState(index ?? 0);
     useEffect(() => { if (index !== undefined) setDraft(index); }, [index]);
     return (
-        <div className={ROW} data-row={label} data-disabled={disabled || undefined}>
+        <div className={cn(ROW, disabled && describedBy && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <div className="flex items-baseline justify-between gap-3">
                 <RowLabel label={label} hint={hint} />
                 {index === undefined
@@ -63,6 +77,7 @@ export function SliderRow({ label, hint, index, max, format, onCommit, disabled 
             <Slider
                 aria-label={label}
                 aria-valuetext={index === undefined ? undefined : format(draft)}
+                aria-describedby={disabled ? describedBy : undefined}
                 min={0}
                 max={max}
                 step={1}
@@ -104,19 +119,20 @@ export function RangeRow({ label, hint, value, min, max, step = 1, format = Stri
     );
 }
 
-export function SelectRow({ label, hint, value, options, onChange }: {
+export function SelectRow({ label, hint, value, options, onChange, disabled, describedBy }: {
     label: string;
     hint?: ReactNode;
     value: number | undefined;
     options: { value: number; label: string }[];
     onChange: (v: number) => void;
-}) {
+} & DisabledProps) {
     const known = value !== undefined && options.some((o) => o.value === value);
     return (
-        <div className={cn(ROW, "flex-row items-center justify-between gap-3")} data-row={label}>
+        <div className={cn(ROW, "flex-row items-center justify-between gap-3", disabled && DISABLED_ROW)} data-row={label} data-disabled={disabled || undefined}
+            aria-disabled={disabled || undefined} aria-describedby={disabled ? describedBy : undefined}>
             <RowLabel label={label} hint={hint} />
-            <Select value={known ? String(value) : ""} onValueChange={(v) => onChange(parseInt(v, 10))}>
-                <SelectTrigger aria-label={label} className="w-32 shrink-0">
+            <Select value={known ? String(value) : ""} onValueChange={(v) => onChange(parseInt(v, 10))} disabled={disabled}>
+                <SelectTrigger aria-label={label} aria-describedby={disabled ? describedBy : undefined} className="w-32 shrink-0">
                     <SelectValue placeholder={value === undefined ? "Not read" : `Value ${value}`} />
                 </SelectTrigger>
                 <SelectContent>
