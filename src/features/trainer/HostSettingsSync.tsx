@@ -16,7 +16,7 @@ import { useHost, type HostConfig } from './host';
  * otherwise overwrite each other forever. Each sends its values once; the last one sent stays.
  */
 export function HostSettingsSync() {
-    const host = useHost();
+    const host = useHost({ background: true });
     const settings = useOptionalLayoutSettings();
     const internationalLayout = settings?.internationalLayout, showShiftedLegends = settings?.showShiftedLegends, showAltGrLegends = settings?.showAltGrLegends;
     const shiftedLegends = showShiftedLegends ?? DEFAULT_SHIFTED_LEGENDS, altgrLegends = showAltGrLegends === true;
