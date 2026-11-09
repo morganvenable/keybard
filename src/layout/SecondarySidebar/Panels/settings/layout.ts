@@ -173,11 +173,11 @@ export function blocksOnPage(page: SettingsSection[] = SETTINGS_PAGE): SettingsB
 }
 
 /**
- * The Pointing Devices panel's Advanced disclosure (Auto Mouse only). It opens and
+ * The Pointing Devices panel's AutoMouse disclosure: the Auto Mouse settings, then its keys. It opens and
  * collapses like the cards (useStickySections) and is remembered the same way:
  * closed on a first visit.
  */
-export const POINTING_ADVANCED_ID = "pointing-advanced";
-export const POINTING_ADVANCED: SettingsSection[] = [
-    { id: POINTING_ADVANCED_ID, title: "Advanced", chip: "Advanced", rows: [], defaultOpen: false, summary: "" },
+export const POINTING_AUTOMOUSE_ID = "pointing-automouse";
+export const POINTING_AUTOMOUSE: SettingsSection[] = [
+    { id: POINTING_AUTOMOUSE_ID, title: "AutoMouse", chip: "AutoMouse", rows: [], defaultOpen: false, summary: "" },
 ];

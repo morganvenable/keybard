@@ -1,6 +1,7 @@
 import { PendingChange, changesUtils, ChangeQueue, type KeyBlockWriter } from "@/services/changes.service";
 import React, { ReactNode, createContext, useCallback, useContext, useState, useEffect, useRef } from "react";
 import { useSettings } from "@/contexts/SettingsContext";
+import { announceKeyPlaced } from "@/lib/keyPlacements";
 
 interface ChangesContextType {
     registerUndo: (label: string, callback: () => Promise<void> | void) => void;
@@ -89,6 +90,9 @@ export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPu
     }, [getSetting, setInstant, updateSetting]);
 
     const queue = useCallback(async (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => {
+        if (metadata?.type === "key" && metadata.layer !== undefined && metadata.row !== undefined && metadata.col !== undefined && typeof metadata.keycode === "number") {
+            announceKeyPlaced({ layer: metadata.layer, row: metadata.row, col: metadata.col, keycode: metadata.keycode });
+        }
         // Offline drafts never retain callbacks capable of writing to a later board.
         if (!writable.current) return;
         engine.add(desc, cb, metadata);

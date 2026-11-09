@@ -106,11 +106,11 @@ SURFACES = [
     # Picker panels in the side panel, with every More keys group open.
     *[(f"picker {n}", f"?fakeBoard&panel={n}&moreKeys", "aside", "sidebar", None)
       for n in ("keyboard", "special", "mouse", "layers", "more", "macros", "tapdances", "qmk", "oneshot")],
-    ("picker pointing", "?fakeBoard=pointing&panel=pointing&moreKeys", "aside", "sidebar", None),
+    ("picker pointing", "?fakeBoard=pointing&panel=pointing-automouse&moreKeys", "aside", "sidebar", None),
     # The same pickers in the bottom bar tray.
     *[(f"bottom bar {n}", f"?fakeBoard&panel={n}&moreKeys", "aside", "bottombar", None)
       for n in ("keyboard", "special", "mouse", "layers", "more")],
-    ("bottom bar pointing", "?fakeBoard=pointing&panel=pointing&moreKeys", "aside", "bottombar", None),
+    ("bottom bar pointing", "?fakeBoard=pointing&panel=pointing-automouse&moreKeys", "aside", "bottombar", None),
     # Panels and editors that list or show key tiles.
     *[(f"panel {n}", f"?fakeBoard&panel={n}", "aside", "sidebar", None)
       for n in ("combos", "overrides", "leaders", "tapdances", "macros", "layers")],

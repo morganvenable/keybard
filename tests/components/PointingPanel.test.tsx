@@ -17,7 +17,7 @@ vi.mock('../../src/layout/SecondarySidebar/Panels/pointing/PointingModel', () =>
     SharedScrollRows: () => <div data-testid="shared-rows" />,
     NoModuleLine: () => null,
     ModelNotices: () => null,
-    AdvancedAutoMouse: () => <div data-testid="advanced" />,
+    AutoMouseSection: () => <div data-testid="automouse" />,
 }));
 vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => layoutSettings }));
 vi.mock('@/contexts/KeyboardContext', () => ({
@@ -53,10 +53,10 @@ describe('PointingPanel: all keys come from the shared MouseKeysSection', () => 
         expect(mouseKeysSectionRenders).toHaveBeenLastCalledWith({ compact: true, variant: 'medium', columns: true });
     });
 
-    it('draws the cards, then the shared rows, then the keys, then Advanced, in the sidebar', () => {
+    it('draws the cards, then the shared rows, then the keys, then AutoMouse, in the sidebar', () => {
         layoutSettings.layoutMode = 'sidebar';
         render(<PointingPanel />);
-        const order = ['hand-card', 'shared-rows', 'mouse-keys-section', 'advanced'].map((id) => screen.getByTestId(id));
+        const order = ['hand-card', 'shared-rows', 'mouse-keys-section', 'automouse'].map((id) => screen.getByTestId(id));
         for (let i = 0; i < order.length - 1; i++) {
             expect(order[i].compareDocumentPosition(order[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING, `${i}`).toBeTruthy();
         }
@@ -66,7 +66,7 @@ describe('PointingPanel: all keys come from the shared MouseKeysSection', () => 
         layoutSettings.layoutMode = 'bottombar';
         const { container } = render(<PointingPanel />);
         const columns = [...container.querySelectorAll('[data-tray-column]')].map((e) => e.getAttribute('data-tray-column'));
-        expect(columns).toEqual(['hand-left', 'shared', 'advanced']);
+        expect(columns).toEqual(['hand-left', 'shared', 'automouse']);
         expect(screen.getByTestId('mouse-keys-section')).toBeInTheDocument();
     });
 

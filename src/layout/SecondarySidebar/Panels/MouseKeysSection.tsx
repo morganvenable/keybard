@@ -13,15 +13,18 @@ import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/keyboard.types";
 import ModifierSideToggle from "@/components/ModifierSideToggle";
 import { useModifierSide } from "@/hooks/useModifierSide";
+import { pointingKeyDescription } from "@/constants/pointing-key-info";
 
 interface Props {
     compact?: boolean;
     variant?: "small" | "medium" | "default";
     /** The bottom tray: each group is a column that keeps its width and scrolls sideways with the rest. */
     columns?: boolean;
+    /** Only the AutoMouse keys, one row with no heading, for the AutoMouse section. */
+    only?: "automouse";
 }
 
-const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props) => {
+const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
@@ -87,16 +90,26 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props)
     // Scroll: the scroll toggles, then Velocity Scroll (hold to scroll at a speed set by how far the
     // pointer moves) and its toggle. Natural Scroll and Axis Lock are settings under the hand cards,
     // and Drag Scroll is not offered; all three are hidden in custom-keycode-homes.ts.
+    // Scroll is two sets. First the keys that act while held or until pressed again, kept in memory
+    // only. Then the per-hand scroll toggles, which flip a saved setting and write it to the
+    // keyboard's flash on every press (write_eeprom_kb), and which the firmware ignores while Auto
+    // Mouse has the mouse layer on (BAD_KEYCODE_CONDITONAL in keymap_support.c).
     const scrollKeys = [
         ...optional("SV_SCROLL_TOGGLE", "Scroll Toggle"),
-        ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
-        ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
         ...optional("SV_VELOCITY_SCROLL", "Velocity Scroll"),
         ...optional("SV_VELOCITY_SCROLL_TOGGLE", "Velocity Scroll Toggle"),
     ];
-    // Pointer: calibration and the auto mouse layer.
-    const pointerKeys = [
+    const savedScrollKeys = [
+        ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
+        ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
+    ];
+    // TrackPoint: Fix Drift recalibrates a TrackPoint, the only module whose driver has a
+    // recalibrate step. Offered on every board: keys are layout content, and modules change.
+    const trackpointKeys = [
         ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
+    ];
+    // AutoMouse: drawn inside the AutoMouse section, after its settings (only="automouse").
+    const autoMouseKeys = [
         ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
         // Key.tsx drops "Mouse" and "Timer" from a label (the mouse and clock icons stand for them), which left
         // just "KEY": the tile reads "Layer Time" with the clock icon, and its name on hover is the full one.
@@ -133,6 +146,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props)
                 keycode={finalKeycode}
                 label={k.label}
                 fullName={k.fullName}
+                description={pointingKeyDescription(k.keycode)}
                 forceLabel={true}
                 keyContents={keyContents as KeyContent | undefined}
                 layerColor="sidebar"
@@ -159,6 +173,34 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props)
             <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group={name}>
                 {title(name)}
                 <div className="flex flex-wrap gap-1">{keys.map((k) => renderKey(k, false))}</div>
+            </div>
+        );
+    };
+
+    if (only === "automouse") {
+        if (!autoMouseKeys.length) return null;
+        return <div className="flex flex-wrap gap-1" data-key-group="AutoMouse">{autoMouseKeys.map((k) => renderKey(k, false))}</div>;
+    }
+
+    // The Scroll group: the momentary and session keys, then the saved per-hand toggles under their
+    // own heading and one note on where to put them.
+    const scrollGroup = () => {
+        if (!scrollKeys.length && !savedScrollKeys.length) return null;
+        return (
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group="Scroll">
+                {title("Scroll")}
+                {scrollKeys.length > 0 && <div className="flex flex-wrap gap-1">{scrollKeys.map((k) => renderKey(k, false))}</div>}
+                {savedScrollKeys.length > 0 && (
+                    <div className={cn("flex flex-col gap-1", compact ? "pt-1" : "pt-2")} data-key-subgroup="saved">
+                        <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "text-sm font-semibold text-kb-ink"}>
+                            Saved on the keyboard
+                        </span>
+                        <p className={cn("text-slate-500 dark:text-neutral-400", compact ? "text-[10px] leading-snug" : "text-xs")} data-saved-note>
+                            Each press changes a setting saved in the keyboard's memory. Keep these keys off the mouse layer, where the keyboard ignores them, and away from spots you press often, since every press writes to its flash.
+                        </p>
+                        <div className="flex flex-wrap gap-1">{savedScrollKeys.map((k) => renderKey(k, false))}</div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -259,8 +301,8 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props)
 
             {group("Sniper Keys", sniperKeys)}
             {group("Boost", boostKeys)}
-            {group("Scroll", scrollKeys)}
-            {group("Pointer", pointerKeys)}
+            {scrollGroup()}
+            {group("TrackPoint", trackpointKeys)}
             {group("DPI", dpiKeys)}
         </div>
     );

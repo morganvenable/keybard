@@ -2,7 +2,7 @@ import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
-import { AdvancedAutoMouse, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, useHandCards } from "./pointing/PointingModel";
+import { AutoMouseSection, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, useHandCards } from "./pointing/PointingModel";
 
 /**
  * Pointing Devices panel, top to bottom:
@@ -11,8 +11,8 @@ import { AdvancedAutoMouse, HandCard, ModelNotices, NoModuleLine, PointingModelP
  *   over this panel (Tune touchpad, Trackball sensors);
  * - Natural Scroll and Axis Lock, shared by both hands;
  * - the keys, most used first and all in sight (no More keys rows): Mouse Buttons,
- *   Modifiers, Sniper Keys, Boost, Scroll, Pointer, and DPI last;
- * - a closed Advanced holding Auto Mouse.
+ *   Modifiers, Sniper Keys, Boost, Scroll, TrackPoint, and DPI last;
+ * - a closed AutoMouse section: the Auto Mouse settings, then the AutoMouse keys.
  * With no pointing module it says so in one line and the keys stay.
  * - When disconnected: shows placeholder text
  * - As a picker (isPicker): the SAME content as the main panel, so any assignable
@@ -77,14 +77,14 @@ const PointingPanel = ({ isPicker }: Props) => {
         );
     }
 
-    // Horizontal layout for bottom panel: hands first, then the key groups, then Advanced.
+    // Horizontal layout for bottom panel: hands first, then the key groups, then AutoMouse.
     if (isHorizontal) {
         return (
             <PointingModelProvider>
                 <div className="flex flex-row flex-nowrap gap-4 items-start overflow-x-auto pb-2" data-pointing-tray>
                     <TrayColumns />
                     <MouseKeysSection compact variant="medium" columns />
-                    <div className="w-[17rem] shrink-0" data-tray-column="advanced"><AdvancedAutoMouse /></div>
+                    <div className="w-[17rem] shrink-0" data-tray-column="automouse"><AutoMouseSection tray /></div>
                 </div>
             </PointingModelProvider>
         );
@@ -101,7 +101,7 @@ const PointingPanel = ({ isPicker }: Props) => {
                 <div className="pb-4">
                     <MouseKeysSection />
                 </div>
-                <AdvancedAutoMouse />
+                <AutoMouseSection />
             </section>
         </PointingModelProvider>
     );

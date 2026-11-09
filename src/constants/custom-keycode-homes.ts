@@ -33,7 +33,9 @@ const POINTING_KEYS: ReadonlySet<string> = new Set([
     "SV_LEFT_SCROLL_TOGGLE",
     "SV_RIGHT_SCROLL_TOGGLE",
     "SV_SCROLL_TOGGLE",
+    // TrackPoint section: Fix Drift.
     "SV_RECALIBRATE_POINTER",
+    // AutoMouse section, after the Auto Mouse settings: AutoMouse Toggle, Layer Time.
     "SV_TOGGLE_AUTOMOUSE",
     "SV_MH_CHANGE_TIMEOUTS",
 ]);

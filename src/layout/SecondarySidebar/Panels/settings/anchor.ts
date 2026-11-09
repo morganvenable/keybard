@@ -49,26 +49,26 @@ export function settingsSectionForPanel(panel: string): string | undefined {
 }
 
 /**
- * Opening the Pointing Devices panel's Advanced disclosure for this visit
- * (?panel=pointing-advanced). Held until the card mounts, like the
+ * Opening the Pointing Devices panel's AutoMouse disclosure for this visit
+ * (?panel=pointing-automouse, or its old name pointing-advanced). Held until the card mounts, like the
  * section request above.
  */
-const ADVANCED_EVENT = "keybard-pointing-advanced";
-let advancedPending = false;
+const AUTOMOUSE_EVENT = "keybard-pointing-automouse";
+let autoMousePending = false;
 
-export function requestPointingAdvanced(): void {
-    advancedPending = true;
-    window.dispatchEvent(new CustomEvent(ADVANCED_EVENT));
+export function requestPointingAutoMouse(): void {
+    autoMousePending = true;
+    window.dispatchEvent(new CustomEvent(AUTOMOUSE_EVENT));
 }
 
-export function takePointingAdvancedRequest(): boolean {
-    const pending = advancedPending;
-    advancedPending = false;
+export function takePointingAutoMouseRequest(): boolean {
+    const pending = autoMousePending;
+    autoMousePending = false;
     return pending;
 }
 
-export function onPointingAdvancedRequest(handler: () => void): () => void {
-    const listener = () => { advancedPending = false; handler(); };
-    window.addEventListener(ADVANCED_EVENT, listener);
-    return () => window.removeEventListener(ADVANCED_EVENT, listener);
+export function onPointingAutoMouseRequest(handler: () => void): () => void {
+    const listener = () => { autoMousePending = false; handler(); };
+    window.addEventListener(AUTOMOUSE_EVENT, listener);
+    return () => window.removeEventListener(AUTOMOUSE_EVENT, listener);
 }

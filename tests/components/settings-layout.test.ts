@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS } from '../../src/contexts/SettingsContext';
-import { HARDWARE_OPEN_SETTING, POINTING_ADVANCED, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
+import { HARDWARE_OPEN_SETTING, POINTING_AUTOMOUSE, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
 import { searchSettings } from '../../src/layout/SecondarySidebar/Panels/settings/search';
 
 describe('Settings page declaration', () => {
@@ -92,8 +92,8 @@ describe('Settings page declaration', () => {
     });
 
     it('remembers Advanced like the cards: closed on a first visit', () => {
-        expect(POINTING_ADVANCED.map((s) => [s.id, s.defaultOpen])).toEqual([['pointing-advanced', false]]);
-        const keys = [...SETTINGS_PAGE, ...POINTING_ADVANCED].map((s) => sectionStateSetting(s.id));
+        expect(POINTING_AUTOMOUSE.map((s) => [s.id, s.defaultOpen])).toEqual([['pointing-automouse', false]]);
+        const keys = [...SETTINGS_PAGE, ...POINTING_AUTOMOUSE].map((s) => sectionStateSetting(s.id));
         expect(new Set(keys).size).toBe(keys.length);
     });
 

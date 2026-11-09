@@ -15,8 +15,8 @@ vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 
 const assignKeycode = vi.fn();
 vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode }) }));
 vi.mock('@/components/Key', () => ({
-    Key: ({ keycode, variant, className, label, onClick }: { keycode: string; variant?: string; className?: string; label?: string; onClick?: () => void }) => (
-        <div data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} data-label={label ?? ''} onClick={onClick} />
+    Key: ({ keycode, variant, className, label, description, onClick }: { keycode: string; variant?: string; className?: string; label?: string; description?: string; onClick?: () => void }) => (
+        <div data-testid="key" data-keycode={keycode} data-variant={variant ?? ''} data-size={className ?? ''} data-label={label ?? ''} data-description={description ?? ''} onClick={onClick} />
     ),
 }));
 
@@ -25,11 +25,11 @@ const EXPECTED_KEYS = [
     // Sniper and Boost, one row each: momentary 2x, 3x, 5x, then the toggles.
     'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
     'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
-    // Scroll.
-    'SV_SCROLL_TOGGLE', 'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE',
-    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE',
-    // Pointer.
-    'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS',
+    // Scroll: held or for this session, then the saved per-hand toggles.
+    'SV_SCROLL_TOGGLE', 'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE',
+    'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE',
+    // TrackPoint. The AutoMouse keys are drawn in the AutoMouse section (only="automouse").
+    'SV_RECALIBRATE_POINTER',
     // DPI, last.
     'SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
 ];
@@ -63,7 +63,7 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
     it('draws the groups most used first, with DPI last', () => {
         const { container } = render(<MouseKeysSection />);
         const groups = [...container.querySelectorAll('[data-key-group]')].map((e) => e.getAttribute('data-key-group'));
-        expect(groups).toEqual(['Mouse Buttons', 'Modifiers', 'Sniper Keys', 'Boost', 'Scroll', 'Pointer', 'DPI']);
+        expect(groups).toEqual(['Mouse Buttons', 'Modifiers', 'Sniper Keys', 'Boost', 'Scroll', 'TrackPoint', 'DPI']);
         const keys = renderedKeys().map((k) => k.keycode);
         expect(keys.slice(-4)).toEqual(['SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC']);
     });
@@ -83,8 +83,8 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         expect(screen.queryByText(/more keys/i)).toBeNull();
     });
 
-    it('lists exactly the keys the placement table homes in Pointing Devices', () => {
-        render(<MouseKeysSection />);
+    it('lists exactly the keys the placement table homes in Pointing Devices, the AutoMouse keys included', () => {
+        render(<><MouseKeysSection /><MouseKeysSection only="automouse" /></>);
         const listed = renderedKeys().map((k) => k.keycode!).filter((k) => k.startsWith('SV_'));
         for (const k of listed) expect(customKeycodeHome(k), k).toBe('pointing');
         const homed = (SVALBOARD_VIAL_CUSTOM_KEYCODES as unknown as { name: string }[]).map((k) => k.name).filter((n) => customKeycodeHome(n) === 'pointing');
@@ -98,10 +98,54 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         for (const k of HIDDEN_KEYS) expect(keys).not.toContain(k);
     });
 
-    it('offers Velocity Scroll (SV_VELOCITY_SCROLL) after the scroll toggles, and assigns it', () => {
+    it('separates the saved per-hand scroll toggles under their own heading and note', () => {
+        const { container } = render(<MouseKeysSection />);
+        const scroll = container.querySelector('[data-key-group="Scroll"]')!;
+        const saved = scroll.querySelector('[data-key-subgroup="saved"]')!;
+        const codes = (el: Element) => [...el.querySelectorAll('[data-keycode]')].map((e) => e.getAttribute('data-keycode'));
+        expect(codes(saved)).toEqual(['SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE']);
+        expect(codes(scroll).filter((k) => !codes(saved).includes(k))).toEqual(['SV_SCROLL_TOGGLE', 'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE']);
+        expect(saved.textContent).toContain('Saved on the keyboard');
+        const note = saved.querySelector('[data-saved-note]')!.textContent!;
+        expect(note).toContain('Each press changes a setting saved');
+        expect(note).toContain('off the mouse layer');
+        expect(note).toContain('flash');
+    });
+
+    it('draws only the AutoMouse keys, AutoMouse Toggle then Layer Time, for the AutoMouse section', () => {
+        render(<MouseKeysSection only="automouse" />);
+        expect(renderedKeys().map((k) => k.keycode)).toEqual(['SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']);
+    });
+
+    it('gives Fix Drift its own TrackPoint group, after Scroll', () => {
+        const { container } = render(<MouseKeysSection />);
+        const tp = container.querySelector('[data-key-group="TrackPoint"]')!;
+        expect([...tp.querySelectorAll('[data-keycode]')].map((e) => e.getAttribute('data-keycode'))).toEqual(['SV_RECALIBRATE_POINTER']);
+        expect(container.querySelector('[data-key-group="Pointer"]')).toBeNull();
+    });
+
+    it.each([false, true])('gives every pointing key a description (tray: %s)', (columns) => {
+        render(<><MouseKeysSection compact={columns} columns={columns} /><MouseKeysSection only="automouse" compact={columns} /></>);
+        const keys = screen.getAllByTestId('key').filter((el) => el.getAttribute('data-keycode')!.startsWith('SV_'));
+        expect(keys.length).toBeGreaterThan(20);
+        for (const el of keys) {
+            const d = el.getAttribute('data-description')!;
+            expect(d, el.getAttribute('data-keycode')!).toMatch(/Momentary|Toggle|One step per press/);
+            expect(d, el.getAttribute('data-keycode')!).toMatch(/saved|Not saved/i);
+        }
+        const desc = (k: string) => keys.find((el) => el.getAttribute('data-keycode') === k)!.getAttribute('data-description')!;
+        expect(desc('SV_LEFT_SCROLL_TOGGLE')).toContain('Left hand');
+        expect(desc('SV_LEFT_SCROLL_TOGGLE')).toContain('Keep it off the mouse layer');
+        expect(desc('SV_SCROLL_TOGGLE')).toContain('Not saved');
+        expect(desc('SV_SNIPER_2_TG')).toContain('Toggle');
+        expect(desc('SV_BOOST_3')).toContain('Momentary');
+        expect(desc('SV_RIGHT_DPI_INC')).toContain('Right hand');
+    });
+
+    it('offers Velocity Scroll (SV_VELOCITY_SCROLL) right after Scroll Toggle, and assigns it', () => {
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
-        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_RIGHT_SCROLL_TOGGLE') + 1);
+        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_SCROLL_TOGGLE') + 1);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL')!;
         expect(key.getAttribute('data-label')).toBe('Velocity Scroll');
         fireEvent.click(key);
@@ -164,7 +208,7 @@ describe('MouseKeysSection: labels', () => {
     beforeEach(() => { keyboardState.keyboard = null; });
 
     it('labels the Mouse Key Timer so it is readable, and keeps its full name for hover', () => {
-        render(<MouseKeysSection />);
+        render(<MouseKeysSection only="automouse" />);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_MH_CHANGE_TIMEOUTS')!;
         // Key.tsx drops "Mouse" and "Timer" from a label; neither may be in the label or it reads just "KEY".
         expect(key.getAttribute('data-label')).toBe('Layer Time');

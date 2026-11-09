@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    AdvancedAutoMouse, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, TouchpadSettings, useHandCards,
+    AutoMouseSection, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, TouchpadSettings, useHandCards,
 } from '../../src/layout/SecondarySidebar/Panels/pointing/PointingModel';
-import { requestPointingAdvanced } from '../../src/layout/SecondarySidebar/Panels/settings/anchor';
+import { requestPointingAutoMouse } from '../../src/layout/SecondarySidebar/Panels/settings/anchor';
 
 const DPI = ['200', '400', '600', '800', '1200', '1600', '2400', '3200', '4800', '6400', '12000', '16000'];
 const leaf = (label: string, type: string, key: string, id: number, options?: unknown) => ({ label, type, options, content: [key, 0, id] });
@@ -55,6 +55,11 @@ vi.mock('@/services/keyboard.service', () => ({
         }),
     },
 }));
+// The AutoMouse section's keys come from MouseKeysSection; its own tests check the tiles.
+vi.mock('@/contexts/KeyBindingContext', () => ({ useKeyBinding: () => ({ assignKeycode: vi.fn() }) }));
+vi.mock('@/contexts/LayerContext', () => ({ useLayer: () => ({ selectedLayer: 0 }) }));
+vi.mock('@/contexts/LayoutSettingsContext', () => ({ useLayoutSettings: () => ({ keyVariant: 'default', layoutMode: 'sidebar' }) }));
+vi.mock('@/components/Key', () => ({ Key: ({ keycode }: { keycode: string }) => <div data-keycode={keycode} /> }));
 vi.mock('@/contexts/PanelsContext', () => ({ usePanels: () => ({ setActivePanel: state.setActivePanel }) }));
 vi.mock('@/contexts/SettingsContext', () => ({
     useSettings: () => ({ getSetting: (n: string) => state.stored[n], updateSetting: (n: string, v: string) => { state.stored[n] = v; } }),
@@ -69,7 +74,7 @@ vi.mock('@/components/trackball-sensor/trackball-open', () => ({ openTrackballSe
 import { openTouchpadTuning } from '@/components/touchpad-tuning/tuning-open';
 import { openTrackballSensor } from '@/components/trackball-sensor/trackball-open';
 
-/** The panel's settings, in its order (the keys between the shared rows and Advanced are MouseKeysSection's). */
+/** The panel's settings, in its order (the keys between the shared rows and AutoMouse are MouseKeysSection's). */
 function Cards() {
     const hands = useHandCards();
     return (
@@ -78,7 +83,7 @@ function Cards() {
             <div data-hands>{hands.map((h) => <HandCard key={h.side} hand={h} />)}</div>
             <SharedScrollRows />
             <ModelNotices />
-            <AdvancedAutoMouse />
+            <AutoMouseSection />
         </>
     );
 }
@@ -177,7 +182,7 @@ describe('Pointing Devices cards', () => {
         expect(screen.queryByText('No pointing module detected')).toBeNull();
     });
 
-    it('shares Natural Scroll and Axis Lock between the hands, visible without opening Advanced', () => {
+    it('shares Natural Scroll and Axis Lock between the hands, visible without opening AutoMouse', () => {
         setBoard([half('left', 'pmw3360'), half('right', 'pmw3360')], 0, FLAGS4_PAD);
         render(<PointingSection />);
         const shared = within(document.querySelector('[data-shared]') as HTMLElement);
@@ -260,29 +265,49 @@ describe('Pointing Devices cards', () => {
         expect(within(hand('left')).getByText('1.2×')).toBeInTheDocument();
     });
 
-    it('keeps one collapsed Advanced disclosure holding Auto Mouse only, closed on a first visit, and remembers it', () => {
+    it('keeps one collapsed AutoMouse disclosure holding the Auto Mouse settings, closed on a first visit, and remembers it', () => {
         setBoard([half('left', 'pmw3389'), half('right', 'azoteq')], FLAGS3_PAD, FLAGS4_PAD);
         const first = render(<PointingSection />);
-        const advanced = screen.getByRole('button', { name: /^Advanced/ });
+        const advanced = screen.getByRole('button', { name: /^AutoMouse/ });
         expect(advanced).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByText('Enable Auto Mouse')).toBeNull();
         fireEvent.click(advanced);
-        expect(screen.getByRole('button', { name: /^Advanced/ })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: /^AutoMouse/ })).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByText('Enable Auto Mouse')).toBeInTheDocument();
         expect(screen.queryAllByRole('heading', { level: 6 })).toHaveLength(0);
         expect(screen.queryByText('Tap to Click')).toBeNull();
-        expect(state.stored['settings-pointing-advanced-open']).toBe('open');
+        expect(state.stored['settings-pointing-automouse-open']).toBe('open');
         first.unmount();
         render(<PointingSection />);
-        expect(screen.getByRole('button', { name: /^Advanced/ })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: /^AutoMouse/ })).toHaveAttribute('aria-expanded', 'true');
     });
 
-    it('opens Advanced for a visit when a link asks for it, without remembering it', () => {
+    it('opens AutoMouse for a visit when a link asks for it, without remembering it', () => {
         setBoard([half('left', 'pmw3389')], 0, FLAGS4_PAD);
-        requestPointingAdvanced();
+        requestPointingAutoMouse();
         render(<PointingSection />);
-        expect(screen.getByRole('button', { name: /^Advanced/ })).toHaveAttribute('aria-expanded', 'true');
-        expect(state.stored['settings-pointing-advanced-open']).toBeUndefined();
+        expect(screen.getByRole('button', { name: /^AutoMouse/ })).toHaveAttribute('aria-expanded', 'true');
+        expect(state.stored['settings-pointing-automouse-open']).toBeUndefined();
+    });
+
+    it('puts the AutoMouse keys inside AutoMouse, after its settings', () => {
+        setBoard([half('left', 'pmw3389')], 0, FLAGS4_PAD);
+        requestPointingAutoMouse();
+        const { container } = render(<PointingSection />);
+        const section = container.querySelector('[data-disclosure="pointing-automouse"]')!;
+        const keys = section.querySelector('[data-key-group="AutoMouse"]')!;
+        expect([...keys.querySelectorAll('[data-keycode]')].map((e) => e.getAttribute('data-keycode'))).toEqual(['SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']);
+        const enable = within(section as HTMLElement).getByText('Enable Auto Mouse');
+        expect(enable.compareDocumentPosition(keys) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('keeps the AutoMouse keys offline, where there are no settings to show', () => {
+        state.connected = false;
+        requestPointingAutoMouse();
+        const { container } = render(<PointingSection />);
+        expect(screen.getByRole('button', { name: /^AutoMouse/ })).toHaveTextContent('Keys');
+        expect(screen.queryByText('Enable Auto Mouse')).toBeNull();
+        expect(container.querySelectorAll('[data-key-group="AutoMouse"] [data-keycode]')).toHaveLength(2);
     });
 
     it('asks before built-in gestures', () => {
