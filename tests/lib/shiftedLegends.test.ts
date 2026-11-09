@@ -23,11 +23,12 @@ describe("dualLegendFor", () => {
         }
     });
 
-    it("modifier, mod-tap and layer-tap keys show both legends of their base key", () => {
-        expect(dualLegendFor("LCTL(KC_1)", "1", { type: "modmask", modids: 0x0100 } as never, "us")).toMatchObject({ base: "1", shifted: "!" });
-        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "us")).toMatchObject({ base: "2", shifted: "@" });
-        expect(dualLegendFor("LT1(KC_3)", "3", { type: "layerhold" } as never, "us")).toMatchObject({ base: "3", shifted: "#" });
-        // AltGr types a third symbol on many layouts: one legend.
+    it("modifier, mod-tap and layer-tap keys show the base legend only", () => {
+        expect(dualLegendFor("LGUI(KC_1)", "1", { type: "modmask", modids: 0x0800 } as never, "us")).toBeNull();
+        expect(dualLegendFor("LCTL(KC_1)", "1", { type: "modmask", modids: 0x0100 } as never, "us")).toBeNull();
+        expect(dualLegendFor("LCTL_T(KC_2)", "2", { type: "modtap" } as never, "us")).toBeNull();
+        expect(dualLegendFor("LT1(KC_3)", "3", { type: "layerhold" } as never, "us")).toBeNull();
+        expect(dualLegendFor("LCTL(KC_SLSH)", "/", { type: "modmask", modids: 0x0100 } as never, "us", { altgr: true })).toBeNull();
         expect(dualLegendFor("RALT(KC_2)", "2", { type: "modmask" } as never, "de")).toBeNull();
     });
 

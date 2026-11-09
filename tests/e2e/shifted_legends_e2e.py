@@ -9,7 +9,7 @@ samples (?fakeBoard=legends: digit keys wrapped in a modifier, a mod-tap and a
 layer-tap, some in combos) and Standard Keys open, then again with the
 picker's CTRL modifier on (every picker key gets an LCTL band):
   1. On: `/` shows `?` on the layout and in the US picker; LCTL(KC_1),
-     LCTL_T(KC_2), LT1(KC_3) and LALT(KC_SLASH) show both legends; LSFT(KC_4)
+     LCTL_T(KC_2), LT1(KC_3) and LALT(KC_SLASH) show their base legend only; LSFT(KC_4)
      keeps its `$` and letters keep one legend.
      Off: no key draws two legends, and LCTL(KC_1), LCTL_T(KC_2) and LT1(KC_3)
      draw 1, 2 and 3 (their base key), not !, @ and #.
@@ -201,8 +201,8 @@ def run_case(browser, url, size, position, theme, summary):
     picker = [x for x in m if x["where"] == "picker"]
     check(any(x["code"] == "/" and x["shifted"] == "?" for x in picker), f"{tag}: picker / shows ?")
     check(any(x["code"] == "KC_SLASH" and x["shifted"] == "?" for x in layout), f"{tag}: layout / shows ?")
-    for code, sh in ((("LCTL(KC_1)", "!"), ("LCTL_T(KC_2)", "@"), ("LT1(KC_3)", "#"), ("LALT(KC_SLASH)", "?")) if size == "default" else ()):
-        check(any(x["code"] == code and x["shifted"] == sh for x in layout), f"{tag}: {code} shows {sh}")
+    for code in (("LCTL(KC_1)", "LCTL_T(KC_2)", "LT1(KC_3)", "LALT(KC_SLASH)") if size == "default" else ()):
+        check(not any(x["code"] == code and x["shifted"] for x in layout), f"{tag}: {code} shows its base legend only")
     dollar = page.locator(f'{LAYOUT} [data-keycap][data-key-label="$"]')
     check(dollar.count() > 0, f"{tag}: LSFT(KC_4) is on the layout as $")
     check(dollar.locator("[data-dual-legend]").count() == 0, f"{tag}: LSFT(KC_4) keeps its one legend ($)")

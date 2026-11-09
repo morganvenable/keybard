@@ -76,6 +76,7 @@ export const LEGEND_SEED_KEYS: Readonly<Record<string, string>> = {
     KC_C: "LT1(KC_3)",      // layer-tap header along the top
     KC_V: "LSFT(KC_4)",     // Shift-wrapped: draws $ alone
     KC_B: "LALT(KC_SLASH)", // modifier band, and in a combo
+    KC_M: "LGUI(KC_1)",     // modifier band: a GUI-wrapped digit
     KC_N: "RALT(KC_7)",     // AltGr alone: types "{" on German (AltGr Symbols)
     KC_G: "KC_2",           // plain digits: three legends on German with AltGr Symbols
     KC_H: "KC_8",           // the same, in a combo (its fold takes the AltGr corner)
