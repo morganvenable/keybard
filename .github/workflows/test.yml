@@ -1,12 +1,24 @@
 name: Tests
 
+# The full test suite: vitest with coverage on Node 22 and 24, Keybard
+# Overlay's Python tests (with Qt, offscreen), and the Keybard Paranoid build
+# (build/paranoid.ts fails it on any external reference).
+#
+# Releases run it before they deploy or publish anything (next-deploy.yml,
+# svalboard-deploy.yml and keybard-overlay-release.yml call it on the tag).
+# Pull requests and pushes don't run it; run it locally first, or by hand:
+#
+#   gh workflow run test.yml -R svalboard/keybard --ref <branch>
+
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
-      - master
+  workflow_call:
+    inputs:
+      ref:
+        description: The ref to test (a release tag); empty tests the run's commit
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +29,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
+      with:
+        ref: ${{ inputs.ref }}
     - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
@@ -40,6 +54,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v5
       with:
+        ref: ${{ inputs.ref }}
         fetch-depth: 0
 
     - name: Setup Node.js ${{ matrix.node-version }}
@@ -51,39 +66,20 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run tests with coverage
+    - name: All tests, with the coverage thresholds (vitest.config.ts)
       run: npm run test:coverage
 
-    - name: Upload coverage to Codecov
-      if: matrix.node-version == '24.x'
-      uses: codecov/codecov-action@v4
+  paranoid:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
       with:
-        files: ./coverage/coverage-final.json
-        flags: unittests
-        name: codecov-keybard
-        fail_ci_if_error: false
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Generate coverage report
-      if: matrix.node-version == '24.x'
-      run: |
-        echo "## Test Coverage Report 📊" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        npx vitest run --coverage --reporter=verbose 2>/dev/null | grep -A 10 "Coverage report" || true
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-
-    - name: Check coverage thresholds
-      if: matrix.node-version == '24.x'
-      run: |
-        COVERAGE_OUTPUT=$(npx vitest run --coverage 2>&1)
-        if echo "$COVERAGE_OUTPUT" | grep -q "Coverage threshold not met"; then
-          echo "❌ Coverage is below the required 90% threshold"
-          exit 1
-        else
-          echo "✅ Coverage meets the required threshold"
-        fi
+        ref: ${{ inputs.ref }}
+        fetch-depth: 0
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '24'
+        cache: npm
+    - run: npm ci
+    - name: Keybard Paranoid (no network references)
+      run: npm run build:paranoid

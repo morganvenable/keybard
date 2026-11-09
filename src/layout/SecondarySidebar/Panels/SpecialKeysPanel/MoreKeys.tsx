@@ -22,7 +22,7 @@ interface Props {
 /** A closed group at the end of Special Keys. It remembers being opened. */
 const MoreKeys = ({ compact, variant }: Props) => {
     const { keyboard } = useKeyboard();
-    
+
     const firmwareBoardKeys: SpecialKeyDef[] = customKeycodesAt(keyboard?.custom_keycodes, "board").map((ck) => ({
         keycode: ck.name,
         label: customKeycodeShortName(ck).replace(/\n/g, " "),

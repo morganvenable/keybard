@@ -2,22 +2,9 @@
 name: Deploy Vite App to Pages
 
 on:
-  # Runs only on pushes to main when Vite source files change.
-  # Pushes to other branches must NOT auto-deploy: GitHub Pages serves a
-  # single URL, so without this restriction any branch push would race
-  # with main and overwrite production. The job also checks main so a manual
-  # dispatch of a preview branch cannot publish to the production site.
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vite.config.ts'
-      - 'tsconfig.json'
-
-  # Allows you to run this workflow manually from the Actions tab
+  # Manual only: merges to main deploy nothing (release tags deploy Keybard:
+  # svalboard-deploy.yml and next-deploy.yml). The job also checks main so a
+  # manual dispatch of a preview branch cannot publish to the Pages site.
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
