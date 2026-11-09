@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { StepControl } from "@/components/touchpad-tuning/TouchpadTuning";
 import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { useTouchpadModeChange, useWriteTouchpadMode } from "@/components/touchpad-tuning/TouchpadMode";
 import { Button } from "@/components/ui/button";
 import { useKeyboard } from "@/contexts/KeyboardContext";
-import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { pointingMenuIndex, useMenuValues } from "@/hooks/useMenuValues";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
@@ -44,7 +44,6 @@ const SCROLL_MODE_HINT: Record<string, string> = {
  */
 export default function PointingSection() {
     const { keyboard, isConnected } = useKeyboard();
-    const { setActivePanel } = usePanels();
     const { getSetting, updateSetting } = useSettings();
     const menuIndex = pointingMenuIndex(keyboard?.menus);
     const menu = menuIndex >= 0 ? keyboard?.menus?.[menuIndex] : undefined;
@@ -228,7 +227,7 @@ export default function PointingSection() {
                         <span className="text-sm text-kb-ink">Trackball sensors</span>
                         <span className="text-xs text-muted-foreground">Surface quality and readings for each sensor</span>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setActivePanel("trackball")}>Open sensor view</Button>
+                    <Button variant="outline" size="sm" onClick={openTrackballSensor}>Open sensor view</Button>
                 </div>
             )}
         </Disclosure>
