@@ -5,7 +5,7 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Modifier, modifierOptions, applyModifiers } from "@/utils/modifierUtils";
@@ -14,17 +14,18 @@ import { KeyContent } from "@/types/keyboard.types";
 import ModifierSideToggle from "@/components/ModifierSideToggle";
 import { useModifierSide } from "@/hooks/useModifierSide";
 import { pointingKeyDescription } from "@/constants/pointing-key-info";
+import { POINTING_AUTOMOUSE_ID } from "./settings/layout";
 
 interface Props {
     compact?: boolean;
     variant?: "small" | "medium" | "default";
     /** The bottom tray: each group is a column that keeps its width and scrolls sideways with the rest. */
     columns?: boolean;
-    /** Only the AutoMouse keys, one row with no heading, for the AutoMouse section. */
-    only?: "automouse";
+    /** The Auto Mouse settings, drawn in the AutoMouse group above its keys (the panel passes them). */
+    autoMouseSettings?: ReactNode;
 }
 
-const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: Props) => {
+const MouseKeysSection = ({ compact, variant: variantOverride, columns, autoMouseSettings }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
@@ -87,15 +88,16 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: 
     const firmwareKeycodes = keyboard?.custom_keycodes;
     const firmwareHas = (name: string) => !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === name);
     const optional = (keycode: string, label: string, fullName?: string) => (firmwareHas(keycode) ? [{ keycode, label, ...(fullName ? { fullName } : {}) }] : []);
-    // Scroll: the scroll toggles, then Velocity Scroll (hold to scroll at a speed set by how far the
-    // pointer moves) and its toggle. Natural Scroll and Axis Lock are settings under the hand cards,
-    // and Drag Scroll is not offered; all three are hidden in custom-keycode-homes.ts.
+    // Scroll: Scroll Toggle and Scroll Hold (flips Scroll Mode on both hands while held), then
+    // Velocity Scroll (hold to scroll at a speed set by how far the pointer moves) and its toggle.
+    // Natural Scroll and Axis Lock are settings under the hand cards, hidden in custom-keycode-homes.ts.
     // Scroll is two sets. First the keys that act while held or until pressed again, kept in memory
     // only. Then the per-hand scroll toggles, which flip a saved setting and write it to the
     // keyboard's flash on every press (write_eeprom_kb), and which the firmware ignores while Auto
     // Mouse has the mouse layer on (BAD_KEYCODE_CONDITONAL in keymap_support.c).
     const scrollKeys = [
         ...optional("SV_SCROLL_TOGGLE", "Scroll Toggle"),
+        ...optional("SV_SCROLL_HOLD", "Scroll Hold"),
         ...optional("SV_VELOCITY_SCROLL", "Velocity Scroll"),
         ...optional("SV_VELOCITY_SCROLL_TOGGLE", "Velocity Scroll Toggle"),
     ];
@@ -108,7 +110,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: 
     const trackpointKeys = [
         ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
     ];
-    // AutoMouse: drawn inside the AutoMouse section, after its settings (only="automouse").
+    // AutoMouse: its own group after Scroll, the Auto Mouse settings (when passed) above these keys.
     const autoMouseKeys = [
         ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
         // Key.tsx drops "Mouse" and "Timer" from a label (the mouse and clock icons stand for them), which left
@@ -177,10 +179,18 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: 
         );
     };
 
-    if (only === "automouse") {
-        if (!autoMouseKeys.length) return null;
-        return <div className="flex flex-wrap gap-1" data-key-group="AutoMouse">{autoMouseKeys.map((k) => renderKey(k, false))}</div>;
-    }
+    // The AutoMouse group: the same heading as the other groups, always open, then the Auto Mouse
+    // settings and the AutoMouse keys. A link to AutoMouse scrolls to its id.
+    const autoMouseGroup = () => {
+        if (!autoMouseKeys.length && !autoMouseSettings) return null;
+        return (
+            <div id={POINTING_AUTOMOUSE_ID} className={cn("flex flex-col gap-1", columns && (autoMouseSettings ? "w-[17rem] shrink-0" : "w-[15rem] shrink-0"))} data-key-group="AutoMouse">
+                {title("AutoMouse")}
+                {autoMouseSettings}
+                {autoMouseKeys.length > 0 && <div className="flex flex-wrap gap-1">{autoMouseKeys.map((k) => renderKey(k, false))}</div>}
+            </div>
+        );
+    };
 
     // The Scroll group: the momentary and session keys, then the saved per-hand toggles under their
     // own heading and one note on where to put them.
@@ -302,6 +312,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride, columns, only }: 
             {group("Sniper Keys", sniperKeys)}
             {group("Boost", boostKeys)}
             {scrollGroup()}
+            {autoMouseGroup()}
             {group("TrackPoint", trackpointKeys)}
             {group("DPI", dpiKeys)}
         </div>

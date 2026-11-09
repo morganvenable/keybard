@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS } from '../../src/contexts/SettingsContext';
-import { HARDWARE_OPEN_SETTING, POINTING_AUTOMOUSE, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
+import { HARDWARE_OPEN_SETTING, SETTINGS_PAGE, SETTINGS_SHOWN_ELSEWHERE, blocksOnPage, sectionStateSetting, settingsOnPage, CONDITIONAL_SECTIONS, shownPage } from '../../src/layout/SecondarySidebar/Panels/settings/layout';
 import { searchSettings } from '../../src/layout/SecondarySidebar/Panels/settings/search';
 
 describe('Settings page declaration', () => {
@@ -89,12 +89,6 @@ describe('Settings page declaration', () => {
     it('keeps trackball characterization out of About: it is the Trackball sensors button in Pointing Devices', () => {
         expect(onPage).not.toContain('trackball-characterization');
         expect(SETTINGS_SHOWN_ELSEWHERE['trackball-characterization']).toMatch(/Trackball sensors/);
-    });
-
-    it('remembers Advanced like the cards: closed on a first visit', () => {
-        expect(POINTING_AUTOMOUSE.map((s) => [s.id, s.defaultOpen])).toEqual([['pointing-automouse', false]]);
-        const keys = [...SETTINGS_PAGE, ...POINTING_AUTOMOUSE].map((s) => sectionStateSetting(s.id));
-        expect(new Set(keys).size).toBe(keys.length);
     });
 
     it('remembers each card under its own setting, Hardware under the one it already used', () => {

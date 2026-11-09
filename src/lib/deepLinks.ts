@@ -44,7 +44,7 @@
  *   with ?panel=settings and the old panel names); ?panel=pointing opens the
  *   Pointing Devices panel, the keys you assign; ?panel=keyboard opens
  *   Standard Keys. ?panel=pointing-settings is the same panel, and
- *   ?panel=pointing-automouse the same with its AutoMouse disclosure open (old name: pointing-advanced). ?panel=firmware and
+ *   ?panel=pointing-automouse the same, scrolled to AutoMouse (old name: pointing-advanced). ?panel=firmware and
  *   ?panel=backups open Settings at that card. ?tune=touchpad and ?tune=trackball open
  *   that tuner modal over the panel the link lands on (?panel=pointing,
  *   ?panel=hardware for Settings > Hardware); ?panelPosition=bottombar shows the

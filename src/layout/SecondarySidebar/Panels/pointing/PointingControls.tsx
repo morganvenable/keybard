@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import { NotReadNote } from "@/components/CustomUI/controls/NotRead";
@@ -180,38 +179,3 @@ export function ChoiceRow({ label, hint, value, choices, onChange }: {
     );
 }
 
-/**
- * A heading that opens and collapses its body, remembered by the caller
- * (useStickySections). Used for the Advanced disclosure and its groups.
- */
-export function Disclosure({ id, title, summary, open, onToggle, children, level = 5 }: {
-    id: string;
-    title: string;
-    summary?: string;
-    open: boolean;
-    onToggle: () => void;
-    children: ReactNode;
-    level?: 5 | 6;
-}) {
-    const Heading = level === 5 ? "h5" : "h6";
-    return (
-        <section className="flex flex-col" data-disclosure={id} aria-labelledby={`${id}-title`}>
-            <Heading id={`${id}-title`} className="text-sm font-semibold text-kb-ink">
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls={`${id}-body`}
-                    onClick={onToggle}
-                    className="flex w-full flex-row items-center justify-between gap-2 py-2 text-left"
-                >
-                    <span>
-                        {title}
-                        {summary && <span className="ml-2 text-xs font-normal text-muted-foreground">{summary}</span>}
-                    </span>
-                    <ChevronDown aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
-                </button>
-            </Heading>
-            {open && <div id={`${id}-body`} className="flex flex-col gap-2 pb-2">{children}</div>}
-        </section>
-    );
-}

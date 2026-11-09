@@ -9,7 +9,6 @@ import { openTrackballSensor } from "@/components/trackball-sensor/trackball-ope
 import { useTouchpadModeChange, useWriteTouchpadMode } from "@/components/touchpad-tuning/TouchpadMode";
 import { Button } from "@/components/ui/button";
 import { useKeyboard } from "@/contexts/KeyboardContext";
-import { useSettings } from "@/contexts/SettingsContext";
 import { pointingMenuIndex, useMenuValues } from "@/hooks/useMenuValues";
 import type { CustomUIMenuItem } from "@/types/keyboard.types";
 import type { Side } from "@/utils/pointing-hardware";
@@ -25,10 +24,8 @@ import {
     PAD_TAP_DEFAULT_MS, PAD_TAP_MS, PAD_TAP_MS_KEY,
 } from "@/utils/touchpad-tuning";
 import { onPointingAutoMouseRequest, takePointingAutoMouseRequest } from "../settings/anchor";
-import { POINTING_AUTOMOUSE, POINTING_AUTOMOUSE_ID } from "../settings/layout";
-import MouseKeysSection from "../MouseKeysSection";
-import { useStickySections } from "../settings/useStickySections";
-import { ChoiceRow, Disclosure, RangeRow, SelectRow, SliderRow, ToggleRow } from "./PointingControls";
+import { POINTING_AUTOMOUSE_ID } from "../settings/layout";
+import { ChoiceRow, RangeRow, SelectRow, SliderRow, ToggleRow } from "./PointingControls";
 
 const SIDE_NAME: Record<Side, string> = { left: "Left hand", right: "Right hand" };
 
@@ -50,17 +47,16 @@ const SCROLL_MODE_HINT: Record<string, string> = {
  */
 function useModelState() {
     const { keyboard, isConnected } = useKeyboard();
-    const { getSetting, updateSetting } = useSettings();
     const menuIndex = pointingMenuIndex(keyboard?.menus);
     const menu = menuIndex >= 0 ? keyboard?.menus?.[menuIndex] : undefined;
     const { values, setValue, writeError } = useMenuValues(menu);
-    const sticky = useStickySections(POINTING_AUTOMOUSE, (name) => getSetting(name), (name, value) => updateSetting(name, value));
 
-    // Opened at AutoMouse from a link (?panel=pointing-automouse): for this visit only.
+    // A link to AutoMouse (?panel=pointing-automouse) scrolls the panel to the AutoMouse group.
     useEffect(() => {
-        if (takePointingAutoMouseRequest()) sticky.openForVisit(POINTING_AUTOMOUSE_ID);
-        return onPointingAutoMouseRequest(() => sticky.openForVisit(POINTING_AUTOMOUSE_ID));
-    }, [sticky.openForVisit]);
+        const show = () => requestAnimationFrame(() => document.getElementById(POINTING_AUTOMOUSE_ID)?.scrollIntoView({ block: "start" }));
+        if (takePointingAutoMouseRequest()) show();
+        return onPointingAutoMouseRequest(show);
+    }, []);
 
     const flags3 = keyboard?.feature_flags3;
     const flags4 = keyboard?.feature_flags4;
@@ -80,7 +76,7 @@ function useModelState() {
 
     const item = useCallback((key: string) => findMenuItem((menu?.content ?? []) as CustomUIMenuItem[], key), [menu]);
     return {
-        keyboard, isConnected, menu, values, writeError, sticky, flags3, flags4, hands, hasPad, padsOs, modeOn, modeValue,
+        keyboard, isConnected, menu, values, writeError, flags3, flags4, hands, hasPad, padsOs, modeOn, modeValue,
         set, setNow, modeChange, item,
     };
 }
@@ -291,14 +287,13 @@ export function ModelNotices() {
 // ---------------------------------------------------------------- AutoMouse
 
 /**
- * A closed AutoMouse section: the Auto Mouse settings when a board with them is connected, then
- * the AutoMouse keys (AutoMouse Toggle, Layer Time). The keys are layout content, so they are
- * offered offline and in the picker too, at the same size as the panel's other keys.
+ * The Auto Mouse settings, when a board with them is connected. MouseKeysSection draws them in its
+ * AutoMouse group, under the group's heading and above the AutoMouse keys (AutoMouse Toggle, Layer Time).
  */
-export function AutoMouseSection({ tray }: { tray?: boolean } = {}) {
-    const { item, values, set, sticky, isConnected, menu } = usePointingModel();
+export function AutoMouseSettings() {
+    const { item, values, set, isConnected, menu } = usePointingModel();
     const handsShown = useHandCards();
-    const settingsShown = !!(isConnected && menu && item(AUTOMOUSE_ENABLE_KEY));
+    if (!isConnected || !menu || !item(AUTOMOUSE_ENABLE_KEY)) return null;
     const autoOn = values.get(AUTOMOUSE_ENABLE_KEY) === 1;
     const noTimeout = values.get(AUTOMOUSE_NO_TIMEOUT_KEY);
     const toggle = (key: string, label: string, hint?: string) => item(key)
@@ -314,15 +309,14 @@ export function AutoMouseSection({ tray }: { tray?: boolean } = {}) {
         );
     };
     return (
-        <Disclosure id={POINTING_AUTOMOUSE_ID} title="AutoMouse" summary={settingsShown ? "Settings and keys" : "Keys"} open={sticky.isOpen(POINTING_AUTOMOUSE_ID)} onToggle={() => sticky.toggle(POINTING_AUTOMOUSE_ID)}>
-            {settingsShown && toggle(AUTOMOUSE_ENABLE_KEY, "Enable Auto Mouse", "Switch to the mouse layer when a pointer moves")}
-            {settingsShown && autoOn && handsShown.map((h) => toggle(HAND_KEYS[h.side].automouse, `${h.side === "left" ? "Left" : "Right"} Pointer Activates`, "This hand switches to the mouse layer"))}
-            {settingsShown && autoOn && toggle(AUTOMOUSE_NO_TIMEOUT_KEY, "No Layer Timeout", "The layer never returns on its own")}
-            {settingsShown && autoOn && noTimeout === 0 && range(AUTOMOUSE_TIMEOUT_KEY, "Layer Timeout", "How long the layer stays once the pointer rests", (v) => `${v} ms`)}
-            {settingsShown && autoOn && range(AUTOMOUSE_THRESHOLD_KEY, "Activation Threshold", "Ignores small bumps. 0 switches on any motion", String)}
-            {settingsShown && autoOn && range(AUTOMOUSE_DECAY_KEY, "Activation Decay", "How long movement counts before it is forgotten", (v) => `${v} ms`, 10)}
-            <div className="pt-2"><MouseKeysSection only="automouse" compact={tray} variant={tray ? "medium" : undefined} /></div>
-        </Disclosure>
+        <div className="flex flex-col gap-2 pb-2" data-automouse-settings>
+            {toggle(AUTOMOUSE_ENABLE_KEY, "Enable Auto Mouse", "Switch to the mouse layer when a pointer moves")}
+            {autoOn && handsShown.map((h) => toggle(HAND_KEYS[h.side].automouse, `${h.side === "left" ? "Left" : "Right"} Pointer Activates`, "This hand switches to the mouse layer"))}
+            {autoOn && toggle(AUTOMOUSE_NO_TIMEOUT_KEY, "No Layer Timeout", "The layer never returns on its own")}
+            {autoOn && noTimeout === 0 && range(AUTOMOUSE_TIMEOUT_KEY, "Layer Timeout", "How long the layer stays once the pointer rests", (v) => `${v} ms`)}
+            {autoOn && range(AUTOMOUSE_THRESHOLD_KEY, "Activation Threshold", "Ignores small bumps. 0 switches on any motion", String)}
+            {autoOn && range(AUTOMOUSE_DECAY_KEY, "Activation Decay", "How long movement counts before it is forgotten", (v) => `${v} ms`, 10)}
+        </div>
     );
 }
 

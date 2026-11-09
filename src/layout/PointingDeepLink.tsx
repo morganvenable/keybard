@@ -14,7 +14,7 @@ import { tuneKindFromSearch } from "@/lib/deepLinks";
  * names of what is now in Settings (?panel=typing, clusters, fragments, about) open
  * Settings at that section, as do ?panel=firmware and ?panel=backups. ?panel=scanlab opens the Scan Lab and ?panel=pointing
  * the Pointing Devices panel (?panel=pointing-settings is the same, ?panel=pointing-automouse
- * with AutoMouse open (pointing-advanced is its old name), ?panel=trackball with the Trackball sensors modal open), ?panel=keyboard the Standard
+ * scrolled to AutoMouse (pointing-advanced is its old name), ?panel=trackball with the Trackball sensors modal open), ?panel=keyboard the Standard
  * Keys panel. Once per page load.
  */
 export default function PointingDeepLink() {

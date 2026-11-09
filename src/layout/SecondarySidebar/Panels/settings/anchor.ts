@@ -49,8 +49,8 @@ export function settingsSectionForPanel(panel: string): string | undefined {
 }
 
 /**
- * Opening the Pointing Devices panel's AutoMouse disclosure for this visit
- * (?panel=pointing-automouse, or its old name pointing-advanced). Held until the card mounts, like the
+ * Scrolling the Pointing Devices panel to its AutoMouse group
+ * (?panel=pointing-automouse, or its old name pointing-advanced). Held until the panel mounts, like the
  * section request above.
  */
 const AUTOMOUSE_EVENT = "keybard-pointing-automouse";

@@ -45,6 +45,11 @@ export const POINTING_KEY_INFO: Record<string, PointingKeyInfo> = {
         does: "Switches between pointing and scrolling until you press it again.",
         kind: "toggle", hand: "both", saved: false, mouseLayerIgnored: false,
     },
+    // Flips Scroll Mode on both hands while held (scroll_hold in keymap_support.c); in memory only.
+    SV_SCROLL_HOLD: {
+        does: "Hold to switch Scroll Mode on both hands; release to switch back.",
+        kind: "hold", hand: "both", saved: false, mouseLayerIgnored: false,
+    },
     SV_LEFT_SCROLL_TOGGLE: {
         does: "Switches the left pointer between pointing and scrolling.",
         kind: "toggle", hand: "left", saved: true, mouseLayerIgnored: true,

@@ -173,11 +173,7 @@ export function blocksOnPage(page: SettingsSection[] = SETTINGS_PAGE): SettingsB
 }
 
 /**
- * The Pointing Devices panel's AutoMouse disclosure: the Auto Mouse settings, then its keys. It opens and
- * collapses like the cards (useStickySections) and is remembered the same way:
- * closed on a first visit.
+ * The Pointing Devices panel's AutoMouse group (the Auto Mouse settings, then its keys), always open
+ * like the other key groups. ?panel=pointing-automouse scrolls to it.
  */
 export const POINTING_AUTOMOUSE_ID = "pointing-automouse";
-export const POINTING_AUTOMOUSE: SettingsSection[] = [
-    { id: POINTING_AUTOMOUSE_ID, title: "AutoMouse", chip: "AutoMouse", rows: [], defaultOpen: false, summary: "" },
-];

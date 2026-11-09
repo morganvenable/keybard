@@ -9,11 +9,11 @@ One size (1440 x 900) and one theme (light). Run with
      its module, Pointer speed, Scroll speed and Scroll Mode in each, Gestures
      first on the touchpad hand, then Natural Scroll and Axis Lock (visible, not
      under AutoMouse), then the key groups (Mouse Buttons, Modifiers, Sniper Keys,
-     Boost, Scroll, TrackPoint, DPI last; no More keys), then a closed AutoMouse. The pad lists DPI up
-     to 1200 only. Settings has no Pointing or Touchpad cards.
-  2. AutoMouse: closed on a first visit, holds the Auto Mouse settings then its keys, and is still open
-     on the next visit once opened.
-  3. Deep links: ?panel=pointing-automouse (and the old pointing-advanced) open AutoMouse for that visit only.
+     Boost, Scroll with Scroll Hold after Scroll Toggle, AutoMouse, TrackPoint, DPI last;
+     no More keys). The pad lists DPI up to 1200 only. Settings has no Pointing or Touchpad cards.
+  2. AutoMouse: always open, a heading the same size and weight as the other groups' with no
+     subtitle, the Auto Mouse settings then its keys.
+  3. Deep links: ?panel=pointing-automouse (and the old pointing-advanced) scroll to AutoMouse.
   4. Scroll speed writes VIA 61 as a percent and reads it back. With
      ?fakeBoard=pointing-os (Windows driving the pad) the touchpad card grays
      Pointer speed, Scroll speed and Scroll Mode with one line why, and follows
@@ -21,8 +21,8 @@ One size (1440 x 900) and one theme (light). Run with
   5. The other boards: two balls (no Gestures, no touchpad tuner), ball plus
      TrackPoint (speed list 200 to 3200, no tuner), no module (one line, no
      Natural Scroll or Axis Lock, the keys stay).
-  6. The tray (?panelPosition=bottombar): hands first, then the key groups,
-     AutoMouse last, scrolling sideways.
+  6. The tray (?panelPosition=bottombar): hands first, then the key groups
+     (AutoMouse after Scroll, same heading), scrolling sideways.
 
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. Needs Python
 Playwright with Chromium. Exits 1 when a check fails.
@@ -65,11 +65,11 @@ def main() -> int:
               const panel = g && g.closest('[data-pointing-tray], section');
               return !!panel && !/more keys/i.test(panel.textContent) && !panel.querySelector('[data-testid$=more-keys], details'); }""")
 
-        def advanced():
-            return page.locator("[data-disclosure=pointing-automouse] > h5 button")
-
-        def advanced_open() -> bool:
-            return advanced().get_attribute("aria-expanded") == "true"
+        def same_headings() -> list:
+            """The groups whose heading font differs from Sniper Keys' (size, weight, transform)."""
+            return page.evaluate("""() => { const f = n => { const h = document.querySelector(`[data-key-group="${n}"]`).firstElementChild;
+                const c = getComputedStyle(h); return [c.fontSize, c.fontWeight, c.textTransform].join(' '); };
+              return ['Boost', 'Scroll', 'AutoMouse', 'TrackPoint', 'DPI'].filter(n => f(n) !== f('Sniper Keys')); }""")
 
         rows = lambda hand: hand.evaluate("e => [...e.querySelectorAll('[data-row]')].map(r => r.dataset.row)")  # noqa: E731
 
@@ -86,26 +86,31 @@ def main() -> int:
         check(shared == ["Natural Scroll", "Axis Lock"], f"Natural Scroll and Axis Lock shared once {shared}")
         check(page.locator("[data-shared]").is_visible(), "Natural Scroll and Axis Lock are visible, not under AutoMouse")
         check(left.locator("[data-row-value]").first.inner_text() == "1.0×", "Scroll speed reads 1.0×")
-        # Order down the page: cards, shared rows, the key groups (DPI last), AutoMouse.
-        GROUPS = ["Mouse Buttons", "Modifiers", "Sniper Keys", "Boost", "Scroll", "TrackPoint", "DPI"]
-        groups = page.locator("[data-key-group]:not([data-key-group=AutoMouse])").evaluate_all("e => e.map(g => g.dataset.keyGroup)")
+        # Order down the page: cards, shared rows, the key groups (AutoMouse after Scroll, DPI last).
+        GROUPS = ["Mouse Buttons", "Modifiers", "Sniper Keys", "Boost", "Scroll", "AutoMouse", "TrackPoint", "DPI"]
+        groups = page.locator("[data-key-group]").evaluate_all("e => e.map(g => g.dataset.keyGroup)")
         check(groups == GROUPS, f"key groups, most used first, DPI last {groups}")
         ys = page.evaluate("""() => {
           const y = s => document.querySelector(s).getBoundingClientRect().top;
           return [y('[data-hand=left]'), y('[data-hand=right]'), y('[data-shared]'), y('[data-key-group="Mouse Buttons"]'),
                   y('[data-key-group="Sniper Keys"]'), y('[data-key-group=Boost]'), y('[data-key-group=Scroll]'),
-                  y('[data-key-group=TrackPoint]'), y('[data-key-group=DPI]'), y('[data-disclosure=pointing-automouse]')];
+                  y('[data-key-group=AutoMouse]'), y('[data-key-group=TrackPoint]'), y('[data-key-group=DPI]')];
         }""")
         check(ys[0] <= ys[1] <= ys[2] < ys[3] < ys[4] < ys[5] < ys[6] < ys[7] < ys[8] < ys[9],
-              f"order: cards, shared, Mouse Buttons, Sniper, Boost, Scroll, TrackPoint, DPI, AutoMouse {ys}")
+              f"order: cards, shared, Mouse Buttons, Sniper, Boost, Scroll, AutoMouse, TrackPoint, DPI {ys}")
         check(no_more_keys(), "the panel has no More keys disclosure")
         tiles = page.locator("[data-key-group] [data-keycap]").count()
-        dpi_last = page.evaluate("""() => { const t = [...document.querySelectorAll('[data-key-group]:not([data-key-group=AutoMouse]) [data-keycap]')];
+        dpi_last = page.evaluate("""() => { const t = [...document.querySelectorAll('[data-key-group] [data-keycap]')];
           const d = [...document.querySelectorAll('[data-key-group=DPI] [data-keycap]')];
           return d.length === 4 && t.slice(-4).every((e, i) => e === d[i]); }""")
         check(dpi_last, f"the four DPI keys are the last key tiles ({tiles} tiles)")
         faces = page.locator("[data-key-group] [data-keycap]").all_inner_texts()
         check(not any("Drag" in f or "Natural" in f or "Axis" in f for f in faces), "no Drag Scroll, Natural Scroll or Axis Lock key tile")
+        flat = lambda t: " ".join(t.split()).title()  # noqa: E731
+        scroll = [flat(t) for t in page.locator("[data-key-group=Scroll] > div").first.locator("[data-keycap]").all_inner_texts()]
+        check(scroll[:2] == ["Scroll Toggle", "Scroll Hold"], f"Scroll Hold right after Scroll Toggle {scroll}")
+        saved = [flat(t) for t in page.locator("[data-key-subgroup=saved] [data-keycap]").all_inner_texts()]
+        check("Scroll Hold" not in saved, f"Scroll Hold is not in Saved on the keyboard {saved}")
         right.get_by_role("combobox", name="Pointer speed").click()
         options = page.get_by_role("option").all_inner_texts()
         check(options == ["200", "400", "600", "800", "1200"], f"the pad lists DPI up to 1200 only {options}")
@@ -122,23 +127,22 @@ def main() -> int:
 
         # 2. AutoMouse.
         go("panel=pointing")
-        check(not advanced_open(), "AutoMouse is closed on a first visit")
-        advanced().click()
-        check(advanced_open(), "AutoMouse opens")
-        titles = page.locator("[data-disclosure=pointing-automouse] [data-row]").evaluate_all("e => e.map(r => r.dataset.row)")
-        check(titles[0] == "Enable Auto Mouse" and "Tap to Click" not in titles, f"AutoMouse holds the Auto Mouse settings {titles}")
-        am_keys = page.locator("[data-disclosure=pointing-automouse] [data-key-group=AutoMouse] [data-keycap]").count()
+        am = page.locator("[data-key-group=AutoMouse]")
+        check(am.locator("button[aria-expanded]").count() == 0 and page.locator("[data-disclosure]").count() == 0, "AutoMouse is always open, no disclosure")
+        check(am.locator("> :first-child").inner_text().strip().lower() == "automouse", "AutoMouse heading reads AutoMouse")
+        check("Settings and keys" not in am.inner_text(), "AutoMouse has no subtitle")
+        diff = same_headings()
+        check(diff == [], f"AutoMouse and the other groups share one heading size and weight (differ: {diff})")
+        titles = am.locator("[data-row]").evaluate_all("e => e.map(r => r.dataset.row)")
+        check(titles[:1] == ["Enable Auto Mouse"] and "Tap to Click" not in titles, f"AutoMouse holds the Auto Mouse settings {titles}")
+        am_keys = am.locator("[data-keycap]").count()
         check(am_keys == 2, f"AutoMouse holds AutoMouse Toggle and Layer Time ({am_keys})")
-        go("panel=pointing")
-        check(advanced_open(), "AutoMouse is still open on the next visit")
-        advanced().click()
 
-        # 3. Deep links.
+        # 3. Deep links scroll to AutoMouse.
         for name in ("pointing-automouse", "pointing-advanced"):
             go(f"panel={name}")
-            check(advanced_open(), f"?panel={name} opens AutoMouse")
-            go("panel=pointing")
-            check(not advanced_open(), f"AutoMouse opened for that visit only ({name})")
+            top = page.evaluate("document.getElementById('pointing-automouse').getBoundingClientRect().top")
+            check(0 <= top < 450, f"?panel={name} scrolls to AutoMouse (top {top:.0f})")
 
         # 4. Scroll speed writes VIA 61 as a percent.
         slider = page.locator("[data-hand=left]").get_by_role("slider", name="Scroll speed")
@@ -185,10 +189,12 @@ def main() -> int:
         # 6. The tray.
         go("panel=pointing&panelPosition=bottombar")
         cols = page.locator("[data-pointing-tray] > [data-tray-column]").evaluate_all("e => e.map(c => c.dataset.trayColumn)")
-        check(cols[:3] == ["hand-left", "hand-right", "shared"] and cols[-1] == "automouse", f"tray columns {cols}")
-        xs = page.evaluate("""() => ['[data-tray-column=hand-left]', '[data-key-group=Scroll]', '[data-tray-column=automouse]']
+        check(cols == ["hand-left", "hand-right", "shared"], f"tray columns {cols}")
+        xs = page.evaluate("""() => ['[data-tray-column=hand-left]', '[data-key-group=Scroll]', '[data-key-group=AutoMouse]', '[data-key-group=TrackPoint]']
             .map(s => document.querySelector(s).getBoundingClientRect().left)""")
-        check(xs[0] < xs[1] < xs[2], f"tray: hands, then keys, then AutoMouse, left to right {xs}")
+        check(xs[0] < xs[1] < xs[2] < xs[3], f"tray: hands, then Scroll, AutoMouse, TrackPoint, left to right {xs}")
+        diff = same_headings()
+        check(diff == [], f"tray: AutoMouse shares the groups' heading (differ: {diff})")
         tray_groups = page.locator("[data-pointing-tray] [data-key-group]").evaluate_all("e => e.map(g => g.dataset.keyGroup)")
         check(tray_groups == GROUPS, f"tray key groups, DPI last {tray_groups}")
         check(no_more_keys(), "the tray has no More keys disclosure")

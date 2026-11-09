@@ -33,18 +33,19 @@ const POINTING_KEYS: ReadonlySet<string> = new Set([
     "SV_LEFT_SCROLL_TOGGLE",
     "SV_RIGHT_SCROLL_TOGGLE",
     "SV_SCROLL_TOGGLE",
+    "SV_SCROLL_HOLD",
     // TrackPoint section: Fix Drift.
     "SV_RECALIBRATE_POINTER",
-    // AutoMouse section, after the Auto Mouse settings: AutoMouse Toggle, Layer Time.
+    // AutoMouse group, after the Auto Mouse settings: AutoMouse Toggle, Layer Time.
     "SV_TOGGLE_AUTOMOUSE",
     "SV_MH_CHANGE_TIMEOUTS",
 ]);
 /**
- * Keys no picker lists, so they never fall through to Svalboard: Drag Scroll
- * (not offered), and Natural Scroll and Axis Lock, which are settings under
- * the hand cards in Pointing Devices rather than keys.
+ * Keys no picker lists, so they never fall through to Svalboard: Natural Scroll
+ * and Axis Lock, which are settings under the hand cards in Pointing Devices
+ * rather than keys.
  */
-const HIDDEN_KEYS: ReadonlySet<string> = new Set(["SV_SCROLL_HOLD", "SV_NATURAL_SCROLL_TOGGLE", "SV_AXIS_SCROLL_LOCK"]);
+const HIDDEN_KEYS: ReadonlySet<string> = new Set(["SV_NATURAL_SCROLL_TOGGLE", "SV_AXIS_SCROLL_LOCK"]);
 /** Firmware housekeeping keys, grouped with Bootloader, Reboot and Debug. */
 const BOARD_KEYS: ReadonlySet<string> = new Set(["SV_TURBO_SCAN", "SV_OUTPUT_STATUS"]);
 

@@ -7,7 +7,7 @@ const fake = (name: string) => ({ name, shortName: 'x', title: 'x' });
 describe('custom keycode placement', () => {
     it('puts every Svalboard pointing key in Pointing Devices, none in Mouse Keys', () => {
         for (const n of ['SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
-            'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE',
+            'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE', 'SV_SCROLL_HOLD',
             'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']) {
             expect(customKeycodeHome(n)).toBe('pointing');
         }
@@ -19,8 +19,8 @@ describe('custom keycode placement', () => {
         }
     });
 
-    it('hides Drag Scroll, Natural Scroll and Axis Lock: no picker lists them, and they never fall through to Svalboard', () => {
-        const hidden = ['SV_SCROLL_HOLD', 'SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK'];
+    it('hides Natural Scroll and Axis Lock: no picker lists them, and they never fall through to Svalboard', () => {
+        const hidden = ['SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK'];
         for (const n of hidden) expect(customKeycodeHome(n)).toBe('hidden');
         const all = hidden.map(fake);
         for (const h of ['mouse', 'pointing', 'board', 'svalboard'] as const) expect(customKeycodesAt(all, h)).toEqual([]);

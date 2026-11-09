@@ -2,7 +2,7 @@ import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
-import { AutoMouseSection, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, useHandCards } from "./pointing/PointingModel";
+import { AutoMouseSettings, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, useHandCards } from "./pointing/PointingModel";
 
 /**
  * Pointing Devices panel, top to bottom:
@@ -11,8 +11,8 @@ import { AutoMouseSection, HandCard, ModelNotices, NoModuleLine, PointingModelPr
  *   over this panel (Tune touchpad, Trackball sensors);
  * - Natural Scroll and Axis Lock, shared by both hands;
  * - the keys, most used first and all in sight (no More keys rows): Mouse Buttons,
- *   Modifiers, Sniper Keys, Boost, Scroll, TrackPoint, and DPI last;
- * - a closed AutoMouse section: the Auto Mouse settings, then the AutoMouse keys.
+ *   Modifiers, Sniper Keys, Boost, Scroll, AutoMouse (the Auto Mouse settings, then its keys),
+ *   TrackPoint, and DPI last. AutoMouse has the same heading as the other groups and is always open.
  * With no pointing module it says so in one line and the keys stay.
  * - When disconnected: shows placeholder text
  * - As a picker (isPicker): the SAME content as the main panel, so any assignable
@@ -77,14 +77,13 @@ const PointingPanel = ({ isPicker }: Props) => {
         );
     }
 
-    // Horizontal layout for bottom panel: hands first, then the key groups, then AutoMouse.
+    // Horizontal layout for bottom panel: hands first, then the key groups (AutoMouse after Scroll).
     if (isHorizontal) {
         return (
             <PointingModelProvider>
                 <div className="flex flex-row flex-nowrap gap-4 items-start overflow-x-auto pb-2" data-pointing-tray>
                     <TrayColumns />
-                    <MouseKeysSection compact variant="medium" columns />
-                    <div className="w-[17rem] shrink-0" data-tray-column="automouse"><AutoMouseSection tray /></div>
+                    <MouseKeysSection compact variant="medium" columns autoMouseSettings={<AutoMouseSettings />} />
                 </div>
             </PointingModelProvider>
         );
@@ -99,9 +98,8 @@ const PointingPanel = ({ isPicker }: Props) => {
                 </DescriptionBlock>
                 <RailTop />
                 <div className="pb-4">
-                    <MouseKeysSection />
+                    <MouseKeysSection autoMouseSettings={<AutoMouseSettings />} />
                 </div>
-                <AutoMouseSection />
             </section>
         </PointingModelProvider>
     );

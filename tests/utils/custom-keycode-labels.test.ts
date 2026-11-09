@@ -5,8 +5,8 @@ import { KEYMAP } from '../../src/constants/keygen';
 import type { KeyboardInfo } from '../../src/types/keyboard.types';
 
 describe('custom keycode labels', () => {
-    it('shows SV_SCROLL_HOLD as "Drag Scroll", whatever the firmware calls it', () => {
-        expect(customKeycodeShortName({ name: 'SV_SCROLL_HOLD', shortName: 'Scroll\\nToggle\\nHold' })).toBe('Drag Scroll');
+    it('shows SV_SCROLL_HOLD as "Scroll Hold", whatever the firmware calls it', () => {
+        expect(customKeycodeShortName({ name: 'SV_SCROLL_HOLD', shortName: 'Scroll\\nToggle\\nHold' })).toBe('Scroll Hold');
     });
 
     it('shows SV_VELOCITY_SCROLL as "Velocity Scroll", in full words', () => {
@@ -18,7 +18,7 @@ describe('custom keycode labels', () => {
         expect(customKeycodeShortName({ name: 'SV_SNIPER_3', shortName: 'Sniper\n3x' })).toBe('Sniper\n3x');
     });
 
-    it('labels an assigned SV_SCROLL_HOLD "Drag Scroll" on the layout', () => {
+    it('labels an assigned SV_SCROLL_HOLD "Scroll Hold" on the layout', () => {
         const kbinfo = {
             custom_keycodes: [
                 { name: 'SV_SNIPER_2', title: 'Slow the cursor 2x more.', shortName: 'Sniper\n2x' },
@@ -26,7 +26,7 @@ describe('custom keycode labels', () => {
             ],
         } as unknown as KeyboardInfo;
         keyService.generateAllKeycodes(kbinfo);
-        expect(KEYMAP['SV_SCROLL_HOLD'].str).toBe('Drag Scroll');
+        expect(KEYMAP['SV_SCROLL_HOLD'].str).toBe('Scroll Hold');
         expect(KEYMAP['SV_SNIPER_2'].str).toBe('Sniper\n2x');
     });
 

@@ -117,7 +117,7 @@ describe('mouse layer notice: a key the firmware ignores there', () => {
 
 describe('mouseLayerNoticeText', () => {
     it('names only the restricted keys', () => {
-        expect(mouseLayerNoticeText(['SV_SCROLL_TOGGLE', 'SV_SNIPER_2_TG', 'KC_A'])).toBeNull();
+        expect(mouseLayerNoticeText(['SV_SCROLL_TOGGLE', 'SV_SCROLL_HOLD', 'SV_SNIPER_2_TG', 'KC_A'])).toBeNull();
         expect(mouseLayerNoticeText(['SV_LEFT_DPI_INC'])).toMatch(/^Left DPI \+ is on the mouse layer\./);
     });
 });
