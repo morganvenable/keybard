@@ -20,7 +20,8 @@ PRESETS = {
 # Layer-change highlight choices; each sets the effect and its duration together.
 EFFECTS = {'Off': dict(effect='Off'), 'Flash': dict(effect='Quick flash', duration=150), 'Fade': dict(effect='Short fade', duration=400)}
 
-DEFAULTS = dict(layoutId='us', appearance=dict(PRESETS['Outline only']),
+# layoutId 'auto': Key legends follow the computer's layout (osLayout in the snapshot).
+DEFAULTS = dict(layoutId='auto', appearance=dict(PRESETS['Outline only']),
     effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=True, manualDefault=1,
     capitalAlphas=False, adaptiveContrast=False,
     # Keybard's Shifted Key Symbols and AltGr Symbols settings (same defaults); Keybard sends them with layoutId.
@@ -69,8 +70,13 @@ def _highlight_held_keys(config):
     config['highlightPressed'] = True
 
 
+def _automatic_legends(config):
+    # Automatic became the default keyboard language; anyone still on the old default, US, moves to it.
+    if config.get('layoutId') == 'us': config['layoutId'] = 'auto'
+
+
 # PREFERENCES_MIGRATIONS[n] upgrades a preferences config saved at version n to n + 1.
-PREFERENCES_MIGRATIONS = [_highlight_held_keys]
+PREFERENCES_MIGRATIONS = [_highlight_held_keys, _automatic_legends]
 PREFERENCES_VERSION = len(PREFERENCES_MIGRATIONS)
 
 
@@ -158,6 +164,10 @@ class HostState:
         # When a page drawing the overlay (Keybard's ?hostOverlay page, e.g. a stream capture) last
         # polled /api/host/state with overlay=1. Keybard's Overlay dialog shows neither and doesn't send it.
         self.polled_at = 0.0
+        # When any Keybard page last read the state; the computer's layout is read only while someone looks.
+        self.read_at = 0.0
+        # The computer's keyboard layout, for Key legends: Automatic (keyboard_layout.LayoutReader).
+        self.os_layout = dict(available=False, layoutId=None, name=None, id=None)
         self.session = secrets.token_hex(12)
         self.pointing_looks = {}
         # When Keybard last sent each uid's look, and the balls chosen in the Overlay per board
@@ -262,7 +272,7 @@ class HostState:
                 layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device,
                 boards=self.boards, follow=self.follow, pointingDevice=self.pointing_device, paused=self.paused, active=self.active, default=self.default, valid=self.valid,
-                modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
+                modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session, osLayout=self.os_layout))
 
 
 def serialize_profile(profile):

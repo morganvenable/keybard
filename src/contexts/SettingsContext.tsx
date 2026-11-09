@@ -7,7 +7,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { SettingsService } from "@/services/settings.service";
 import { DEFAULT_THEME_PREF, THEME_SETTING_NAME } from "@/lib/theme";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING, DEFAULT_COMBO_INDICATORS_ON } from "@/lib/comboIndicators";
-import { KEY_LEGENDS_ITEMS } from "@/lib/keyLegendsSetting";
+import { DEFAULT_KEY_LEGENDS, KEY_LEGENDS_ITEMS } from "@/lib/keyLegendsSetting";
 import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 
 // Settings definitions - single source of truth
@@ -82,7 +82,7 @@ export const SETTINGS: SettingDefinition[] = [
         label: "International Keyboards",
         type: "select",
         items: KEY_LEGENDS_ITEMS,
-        defaultValue: "us",
+        defaultValue: DEFAULT_KEY_LEGENDS,
     },
     {
         name: "import",

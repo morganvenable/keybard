@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLegends";
 import { altgrLegendsFromSearch, keyLegendsFromSearch } from "@/lib/deepLinks";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
-import { INTERNATIONAL_SETTING, resolveKeyLegendsLayout } from "@/lib/keyLegendsSetting";
+import { DEFAULT_KEY_LEGENDS, INTERNATIONAL_SETTING, resolveKeyLegendsLayout } from "@/lib/keyLegendsSetting";
+import { AUTO_LAYOUT, detectBrowserLayout, resolveKeyLegends, useOverlayLayout, type KeyLegendsStatus } from "@/lib/autoLegends";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import {
@@ -27,11 +28,17 @@ interface MeasuredDimensions {
 }
 
 interface LayoutSettingsContextType {
+    /** The layout the keys show: the chosen one, or for Automatic the one the computer is using (US when unknown). */
     internationalLayout: string;
+    /** Settings > Key legends as chosen: "auto" (Automatic) or a layout id. */
+    keyLegendsChoice: string;
+    /** Where the shown layout came from, with a plain sentence for Settings. */
+    keyLegendsStatus: KeyLegendsStatus;
     /** Digit and punctuation keys also show their shifted symbol (Settings > Appearance; on when absent). */
     showShiftedLegends?: boolean;
     /** Also show what AltGr types as a third legend (Settings > Appearance; off when absent). */
     showAltGrLegends?: boolean;
+    /** Choose Key legends: "auto" or a layout id. */
     setInternationalLayout: (layout: string) => void;
     keyVariant: KeyVariant;
     setKeyVariant: (variant: KeyVariant) => void;
@@ -62,7 +69,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         const fromLink = typeof window === "undefined" ? null : keyLegendsFromSearch(window.location.search);
         return fromLink && LAYOUTS[fromLink] ? fromLink : null;
     })());
-    const [internationalLayout, setInternationalLayoutState] = useState<string>(layoutLink.current ?? "us");
+    const [keyLegendsChoice, setKeyLegendsChoice] = useState<string>(layoutLink.current ?? DEFAULT_KEY_LEGENDS);
     const [keyVariant, setKeyVariantState] = useState<KeyVariant>("default");
     const [layoutMode, setLayoutModeState] = useState<LayoutMode>("sidebar");
     const [isAutoLayoutMode, setIsAutoLayoutModeState] = useState<boolean>(true);
@@ -82,15 +89,49 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const storedPanelPosition = settings?.isLoaded ? settings.getSetting(PANEL_POSITION_SETTING, DEFAULT_PANEL_POSITION) : null;
     // Key legends (International keyboards) is stored: it is read once settings load, and the picker and
     // Settings write it back, so a German user stays German after a reload.
-    const storedLayout = settings?.isLoaded ? resolveKeyLegendsLayout(settings.getSetting(INTERNATIONAL_SETTING, "us")) : null;
+    const storedLayout = settings?.isLoaded ? resolveKeyLegendsLayout(settings.getSetting(INTERNATIONAL_SETTING, DEFAULT_KEY_LEGENDS)) : null;
     useEffect(() => {
-        if (storedLayout && !layoutLink.current) setInternationalLayoutState(storedLayout);
+        if (storedLayout && !layoutLink.current) setKeyLegendsChoice(storedLayout);
     }, [storedLayout]);
     const setInternationalLayout = useCallback((layout: string) => {
         layoutLink.current = null;
-        setInternationalLayoutState(layout);
+        setKeyLegendsChoice(layout);
         updateSetting?.(INTERNATIONAL_SETTING, layout);
     }, [updateSetting]);
+
+    // Automatic: a connected Keybard Overlay says which layout the computer is using; without one, the
+    // browser's keyboard map. That is read again only when it may have changed: the window comes back into
+    // focus, or a modifier is released (Windows and most desktops switch layouts with modifier shortcuts).
+    const overlayLayout = useOverlayLayout();
+    const [browserLayout, setBrowserLayout] = useState<string | null | undefined>(undefined);
+    const following = keyLegendsChoice === AUTO_LAYOUT && !overlayLayout?.available;
+    useEffect(() => {
+        if (!following || typeof window === "undefined") return;
+        let alive = true, last = 0;
+        const read = () => { void detectBrowserLayout().then((id) => { if (alive) setBrowserLayout(id); }); };
+        const onKeyUp = (e: KeyboardEvent) => {
+            if (!["Shift", "Alt", "Control", "Meta", "OS"].includes(e.key)) return;
+            const now = Date.now();
+            if (now - last < 250) return;
+            last = now; read();
+        };
+        const onVisible = () => { if (document.visibilityState === "visible") read(); };
+        read();
+        window.addEventListener("focus", read);
+        window.addEventListener("keyup", onKeyUp, true);
+        document.addEventListener("visibilitychange", onVisible);
+        const keyboard = (navigator as Navigator & { keyboard?: EventTarget }).keyboard;
+        keyboard?.addEventListener?.("layoutchange", read);
+        return () => {
+            alive = false;
+            window.removeEventListener("focus", read);
+            window.removeEventListener("keyup", onKeyUp, true);
+            document.removeEventListener("visibilitychange", onVisible);
+            keyboard?.removeEventListener?.("layoutchange", read);
+        };
+    }, [following]);
+    const keyLegendsStatus = useMemo(() => resolveKeyLegends(keyLegendsChoice, overlayLayout, browserLayout), [keyLegendsChoice, overlayLayout, browserLayout]);
+    const internationalLayout = keyLegendsStatus.layoutId;
     const showShiftedLegends = settings ? settings.getSetting(SHIFTED_LEGENDS_SETTING, DEFAULT_SHIFTED_LEGENDS) === true : DEFAULT_SHIFTED_LEGENDS;
 
     // ?altgrLegends=on|off decides AltGr Symbols for this load only (review links; not saved).
@@ -266,6 +307,8 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     return (
         <LayoutSettingsContext.Provider value={{
             internationalLayout,
+            keyLegendsChoice,
+            keyLegendsStatus,
             showShiftedLegends,
             showAltGrLegends,
             setInternationalLayout,

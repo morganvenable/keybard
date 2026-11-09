@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hasAltGr, positionalLegends } from "@/lib/shiftedLegends";
-import { INTERNATIONAL_SETTING, KEY_LEGENDS_ITEMS, resolveKeyLegendsLayout } from "@/lib/keyLegendsSetting";
+import { INTERNATIONAL_SETTING, KEY_LEGENDS_ITEMS, PLACEHOLDER_LAYOUTS, keyLegendsItems, keyLegendsOptions, resolveKeyLegendsLayout } from "@/lib/keyLegendsSetting";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
 import { applyModifiers, modifierOptions, pickerBinding, type Modifier, type ModifierSide } from "@/utils/modifierUtils";
 
@@ -38,14 +38,29 @@ describe("pickerBinding: one builder for a click and a drag", () => {
 });
 
 describe("Key legends setting", () => {
-    it("is stored by a layout id; older values map to it; unknown ones fall back to US", () => {
+    it("is stored by a layout id or auto; older values map to it; unknown ones fall back to US; nothing stored is Automatic", () => {
         expect(INTERNATIONAL_SETTING).toBe("international-keyboards");
         expect(resolveKeyLegendsLayout("german")).toBe("german");
         expect(resolveKeyLegendsLayout("german-qwertz")).toBe("german");
         expect(resolveKeyLegendsLayout("french-azerty")).toBe("french");
         expect(resolveKeyLegendsLayout("colemak")).toBe("us");
-        expect(resolveKeyLegendsLayout(undefined)).toBe("us");
-        expect(KEY_LEGENDS_ITEMS.map((i) => i.value)).toEqual(Object.values(LAYOUTS).map((l) => l.value));
+        expect(resolveKeyLegendsLayout("auto")).toBe("auto");
+        expect(resolveKeyLegendsLayout(undefined)).toBe("auto");
+    });
+
+    it("offers Automatic first, then only layouts with their own key map", () => {
+        expect(KEY_LEGENDS_ITEMS[0]).toEqual({ label: "Automatic", value: "auto" });
+        const offered = KEY_LEGENDS_ITEMS.slice(1).map((i) => i.value);
+        expect(offered).toEqual(Object.values(LAYOUTS).map((l) => l.value).filter((v) => !PLACEHOLDER_LAYOUTS.has(v)));
+        for (const placeholder of ["japanese", "korean", "pt", "fr_mac"]) expect(offered).not.toContain(placeholder);
+        // A placeholder someone chose before stays shown, so the select still names it.
+        expect(keyLegendsItems("japanese").at(-1)).toEqual({ label: "Japanese", value: "japanese" });
+        expect(keyLegendsItems("german")).toBe(KEY_LEGENDS_ITEMS);
+    });
+
+    it("picker selects name what Automatic shows, or short codes", () => {
+        expect(keyLegendsOptions("auto", "german")[0]).toEqual({ label: "Automatic: German", value: "auto" });
+        expect(keyLegendsOptions("auto", "german", true)[0]).toEqual({ label: "AUTO", value: "auto" });
     });
 });
 

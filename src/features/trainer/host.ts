@@ -3,6 +3,7 @@ import type { KeyboardInfo } from '@/types/keyboard.types';
 import type { Preferences } from './core';
 import { appStorage } from '@/utils/app-storage';
 import { PARANOID } from '@/lib/paranoid';
+import type { OsLayout } from '@/lib/autoLegends';
 
 // The Keybard Overlay app serves its own copy of Keybard and the host API on this port.
 // Any other copy (keybard.svalboard.com) calls it directly on loopback, which
@@ -28,6 +29,8 @@ export interface HostSnapshot {
     active: number; default: number | null; valid: boolean; pressed: number[];
     practiceHidden: number[]; practiceTarget: number | null;
     matrixAvailable: boolean | null; visible: boolean; session: string;
+    /** The keyboard layout of the window in front, for Key legends: Automatic. Older Overlays don't send it. */
+    osLayout?: OsLayout;
 }
 /** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
 export interface HostBuild { version: string; keybardCommit: string | null; testBuild?: boolean }

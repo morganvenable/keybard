@@ -7,8 +7,11 @@ import type { SettingsState } from "@/types/settings.types";
  * v2 (Settings as one page): drops the pointing hardware settings that were
  * never wired to the board. Every other key is kept as it is, including keys
  * this build doesn't know, so preferences added on other branches survive.
+ *
+ * v3 (Key legends: Automatic): Automatic is the new default. Anyone still on the
+ * old default, English (US), moves to Automatic; any other chosen layout stays.
  */
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 export const SETTINGS_VERSION_KEY = "__v";
 
 /** Pointing hardware settings from v1 that nothing reads or writes. */
@@ -20,6 +23,9 @@ export const DEAD_V1_SETTINGS = [
     "auto-mouse",
     "auto-mouse-timeout",
 ] as const;
+
+/** Settings > Key legends (keyLegendsSetting.ts INTERNATIONAL_SETTING; named here so this file imports no app code). */
+const KEY_LEGENDS_SETTING = "international-keyboards";
 
 const isStoredValue = (value: unknown): value is string | number | boolean =>
     typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
@@ -42,6 +48,7 @@ export function migrateSettings(stored: unknown): SettingsState {
     if (version < 2) {
         for (const key of DEAD_V1_SETTINGS) delete settings[key];
     }
+    if (version < 3 && settings[KEY_LEGENDS_SETTING] === "us") settings[KEY_LEGENDS_SETTING] = "auto";
     // A newer build's object is left at its own version.
     settings[SETTINGS_VERSION_KEY] = Math.max(version, SETTINGS_SCHEMA_VERSION);
     return settings;

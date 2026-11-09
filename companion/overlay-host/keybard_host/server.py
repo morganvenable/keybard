@@ -136,6 +136,7 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
                 # A page drawing the overlay (?hostOverlay) shows the layer and held keys: read them fast.
                 if query.get('overlay') == ['1']: state.polled_at = time.monotonic()
+                state.read_at = time.monotonic()
                 return self.reply(state.snapshot(revision))
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)
