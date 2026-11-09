@@ -137,6 +137,16 @@ describe('side-panel editor bar', () => {
         expect(slotLabels(macroRow)).toEqual(['Tap', 'Tap', 'Text', 'Delay (ms)', 'Down', 'Tap', 'Up', 'Add']);
         expect(macroRow).toHaveClass('flex-wrap');
         expect(within(macroRow).getByRole('textbox', { name: 'Macro text' })).toHaveValue('hello');
+        expect(within(macroRow).queryByRole('status')).toBeNull();
+    });
+
+    it('warns in the bar about macro text the keyboard can\'t type', () => {
+        state.panels.bindingTypeToEdit = 'macros';
+        state.panels.itemToEdit = 1;
+        state.board.macros[1].actions[2] = ['text', '5µs'];
+        const { container } = render(<BindingEditorContainer inline bar />);
+        const [macroRow] = rows(container);
+        expect(within(macroRow).getByRole('status').textContent).toBe("The keyboard can't type µ. It will skip it.");
     });
 
     it('keeps an override or alt-repeat options closed until asked, then shows them under the row', () => {

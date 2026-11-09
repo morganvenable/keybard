@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FC, useEffect, useRef } from "react";
+import MacroTextWarning from "./MacroTextWarning";
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
@@ -48,6 +49,7 @@ const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus
                     {type && <div className="font-medium text-gray-600 dark:text-neutral-300">{type === "delay" ? "Delay (ms)" : type.charAt(0).toUpperCase() + type.slice(1)}</div>}
                 </div>
             </div>
+            {type === "text" && <MacroTextWarning text={String(value)} className="mt-1 w-[180px] max-w-full" />}
             {onDelete && (
                 <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity z-10">
                     <DelayedTooltip>
