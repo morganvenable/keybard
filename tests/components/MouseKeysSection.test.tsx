@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MouseKeysSection from '../../src/layout/SecondarySidebar/Panels/MouseKeysSection';
+import { customKeycodeHome } from '../../src/constants/custom-keycode-homes';
+import { SVALBOARD_VIAL_CUSTOM_KEYCODES } from '../../src/constants/svalboard-vial';
 
 // The section must size every key row from one effectiveVariant, so the keys
 // are stubbed to expose exactly the props that control sizing.
@@ -20,17 +22,19 @@ vi.mock('@/components/Key', () => ({
 
 const EXPECTED_KEYS = [
     'KC_BTN1', 'KC_BTN2', 'KC_BTN3', 'KC_BTN4', 'KC_BTN5',
-    // Scroll, with Natural Scroll in its More keys.
-    'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE',
-    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK', 'SV_NATURAL_SCROLL_TOGGLE',
-    // Pointer speed: the DPI keys, Sniper and Boost, with their toggles in More keys.
-    'SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
-    'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5',
-    'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
-    // Pointer, with Drag Scroll in its More keys.
+    // Sniper and Boost, one row each: momentary 2x, 3x, 5x, then the toggles.
+    'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
+    'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
+    // Scroll.
+    'SV_SCROLL_TOGGLE', 'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE',
+    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE',
+    // Pointer.
     'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS',
-    'SV_SCROLL_HOLD',
+    // DPI, last.
+    'SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
 ];
+// Hidden: Drag Scroll is not offered; Natural Scroll and Axis Lock are settings under the hand cards.
+const HIDDEN_KEYS = ['SV_SCROLL_HOLD', 'SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK'];
 
 function renderedKeys() {
     return screen.getAllByTestId('key').map((el) => ({
@@ -56,42 +60,48 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         keyboardState.keyboard = null;
     });
 
-    it('renders the Boost and Scroll rows alongside Mouse Buttons and Sniper Keys', () => {
-        render(<MouseKeysSection />);
-        expect(screen.getByText('Mouse Buttons')).toBeInTheDocument();
-        expect(screen.queryByText('Sniper Keys')).toBeNull();
-        expect(screen.queryByText('Boost')).toBeNull();
-        expect(screen.getByText('Scroll')).toBeInTheDocument();
-        expect(screen.getByText('Pointer Speed')).toBeInTheDocument();
-        expect(screen.getByText('Pointer')).toBeInTheDocument();
+    it('draws the groups most used first, with DPI last', () => {
+        const { container } = render(<MouseKeysSection />);
+        const groups = [...container.querySelectorAll('[data-key-group]')].map((e) => e.getAttribute('data-key-group'));
+        expect(groups).toEqual(['Mouse Buttons', 'Modifiers', 'Sniper Keys', 'Boost', 'Scroll', 'Pointer', 'DPI']);
+        const keys = renderedKeys().map((k) => k.keycode);
+        expect(keys.slice(-4)).toEqual(['SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC']);
     });
 
-    it('groups the former Mouse Keys pointer keys under Scroll, Pointer Speed and Pointer', () => {
+    it('restores the original Sniper and Boost rows: momentary 2x, 3x, 5x then the toggles, in one row each', () => {
+        const { container } = render(<MouseKeysSection />);
+        const row = (name: string) => [...container.querySelector(`[data-key-group="${name}"]`)!.querySelectorAll('[data-keycode]')]
+            .map((e) => e.getAttribute('data-label'));
+        expect(row('Sniper Keys')).toEqual(['Sniper 2x', 'Sniper 3x', 'Sniper 5x', 'Sniper 2xTG', 'Sniper 3xTG', 'Sniper 5xTG']);
+        expect(row('Boost')).toEqual(['Boost 2x', 'Boost 3x', 'Boost 5x', 'Boost 2xTG', 'Boost 3xTG', 'Boost 5xTG']);
+    });
+
+    it.each([false, true])('has no More keys disclosure and no closed group (tray: %s)', (columns) => {
+        const { container } = render(<MouseKeysSection compact={columns} columns={columns} />);
+        expect(container.querySelector('details')).toBeNull();
+        expect(container.querySelector('[data-testid$="more-keys"]')).toBeNull();
+        expect(screen.queryByText(/more keys/i)).toBeNull();
+    });
+
+    it('lists exactly the keys the placement table homes in Pointing Devices', () => {
+        render(<MouseKeysSection />);
+        const listed = renderedKeys().map((k) => k.keycode!).filter((k) => k.startsWith('SV_'));
+        for (const k of listed) expect(customKeycodeHome(k), k).toBe('pointing');
+        const homed = (SVALBOARD_VIAL_CUSTOM_KEYCODES as unknown as { name: string }[]).map((k) => k.name).filter((n) => customKeycodeHome(n) === 'pointing');
+        for (const k of homed) expect(listed, k).toContain(k);
+        for (const k of HIDDEN_KEYS) expect(customKeycodeHome(k)).toBe('hidden');
+    });
+
+    it('lists no Drag Scroll, Natural Scroll or Axis Lock key', () => {
         render(<MouseKeysSection />);
         const keys = renderedKeys().map((k) => k.keycode);
-        expect(keys.indexOf('SV_NATURAL_SCROLL_TOGGLE')).toBeLessThan(keys.indexOf('SV_LEFT_DPI_INC'));
-        expect(keys.indexOf('SV_BOOST_5')).toBeLessThan(keys.indexOf('SV_RECALIBRATE_POINTER'));
-    });
-
-    it('offers Drag Scroll (SV_SCROLL_HOLD) in the closed More keys group, labeled "Drag Scroll"', () => {
-        const { container } = render(<MouseKeysSection />);
-        const more = container.querySelector('[data-testid="pointing-more-keys"]')!;
-        expect(more).not.toBeNull();
-        expect(more.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).not.toBeNull();
-        expect(more.hasAttribute('open')).toBe(false);
-        const pointer = container.querySelector('[data-key-group="Pointer"]')!;
-        expect(pointer.contains(more)).toBe(true);
-        const scrollRow = screen.getByText('Scroll').parentElement!;
-        expect(scrollRow.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).toBeNull();
-        const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_SCROLL_HOLD');
-        expect(key).toBeDefined();
-        expect(key!.getAttribute('data-label')).toBe('Drag Scroll');
+        for (const k of HIDDEN_KEYS) expect(keys).not.toContain(k);
     });
 
     it('offers Velocity Scroll (SV_VELOCITY_SCROLL) after the scroll toggles, and assigns it', () => {
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
-        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_SCROLL_TOGGLE') + 1);
+        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_RIGHT_SCROLL_TOGGLE') + 1);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL')!;
         expect(key.getAttribute('data-label')).toBe('Velocity Scroll');
         fireEvent.click(key);
@@ -110,8 +120,8 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
 
     it('offers the hold key alone for firmware with Velocity Scroll but no toggle', () => {
         keyboardState.keyboard = { custom_keycodes: [
-            { name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' },
-            { name: 'SV_VELOCITY_SCROLL', title: '', shortName: 'Vel\\nScroll' },
+            { name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\nToggle\nHold' },
+            { name: 'SV_VELOCITY_SCROLL', title: '', shortName: 'Vel\nScroll' },
         ] };
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
@@ -120,19 +130,12 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
     });
 
     it('leaves Velocity Scroll out for firmware that has no such key', () => {
-        keyboardState.keyboard = { custom_keycodes: [{ name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\\nToggle\\nHold' }] };
+        keyboardState.keyboard = { custom_keycodes: [{ name: 'SV_SCROLL_HOLD', title: '', shortName: 'Scroll\nToggle\nHold' }] };
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
-        expect(keys).toContain('SV_SCROLL_HOLD');
+        expect(keys).not.toContain('SV_SCROLL_HOLD');
         expect(keys).not.toContain('SV_VELOCITY_SCROLL');
         expect(keys).not.toContain('SV_VELOCITY_SCROLL_TOGGLE');
-    });
-
-    it('assigns SV_SCROLL_HOLD when Drag Scroll is clicked', () => {
-        render(<MouseKeysSection />);
-        const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_SCROLL_HOLD')!;
-        fireEvent.click(key);
-        expect(assignKeycode).toHaveBeenCalledWith('SV_SCROLL_HOLD');
     });
 
     it.each([
@@ -157,19 +160,8 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
 });
 
 
-describe('MouseKeysSection: More keys per group', () => {
+describe('MouseKeysSection: labels', () => {
     beforeEach(() => { keyboardState.keyboard = null; });
-
-    it('closes the Sniper and Boost toggles in Pointer Speed, and Natural Scroll in Scroll', () => {
-        const { container } = render(<MouseKeysSection />);
-        const speed = container.querySelector('[data-testid="pointing-speed-more-keys"]')!;
-        const toggles = [...speed.querySelectorAll('[data-keycode]')].map((e) => e.getAttribute('data-keycode'));
-        expect(toggles).toEqual(['SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG']);
-        expect(speed.hasAttribute('open')).toBe(false);
-        const scroll = container.querySelector('[data-testid="pointing-scroll-more-keys"]')!;
-        expect(scroll.querySelector('[data-keycode="SV_NATURAL_SCROLL_TOGGLE"]')).not.toBeNull();
-        expect(scroll.hasAttribute('open')).toBe(false);
-    });
 
     it('labels the Mouse Key Timer so it is readable, and keeps its full name for hover', () => {
         render(<MouseKeysSection />);

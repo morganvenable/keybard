@@ -10,7 +10,8 @@ import { AdvancedAutoMouse, HandCard, ModelNotices, NoModuleLine, PointingModelP
  *   (a touchpad: Gestures first) and the hand's tuner button, which opens a modal
  *   over this panel (Tune touchpad, Trackball sensors);
  * - Natural Scroll and Axis Lock, shared by both hands;
- * - the keys: Scroll, Pointer speed and Pointer, each with a closed More keys row;
+ * - the keys, most used first and all in sight (no More keys rows): Mouse Buttons,
+ *   Modifiers, Sniper Keys, Boost, Scroll, Pointer, and DPI last;
  * - a closed Advanced holding Auto Mouse.
  * With no pointing module it says so in one line and the keys stay.
  * - When disconnected: shows placeholder text

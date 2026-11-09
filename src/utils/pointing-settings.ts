@@ -135,6 +135,12 @@ export interface HandModel {
     module: PointingModule | null;
     /** What the card says it is. */
     moduleName: string;
+    /**
+     * The computer drives this hand's touchpad as a Precision Touchpad (0x2C flags bit 4,
+     * SVAL_POINTER_OS_TOUCHPAD: Windows or Linux in Automatic), so the pad's own Pointer speed,
+     * Scroll speed and Scroll Mode have no effect. False on a Mac and with Built-in gestures.
+     */
+    osDriven?: boolean;
 }
 
 export function moduleOf(half: PointingHalfReport): PointingModule | null {
@@ -154,7 +160,7 @@ export function pointingHands(keyboard: KeyboardInfo | null | undefined): HandMo
         for (const half of halves) {
             const module = moduleOf(half);
             if (!module) continue;
-            out.push({ side: half.side, module, moduleName: MODULE_CARD_NAMES[module] });
+            out.push({ side: half.side, module, moduleName: MODULE_CARD_NAMES[module], ...(module === "azoteq" && half.osTouchpad ? { osDriven: true } : {}) });
         }
         return out.sort((a, b) => (a.side === b.side ? 0 : a.side === "left" ? -1 : 1));
     }

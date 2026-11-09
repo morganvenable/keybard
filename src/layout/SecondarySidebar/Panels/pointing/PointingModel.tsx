@@ -1,4 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+
+import { keyboardService } from "@/services/keyboard.service";
+import type { KeyboardInfo } from "@/types/keyboard.types";
 
 import { StepControl } from "@/components/touchpad-tuning/TouchpadTuning";
 import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
@@ -72,11 +75,61 @@ function useModelState() {
     const writeMode = useWriteTouchpadMode(setValue);
     const modeChange = useTouchpadModeChange((m) => { void writeMode(m); });
 
+    useOsTouchpadWatch(isConnected && hasPad && hasPadMode(flags4));
+
     const item = useCallback((key: string) => findMenuItem((menu?.content ?? []) as CustomUIMenuItem[], key), [menu]);
     return {
         keyboard, isConnected, menu, values, writeError, sticky, flags3, flags4, hands, hasPad, padsOs, modeOn, modeValue,
         set, setNow, modeChange, item,
     };
+}
+
+/** How often the panel re-reads POINTING_HARDWARE while a touchpad hand is on screen. */
+export const OS_TOUCHPAD_POLL_MS = 1500;
+
+/** Each half's "the computer drives the touchpad" bit, as one comparable string. */
+const osFlags = (kb: KeyboardInfo | null | undefined) =>
+    (kb?.pointing_hardware?.halves ?? []).map((h) => `${h.side}:${h.osTouchpad ? 1 : 0}`).join(",");
+
+/**
+ * Keeps the touchpad hand's "the computer drives it" state live: while the panel shows a
+ * touchpad, POINTING_HARDWARE (0x2C) is read again every OS_TOUCHPAD_POLL_MS. The computer can
+ * ask for touchpad mode a moment after it connects, and the other half's bit drops for a few
+ * reports while the split link catches up, so a change is applied only when two reads in a row
+ * agree on it (board state, never an unsaved edit).
+ */
+function useOsTouchpadWatch(active: boolean) {
+    const { keyboard, applyBoardState } = useKeyboard();
+    // The latest board, read by each tick: the timer keeps running while the board object changes.
+    const board = useRef(keyboard);
+    board.current = keyboard;
+    useEffect(() => {
+        if (!active) return;
+        let stopped = false;
+        let busy = false;
+        let pending: string | null = null;
+        const tick = async () => {
+            const kb = board.current;
+            if (busy || stopped || !kb) return;
+            busy = true;
+            try {
+                const probe: KeyboardInfo = { ...kb };
+                await keyboardService.getPointingHardware(probe);
+                const hw = probe.pointing_hardware;
+                if (stopped || !hw) return;
+                const read = osFlags(probe);
+                if (read === osFlags(board.current)) { pending = null; return; }
+                if (pending === read) {
+                    applyBoardState((kb) => ({ ...kb, pointing_hardware: hw }));
+                    pending = null;
+                } else pending = read;
+            } finally {
+                busy = false;
+            }
+        };
+        const timer = window.setInterval(() => { void tick(); }, OS_TOUCHPAD_POLL_MS);
+        return () => { stopped = true; window.clearInterval(timer); };
+    }, [active, applyBoardState]);
 }
 
 type Model = ReturnType<typeof useModelState>;
@@ -101,6 +154,10 @@ export function useHandCards(): HandModel[] {
 
 // ---------------------------------------------------------------- hand cards
 
+/** The one line under Gestures while the computer drives the pad: its id, for aria-describedby. */
+const osNoteId = (side: Side) => `pointing-os-note-${side}`;
+export const OS_DRIVEN_NOTE = "The computer is driving this touchpad, so these settings apply only with Built-in gestures.";
+
 function PointerSpeedRow({ hand, tray }: { hand: HandModel; tray: boolean }) {
     const { item, values, set, flags4 } = usePointingModel();
     const dpi = item(HAND_KEYS[hand.side].dpi);
@@ -118,18 +175,18 @@ function PointerSpeedRow({ hand, tray }: { hand: HandModel; tray: boolean }) {
             value={effectiveDpiIndex(choices, values.get(HAND_KEYS[hand.side].dpi))}
             options={choices.map((c) => ({ value: c.index, label: String(c.dpi) }))}
             onChange={(index) => set(HAND_KEYS[hand.side].dpi, index)}
+            disabled={hand.osDriven}
+            describedBy={osNoteId(hand.side)}
         />
     );
 }
 
 function ScrollSpeedRow({ hand, tray }: { hand: HandModel; tray: boolean }) {
-    const { item, values, set, flags4, padsOs } = usePointingModel();
+    const { item, values, set, flags4 } = usePointingModel();
     const key = HAND_KEYS[hand.side].scrollSpeed;
     if (!hasScrollSpeed(flags4) || !item(key)) return null;
     const stored = values.get(key);
-    const hint = hand.module === "azoteq"
-        ? (padsOs ? "Windows and Linux scroll the pad in Automatic. This applies with Built-in gestures." : "Two-finger scrolling and Scroll Mode. Does not change with pointer speed.")
-        : "Does not change with pointer speed";
+    const hint = hand.module === "azoteq" ? "Two-finger scrolling and Scroll Mode. Does not change with pointer speed." : "Does not change with pointer speed";
     return (
         <SliderRow
             label="Scroll speed"
@@ -138,6 +195,8 @@ function ScrollSpeedRow({ hand, tray }: { hand: HandModel; tray: boolean }) {
             max={SCROLL_SPEED_STEPS.length - 1}
             format={(i) => formatScrollSpeed(SCROLL_SPEED_STEPS[i])}
             onCommit={(i) => set(key, scrollSpeedPercent(i))}
+            disabled={hand.osDriven}
+            describedBy={osNoteId(hand.side)}
         />
     );
 }
@@ -164,7 +223,8 @@ export function HandCard({ hand, tray = false }: { hand: HandModel; tray?: boole
     const { item, values, set, modeOn, modeValue, modeChange } = usePointingModel();
     const scrollKey = HAND_KEYS[hand.side].scroll;
     const scrollMode = item(scrollKey)
-        ? <ToggleRow label="Scroll Mode" hint={tray ? undefined : (SCROLL_MODE_HINT[hand.module ?? ""] ?? "The pointer scrolls instead of moving")} value={values.get(scrollKey)} onChange={(v) => set(scrollKey, v)} />
+        ? <ToggleRow label="Scroll Mode" hint={tray ? undefined : (SCROLL_MODE_HINT[hand.module ?? ""] ?? "The pointer scrolls instead of moving")} value={values.get(scrollKey)} onChange={(v) => set(scrollKey, v)}
+            disabled={hand.osDriven} describedBy={osNoteId(hand.side)} />
         : null;
     return (
         <div className="flex flex-col gap-2 rounded-lg border border-kb-gray-border p-3" data-hand={hand.side} data-module={hand.module ?? "unknown"}>
@@ -180,6 +240,9 @@ export function HandCard({ hand, tray = false }: { hand: HandModel; tray?: boole
                     choices={[PAD_MODE_AUTO, PAD_MODE_BUILTIN].map((m) => ({ value: m, label: PAD_MODE_LABELS[m] }))}
                     onChange={(m) => modeChange.change(m, modeValue ?? PAD_MODE_AUTO)}
                 />
+            )}
+            {hand.osDriven && (
+                <p id={osNoteId(hand.side)} className="px-3 text-xs text-kb-ink" data-os-driven-note>{OS_DRIVEN_NOTE}</p>
             )}
             <PointerSpeedRow hand={hand} tray={tray} />
             <ScrollSpeedRow hand={hand} tray={tray} />
