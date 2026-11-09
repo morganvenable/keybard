@@ -166,6 +166,12 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                     revision = state.configure(value['config'], value['revision'])
                     dispatch({'op': 'configure'})
                     return self.reply({'revision': revision})
+                if self.path == '/api/host/quit':
+                    # A newer start asks this one to quit. Only the local page or program, never a website,
+                    # and never a paranoid host, which takes no commands beyond its own.
+                    if paranoid or not self.origin_ok(): return self.reply({'error': 'Local origin required'}, 403)
+                    dispatch({'op': 'quit'})
+                    return self.reply({'accepted': True}, 202)
                 if self.path != '/api/host/command': return self.reply({'error': 'Unknown API'}, 404)
                 op = value.get('op')
                 if op not in ('show', 'place', 'connect', 'disconnect', 'reload', 'refresh', 'scan', 'practice', 'pointingLook'):

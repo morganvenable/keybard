@@ -19,6 +19,8 @@ it('says which Keybard Overlay is connected and points older ones at the current
     rerender(<HostVersion build={{ version: 'unknown', keybardCommit: null }} />);
     expect(screen.getByText(/Connected to an older Keybard Overlay\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'download it' })).toHaveAttribute('href', HOST_RELEASE);
+    rerender(<HostVersion build={{ version: 'altgr-rc4', keybardCommit: 'abc1234', testBuild: true }} />);
+    expect(screen.getByText(/Keybard Overlay altgr-rc4 · Keybard abc1234 · test build\./)).toBeInTheDocument();
     rerender(<HostVersion build={{ version: 'dev', keybardCommit: 'abc1234' }} />);
     expect(screen.getByText(/Keybard Overlay dev · Keybard abc1234/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'download it' })).toBeNull();

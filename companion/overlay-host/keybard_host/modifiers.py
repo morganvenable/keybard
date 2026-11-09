@@ -7,6 +7,9 @@ import ctypes
 import os
 import sys
 
+# Shown when the shown board's firmware does not report held modifiers (it needs x4.5 or newer).
+MODIFIER_NOTE = 'Board firmware is older than x4.5: Shift/AltGr come from this computer'
+
 
 class ModifierReader:
     def __init__(self):
@@ -20,14 +23,15 @@ class ModifierReader:
                 user.GetKeyState.argtypes = [ctypes.c_int]
                 user.GetKeyState.restype = ctypes.c_short
                 self.read = lambda: dict(shift=bool(user.GetAsyncKeyState(0x10) & 0x8000),
-                                         capsLock=bool(user.GetKeyState(0x14) & 1))
+                                         capsLock=bool(user.GetKeyState(0x14) & 1),
+                                         altgr=bool(user.GetAsyncKeyState(0xA5) & 0x8000))  # VK_RMENU: right Alt, which is AltGr
             elif sys.platform == 'darwin':
                 core = ctypes.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
                 core.CGEventSourceFlagsState.argtypes = [ctypes.c_int]
                 core.CGEventSourceFlagsState.restype = ctypes.c_uint64
                 def mac():
                     flags = core.CGEventSourceFlagsState(0)
-                    return dict(shift=bool(flags & 0x20000), capsLock=bool(flags & 0x10000))
+                    return dict(shift=bool(flags & 0x20000), capsLock=bool(flags & 0x10000), altgr=False)
                 self.read = mac
             elif os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
                 class XkbState(ctypes.Structure):
@@ -49,7 +53,8 @@ class ModifierReader:
                     def x11():
                         state = XkbState()
                         if self.x11.XkbGetState(self.display, 0x100, ctypes.byref(state)) != 0: return None
-                        return dict(shift=bool(state.mods & 1), capsLock=bool(state.locked_mods & 2))
+                        # Mod5 (0x80) is the third-level chooser, AltGr on layouts that have one.
+                        return dict(shift=bool(state.mods & 1), capsLock=bool(state.locked_mods & 2), altgr=bool(state.mods & 0x80))
                     self.read = x11
         except (OSError, AttributeError):
             pass

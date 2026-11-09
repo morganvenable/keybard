@@ -291,6 +291,9 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     );
 };
 
+/** For code that only has work to do when the settings exist (the Overlay sync), so it can sit outside a provider in tests. */
+export const useOptionalLayoutSettings = () => useContext(LayoutSettingsContext);
+
 export const useLayoutSettings = () => {
     const context = useContext(LayoutSettingsContext);
     if (!context) {

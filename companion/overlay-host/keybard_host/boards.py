@@ -84,6 +84,7 @@ class Board:
     pressed: list = field(default_factory=list)
     matrix_available: bool | None = None
     modifiers: dict | None = None
+    modifiers_reported: bool | None = None  # None until the first layer read; False: firmware without modifier reports (before x4.5)
     status: str = 'Connecting…'
     last_state: float = 0.0
     last_press: float = 0.0

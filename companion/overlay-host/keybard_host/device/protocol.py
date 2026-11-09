@@ -40,6 +40,7 @@ POINTING_CONTACTS = 0x2F
 MAX_CONTACTS = 6
 PAD_COUNTS_X, PAD_COUNTS_Y = 2048, 1792
 SHIFT_BITS = 0x22  # left and right Shift in the HID modifier byte
+ALTGR_BIT = 0x40  # right Alt in the HID modifier byte: AltGr on layouts that have one
 # Protocol -> command -> exact request argument length. No setter is expressible.
 READ_COMMANDS = {
     0xDF: {0x00: 0, 0x01: 2, 0x0D: 0, 0x0E: 3, 0x16: 0, 0x18: 0, 0x19: 0, 0x1B: 3, 0x2D: 1, 0x2F: 0},
@@ -488,7 +489,7 @@ class SvalReader:
         modifiers = None
         if self.feature_flags2 & MODIFIER_STATE_FLAG2:
             mods, status = data[8], data[9]
-            modifiers = dict(shift=bool(mods & SHIFT_BITS), capsLock=bool(status & 2) != bool(status & 1))
+            modifiers = dict(shift=bool(mods & SHIFT_BITS), capsLock=bool(status & 2) != bool(status & 1), altgr=bool(mods & ALTGR_BIT))
         return LayerSnapshot(int.from_bytes(data[:4], "little"), default, modifiers)
 
     def pointing_motion(self):

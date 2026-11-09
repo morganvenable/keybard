@@ -59,6 +59,8 @@ try {
         $env:QT_QPA_PLATFORM = 'windows'
         $hostArgs = @('-m', 'keybard_host')
         if ($Paranoid) { $hostArgs += '--paranoid' }
+        # No wait here: a running Overlay keeps going, so waiting for it would hold this window open.
+        # A start that can't replace another build says so in its own dialog (and exits with code 3).
         Start-Process -FilePath (Join-Path $runtimeDir 'pythonw.exe') -ArgumentList $hostArgs -WorkingDirectory $projectDir
         exit 0
     }
