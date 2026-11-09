@@ -18,6 +18,11 @@ vi.mock('@/services/keyboard.service', async () => {
     return { keyboardService: { getFragmentService: () => fragments, getFragmentComposer: () => composer, updateFragmentSelection: mocks.update, saveSvil: mocks.save } };
 });
 
+vi.mock('@/components/touchpad-tuning/tuning-open', () => ({ openTouchpadTuning: vi.fn() }));
+vi.mock('@/components/trackball-sensor/trackball-open', () => ({ openTrackballSensor: vi.fn() }));
+import { openTouchpadTuning } from '@/components/touchpad-tuning/tuning-open';
+import { openTrackballSensor } from '@/components/trackball-sensor/trackball-open';
+
 import FragmentsPanel from '../../src/layout/SecondarySidebar/Panels/FragmentsPanel';
 
 describe('FragmentsPanel with pointing slots', () => {
@@ -66,5 +71,22 @@ describe('FragmentsPanel with pointing slots', () => {
         for (const call of mocks.queue.mock.calls) await call[1]();
         expect(mocks.update.mock.calls.map((c) => c[1])).not.toContain(IDX.left);
         expect(mocks.update.mock.calls.map((c) => c[1])).not.toContain(IDX.right);
+    });
+
+    it('puts a tuner button on each module row: Trackball sensors, Tune touchpad, none for a TrackPoint', () => {
+        mocks.keyboard = createSvalboardPointingKbinfo({ hwDetection: [[IDX.left, ID.pointing_trackball_pmw3389], [IDX.right, ID.pointing_touchpad_azoteq]] });
+        const { container, unmount } = render(<FragmentsPanel />);
+        const left = container.querySelector('[data-pointing-instance="left_pointing"] [data-tuner]') as HTMLElement;
+        const right = container.querySelector('[data-pointing-instance="right_pointing"] [data-tuner]') as HTMLElement;
+        expect(left.textContent).toBe('Trackball sensors');
+        expect(right.textContent).toBe('Tune touchpad');
+        fireEvent.click(left);
+        fireEvent.click(right);
+        expect(openTrackballSensor).toHaveBeenCalledTimes(1);
+        expect(openTouchpadTuning).toHaveBeenCalledTimes(1);
+        unmount();
+        mocks.keyboard = createSvalboardPointingKbinfo({ hwDetection: [[IDX.left, ID.pointing_trackpoint], [IDX.right, ID.pointing_none]] });
+        const again = render(<FragmentsPanel />);
+        expect(again.container.querySelector('[data-pointing-instance] [data-tuner]')).toBeNull();
     });
 });

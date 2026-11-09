@@ -6,20 +6,18 @@ import { pointingMenuIndex, useMenuValues } from "@/hooks/useMenuValues";
 import { cn } from "@/lib/utils";
 import type { KeyboardInfo } from "@/types/keyboard.types";
 import { getPadTouch } from "@/services/pad-touch.service";
-import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY, TOUCHPAD_NOTE } from "@/utils/touchpad-taps";
+import { boardHasTouchpad, PAD_HOLD_KEY, PAD_HOLD_MS, PAD_HOLD_MS_KEY } from "@/utils/touchpad-taps";
 import {
-    contactRadius, EMPTY_BLOCK, EMPTY_FINGERS, formatMm, formatPalm, hasPadMode, hasPadPalm, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY, PAD_MODE_AUTO, PAD_MODE_KEY,
-    PAD_DEAD_ZONE_MM100, PAD_HEIGHT_MM100, PAD_PALM_CHANNELS, PAD_PALM_KEY, PAD_SCROLL_KEY, PAD_SCROLL_MM100, PAD_TAP_DEFAULT_MS, PAD_TAP_MS,
-    PAD_TAP_MS_KEY, PAD_WIDTH_MM100, steps, TouchTracker, type MultiTouch, type PadFingersBlock, type PadTouchBlock, type PadTouchReport,
-    type TouchOutcome,
+    contactRadius, EMPTY_BLOCK, EMPTY_FINGERS, hasPadTouch, hasPadTuning, PAD_DEAD_ZONE_DEFAULT, PAD_DEAD_ZONE_KEY,
+    PAD_HEIGHT_MM100, PAD_PALM_KEY, PAD_SCROLL_KEY, PAD_TAP_DEFAULT_MS, PAD_TAP_MS_KEY, PAD_WIDTH_MM100, steps, TouchTracker,
+    type MultiTouch, type PadFingersBlock, type PadTouchBlock, type PadTouchReport, type TouchOutcome,
 } from "@/utils/touchpad-tuning";
 import { PadView, type PadTiming } from "./PadView";
-import { TouchpadModeControl, useTouchpadModeChange, useWriteTouchpadMode } from "./TouchpadMode";
 
 /** Finished touches kept per pad, newest first, in the pad's scrolling list. */
 const OUTCOMES = 50;
 
-interface StepProps {
+export interface StepProps {
     label: string;
     value: number;
     table: readonly number[];
@@ -30,7 +28,7 @@ interface StepProps {
 }
 
 /** A slider over exactly the values the board stores. */
-function StepControl({ label, value, table, format, onChange, disabled, note }: StepProps) {
+export function StepControl({ label, value, table, format, onChange, disabled, note }: StepProps) {
     const list = useMemo(() => steps(table), [table]);
     const index = Math.max(0, list.findIndex((v) => v === value));
     const [draft, setDraft] = useState(index);
@@ -157,16 +155,17 @@ interface TouchpadTuningProps {
 }
 
 /**
- * Touchpad tuning: the dead zone, the tap and hold times and the scroll
- * distance, with each pad drawn live so a touch shows why it clicked or not.
- * Shown only on firmware that has the setting and a board with a touchpad;
- * the live pads need the touch page as well.
+ * The live view of the touchpads: each pad drawn as it is touched, so a touch
+ * shows why it clicked or not. The settings it explains (dead zone, tap and
+ * hold times, scroll start, palm rejection) sit under the pads in the same modal (TouchpadSettings).
+ * Shown only on firmware that has the tuning setting and a board
+ * with a touchpad; the live pads need the touch page as well.
  */
 export function TouchpadTuning({ place }: TouchpadTuningProps) {
     const { keyboard, isConnected } = useKeyboard();
     const menuIndex = pointingMenuIndex(keyboard?.menus);
     const menu = menuIndex >= 0 ? keyboard?.menus?.[menuIndex] : undefined;
-    const { values, setValue, writeError: error } = useMenuValues(menu);
+    const { values } = useMenuValues(menu);
     const supported = !!keyboard && hasPadTuning(keyboard.feature_flags3) && boardHasTouchpad(keyboard);
     const liveOn = supported && isConnected && hasPadTouch(keyboard?.feature_flags3);
     const live = useLiveTouch(liveOn, keyboard, isConnected);
@@ -180,28 +179,14 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
         const t = window.setTimeout(() => setWaited(true), 3000);
         return () => window.clearTimeout(t);
     }, [liveOn]);
-    // The touchpad mode takes effect at once: written, read back and shown from the board, never staged
-    // with the pending changes (Live Updating off), so Apply and Discard never touch it.
-    // The dialog tunes against the live pads, so every control here writes to the board at once (board
-    // state, never a pending change; the dialog covers Apply), and says so if the board didn't take it.
-    const setNow = (key: string, v: number) => { void setValue(key, v, { now: true }); };
-    const writeMode = useWriteTouchpadMode(setValue);
-    const modeChange = useTouchpadModeChange((m) => { void writeMode(m); });
-
-    if (!supported) return <p className="px-3 py-2 text-sm text-muted-foreground">Connect a board with a touchpad to tune it.</p>;
+    if (!supported) return <p className="px-3 py-2 text-sm text-muted-foreground">Connect a board with a touchpad to see it live.</p>;
 
     const deadZone = values.get(PAD_DEAD_ZONE_KEY) || PAD_DEAD_ZONE_DEFAULT;
     const tapMs = values.get(PAD_TAP_MS_KEY) || PAD_TAP_DEFAULT_MS;
     const holdMs = values.get(PAD_HOLD_MS_KEY) || PAD_HOLD_MS[0];
     const holdOn = (values.get(PAD_HOLD_KEY) ?? 1) !== 0;
     const scroll = values.get(PAD_SCROLL_KEY) ?? 0;
-    const palmOn = hasPadPalm(keyboard.feature_flags4);
-    const modeOn = hasPadMode(keyboard.feature_flags4);
-    const modeValue = values.get(PAD_MODE_KEY) ?? PAD_MODE_AUTO;
     const palmValue = values.get(PAD_PALM_KEY) ?? 0;
-    const palmTable = PAD_PALM_CHANNELS.includes(palmValue as never) ? PAD_PALM_CHANNELS : [...PAD_PALM_CHANNELS, palmValue];
-    // The build's own scroll distance reads back as its millimeters; show it on the scale.
-    const scrollTable = PAD_SCROLL_MM100.includes(scroll as never) ? PAD_SCROLL_MM100.slice(1) : [...PAD_SCROLL_MM100.slice(1), scroll];
     const r = live.report;
     const timing: PadTiming = {
         deadZone: r?.deadZone ?? deadZone, tapMs: r?.tapMs ?? tapMs, holdMs: r?.holdMs ?? holdMs, holdOn: r?.holdOn ?? holdOn,
@@ -217,53 +202,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
     // pads are asked again (pending below).
     const osMode = live.padsOs ?? liveOn;
     const pending = liveOn && live.padsOs === null && !waited;
-    const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
-
-    // Where taps and scrolling are set in the mode in force (what each computer uses is said once, above it).
-    const osNote = (
-        <span data-os-mode-note>
-            {windows ? "Set taps and scrolling in Settings > Bluetooth & devices > Touchpad." : "Set taps and scrolling in your computer's touchpad settings."}
-        </span>
-    );
-    const modeNote = osMode ? osNote : "Taps and scrolling are set below.";
-    const mode = modeOn
-        ? <TouchpadModeControl value={modeValue} onChange={(m) => modeChange.change(m, modeValue)} note={modeNote} />
-        : osMode ? <p className="flex flex-col text-xs text-muted-foreground"><span data-touchpad-note>{TOUCHPAD_NOTE}</span>{osNote}</p> : null;
-    const palmControl = palmOn && (
-        <StepControl label="Palm rejection" value={palmValue} table={palmTable} format={formatPalm} onChange={(v) => setNow(PAD_PALM_KEY, v)}
-            note="Ignores a contact wider than this, like a resting palm." />
-    );
-    // A write the board didn't take says so here; the line holds its place, so nothing moves when it does.
-    const errorLine = <p className="min-h-5 text-sm text-kb-touch-cancel" role={error ? "alert" : undefined} data-write-error={error ? true : undefined}>{error}</p>;
-
-    const controls = osMode ? (
-        <div className="flex flex-col gap-1.5">
-            {/* Touchpad mode: the mode and palm rejection, the only settings that apply, together. */}
-            <div className={cn("grid gap-2", palmControl && "@3xl:grid-cols-2")} data-tuning-controls data-os-mode>
-                {mode}
-                {palmControl}
-            </div>
-            {modeChange.confirm}
-            {errorLine}
-        </div>
-    ) : (
-        <div className="flex flex-col gap-1.5">
-            {mode}
-            {modeChange.confirm}
-            {errorLine}
-            <div className={cn("grid gap-2 @lg:grid-cols-2", palmOn ? "@5xl:grid-cols-5" : "@5xl:grid-cols-4")} data-tuning-controls>
-                <StepControl label="Dead zone" value={deadZone} table={PAD_DEAD_ZONE_MM100} format={formatMm} onChange={(v) => setNow(PAD_DEAD_ZONE_KEY, v)}
-                    note="How far a finger can move and still tap or hold." />
-                <StepControl label="Tap time" value={tapMs} table={PAD_TAP_MS} format={(v) => `${v} ms`} onChange={(v) => setNow(PAD_TAP_MS_KEY, v)}
-                    note="Lift within this to tap." />
-                <StepControl label="Hold time" value={holdMs} table={PAD_HOLD_MS} format={(v) => `${v} ms`} onChange={(v) => setNow(PAD_HOLD_MS_KEY, v)} disabled={!holdOn}
-                    note={holdOn ? `Hold still this much longer to start a drag: ${tapMs + holdMs} ms in all.` : "Press and Hold to Drag is off in Pointing Devices."} />
-                <StepControl label="Scroll start" value={scroll} table={scrollTable} format={formatMm} onChange={(v) => setNow(PAD_SCROLL_KEY, v)}
-                    note="How far two fingers move before they scroll." />
-                {palmControl}
-            </div>
-        </div>
-    );
 
     const padProps = (side: "left" | "right") => ({
         side, block: live.report ? live[side].block : WAITING_BLOCK, readAt: live.readAt, touchEvents: live[side].events, trail: live[side].trail, count: live[side].count, timing,
@@ -288,7 +226,6 @@ export function TouchpadTuning({ place }: TouchpadTuningProps) {
 
     return (
         <div className={cn("@container flex flex-col gap-4", place === "settings" ? "px-3 pt-3 pb-1" : osMode ? "" : "sm:h-full", pending && "invisible")} aria-busy={pending || undefined} data-touchpad-tuning data-layout={osMode ? "os" : "gestures"}>
-            {controls}
             {pads}
         </div>
     );

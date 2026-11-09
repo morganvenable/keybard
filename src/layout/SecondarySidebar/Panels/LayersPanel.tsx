@@ -14,6 +14,8 @@ import { KeyContent } from "@/types/keyboard.types";
 import { CODEMAP } from "@/constants/keygen";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
+import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
+import { LM_MODIFIERS } from "@/constants/special-key-groups";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
@@ -54,6 +56,7 @@ interface Props {
 const LayersPanel = ({ isPicker }: Props) => {
     const { renameLayer, nameError } = useLayerNames();
     const [activeModifier, setActiveModifier] = useState<LayerModifier>("MO");
+    const [lmMods, setLmMods] = useState<string[]>(["LCTL"]);
     const { keyboard, setKeyboard } = useKeyboard();
     const { assignKeycode, selectedTarget } = useKeyBinding();
     const { selectedLayer } = useLayer();
@@ -117,6 +120,62 @@ const LayersPanel = ({ isPicker }: Props) => {
         return getKeyContents(keyboard, keycode) as KeyContent;
     };
 
+    // Layer-Mod: a layer plus held modifiers, kept under More keys.
+    const lmBits = LM_MODIFIERS.filter((m) => lmMods.includes(m.id)).reduce((n, m) => n | m.bit, 0);
+    const lmKeycode = (layer: number) =>
+        `LM(${layer}, ${LM_MODIFIERS.filter((m) => lmMods.includes(m.id)).map((m) => `MOD_${m.id}`).join("|")})`;
+    const lmGroup = (small: boolean) => (
+        <MoreKeysDisclosure category="layers" count={keyboard.layers || 16} compact={small}>
+            <div className="flex flex-col gap-2" data-testid="layer-mod-group">
+                <span className="font-semibold text-base text-kb-ink">Layer and modifier</span>
+                <span className="text-xs text-muted-foreground">Turns a layer on while holding the chosen modifiers.</span>
+                <div className="flex flex-wrap gap-1">
+                    {LM_MODIFIERS.map((m) => {
+                        const on = lmMods.includes(m.id);
+                        return (
+                            <button
+                                key={m.id}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => setLmMods(on ? lmMods.filter((x) => x !== m.id) : [...lmMods, m.id])}
+                                className={cn(
+                                    "px-3 py-1 text-sm font-medium rounded-md",
+                                    on ? "bg-kb-active text-kb-active-fg shadow-sm" : "bg-kb-gray-medium text-slate-700 dark:text-neutral-200"
+                                )}
+                            >
+                                {m.label}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                    {Array.from({ length: Math.min(keyboard.layers || 16, 16) }, (_, i) => {
+                        const code = lmKeycode(i);
+                        const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
+                        return (
+                            <Key
+                                key={i}
+                                x={0} y={0} w={1} h={1} row={-1} col={-1}
+                                keycode={code}
+                                label={`LM ${layerName || i}`}
+                                layerColor="sidebar"
+                                headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                isRelative
+                                variant="medium"
+                                hoverBorderColor={hoverBorderColor}
+                                hoverBackgroundColor={hoverBackgroundColor}
+                                hoverLayerColor={layerColorName}
+                                onClick={lmBits ? () => assignKeycode(code) : undefined}
+                                disableDrag={!lmBits}
+                                disableTooltip={true}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        </MoreKeysDisclosure>
+    );
+
     // Horizontal layout for bottom panel
     if (isHorizontal) {
         return (
@@ -179,7 +238,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                         {MODIFIER_DESCRIPTIONS[activeModifier]}
                     </span>
                 </div>
-
+                {lmGroup(true)}
             </div>
         );
     }
@@ -258,6 +317,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                         );
                     })}
                 </div>
+                <div className="pr-[26px] pt-3">{lmGroup(false)}</div>
             </div>
         </section>
     );

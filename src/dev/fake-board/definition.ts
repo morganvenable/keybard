@@ -47,3 +47,16 @@ export const POINTING_NONE_FRAGMENT_ID = DEFINITION.fragments?.pointing_none?.id
 
 /** SVAL_FRAGMENT_ID_POINTING_TOUCHPAD_AZOTEQ: a pointing slot with an Azoteq pad. */
 export const POINTING_AZOTEQ_FRAGMENT_ID = DEFINITION.fragments?.pointing_touchpad_azoteq?.id ?? 7;
+
+/** The fragment id a pointing slot detects for each fake module. */
+export const POINTING_FRAGMENT_BY_MODULE = {
+    none: POINTING_NONE_FRAGMENT_ID,
+    pmw3389: DEFINITION.fragments?.pointing_trackball_pmw3389?.id ?? 6,
+    azoteq: POINTING_AZOTEQ_FRAGMENT_ID,
+    trackpoint: DEFINITION.fragments?.pointing_trackpoint?.id ?? 8,
+} as const;
+
+/** Which hand a detected pointing slot is on: "left_pointing" or "right_pointing". */
+export const POINTING_INSTANCE_SIDE: Record<number, "left" | "right"> = Object.fromEntries(
+    POINTING_FRAGMENT_INSTANCES.map((i) => [i, instances[i].id.startsWith("right") ? "right" : "left"]),
+);

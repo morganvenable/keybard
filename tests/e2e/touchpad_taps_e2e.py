@@ -1,25 +1,29 @@
 """
 Browser tests of the touchpad tap setting (svalboard/qmk "Touchpad taps": VIA
-values 51-54, GET_INFO byte 20 bit 4) in the Pointing Devices panel, against
-the simulated Svalboard. Run with `npm run test:e2e:touchpad-taps`.
+values 51-54, GET_INFO byte 20 bit 4) in the Tune touchpad modal, against the
+simulated Svalboard. Run with `npm run test:e2e:touchpad-taps`.
 
-  1. ?fakeBoard=touchpad-gestures (an Azoteq pad on each half, on built-in gestures): a Touchpad section with
-     Tap to Click, Two-Finger Tap to Right Click and Press and Hold to Drag, all
-     on, Hold Time 300 ms, and the one-line note about Windows and Linux.
+The taps, hold, dead zone, scroll start and palm rejection live in the Tune
+touchpad modal, opened from the touchpad card in Pointing Devices (the rail or
+the tray) or from Settings > Hardware.
+
+  1. ?fakeBoard=touchpad-gestures (an Azoteq pad on each half, on built-in
+     gestures): the modal has Tap to Click, Two-Finger Tap to Right Click and
+     Press and Hold to Drag, all on, and Hold Time 300 ms.
   2. Each switch writes its value and saves; the board's setting follows, and
      turning it back on returns the board to the defaults.
-  3. Hold time: 480 is stored as 500 and read back; Press and Hold off grays
-     the hold time out (still shown, unusable), and on enables it with 500.
+  3. Hold Time steps to 350 ms and writes; Press and Hold off grays it out
+     (still shown, unusable), and on enables it again.
   4. A board without a touchpad (?fakeBoard) and firmware without the setting
-     (?fakeBoard=old) show no Touchpad section.
-  5. The bottom bar shows the same switches.
-  6. No animation or transition added; the section fits at phone and desktop
+     (?fakeBoard=old) have no Tune touchpad button and no tap settings.
+  5. The bottom tray: its touchpad card opens the same modal with the switches,
+     and closing it returns to the tray.
+  6. No animation or transition added; the settings fit at phone and desktop
      widths, light and dark, with ink that differs from the page.
 
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. SHOT_DIR=path saves
 screenshots. Needs Python Playwright with Chromium. Exits 1 when a check fails.
 """
-import json
 import os
 import sys
 
@@ -30,21 +34,23 @@ from playwright.sync_api import Page, expect, sync_playwright  # noqa: E402
 TAP = "Tap to Click"
 TWO = "Two-Finger Tap to Right Click"
 HOLD = "Press and Hold to Drag"
-HOLD_MS = "Hold Time (ms)"
-NOTE = "Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq."
+HOLD_MS = "Hold Time"
+DIALOG = "[data-touchpad-tuning-dialog]"
 
 
-def open_page(browser, url: str, board="fakeBoard=touchpad-gestures", viewport=(1440, 900), scheme="light", bottom_bar=False):
+def open_page(browser, url: str, board="fakeBoard=touchpad-gestures", viewport=(1440, 900), scheme="light", bottom_bar=False, tune=True):
     context = browser.new_context(viewport={"width": viewport[0], "height": viewport[1]}, color_scheme=scheme,
                                   reduced_motion="reduce")
-    if bottom_bar:
-        stored = {"theme": scheme, "panel-position": "bottombar"}
-        context.add_init_script(f"try {{ localStorage.setItem('keyboard-settings', {json.dumps(json.dumps(stored))}); }} catch {{}}")
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.goto(f"{url}?{board}&panel=pointing&theme={scheme}")
+    extra = "&panelPosition=bottombar" if bottom_bar else ""
+    page.goto(f"{url}?{board}&panel=pointing&theme={scheme}{extra}")
     wait_connected(page)
+    if tune:
+        # Open it the way a person does: the touchpad card's button.
+        page.locator("[data-tuner=touchpad]").first.click()
+        expect(page.locator(DIALOG)).to_be_visible(timeout=15000)
     return context, page, errors
 
 
@@ -53,15 +59,15 @@ def fw(page: Page, js: str):
 
 
 def toggle(page: Page, label: str):
-    return page.get_by_role("group", name=label, exact=True)
+    return page.locator(DIALOG).get_by_role("group", name=label, exact=True)
 
 
 def is_on(page: Page, label: str) -> bool:
     return toggle(page, label).get_by_role("button", name="ON", exact=True).get_attribute("aria-pressed") == "true"
 
 
-def hold_field(page: Page):
-    return page.get_by_role("spinbutton", name=HOLD_MS, exact=True)
+def hold_value(page: Page) -> str:
+    return page.locator(f"{DIALOG} [data-step='{HOLD_MS}'] [data-step-value]").inner_text()
 
 
 def saves_after(page: Page, vid: int) -> int:
@@ -75,17 +81,15 @@ def saves_after(page: Page, vid: int) -> int:
 
 
 def section(page: Page):
-    return page.locator("h3", has_text="Touchpad").locator("xpath=..")
+    return page.locator("[data-touchpad-settings]")
 
 
 def flow_defaults(browser, url):
     context, page, errors = open_page(browser, url)
     expect(toggle(page, TAP)).to_be_visible(timeout=15000)
-    expect(page.get_by_text(NOTE)).to_be_visible()
     for label in (TAP, TWO, HOLD):
         assert is_on(page, label), f"{label} is not on"
-    expect(hold_field(page)).to_have_value("300")
-    expect(hold_field(page)).to_be_enabled()
+    assert hold_value(page) == "300 ms", hold_value(page)
     assert fw(page, "f.padSetting") == 0
     assert not errors, errors
     context.close()
@@ -110,41 +114,46 @@ def flow_switches(browser, url):
 
 def flow_hold_time(browser, url):
     context, page, errors = open_page(browser, url)
-    field = hold_field(page)
-    expect(field).to_be_visible(timeout=15000)
-    field.fill("480")
-    field.press("Enter")
-    expect(field).to_have_value("500", timeout=5000)
-    page.wait_for_function("((window.keybardFakeBoard.device.firmware.padSetting >> 3) & 15) === 9", timeout=5000)
+    slider = page.locator(DIALOG).get_by_role("slider", name=HOLD_MS)
+    expect(slider).to_be_visible(timeout=15000)
+    slider.focus()
+    slider.press("ArrowRight")
+    page.wait_for_function("((window.keybardFakeBoard.device.firmware.padSetting >> 3) & 15) === 7", timeout=5000)  # 350 ms
+    assert hold_value(page) == "350 ms", hold_value(page)
     toggle(page, HOLD).get_by_role("button", name="OFF", exact=True).click()
-    expect(hold_field(page)).to_be_disabled(timeout=5000)
-    expect(hold_field(page)).to_have_value("500")
-    slider = page.get_by_role("slider", name=HOLD_MS)
-    assert slider.get_attribute("aria-disabled") == "true" or slider.get_attribute("data-disabled") is not None, "the slider is not disabled"
-    label = page.locator("[data-disabled]", has=hold_field(page)).get_by_text(HOLD_MS, exact=True)
-    assert "text-muted-foreground" in (label.get_attribute("class") or ""), "the label is not grayed out"
+    page.wait_for_function("(window.keybardFakeBoard.device.firmware.padSetting & 4) !== 0", timeout=5000)
+    row = page.locator(f"{DIALOG} [data-step='{HOLD_MS}']")
+    assert row.get_attribute("data-disabled") is not None, "Hold Time is not grayed out with Press and Hold off"
+    assert hold_value(page) == "350 ms", "still shown"
     toggle(page, HOLD).get_by_role("button", name="ON", exact=True).click()
-    expect(hold_field(page)).to_be_enabled(timeout=5000)
-    expect(hold_field(page)).to_have_value("500")
+    page.wait_for_function("(window.keybardFakeBoard.device.firmware.padSetting & 4) === 0", timeout=5000)
+    assert row.get_attribute("data-disabled") is None, "Hold Time stays disabled with Press and Hold on"
     assert not errors, errors
     context.close()
 
 
 def flow_hidden(browser, url):
     for board, why in (("fakeBoard", "no touchpad"), ("fakeBoard=old", "firmware without the setting")):
-        context, page, errors = open_page(browser, url, board=board)
-        expect(page.get_by_role("group", name="Natural Scroll", exact=True)).to_be_visible(timeout=15000)
+        context, page, errors = open_page(browser, url, board=board, tune=False)
+        expect(page.locator("[data-shared], [data-no-module]").first).to_be_visible(timeout=15000)
+        assert page.locator("[data-tuner=touchpad]").count() == 0, f"{why}: a Tune touchpad button is shown"
+        page.goto(f"{url}?{board}&panel=pointing&tune=touchpad")
+        wait_connected(page)
+        page.wait_for_timeout(800)
         assert toggle(page, TAP).count() == 0, f"{why}: Tap to Click is shown"
-        assert page.get_by_text(NOTE).count() == 0, f"{why}: the note is shown"
+        assert section(page).count() == 0, f"{why}: tap settings are shown"
         assert not errors, errors
         context.close()
 
 
-def flow_bottom_bar(browser, url):
+def flow_tray(browser, url):
     context, page, errors = open_page(browser, url, bottom_bar=True)
+    assert page.locator("[data-pointing-tray] [data-tuner=touchpad]").count() == 2, "the tray's touchpad card has no tuner (one per touchpad hand)"
     expect(toggle(page, TAP)).to_be_visible(timeout=15000)
     expect(toggle(page, HOLD)).to_be_visible()
-    expect(page.get_by_text(NOTE)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.locator(DIALOG)).to_be_hidden(timeout=5000)
+    assert page.locator("[data-pointing-tray]").is_visible(), "closing the modal did not return to the tray"
     assert not errors, errors
     context.close()
 
@@ -152,7 +161,7 @@ def flow_bottom_bar(browser, url):
 def flow_no_animation(browser, url):
     context, page, _ = open_page(browser, url)
     expect(toggle(page, TAP)).to_be_visible(timeout=15000)
-    # The shared ON/OFF toggle, slider, number field and dropdown (Touchpad Mode) keep their existing hover fades.
+    # The shared ON/OFF toggle, slider, number field and dropdown keep their existing hover fades.
     shared = "[data-slot='slider-thumb'], [data-slot='input'], [data-slot='select-trigger'], [role='group'] > button"
     bad = section(page).evaluate(f"""root => [root, ...root.querySelectorAll('*')].filter(e => {{
         const s = getComputedStyle(e);
@@ -164,7 +173,7 @@ def flow_no_animation(browser, url):
 
 
 def flow_layout(browser, url):
-    # One-line layout check: the section fits inside the viewport, light and dark.
+    # One-line layout check: the settings fit inside the viewport, light and dark.
     for width, height in ((390, 844), (1440, 900)):
         for scheme in ("light", "dark"):
             context, page, _ = open_page(browser, url, viewport=(width, height), scheme=scheme)
@@ -172,11 +181,10 @@ def flow_layout(browser, url):
             sec = section(page)
             sec.scroll_into_view_if_needed()
             box = sec.bounding_box()
-            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1 and sec.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), f"Touchpad section at {width}px {scheme}: {box}"
-            note = page.get_by_text(NOTE)
-            ink = note.evaluate("e => getComputedStyle(e).color")
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1 and sec.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), f"tap settings at {width}px {scheme}: {box}"
+            ink = sec.locator("h3").first.evaluate("e => getComputedStyle(e).color")
             bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
-            assert ink != bg, f"note ink {ink} on {bg}"
+            assert ink != bg, f"heading ink {ink} on {bg}"
             context.close()
 
 
@@ -199,11 +207,11 @@ def shots(browser, url, out):
 
 def main() -> int:
     flows = [
-        ("1. touchpad board: three switches on, hold 300 ms, the note", flow_defaults),
+        ("1. touchpad board: three switches on, hold 300 ms", flow_defaults),
         ("2. each switch writes, saves, and back on is the defaults", flow_switches),
-        ("3. hold time 480 -> 500, grayed out with press and hold off", flow_hold_time),
-        ("4. no touchpad, or older firmware: no Touchpad section", flow_hidden),
-        ("5. bottom bar shows the switches", flow_bottom_bar),
+        ("3. hold time steps to 350, grayed out with press and hold off", flow_hold_time),
+        ("4. no touchpad, or older firmware: no tuner, no tap settings", flow_hidden),
+        ("5. the tray's touchpad card opens the same modal and returns to the tray", flow_tray),
         ("6. no animation added", flow_no_animation),
         ("7. layout: fits at phone and desktop, light and dark", flow_layout),
     ]

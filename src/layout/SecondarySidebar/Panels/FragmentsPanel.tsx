@@ -7,6 +7,9 @@ import { useKeyboard } from "@/contexts/KeyboardContext";
 import { isWidgetInstance } from "@/services/fragment-composer.service";
 import { keyboardService } from "@/services/keyboard.service";
 import type { FragmentInstance, KeyboardInfo } from "@/types/keyboard.types";
+import { Button } from "@/components/ui/button";
+import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { PointingBallPicker } from "@/components/pointing-viz/PointingBallPicker";
 
 /**
@@ -278,6 +281,8 @@ const FragmentsPanel: React.FC = () => {
                     >
                         {value}
                     </div>
+                    {module === "touchpad" && <Button variant="outline" size="sm" onClick={openTouchpadTuning} data-tuner="touchpad">Tune touchpad</Button>}
+                    {module === "trackball" && <Button variant="outline" size="sm" onClick={openTrackballSensor} data-tuner="trackball">Trackball sensors</Button>}
                 </div>
             );
         });

@@ -11,11 +11,12 @@ import { TYPING_BEHAVIOR_SECTIONS, type SettingsBlock, type SettingsRow, type Se
 
 /** Words people search with that are not on screen, by section. */
 export const SECTION_SYNONYMS: Record<string, string[]> = {
-    hardware: ["clusters", "fragments", "pointing devices"],
+    hardware: ["clusters", "fragments", "pointing devices", "tune touchpad", "trackball sensors", "pointer speed", "scroll speed", "gestures"],
     firmware: ["update", "flash", "uf2"],
     backups: ["backup", "back up", "files", "layout files"],
     appearance: ["look", "display", "editor", "keymap"],
     typing: ["qmk settings", "timing"],
+    power: ["idle", "light idle", "deep idle", "sleep", "battery", "scan", "scan pre-wait", "scan period", "rest mode", "dim lights", "rgb", "developer", "power saving"],
     about: ["developer", "dev", "debug"],
 };
 
@@ -30,7 +31,6 @@ export const ROW_SYNONYMS: Record<string, string[]> = {
     "altgr-legends": ["alt gr", "euro", "third legend", "german", "qwertz", "azerty", "keycap"],
     "combo-indicators": ["corner", "fold", "marker"],
     "colorblind-combo-colors": ["color blind", "accessibility", "texture", "contrast"],
-    "show-alt-repeat": ["rail", "repeat"],
     import: ["open", "load", "restore", "svil", "vil"],
     export: ["save", "download", "print", "svil", "vil"],
 };
@@ -45,12 +45,12 @@ function typingBehaviorWords(): string[] {
 /** Synonyms for a block row (rendered by the page itself). */
 export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
     hardware: ["clusters", "cluster presets", "fragments", "finger", "thumb", "5-key", "6-key", "pointing", "trackball",
-        "touchpad", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
-    touchpad: ["touchpad", "trackpad", "tap", "tap to click", "dead zone", "deadzone", "tap time", "hold time", "press and hold", "drag", "scroll", "tuning", "visualizer"],
+        "touchpad", "tune touchpad", "trackball sensors", "pointer speed", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
     firmware: ["update", "upgrade", "install", "flash", "version", "release", "qmk", "wipe", "reset", "bootloader"],
     board: ["board name", "serial", "rename", "identity"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],
     typing: typingBehaviorWords(),
+    power: ["idle", "light idle", "deep idle", "scan pre-wait", "scan period", "trackball rest mode", "dim lights when idle", "power saving", "key scanning"],
     about: ["version", "help", "manual", "docs", "community", "discord", "support", "release notes", "credits"],
     debug: ["debug console", "debug", "console", "log", "logging", "key events", "troubleshooting", "diagnostics", "hid_listen"],
 };

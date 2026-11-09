@@ -39,7 +39,9 @@ export const getCenterContent = (
     label: string,
     keycode: string,
     isMouse: boolean,
-    showArrowsOnly: boolean = false
+    showArrowsOnly: boolean = false,
+    /** A small (30px) key: the wheel legend and arrow shrink to fit it. */
+    small: boolean = false
 ) => {
     const lowerLabel = String(label).toLowerCase();
     const upWords = ["up"];
@@ -58,16 +60,17 @@ export const getCenterContent = (
 
     if (showArrows) {
         let ArrowIcon;
-        if (isUp) ArrowIcon = <ArrowUp className="w-5 h-5" />;
-        if (isDown) ArrowIcon = <ArrowDown className="w-5 h-5" />;
-        if (isLeft) ArrowIcon = <ArrowLeft className="w-5 h-5" />;
-        if (isRight) ArrowIcon = <ArrowRight className="w-5 h-5" />;
+        const arrowClass = small && isWheel ? "w-3 h-3" : "w-5 h-5";
+        if (isUp) ArrowIcon = <ArrowUp className={arrowClass} />;
+        if (isDown) ArrowIcon = <ArrowDown className={arrowClass} />;
+        if (isLeft) ArrowIcon = <ArrowLeft className={arrowClass} />;
+        if (isRight) ArrowIcon = <ArrowRight className={arrowClass} />;
 
         if (ArrowIcon) {
             if (isWheel) {
                 return (
-                    <div className="flex flex-col items-center justify-center -space-y-1">
-                        <span className="text-[9px] font-bold">WHEEL</span>
+                    <div className={small ? "flex flex-col items-center justify-center" : "flex flex-col items-center justify-center -space-y-1"}>
+                        <span className={small ? "text-[7px] leading-none font-bold" : "text-[9px] font-bold"}>WHEEL</span>
                         {ArrowIcon}
                     </div>
                 );

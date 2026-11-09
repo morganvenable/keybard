@@ -35,8 +35,8 @@ describe('Settings page declaration', () => {
     });
 
     it('is seven cards, each with a chip, a summary and a sentence-case title', () => {
-        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Touchpad tuning', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About']);
-        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Touchpad', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'Power and scanning', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Firmware', 'Backups', 'Appearance', 'Typing', 'Power', 'About']);
         for (const s of SETTINGS_PAGE) {
             expect(s.summary, s.id).not.toBe('');
             expect(s.title.slice(1), s.title).toBe(s.title.slice(1).toLowerCase());
@@ -50,17 +50,45 @@ describe('Settings page declaration', () => {
     });
 
     it('holds Hardware, Typing behavior and every block once', () => {
-        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'touchpad', 'typing']);
+        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'power', 'typing']);
     });
 
-    it('shows Touchpad tuning only on some boards, beside Hardware', () => {
-        expect([...CONDITIONAL_SECTIONS]).toEqual(['touchpad']);
-        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'touchpad')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'hardware') + 1);
-        expect(SETTINGS_PAGE.find((s) => s.id === 'touchpad')!.rows).toEqual([{ block: 'touchpad' }]);
+    it('has no Pointing card and no Touchpad tuning card: they live in Pointing Devices', () => {
+        expect([...CONDITIONAL_SECTIONS]).toEqual(['power']);
+        expect(SETTINGS_PAGE.some((s) => s.id === 'pointing')).toBe(false);
+        expect(SETTINGS_PAGE.some((s) => s.id === 'touchpad')).toBe(false);
+        expect(blocksOnPage()).not.toContain('pointing');
     });
 
-    it('opens only Hardware, and the one-line Touchpad tuning entry, on a first visit', () => {
-        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware', 'touchpad']);
+    it('does not find pointer speed, scroll speed or gestures as a Settings card in search', () => {
+        const page = shownPage({ debugConsole: false });
+        for (const query of ['pointer speed', 'scroll speed', 'gestures', 'auto mouse', 'natural scroll']) {
+            const hit = searchSettings(page, query, () => undefined);
+            expect(hit?.has('pointing') ?? false, query).toBe(false);
+        }
+    });
+
+    it('puts Power and scanning before About, closed by default, with its one block', () => {
+        const power = SETTINGS_PAGE.find((s) => s.id === 'power')!;
+        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'power')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'about') - 1);
+        expect(power.defaultOpen).toBe(false);
+        expect(power.rows).toEqual([{ block: 'power' }]);
+    });
+
+    it('shows Power and scanning only when the firmware carries the values, and never finds it otherwise', () => {
+        expect(shownPage({ debugConsole: false, power: false }).some((s) => s.id === 'power')).toBe(false);
+        expect(shownPage({ debugConsole: false, power: true }).some((s) => s.id === 'power')).toBe(true);
+        expect(searchSettings(shownPage({ debugConsole: false, power: false }), 'deep idle', () => undefined)?.has('power') ?? false).toBe(false);
+        expect(searchSettings(shownPage({ debugConsole: false, power: true }), 'deep idle', () => undefined)?.has('power')).toBe(true);
+    });
+
+    it('opens only Hardware on a first visit', () => {
+        expect(SETTINGS_PAGE.filter((s) => s.defaultOpen).map((s) => s.id)).toEqual(['hardware']);
+    });
+
+    it('keeps trackball characterization out of About: it is the Trackball sensors button in Pointing Devices', () => {
+        expect(onPage).not.toContain('trackball-characterization');
+        expect(SETTINGS_SHOWN_ELSEWHERE['trackball-characterization']).toMatch(/Trackball sensors/);
     });
 
     it('remembers each card under its own setting, Hardware under the one it already used', () => {
@@ -76,18 +104,16 @@ describe('the page a board shows', () => {
     const lookup = () => undefined;
     const debugRow = (page: ReturnType<typeof shownPage>) => page.find((s) => s.id === 'about')!.rows.some((r) => 'block' in r && r.block === 'debug');
 
-    it('has the Debug console row and the Touchpad card only when the board has them', () => {
-        expect(debugRow(shownPage({ touchpad: false, debugConsole: true }))).toBe(true);
-        expect(debugRow(shownPage({ touchpad: false, debugConsole: false }))).toBe(false);
-        expect(shownPage({ touchpad: false, debugConsole: true }).some((s) => s.id === 'touchpad')).toBe(false);
-        expect(shownPage({ touchpad: true, debugConsole: true }).some((s) => s.id === 'touchpad')).toBe(true);
+    it('has the Debug console row only when the board has it', () => {
+        expect(debugRow(shownPage({ debugConsole: true }))).toBe(true);
+        expect(debugRow(shownPage({ debugConsole: false }))).toBe(false);
     });
 
     it('never finds the Debug console row in search when the firmware has no command', () => {
         for (const query of ['debug console', 'console', 'logging']) {
-            const hidden = searchSettings(shownPage({ touchpad: false, debugConsole: false }), query, lookup);
+            const hidden = searchSettings(shownPage({ debugConsole: false }), query, lookup);
             expect(hidden?.get('about')?.rows.has('block:debug') ?? false).toBe(false);
-            const shown = searchSettings(shownPage({ touchpad: false, debugConsole: true }), query, lookup);
+            const shown = searchSettings(shownPage({ debugConsole: true }), query, lookup);
             expect(shown?.get('about')?.rows.has('block:debug')).toBe(true);
         }
     });

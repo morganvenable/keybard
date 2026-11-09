@@ -5,6 +5,7 @@ import '../constants/keycode-numbering';
 import type { KeyString, KeyMapEntry } from '../types/keymap';
 import type { CustomKeycode, KeyboardInfo } from '../types/keyboard.types';
 import { customKeycodeShortName } from '../constants/custom-keycode-labels';
+import { layerModString, parseLayerMod } from '../constants/layer-mod';
 import { QK_USER, QK_USER_COUNT, qkUserIndex, qkUserName } from '../constants/qk-user';
 
 interface KeyParseDesc {
@@ -141,6 +142,10 @@ export class KeyService {
       return CODEMAP[keynum] as string;
     }
 
+    // A code CODEMAP does not name, inside the Layer-Mod range: LM(layer, mods).
+    const lm = layerModString(keynum);
+    if (lm) return lm;
+
     if (modmask !== 0 && keyid in CODEMAP) {
       const kcstr = CODEMAP[keyid];
       const maskstr = CODEMAP[modmask] as string;
@@ -159,7 +164,7 @@ export class KeyService {
       }
     }
 
-    return `0x${keynum.toString(16)}`;
+    return `0x${keynum.toString(16).padStart(4, '0')}`;
   }
 
   /**
@@ -181,6 +186,9 @@ export class KeyService {
     if (typeof keystr === 'number') {
       return keystr;
     }
+
+    const layerMod = parseLayerMod(keystr);
+    if (layerMod !== null) return layerMod;
 
     const match = keystr.match(/^(\w+)\((\w+)\)$/);
     if (match) {

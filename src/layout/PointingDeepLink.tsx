@@ -3,16 +3,18 @@ import { useEffect, useRef } from "react";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { pointingDemo } from "@/features/pointing-demo";
-import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
+import { requestPointingAutoMouse, requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
-import { tuneFromSearch } from "@/lib/deepLinks";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
+import { tuneKindFromSearch } from "@/lib/deepLinks";
 
 /**
  * ?panel=settings opens Settings once a layout is loaded (with ?demo, the
  * QWERTY Example), so a review link lands on the Settings page. The old panel
  * names of what is now in Settings (?panel=typing, clusters, fragments, about) open
  * Settings at that section, as do ?panel=firmware and ?panel=backups. ?panel=scanlab opens the Scan Lab and ?panel=pointing
- * the Pointing Devices panel (its settings, auto mouse included), ?panel=keyboard the Standard
+ * the Pointing Devices panel (?panel=pointing-settings is the same, ?panel=pointing-automouse
+ * scrolled to AutoMouse (pointing-advanced is its old name), ?panel=trackball with the Trackball sensors modal open), ?panel=keyboard the Standard
  * Keys panel. Once per page load.
  */
 export default function PointingDeepLink() {
@@ -23,12 +25,17 @@ export default function PointingDeepLink() {
         const panel = pointingDemo()?.panel;
         if (!keyboard || !panel || done.current) return;
         done.current = true;
-        if (panel === "scanlab" || panel === "trackball" || panel === "pointing" || panel === "keyboard") {
-            setActivePanel(panel);
+        // The pointing panel, its old names, and the tuner modals: a modal opens over the panel the link lands on.
+        const pointingPanel = panel === "pointing" || panel === "pointing-settings" || panel === "pointing-automouse" || panel === "pointing-advanced" || panel === "trackball";
+        if (panel === "scanlab" || pointingPanel || panel === "keyboard" || ["special", "mouse", "layers", "altrepeat", "more", "combos", "overrides", "leaders", "macros", "tapdances", "qmk", "oneshot"].includes(panel)) {
+            setActivePanel(pointingPanel ? "pointing" : panel);
             setPanelToGoBack(null);
             setItemToEdit(null);
             openDetails();
-            if (panel === "pointing" && tuneFromSearch(window.location.search)) openTouchpadTuning();
+            if (panel === "pointing-automouse" || panel === "pointing-advanced") requestPointingAutoMouse();
+            const tune = panel === "trackball" ? "trackball" : tuneKindFromSearch(window.location.search);
+            if (tune === "touchpad") openTouchpadTuning();
+            if (tune === "trackball") openTrackballSensor();
             return;
         }
         const section = settingsSectionForPanel(panel);
@@ -37,11 +44,10 @@ export default function PointingDeepLink() {
         setPanelToGoBack(null);
         setItemToEdit(null);
         openDetails();
-        // ?panel=settings&tune=touchpad: Settings, with the Touchpad tuning dialog open.
-        if (panel === "settings" && tuneFromSearch(window.location.search)) {
-            requestSettingsSection("touchpad");
-            openTouchpadTuning();
-        }
+        // ?tune=touchpad or trackball opens that modal over Settings (?panel=settings, ?panel=hardware).
+        const tune = tuneKindFromSearch(window.location.search);
+        if (tune === "touchpad") openTouchpadTuning();
+        if (tune === "trackball") openTrackballSensor();
     }, [keyboard, setActivePanel, openDetails, setPanelToGoBack, setItemToEdit]);
     return null;
 }

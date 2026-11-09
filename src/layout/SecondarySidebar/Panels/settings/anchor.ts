@@ -47,3 +47,28 @@ export const PANELS_IN_SETTINGS: Record<string, string> = {
 export function settingsSectionForPanel(panel: string): string | undefined {
     return Object.prototype.hasOwnProperty.call(PANELS_IN_SETTINGS, panel) ? PANELS_IN_SETTINGS[panel] : undefined;
 }
+
+/**
+ * Scrolling the Pointing Devices panel to its AutoMouse group
+ * (?panel=pointing-automouse, or its old name pointing-advanced). Held until the panel mounts, like the
+ * section request above.
+ */
+const AUTOMOUSE_EVENT = "keybard-pointing-automouse";
+let autoMousePending = false;
+
+export function requestPointingAutoMouse(): void {
+    autoMousePending = true;
+    window.dispatchEvent(new CustomEvent(AUTOMOUSE_EVENT));
+}
+
+export function takePointingAutoMouseRequest(): boolean {
+    const pending = autoMousePending;
+    autoMousePending = false;
+    return pending;
+}
+
+export function onPointingAutoMouseRequest(handler: () => void): () => void {
+    const listener = () => { autoMousePending = false; handler(); };
+    window.addEventListener(AUTOMOUSE_EVENT, listener);
+    return () => window.removeEventListener(AUTOMOUSE_EVENT, listener);
+}

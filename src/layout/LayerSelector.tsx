@@ -12,7 +12,7 @@ import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import SquareArrowLeftIcon from "@/components/icons/SquareArrowLeft";
 import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
 import TelescopeIcon from "@/components/icons/TelescopeIcon";
-import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
+import { ArrowLeft, ChevronDown, Unplug, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { useChanges } from "@/contexts/ChangesContext";
@@ -22,6 +22,7 @@ import { svalService } from "@/services/sval.service";
 import { KEYMAP } from "@/constants/keygen";
 
 import ExportDialog from "@/components/ExportDialog";
+import { DiscardAllControl, UndoControl } from "@/components/UndoDiscardControls";
 
 import { FC, useState, useEffect, useRef } from "react";
 import { usePanels } from "@/contexts/PanelsContext";
@@ -437,35 +438,16 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     )}
 
                                     {!liveUpdating && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (getPendingCount() > 0 && !saveError && window.confirm("Discard all pending edits in this draft? Changes already applied to the keyboard are not undone.")) {
-                                                            clearAll();
-                                                            resetToOriginal();
-                                                        }
-                                                    }}
-                                                    disabled={isSaving || !!saveError || getPendingCount() === 0}
-                                                    aria-label="Discard pending edits"
-                                                    className={cn(
-                                                        "p-2 rounded-full transition-all text-kb-ink ml-0",
-                                                        getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700" : "opacity-30 cursor-not-allowed"
-                                                    )}
-                                                >
-                                                    <Undo2 className="h-4 w-4" />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                Discard pending edits
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        <DiscardAllControl
+                                            pendingCount={getPendingCount()}
+                                            disabled={isSaving || !!saveError}
+                                            onDiscardAll={() => { clearAll(); resetToOriginal(); }}
+                                        />
                                     )}
                                 </div>
                             )}
 
-                            {undoLabel && <button disabled={isSaving} onClick={() => void undo()} className="rounded border px-3 py-1 text-sm" title={`Undo ${undoLabel}`}>Undo</button>}
+                            <UndoControl label={undoLabel} disabled={isSaving} onUndo={undo} />
                             {/* Divider */}
                             <div className="h-4 w-[1px] bg-slate-400 dark:bg-neutral-600 mx-0 flex-shrink-0" />
 

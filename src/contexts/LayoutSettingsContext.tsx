@@ -6,7 +6,7 @@ import { INTERNATIONAL_SETTING, resolveKeyLegendsLayout } from "@/lib/keyLegends
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import {
-    DEFAULT_KEY_SIZE, DEFAULT_PANEL_POSITION, isKeySizePreference, isPanelPositionPreference,
+    DEFAULT_KEY_SIZE, DEFAULT_PANEL_POSITION, panelPositionFromSearch, isKeySizePreference, isPanelPositionPreference,
     KEY_SIZE_SETTING, PANEL_POSITION_SETTING,
 } from "@/lib/appearance-settings";
 import { autoKeySizeForWidth } from "@/lib/pickerShape";
@@ -112,15 +112,23 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         }
     }, [storedKeySize]);
 
+    // ?panelPosition=bottombar|sidebar puts the panel there for this load only (review links; not saved).
+    // It holds until Panel position is changed in Settings.
+    const positionLink = useRef<{ value: "sidebar" | "bottombar" | null; stored: unknown }>({ value: typeof window === "undefined" ? null : panelPositionFromSearch(window.location.search), stored: undefined });
+    if (positionLink.current.stored === undefined && storedPanelPosition !== null) positionLink.current.stored = storedPanelPosition;
+    if (positionLink.current.value && positionLink.current.stored !== undefined && positionLink.current.stored !== storedPanelPosition) positionLink.current.value = null;
+    const linkedPosition = positionLink.current.value;
+    const wantedPosition = linkedPosition ?? storedPanelPosition;
+
     useEffect(() => {
-        if (!isPanelPositionPreference(storedPanelPosition)) return;
-        if (storedPanelPosition === "auto") {
+        if (!isPanelPositionPreference(wantedPosition)) return;
+        if (wantedPosition === "auto") {
             setIsAutoLayoutModeState(true);
         } else {
-            setManualLayoutMode(storedPanelPosition);
+            setManualLayoutMode(wantedPosition);
             setIsAutoLayoutModeState(false);
         }
-    }, [storedPanelPosition]);
+    }, [wantedPosition]);
 
     // Use refs to track current values without triggering re-renders during calculation
     const measuredDimensionsRef = useRef<MeasuredDimensions | null>(null);
