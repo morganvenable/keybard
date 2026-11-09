@@ -76,6 +76,18 @@ export function formatScrollSpeed(multiplier: number): string {
     return `${Number.isInteger(multiplier * 10) ? multiplier.toFixed(1) : multiplier.toFixed(2)}×`;
 }
 
+/**
+ * The Scroll speed an older backup's DPI stands for: DPI / 800 as a percent, rounded to nearest,
+ * the same rule as the firmware's one-time migration (scroll_speed.c). The touchpad counts at
+ * most 1210 DPI, a TrackPoint stays 1.0x, and the result is held to 20-1000.
+ */
+export function scrollSpeedFromDpi(dpi: number, module: PointingModule | null): number {
+    if (module === "trackpoint") return SCROLL_SPEED_DEFAULT;
+    const counted = module === "azoteq" ? Math.min(dpi, 1210) : dpi;
+    const percent = Math.floor((counted * 100 + 400) / 800);
+    return Math.max(SCROLL_SPEED_MIN, Math.min(SCROLL_SPEED_MAX, percent));
+}
+
 // ---------------------------------------------------------------- pointer speed
 
 /** The highest DPI that does something on a module: the pad's resolution limit, each sensor's own, and the TrackPoint's software speed (4x). */
@@ -125,7 +137,7 @@ export interface HandModel {
     moduleName: string;
 }
 
-function moduleOf(half: PointingHalfReport): PointingModule | null {
+export function moduleOf(half: PointingHalfReport): PointingModule | null {
     if (half.detected && half.detected !== "none" && half.detected !== "unknown") return half.detected;
     return half.builtFor !== "none" ? half.builtFor : null;
 }
