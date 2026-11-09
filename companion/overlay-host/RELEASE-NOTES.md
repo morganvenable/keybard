@@ -4,6 +4,20 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in x4.6.1
+
+Goes with Svalboard firmware x4.6.1, and bundles the Keybard that next.keybard.svalboard.com now runs:
+
+- **Keybard Overlay:** shows AltGr and Shift symbols for the key legends language you choose in Keybard.
+- **Key pickers:** reorganized, with every key reachable from each picker.
+- **Custom keycode:** enter any keycode by number.
+- **Pointing Devices:** all pointing settings for each hand in one place, with Scroll speed.
+- **Trackball sensor view:** see how each trackball reads its surface.
+- **Modifier-wrapped keys** show their full legend.
+- **Update chord diagram** shows the correct half.
+- **Test builds:** install one over another with the same version number.
+- **Install by hand:** downloads the firmware file directly.
+
 ## New in x4.5
 
 Goes with Svalboard firmware x4.5. Keybard and Keybard Overlay are unchanged from x4.4.
