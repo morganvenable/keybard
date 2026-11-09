@@ -45,7 +45,9 @@ const selectKey = (col: number) => {
     binding.selectedTarget = { type: 'keyboard', layer: 0, row: 0, col };
 };
 
-describe('BasicKeyboards: Left/Right modifier toggle', () => {
+// These cases take 3-4 s each in a full parallel run, close to vitest's
+// 5 s default, and timed out once in npm run pre-pr.
+describe('BasicKeyboards: Left/Right modifier toggle', { timeout: 20000 }, () => {
     beforeEach(() => {
         layoutSettings.layoutMode = 'sidebar';
         binding.selectedTarget = null;
