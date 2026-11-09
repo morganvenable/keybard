@@ -70,6 +70,9 @@ export const SHORT_TILE_LABELS: Readonly<Record<string, string>> = {
     // Svalboard pointing keys.
     SV_NATURAL_SCROLL_TOGGLE: "Nat Scroll",
     SV_TOGGLE_AUTOMOUSE: "AM Toggle",
+    // "Velocity" is eight capitals; the full name stays in the tooltip.
+    SV_VELOCITY_SCROLL: "Vel Scroll",
+    SV_VELOCITY_SCROLL_TOGGLE: "Vel Scroll Toggle",
 };
 
 export interface TileLabelPlan {

@@ -68,7 +68,7 @@ export function selectPointingMenu(items: CustomUIMenuItem[], section: PointingM
         const content = selectPointingMenu((item.content ?? []) as CustomUIMenuItem[], section);
         if (!content.length) return [];
         return [{ ...item, content,
-            ...(section === "developer" && item.label === "Advanced" ? { label: "Key scanning and power saving" } : {}),
+            ...(section === "developer" && (item.label === "Advanced" || item.label === "Power and scanning") ? { label: "Key scanning and power saving" } : {}),
         }];
     });
     if (section === "developer") {

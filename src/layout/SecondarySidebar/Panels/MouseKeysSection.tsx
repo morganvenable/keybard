@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Modifier, modifierOptions, applyModifiers } from "@/utils/modifierUtils";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/keyboard.types";
+import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
 import ModifierSideToggle from "@/components/ModifierSideToggle";
 import { useModifierSide } from "@/hooks/useModifierSide";
 
@@ -87,10 +88,30 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     // key (they came after Drag Scroll, the toggle after the hold key).
     const firmwareKeycodes = keyboard?.custom_keycodes;
     const firmwareHas = (name: string) => !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === name);
+    const optional = (keycode: string, label: string) => (firmwareHas(keycode) ? [{ keycode, label }] : []);
     const scrollKeys = [
-        { keycode: "SV_SCROLL_HOLD", label: "Drag Scroll" },
-        ...(firmwareHas("SV_VELOCITY_SCROLL") ? [{ keycode: "SV_VELOCITY_SCROLL", label: "Velocity Scroll" }] : []),
-        ...(firmwareHas("SV_VELOCITY_SCROLL_TOGGLE") ? [{ keycode: "SV_VELOCITY_SCROLL_TOGGLE", label: "Velocity Scroll Toggle" }] : []),
+        ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
+        ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
+        ...optional("SV_SCROLL_TOGGLE", "Scroll Toggle"),
+        ...optional("SV_VELOCITY_SCROLL", "Velocity Scroll"),
+        ...optional("SV_VELOCITY_SCROLL_TOGGLE", "Velocity Scroll Toggle"),
+        ...optional("SV_NATURAL_SCROLL_TOGGLE", "Natural Scroll"),
+        ...optional("SV_AXIS_SCROLL_LOCK", "Axis Lock"),
+    ];
+    // Drag Scroll is out of sight, in the closed More keys group at the end.
+    const moreKeys = [{ keycode: "SV_SCROLL_HOLD", label: "Drag Scroll" }];
+    // Pointer speed: the DPI keys, one pair per hand.
+    const speedKeys = [
+        ...optional("SV_LEFT_DPI_INC", "Left DPI +"),
+        ...optional("SV_LEFT_DPI_DEC", "Left DPI -"),
+        ...optional("SV_RIGHT_DPI_INC", "Right DPI +"),
+        ...optional("SV_RIGHT_DPI_DEC", "Right DPI -"),
+    ];
+    // Pointer: calibration and the auto mouse layer.
+    const pointerKeys = [
+        ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
+        ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
+        ...optional("SV_MH_CHANGE_TIMEOUTS", "Mouse Key Timer"),
     ];
 
     // Every key row in this section MUST go through renderKey so it picks up the
@@ -248,12 +269,39 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Scroll
                 </span>
-                {/* Row 4: Drag Scroll, Velocity Scroll, its toggle */}
+                {/* Row 4: Drag Scroll, scroll toggles, Velocity Scroll, Natural Scroll, Axis Lock */}
                 <div className="flex flex-wrap gap-1">
                     {scrollKeys.map((k) => renderKey(k, false))}
                 </div>
             </div>
 
+            {speedKeys.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
+                        Pointer Speed
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                        {speedKeys.map((k) => renderKey(k, false))}
+                    </div>
+                </div>
+            )}
+
+            {pointerKeys.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
+                        Pointer
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                        {pointerKeys.map((k) => renderKey(k, false))}
+                    </div>
+                </div>
+            )}
+
+            <MoreKeysDisclosure category="pointing" count={moreKeys.length} compact={compact}>
+                <div className="flex flex-wrap gap-1">
+                    {moreKeys.map((k) => renderKey(k, false))}
+                </div>
+            </MoreKeysDisclosure>
         </div>
     );
 };

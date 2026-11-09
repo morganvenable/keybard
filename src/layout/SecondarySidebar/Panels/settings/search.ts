@@ -17,6 +17,7 @@ export const SECTION_SYNONYMS: Record<string, string[]> = {
     backups: ["backup", "back up", "files", "layout files"],
     appearance: ["look", "display", "editor", "keymap"],
     typing: ["qmk settings", "timing"],
+    power: ["idle", "light idle", "deep idle", "sleep", "battery", "scan", "scan pre-wait", "scan period", "rest mode", "dim lights", "rgb", "developer", "power saving"],
     about: ["developer", "dev", "debug"],
 };
 
@@ -51,6 +52,7 @@ export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
     board: ["board name", "serial", "rename", "identity"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],
     typing: typingBehaviorWords(),
+    power: ["idle", "light idle", "deep idle", "scan pre-wait", "scan period", "trackball rest mode", "dim lights when idle", "power saving", "key scanning"],
     about: ["version", "help", "manual", "docs", "community", "discord", "support", "release notes", "credits"],
     debug: ["debug console", "debug", "console", "log", "logging", "key events", "troubleshooting", "diagnostics", "hid_listen"],
 };

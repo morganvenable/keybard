@@ -75,6 +75,17 @@ describe('Scan Lab > Tuning', () => {
         state.keyboard = saved;
     });
 
+    it('bare drops the heading and intro, for use inside the Power and scanning card', () => {
+        const saved = state.keyboard;
+        state.keyboard = { menus: [
+            { label: 'Pointing Device', content: [{ label: 'Scan period', type: 'range', content: ['id_scan_period_us', 0, 1] }] },
+        ] };
+        render(<DeveloperTuningSection bare />);
+        expect(screen.queryByRole('heading', { name: 'Tuning' })).toBeNull();
+        expect(screen.getByText('menu 0 developer')).toBeInTheDocument();
+        state.keyboard = saved;
+    });
+
     it('renders nothing without developer values', () => {
         const saved = state.keyboard;
         state.keyboard = { menus: [{ label: 'Pointing Device', content: [{ label: 'DPI', type: 'range', content: ['id_dpi', 0, 1] }] }] };

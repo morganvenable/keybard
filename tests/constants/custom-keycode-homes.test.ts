@@ -5,9 +5,11 @@ import { SVALBOARD_VIAL_CUSTOM_KEYCODES } from '../../src/constants/svalboard-vi
 const fake = (name: string) => ({ name, shortName: 'x', title: 'x' });
 
 describe('custom keycode placement', () => {
-    it('keeps pointer keys in Mouse Keys', () => {
-        for (const n of ['SV_LEFT_DPI_INC', 'SV_RIGHT_DPI_DEC', 'SV_RECALIBRATE_POINTER', 'SV_MH_CHANGE_TIMEOUTS']) {
-            expect(customKeycodeHome(n)).toBe('mouse');
+    it('puts every Svalboard pointing key in Pointing Devices, none in Mouse Keys', () => {
+        for (const n of ['SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
+            'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE', 'SV_NATURAL_SCROLL_TOGGLE',
+            'SV_AXIS_SCROLL_LOCK', 'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS']) {
+            expect(customKeycodeHome(n)).toBe('pointing');
         }
     });
 
@@ -42,8 +44,9 @@ describe('custom keycode placement', () => {
         expect(customKeycodesAt([fake('OTHER_KEY')], 'svalboard')).toEqual([]);
     });
 
-    it('places every built-in key in exactly one group', () => {
+    it('places every built-in key in exactly one group, and none in Mouse Keys', () => {
         const all = SVALBOARD_VIAL_CUSTOM_KEYCODES as unknown as { name: string; shortName: string; title: string }[];
+        expect(customKeycodesAt(all, 'mouse')).toEqual([]);
         const total = (['mouse', 'pointing', 'board', 'svalboard'] as const)
             .map(h => all.filter(k => customKeycodeHome(k.name) === h).length)
             .reduce((a, b) => a + b, 0);

@@ -34,9 +34,9 @@ describe('Settings page declaration', () => {
         }
     });
 
-    it('is seven cards, each with a chip, a summary and a sentence-case title', () => {
-        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'About']);
-        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance', 'Typing', 'About']);
+    it('is eight cards, each with a chip, a summary and a sentence-case title', () => {
+        expect(SETTINGS_PAGE.map((s) => s.title)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance and editing', 'Typing behavior', 'Power and scanning', 'About']);
+        expect(SETTINGS_PAGE.map((s) => s.chip)).toEqual(['Hardware', 'Pointing', 'Firmware', 'Backups', 'Appearance', 'Typing', 'Power', 'About']);
         for (const s of SETTINGS_PAGE) {
             expect(s.summary, s.id).not.toBe('');
             expect(s.title.slice(1), s.title).toBe(s.title.slice(1).toLowerCase());
@@ -50,14 +50,28 @@ describe('Settings page declaration', () => {
     });
 
     it('holds Hardware, Typing behavior and every block once', () => {
-        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'pointing', 'typing']);
+        expect([...blocksOnPage()].sort()).toEqual(['about', 'backups', 'board', 'debug', 'firmware', 'hardware', 'pointing', 'power', 'typing']);
     });
 
     it('shows Pointing only on some boards, beside Hardware, and no Touchpad tuning card', () => {
-        expect([...CONDITIONAL_SECTIONS]).toEqual(['pointing']);
+        expect([...CONDITIONAL_SECTIONS]).toEqual(['pointing', 'power']);
         expect(SETTINGS_PAGE.findIndex((s) => s.id === 'pointing')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'hardware') + 1);
         expect(SETTINGS_PAGE.find((s) => s.id === 'pointing')!.rows).toEqual([{ block: 'pointing' }]);
         expect(SETTINGS_PAGE.some((s) => s.id === 'touchpad')).toBe(false);
+    });
+
+    it('puts Power and scanning before About, closed by default, with its one block', () => {
+        const power = SETTINGS_PAGE.find((s) => s.id === 'power')!;
+        expect(SETTINGS_PAGE.findIndex((s) => s.id === 'power')).toBe(SETTINGS_PAGE.findIndex((s) => s.id === 'about') - 1);
+        expect(power.defaultOpen).toBe(false);
+        expect(power.rows).toEqual([{ block: 'power' }]);
+    });
+
+    it('shows Power and scanning only when the firmware carries the values, and never finds it otherwise', () => {
+        expect(shownPage({ pointing: false, debugConsole: false, power: false }).some((s) => s.id === 'power')).toBe(false);
+        expect(shownPage({ pointing: false, debugConsole: false, power: true }).some((s) => s.id === 'power')).toBe(true);
+        expect(searchSettings(shownPage({ pointing: false, debugConsole: false, power: false }), 'deep idle', () => undefined)?.has('power') ?? false).toBe(false);
+        expect(searchSettings(shownPage({ pointing: false, debugConsole: false, power: true }), 'deep idle', () => undefined)?.has('power')).toBe(true);
     });
 
     it('opens only Hardware and Pointing on a first visit', () => {

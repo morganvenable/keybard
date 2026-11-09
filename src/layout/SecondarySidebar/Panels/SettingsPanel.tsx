@@ -14,6 +14,7 @@ import BackupsSection from "./BackupsSection";
 import BoardIdentitySection from "./BoardIdentitySection";
 import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
+import DeveloperTuningSection, { developerTuningMenuIndex } from "./DeveloperTuningSection";
 import AboutSection from "./settings/AboutSection";
 import DebugConsoleRow from "./settings/DebugConsoleRow";
 import PointingSection from "./settings/PointingSection";
@@ -92,7 +93,8 @@ const SettingsPanel = () => {
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
     const { internationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
-    const pageSections = useMemo(() => shownPage({ pointing: pointingShown, debugConsole: debugShown, altgr: altgrShown }), [pointingShown, debugShown, altgrShown]);
+    const powerShown = isConnected && developerTuningMenuIndex(keyboard?.menus) >= 0;
+    const pageSections = useMemo(() => shownPage({ pointing: pointingShown, debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [pointingShown, debugShown, altgrShown, powerShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 
@@ -178,6 +180,8 @@ const SettingsPanel = () => {
                 return <PointingSection />;
             case "typing":
                 return <div className="px-3 pt-3 pb-1"><TypingBehaviorPanel /></div>;
+            case "power":
+                return <DeveloperTuningSection bare />;
             case "about":
                 return <AboutSection />;
             case "debug":

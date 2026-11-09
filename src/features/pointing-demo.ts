@@ -33,7 +33,7 @@ import { velocityStateFor } from "@/utils/velocity-scroll";
 import { settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 
 /** Rail panels a review link can open (?panel=special). */
-const RAIL_PANELS = ["special", "mouse", "layers", "altrepeat", "more"];
+const RAIL_PANELS = ["special", "mouse", "layers", "altrepeat", "more", "combos", "overrides", "leaders", "macros", "tapdances", "qmk", "oneshot"];
 
 export type DemoKind = "trackball" | "touchpad" | "none";
 export interface PointingDemo {

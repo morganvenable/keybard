@@ -7,7 +7,7 @@ import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { getKeyDisplayText } from "@/utils/key-display";
-import { FittedLabel } from "@/components/FittedLabel";
+import { FittedHeader, FittedLabel } from "@/components/FittedLabel";
 import { shortTileLabel } from "@/lib/tileLabel";
 import { ComboFold } from "@/components/combo/ComboFold";
 import type { ComboMembership } from "@/utils/combo-membership";
@@ -366,7 +366,8 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const fitsLabel = (fitLabel ?? isRelative) && centerLabelText !== null && centerLabelText !== "";
     const tileName = fullName ?? label.replace(/\s+/g, " ").trim();
     const tileTitle = props.disableTooltip ? (fitsLabel ? tileName : undefined) : (title || keycode);
-    const tileAria = fitsLabel && !comboInteractive ? { "aria-label": tileName } : {};
+    // A keymap key (fitLabel set on a non-relative key) keeps its own accessible name.
+    const tileAria = fitsLabel && !comboInteractive && !(fitLabel && !isRelative) ? { "aria-label": tileName } : {};
 
     return (
         <div
@@ -386,9 +387,11 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
             {...rest}
         >
             {keyData.topLabel && (
-                <span className={cn(headerClass)} style={headerStyle}>
-                    {keyData.topLabel}
-                </span>
+                typeof keyData.topLabel === "string" ? (
+                    <FittedHeader text={keyData.topLabel} size={variant} nominalPx={isSmall ? 10 : isMedium ? 11 : 14} className={cn(headerClass)} style={headerStyle} />
+                ) : (
+                    <span className={cn(headerClass)} style={headerStyle}>{keyData.topLabel}</span>
+                )
             )}
 
             {keyContents && getTypeIcon(keyContents.type || "", variant)}

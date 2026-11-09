@@ -4,8 +4,8 @@ import type { CustomKeycode } from '../../src/types/keyboard.types';
 import { keyService } from '../../src/services/key.service';
 import MousePanel from '../../src/layout/SecondarySidebar/Panels/MousePanel';
 
-// The Mouse Keys picker lists the SV_ custom keycodes placed in Mouse Keys. Keys
-// with no placement go to Special Keys, so they never show here.
+// The Mouse Keys picker lists only QMK's emulated mouse keys. No SV_ key of any
+// kind shows here: Svalboard pointing keys are in Pointing Devices.
 
 const keyboardState: { keyboard: unknown } = { keyboard: null };
 vi.mock('@/contexts/KeyboardContext', () => ({ useKeyboard: () => keyboardState }));
@@ -37,28 +37,17 @@ const customKeycodes: CustomKeycode[] = [
 
 const shown = () => screen.getAllByTestId('row').map(el => el.getAttribute('data-keycode'));
 
-describe('MousePanel placement of custom keycodes', () => {
-    it('lists only pointer keys placed in Mouse Keys and assigns them by name', () => {
-        const keyboard = { name: 'Test', rows: 1, cols: 1, layers: 1, keymap: [[0]], custom_keycodes: customKeycodes };
-        keyService.generateAllKeycodes(keyboard as never);
-        keyboardState.keyboard = keyboard;
-        render(<MousePanel isPicker />);
-
-        const sv = shown().filter(k => k?.startsWith('SV_'));
-        expect(sv).toEqual(['SV_LEFT_DPI_INC', 'SV_RECALIBRATE_POINTER']);
-        fireEvent.click(screen.getAllByTestId('row').find(el => el.getAttribute('data-keycode') === 'SV_RECALIBRATE_POINTER')!);
-        expect(assignKeycode).toHaveBeenCalledWith('SV_RECALIBRATE_POINTER');
-    });
-
-    it('leaves out Sniper, Boost and scroll keys, non-pointer keys and unknown keys', () => {
+describe('MousePanel holds no SV_ key', () => {
+    it('lists no SV_ key of any kind, whatever the firmware offers', () => {
         const keyboard = { name: 'Test', rows: 1, cols: 1, layers: 1, keymap: [[0]], custom_keycodes: customKeycodes };
         keyService.generateAllKeycodes(keyboard as never);
         keyboardState.keyboard = keyboard;
         render(<MousePanel isPicker />);
         const keys = shown();
-        for (const gone of ['SV_SNIPER_2', 'SV_BOOST_3_TG', 'SV_SCROLL_HOLD', 'SV_VELOCITY_SCROLL', 'SV_CAPS_WORD',
-            'SV_TOGGLE_23_67', 'SV_TURBO_SCAN', 'SV_OUTPUT_STATUS', 'SV_FUTURE_KEY']) {
-            expect(keys).not.toContain(gone);
-        }
+        expect(keys.filter(k => k?.startsWith('SV_'))).toEqual([]);
+        expect(keys).toContain('KC_BTN1');
+        expect(keys).toContain('KC_MS_U');
+        expect(keys).toContain('KC_WH_U');
+        expect(keys).toContain('KC_ACL0');
     });
 });
