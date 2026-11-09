@@ -11,7 +11,9 @@ import { useHost, type HostConfig } from './host';
  * One write carries everything, because two writes started in the same render race: the second finds the
  * first still in flight and is dropped. An older overlay app has neither legend field and rejects unknown
  * ones, so only fields it reports are sent. A write that did not start (busy) is tried again when the busy
- * flag clears; one that started and failed is not repeated for the same values on this connection.
+ * flag clears; one that started is not repeated for the same values on this connection, whatever the
+ * overlay's revision: two Keybard tabs (or the stable and Unstable sites) with different settings would
+ * otherwise overwrite each other forever. Each sends its values once; the last one sent stays.
  */
 export function HostSettingsSync() {
     const host = useHost();
@@ -27,7 +29,7 @@ export function HostSettingsSync() {
         if ('shiftedLegends' in config && config.shiftedLegends !== shiftedLegends) fields.shiftedLegends = shiftedLegends;
         if ('altgrLegends' in config && config.altgrLegends !== altgrLegends) fields.altgrLegends = altgrLegends;
         if (!Object.keys(fields).length) { tried.current = ''; return; }
-        const attempt = `${host.state?.session}:${host.state?.revision}:${JSON.stringify(fields)}`;
+        const attempt = `${host.state?.session}:${JSON.stringify(fields)}`;
         if (tried.current === attempt) return;
         void Promise.resolve(host.configure(latest => ({ ...latest, ...fields }))).then(started => { if (started !== null) tried.current = attempt; });
     }, [internationalLayout, shiftedLegends, altgrLegends, host.state?.session, host.state?.config, host.busy]);

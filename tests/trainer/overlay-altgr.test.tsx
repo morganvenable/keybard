@@ -83,4 +83,13 @@ describe('overlay keycap legends follow Keybard settings', () => {
         expect(held('KC_A', { shift: false, capsLock: false, altgr: true }).displayLabel).toBe('a');
         expect(held('KC_Q', { shift: false, capsLock: false, altgr: true }, { shifted: true }).displayLabel).not.toBe('@');
     });
+
+    it('shows the base legend only on modifier, mod-tap and layer-tap keys, as Keybard does', () => {
+        for (const key of ['LCTL(KC_2)', 'LGUI(KC_1)', 'LCTL_T(KC_2)', 'LT1(KC_3)']) {
+            const k = draw(key, 'german', { shifted: true, altgr: true });
+            expect([k.shifted, k.base, k.altgr], key).toEqual([undefined, undefined, undefined]);
+            expect(k.container.querySelector('[data-dual-legend]'), key).toBeNull();
+        }
+    });
 });
+

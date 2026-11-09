@@ -73,4 +73,23 @@ describe('Host settings sync (no dialog involved)', () => {
         rerender(<HostSettingsSync />);
         expect(host.configure).toHaveBeenCalledTimes(1);
     });
+
+    it('does not fight another Keybard tab with other settings: each sends its values once', async () => {
+        host.configure.mockResolvedValue(true);
+        host.state = connected('us');
+        const { rerender } = render(<HostSettingsSync />);
+        await Promise.resolve(); await Promise.resolve();
+        expect(host.configure).toHaveBeenCalledTimes(1);
+        // The other tab writes 'us' back, again and again: a new revision each time.
+        for (const revision of [2, 3, 4]) {
+            host.state = { ...(connected('us') as object), revision };
+            rerender(<HostSettingsSync />);
+            await Promise.resolve(); await Promise.resolve();
+        }
+        expect(host.configure).toHaveBeenCalledTimes(1);
+        // A change in this tab's settings is sent.
+        settings.lang = 'fr';
+        rerender(<HostSettingsSync />);
+        expect(host.configure).toHaveBeenCalledTimes(2);
+    });
 });
