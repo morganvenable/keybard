@@ -151,6 +151,23 @@ The shadcn variables (`--background`, `--foreground`, `--popover`, `--primary`, 
 
 ## Testing
 
+### Before opening a PR
+
+Pull requests and pushes run no checks on GitHub. Run them locally and get them clean before you open or update a pull request:
+
+```bash
+npm run pre-pr
+```
+
+It runs four steps and exits nonzero if any fails:
+
+1. Lint: `git diff --check` on the changes since `upstream/main` (or `origin/main`).
+2. Typecheck: `tsc --noEmit`.
+3. The whole vitest suite, with the coverage thresholds.
+4. Keybard Overlay's Python tests, with Qt offscreen. They need PySide6: `pip install -r companion/overlay-host/requirements.txt`, or set `KEYBARD_PYTHON` to a Python that has it.
+
+Release tags run the same suites, plus `npm run build:paranoid`, before anything deploys (`.github/workflows/test.yml`).
+
 ### Running Tests
 
 ```bash

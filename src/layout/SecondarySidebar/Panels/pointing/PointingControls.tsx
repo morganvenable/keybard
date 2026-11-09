@@ -178,4 +178,3 @@ export function ChoiceRow({ label, hint, value, choices, onChange }: {
         </div>
     );
 }
-

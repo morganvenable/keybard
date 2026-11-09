@@ -118,5 +118,3 @@ describe("install then restore an x4.5 backup (1200 DPI, no Scroll speed)", () =
         expect(via.has(61) || via.has(62)).toBe(false);
     });
 });
-
-

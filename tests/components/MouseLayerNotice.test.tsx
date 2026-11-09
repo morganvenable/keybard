@@ -121,4 +121,3 @@ describe('mouseLayerNoticeText', () => {
         expect(mouseLayerNoticeText(['SV_LEFT_DPI_INC'])).toMatch(/^Left DPI \+ is on the mouse layer\./);
     });
 });
-
