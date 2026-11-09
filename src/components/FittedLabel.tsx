@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import { canvasMeasurer, planTileLabel, TILE_LABEL_LINE_HEIGHT, type TileLabelPlan, type TileSize } from "@/lib/tileLabel";
+import { canvasMeasurer, planTileLabel, TILE_LABEL_LINE_HEIGHT, TILE_LABEL_MIN_PX, type TileLabelPlan, type TileSize } from "@/lib/tileLabel";
 
 /* Web fonts load after the first paint: plans made before then measured a fallback font. */
 let fontEpoch = 0;
@@ -92,4 +92,36 @@ export function FittedLabel({ text, shortText, size, nominalPx, className, style
             )}
         </div>
     );
+}
+
+/**
+ * The one-line heading of a tile (a mod-tap's "LCtl_T", a layer's name): it keeps its
+ * nominal size when it fits and otherwise shrinks, down to the readable minimum, so it
+ * never runs past the tile's edges. A heading that still does not fit at the minimum
+ * is cut at the tile's edge by the tile itself; the full text is in the tile's hover text.
+ */
+export function FittedHeader({ text, size, nominalPx, className, style }: { text: string; size: TileSize; nominalPx: number; className?: string; style?: React.CSSProperties }) {
+    const ref = useRef<HTMLSpanElement>(null);
+    const [fontPx, setFontPx] = useState<number | null>(null);
+    const epoch = useSyncExternalStore(subscribeFonts, getFontEpoch, getFontEpoch);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const fit = () => {
+            const cs = getComputedStyle(el);
+            const room = el.clientWidth - parseFloat(cs.paddingLeft || "0") - parseFloat(cs.paddingRight || "0") - 1;
+            if (room <= 0) return;
+            const measure = measurerFor(cs.fontFamily || "sans-serif", cs.fontWeight || "600", cs.textTransform === "uppercase");
+            const min = Math.min(TILE_LABEL_MIN_PX[size], nominalPx);
+            let px = nominalPx;
+            while (px > min && measure(text, px) > room) px = Math.max(min, px - 0.5);
+            setFontPx(px === nominalPx ? null : px);
+        };
+        fit();
+        if (typeof ResizeObserver === "undefined") return;
+        const ro = new ResizeObserver(fit);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [text, size, nominalPx, epoch]);
+    return <span ref={ref} className={className} style={{ ...style, fontSize: fontPx ?? undefined }}>{text}</span>;
 }

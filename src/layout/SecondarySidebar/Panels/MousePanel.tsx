@@ -8,8 +8,6 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
-import { customKeycodeShortName } from "@/constants/custom-keycode-labels";
-import { customKeycodesAt } from "@/constants/custom-keycode-homes";
 import { keyService } from "@/services/key.service";
 import { KeyContent } from "@/types/keyboard.types";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
@@ -28,8 +26,8 @@ interface MouseKeyDefinition {
 
 /**
  * Standard QMK mouse keycodes (always available regardless of firmware).
- * Custom svalboard SV_* keycodes are appended dynamically from
- * keyboard.custom_keycodes (see mouseKeys in component).
+ * Mouse Keys holds only these. Every Svalboard SV_* key (DPI, scroll
+ * toggles, Fix Drift and the rest) is in Pointing Devices.
  */
 const STATIC_MOUSE_KEYS: readonly MouseKeyDefinition[] = [
     // Mouse Buttons
@@ -76,17 +74,8 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
 
     const isHorizontal = layoutMode === "bottombar";
 
-    // Standard QMK mouse keys + the firmware's pointer keys, placed by name
-    // (custom-keycode-homes.ts). Other SV_* keys, including ones this version
-    // does not know, are on Special Keys under Svalboard.
-    const mouseKeys = useMemo<readonly MouseKeyDefinition[]>(() => {
-        const customSv = customKeycodesAt(keyboard?.custom_keycodes, "mouse")
-            .map((ck) => ({
-                keycode: ck.name,
-                label: customKeycodeShortName(ck).replace(/\n/g, " "),
-            }));
-        return [...STATIC_MOUSE_KEYS, ...customSv];
-    }, [keyboard?.custom_keycodes]);
+    // Only QMK's emulated mouse keys; Svalboard pointing keys are in Pointing Devices.
+    const mouseKeys = STATIC_MOUSE_KEYS;
 
     // Memoize hover colors based on selected layer
     const hoverStyles = useMemo(() => {
@@ -111,7 +100,6 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
     const mouseMovement = mouseKeys.filter(k => k.keycode.startsWith("KC_MS_"));
     const mouseWheel = mouseKeys.filter(k => k.keycode.startsWith("KC_WH_"));
     const mouseAccel = mouseKeys.filter(k => k.keycode.startsWith("KC_ACL"));
-    const svalKeys = mouseKeys.filter(k => k.keycode.startsWith("SV_"));
 
     // Horizontal layout for bottom panel
     if (isHorizontal) {
@@ -151,7 +139,6 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                 {renderKeyGroup(mouseMovement, "Move")}
                 {renderKeyGroup(mouseWheel, "Wheel")}
                 {renderKeyGroup(mouseAccel, "Accel")}
-                {svalKeys.length > 0 && renderKeyGroup(svalKeys, "Pointer")}
                 <MoreKeysDisclosure category="mouse" count={MOUSE_EXTRA_BUTTON_KEYS.length} compact>
                     {renderKeyGroup(MOUSE_EXTRA_BUTTON_KEYS, "Buttons 6 to 8")}
                 </MoreKeysDisclosure>

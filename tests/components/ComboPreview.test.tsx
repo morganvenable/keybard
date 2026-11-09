@@ -66,6 +66,15 @@ const order = (code: string) => foldOf(code)?.getAttribute("data-combo-order");
 const readout = () => document.querySelector("[data-inspector-live] [data-combo-readout]");
 const tick = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
 
+// jsdom's :focus-visible answer is not reliable; in a browser, keyboard focus matches it.
+const realMatches = Element.prototype.matches;
+beforeEach(() => {
+    vi.spyOn(Element.prototype, "matches").mockImplementation(function (this: Element, selector: string) {
+        return selector === ":focus-visible" ? this === document.activeElement : realMatches.call(this, selector);
+    });
+});
+afterEach(() => { vi.restoreAllMocks(); });
+
 beforeEach(() => {
     vi.useFakeTimers();
     state.mode = "small";

@@ -22,7 +22,11 @@ const EXPECTED_KEYS = [
     'KC_BTN1', 'KC_BTN2', 'KC_BTN3', 'KC_BTN4', 'KC_BTN5',
     'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
     'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
-    'SV_SCROLL_HOLD', 'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE',
+    'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE',
+    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE', 'SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK',
+    'SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
+    'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS',
+    'SV_SCROLL_HOLD',
 ];
 
 function renderedKeys() {
@@ -55,19 +59,34 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         expect(screen.getByText('Sniper Keys')).toBeInTheDocument();
         expect(screen.getByText('Boost')).toBeInTheDocument();
         expect(screen.getByText('Scroll')).toBeInTheDocument();
+        expect(screen.getByText('Pointer Speed')).toBeInTheDocument();
+        expect(screen.getByText('Pointer')).toBeInTheDocument();
     });
 
-    it('offers Drag Scroll (SV_SCROLL_HOLD) in the Scroll row, labeled "Drag Scroll"', () => {
+    it('groups the former Mouse Keys pointer keys under Scroll, Pointer Speed and Pointer', () => {
         render(<MouseKeysSection />);
+        const keys = renderedKeys().map((k) => k.keycode);
+        expect(keys.indexOf('SV_NATURAL_SCROLL_TOGGLE')).toBeLessThan(keys.indexOf('SV_LEFT_DPI_INC'));
+        expect(keys.indexOf('SV_RIGHT_DPI_DEC')).toBeLessThan(keys.indexOf('SV_RECALIBRATE_POINTER'));
+    });
+
+    it('offers Drag Scroll (SV_SCROLL_HOLD) in the closed More keys group, labeled "Drag Scroll"', () => {
+        const { container } = render(<MouseKeysSection />);
+        const more = container.querySelector('[data-testid="pointing-more-keys"]')!;
+        expect(more).not.toBeNull();
+        expect(more.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).not.toBeNull();
+        expect(more.hasAttribute('open')).toBe(false);
+        const scrollRow = screen.getByText('Scroll').parentElement!;
+        expect(scrollRow.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).toBeNull();
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_SCROLL_HOLD');
         expect(key).toBeDefined();
         expect(key!.getAttribute('data-label')).toBe('Drag Scroll');
     });
 
-    it('offers Velocity Scroll (SV_VELOCITY_SCROLL) next to Drag Scroll, and assigns it', () => {
+    it('offers Velocity Scroll (SV_VELOCITY_SCROLL) after the scroll toggles, and assigns it', () => {
         render(<MouseKeysSection />);
         const keys = screen.getAllByTestId('key').map((el) => el.getAttribute('data-keycode'));
-        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_SCROLL_HOLD') + 1);
+        expect(keys.indexOf('SV_VELOCITY_SCROLL')).toBe(keys.indexOf('SV_SCROLL_TOGGLE') + 1);
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_VELOCITY_SCROLL')!;
         expect(key.getAttribute('data-label')).toBe('Velocity Scroll');
         fireEvent.click(key);
