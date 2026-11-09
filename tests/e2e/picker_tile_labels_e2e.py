@@ -177,7 +177,15 @@ def main():
                     page = ctx.new_page()
                     try:
                         open_surface(page, url, query, action)
+                        page.evaluate("document.fonts ? document.fonts.ready.then(() => true) : true")
                         res = page.evaluate(MEASURE_JS, mode)
+                        # A label is re-fitted when web fonts or the layout settle; on a busy machine that
+                        # can lag the first look, so a clip must still be there a moment later to count.
+                        for _ in range(2):
+                            if not res["bad"]:
+                                break
+                            page.wait_for_timeout(1500)
+                            res = page.evaluate(MEASURE_JS, mode)
                     except Exception as e:  # unreachable: counted below
                         print(f"    could not open {name!r}: {str(e).splitlines()[0]}")
                         res = {"tiles": 0, "bad": [], "short": []}
