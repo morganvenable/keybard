@@ -5,6 +5,7 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { pointingDemo } from "@/features/pointing-demo";
 import { requestSettingsSection, settingsSectionForPanel } from "@/layout/SecondarySidebar/Panels/settings/anchor";
 import { openTouchpadTuning } from "@/components/touchpad-tuning/tuning-open";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { tuneFromSearch } from "@/lib/deepLinks";
 
 /**
@@ -24,7 +25,7 @@ export default function PointingDeepLink() {
         const panel = pointingDemo()?.panel;
         if (!keyboard || !panel || done.current) return;
         done.current = true;
-        if (panel === "scanlab" || panel === "trackball" || panel === "pointing" || panel === "keyboard" || ["special", "mouse", "layers", "altrepeat", "more", "combos", "overrides", "leaders", "macros", "tapdances", "qmk", "oneshot"].includes(panel)) {
+        if (panel === "scanlab" || panel === "pointing" || panel === "keyboard" || ["special", "mouse", "layers", "altrepeat", "more", "combos", "overrides", "leaders", "macros", "tapdances", "qmk", "oneshot"].includes(panel)) {
             setActivePanel(panel);
             setPanelToGoBack(null);
             setItemToEdit(null);
@@ -35,6 +36,16 @@ export default function PointingDeepLink() {
                 requestSettingsSection("pointing-advanced");
                 openTouchpadTuning();
             }
+            return;
+        }
+        // ?panel=trackball: Settings at Pointing > Advanced, with the sensor dialog open.
+        if (panel === "trackball") {
+            requestSettingsSection("pointing-advanced");
+            setActivePanel("settings");
+            setPanelToGoBack(null);
+            setItemToEdit(null);
+            openDetails();
+            openTrackballSensor();
             return;
         }
         const section = settingsSectionForPanel(panel);

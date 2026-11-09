@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { ChevronDown, Search, X } from "lucide-react";
 import ExportDialog from "@/components/ExportDialog";
 import { useNavigation } from "@/App";
@@ -160,7 +161,7 @@ const SettingsPanel = () => {
         if (action === "import-settings") fileInputRef.current?.click();
         else if (action === "export-settings") setIsExportOpen(true);
         else if (action === "open-scan-lab") setActivePanel("scanlab");
-        else if (action === "open-trackball") setActivePanel("trackball");
+        else if (action === "open-trackball") openTrackballSensor();
         else if (action === "open-proof-sheet") navigateTo("proof-sheet");
     };
 
