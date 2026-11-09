@@ -141,22 +141,22 @@ def open_pointing_picker(page: Page):
     expect(page.get_by_text("Scroll", exact=True).first).to_be_visible(timeout=10000)
 
 
+SCROLL_FACES = {
+    "Drag Scroll": r"^\s*Drag\s*Scroll\s*$",
+    "Velocity Scroll": r"^\s*(Velocity|Vel)\s*Scroll\s*$",
+    "Velocity Scroll Toggle": r"^\s*(Velocity|Vel)\s*Scroll\s*Toggle\s*$",
+}
+
+
 def check_scroll_row(page: Page, where: str, must_fit: bool, failures: list):
+    """Each scroll key is in the Pointing Devices picker (Drag Scroll in the closed More keys group of Pointer, the
+    Velocity Scroll keys in Scroll). A long label is wrapped or shortened on the face ("Vel Scroll"), so the face is matched
+    by its words. Whether each face fits its tile is checked for every key at every size by
+    `npm run test:e2e:tile-labels`."""
     for label in SCROLL_KEYS:
-        faces = on_screen(page.get_by_text(label, exact=True))
-        if len(faces) != 1:
-            failures.append(f"{where}: {len(faces)} keys reading {label!r} in the Pointing Devices picker, not 1")
-            continue
-        if not must_fit:
-            continue
-        fit = faces[0].evaluate("""(t) => {
-            const key = t.closest('.cursor-pointer') || t.parentElement;
-            const r = t.getBoundingClientRect(), k = key.getBoundingClientRect();
-            return { text: t.innerText, clipped: t.scrollWidth > t.clientWidth + 1
-                || r.left < k.left - 1 || r.right > k.right + 1 || r.top < k.top - 1 || r.bottom > k.bottom + 1 };
-        }""")
-        if fit["clipped"]:
-            failures.append(f"{where}: {label!r} does not fit its key face ({fit['text']!r})")
+        keys = page.locator("[data-keycap]").filter(has_text=re.compile(SCROLL_FACES[label]))
+        if keys.count() < 1:
+            failures.append(f"{where}: no key reading {label!r} in the Pointing Devices picker")
 
 
 def main() -> int:

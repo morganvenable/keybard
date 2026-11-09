@@ -2,19 +2,23 @@ import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
-import { usePanels } from "@/contexts/PanelsContext";
-import { requestSettingsSection } from "./settings/anchor";
+import { AdvancedAutoMouse, HandCard, ModelNotices, NoModuleLine, PointingModelProvider, SharedScrollRows, useHandCards } from "./pointing/PointingModel";
 
 /**
- * Unified Pointing Devices panel
+ * Pointing Devices panel, top to bottom:
+ * - one card per hand: its module, Pointer speed, Scroll speed, Scroll Mode
+ *   (a touchpad: Gestures first) and the hand's tuner button, which opens a modal
+ *   over this panel (Tune touchpad, Trackball sensors);
+ * - Natural Scroll and Axis Lock, shared by both hands;
+ * - the keys: Scroll, Pointer speed and Pointer, each with a closed More keys row;
+ * - a closed Advanced holding Auto Mouse.
+ * With no pointing module it says so in one line and the keys stay.
  * - When disconnected: shows placeholder text
- * - When connected: shows the Mouse Keys section (mouse buttons, sniper, boost,
- *   scrolling) and one line linking to Settings > Pointing, where pointer speed,
- *   scroll speed, gestures and the auto mouse layer are set once
- * - As a picker (isPicker): renders the SAME content as the main panel so any
- *   assignable pointing-device key is available. The picker bypasses the
- *   "not connected" gate because the keys work whether the board was connected
- *   live or loaded from a file.
+ * - As a picker (isPicker): the SAME content as the main panel, so any assignable
+ *   pointing-device key is available. The picker bypasses the "not connected"
+ *   gate because the keys work whether the board was connected live or loaded
+ *   from a file (the settings then have no board to read and are left out).
+ * - In the bottom tray the same content is columns that scroll sideways.
  *
  * All assignable keys render through MouseKeysSection so they share one size
  * (user key-size setting in the sidebar, compact/medium in the bottom bar).
@@ -24,22 +28,36 @@ interface Props {
     isPicker?: boolean;
 }
 
+/** The hands, in the rail: two cards side by side where there is room. */
+function RailTop() {
+    const hands = useHandCards();
+    return (
+        <div className="flex flex-col gap-3 pb-3" data-pointing-top>
+            <NoModuleLine />
+            {hands.length > 0 && <div className="grid gap-3 @2xl:grid-cols-2" data-hands>{hands.map((h) => <HandCard key={h.side} hand={h} />)}</div>}
+            <SharedScrollRows />
+            <ModelNotices />
+        </div>
+    );
+}
+
+/** The same, as the tray's first columns. */
+function TrayColumns() {
+    const hands = useHandCards();
+    return (
+        <>
+            <NoModuleLine />
+            {hands.map((h) => <div key={h.side} className="w-[17rem] shrink-0" data-tray-column={`hand-${h.side}`}><HandCard hand={h} tray /></div>)}
+            {hands.length > 0 && <div className="w-[17rem] shrink-0" data-tray-column="shared"><SharedScrollRows /></div>}
+            <ModelNotices />
+        </>
+    );
+}
+
 const PointingPanel = ({ isPicker }: Props) => {
     const { isConnected, connect } = useKeyboard();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
-
-    const { setActivePanel } = usePanels();
-    // The firmware's pointing menu no longer renders here: its settings are Settings > Pointing.
-    const openPointingSettings = () => {
-        requestSettingsSection("pointing");
-        setActivePanel("settings");
-    };
-    const settingsLink = (
-        <button type="button" onClick={openPointingSettings} className="underline underline-offset-2 hover:text-foreground transition-all text-inherit" data-pointing-settings-link>
-            Settings &rsaquo; Pointing
-        </button>
-    );
 
     // Not connected (skipped in picker mode — the keys don't need a live connection)
     if (!isConnected && !isPicker) {
@@ -58,30 +76,33 @@ const PointingPanel = ({ isPicker }: Props) => {
         );
     }
 
-    // Horizontal layout for bottom panel
+    // Horizontal layout for bottom panel: hands first, then the key groups, then Advanced.
     if (isHorizontal) {
         return (
-            <div className="flex flex-row gap-3 items-start flex-wrap content-start">
-                <MouseKeysSection compact variant="medium" />
-                {!isPicker && <p className="text-xs text-muted-foreground self-center">Speed, gestures and auto mouse: {settingsLink}</p>}
-            </div>
+            <PointingModelProvider>
+                <div className="flex flex-row flex-nowrap gap-4 items-start overflow-x-auto pb-2" data-pointing-tray>
+                    <TrayColumns />
+                    <MouseKeysSection compact variant="medium" columns />
+                    <div className="w-[17rem] shrink-0" data-tray-column="advanced"><AdvancedAutoMouse /></div>
+                </div>
+            </PointingModelProvider>
         );
     }
 
     // Vertical layout for sidebar
     return (
-        <section className="flex flex-col">
-            <div>
+        <PointingModelProvider>
+            <section className="@container flex flex-col">
                 <DescriptionBlock>
-                    Mouse buttons, pointer speed changes and scroll keys.
-                    {!isPicker && <> Pointer speed, scroll speed, gestures and the auto mouse layer are set once in {settingsLink}.</>}
+                    Pointer speed, scroll speed and gestures for each hand, then the keys that change them.
                 </DescriptionBlock>
-                {/* Mouse Keys section: mouse buttons, sniper, boost, scrolling */}
+                <RailTop />
                 <div className="pb-4">
                     <MouseKeysSection />
                 </div>
-            </div>
-        </section>
+                <AdvancedAutoMouse />
+            </section>
+        </PointingModelProvider>
     );
 };
 

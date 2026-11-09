@@ -20,11 +20,14 @@ vi.mock('@/components/Key', () => ({
 
 const EXPECTED_KEYS = [
     'KC_BTN1', 'KC_BTN2', 'KC_BTN3', 'KC_BTN4', 'KC_BTN5',
-    'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG',
-    'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
+    // Scroll, with Natural Scroll in its More keys.
     'SV_LEFT_SCROLL_TOGGLE', 'SV_RIGHT_SCROLL_TOGGLE', 'SV_SCROLL_TOGGLE',
-    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE', 'SV_NATURAL_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK',
+    'SV_VELOCITY_SCROLL', 'SV_VELOCITY_SCROLL_TOGGLE', 'SV_AXIS_SCROLL_LOCK', 'SV_NATURAL_SCROLL_TOGGLE',
+    // Pointer speed: the DPI keys, Sniper and Boost, with their toggles in More keys.
     'SV_LEFT_DPI_INC', 'SV_LEFT_DPI_DEC', 'SV_RIGHT_DPI_INC', 'SV_RIGHT_DPI_DEC',
+    'SV_SNIPER_2', 'SV_SNIPER_3', 'SV_SNIPER_5', 'SV_BOOST_2', 'SV_BOOST_3', 'SV_BOOST_5',
+    'SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG',
+    // Pointer, with Drag Scroll in its More keys.
     'SV_RECALIBRATE_POINTER', 'SV_TOGGLE_AUTOMOUSE', 'SV_MH_CHANGE_TIMEOUTS',
     'SV_SCROLL_HOLD',
 ];
@@ -56,8 +59,8 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
     it('renders the Boost and Scroll rows alongside Mouse Buttons and Sniper Keys', () => {
         render(<MouseKeysSection />);
         expect(screen.getByText('Mouse Buttons')).toBeInTheDocument();
-        expect(screen.getByText('Sniper Keys')).toBeInTheDocument();
-        expect(screen.getByText('Boost')).toBeInTheDocument();
+        expect(screen.queryByText('Sniper Keys')).toBeNull();
+        expect(screen.queryByText('Boost')).toBeNull();
         expect(screen.getByText('Scroll')).toBeInTheDocument();
         expect(screen.getByText('Pointer Speed')).toBeInTheDocument();
         expect(screen.getByText('Pointer')).toBeInTheDocument();
@@ -67,7 +70,7 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         render(<MouseKeysSection />);
         const keys = renderedKeys().map((k) => k.keycode);
         expect(keys.indexOf('SV_NATURAL_SCROLL_TOGGLE')).toBeLessThan(keys.indexOf('SV_LEFT_DPI_INC'));
-        expect(keys.indexOf('SV_RIGHT_DPI_DEC')).toBeLessThan(keys.indexOf('SV_RECALIBRATE_POINTER'));
+        expect(keys.indexOf('SV_BOOST_5')).toBeLessThan(keys.indexOf('SV_RECALIBRATE_POINTER'));
     });
 
     it('offers Drag Scroll (SV_SCROLL_HOLD) in the closed More keys group, labeled "Drag Scroll"', () => {
@@ -76,6 +79,8 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
         expect(more).not.toBeNull();
         expect(more.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).not.toBeNull();
         expect(more.hasAttribute('open')).toBe(false);
+        const pointer = container.querySelector('[data-key-group="Pointer"]')!;
+        expect(pointer.contains(more)).toBe(true);
         const scrollRow = screen.getByText('Scroll').parentElement!;
         expect(scrollRow.querySelector('[data-keycode="SV_SCROLL_HOLD"]')).toBeNull();
         const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_SCROLL_HOLD');
@@ -148,5 +153,29 @@ describe('MouseKeysSection: mouse buttons, sniper, boost and scroll rows size id
     it('compact without an override drops every row to small', () => {
         render(<MouseKeysSection compact />);
         expectUniformSizing('small', 'h-[30px] w-[30px]');
+    });
+});
+
+
+describe('MouseKeysSection: More keys per group', () => {
+    beforeEach(() => { keyboardState.keyboard = null; });
+
+    it('closes the Sniper and Boost toggles in Pointer Speed, and Natural Scroll in Scroll', () => {
+        const { container } = render(<MouseKeysSection />);
+        const speed = container.querySelector('[data-testid="pointing-speed-more-keys"]')!;
+        const toggles = [...speed.querySelectorAll('[data-keycode]')].map((e) => e.getAttribute('data-keycode'));
+        expect(toggles).toEqual(['SV_SNIPER_2_TG', 'SV_SNIPER_3_TG', 'SV_SNIPER_5_TG', 'SV_BOOST_2_TG', 'SV_BOOST_3_TG', 'SV_BOOST_5_TG']);
+        expect(speed.hasAttribute('open')).toBe(false);
+        const scroll = container.querySelector('[data-testid="pointing-scroll-more-keys"]')!;
+        expect(scroll.querySelector('[data-keycode="SV_NATURAL_SCROLL_TOGGLE"]')).not.toBeNull();
+        expect(scroll.hasAttribute('open')).toBe(false);
+    });
+
+    it('labels the Mouse Key Timer so it is readable, and keeps its full name for hover', () => {
+        render(<MouseKeysSection />);
+        const key = screen.getAllByTestId('key').find((el) => el.getAttribute('data-keycode') === 'SV_MH_CHANGE_TIMEOUTS')!;
+        // Key.tsx drops "Mouse" and "Timer" from a label; neither may be in the label or it reads just "KEY".
+        expect(key.getAttribute('data-label')).toBe('Layer Time');
+        expect(key.getAttribute('data-label')).not.toMatch(/(mouse|timer)/i);
     });
 });

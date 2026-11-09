@@ -88,8 +88,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fake_board_e2e import app_url, wait_connected  # noqa: E402
 from playwright.sync_api import Page, expect, sync_playwright  # noqa: E402
 
-TITLE = "Touchpad tuning"
-LINK = "Tune touchpad…"
+TITLE = "Tune touchpad"
+LINK = "Tune touchpad"
 FROM_SETTINGS = "panel=settings&tune=touchpad"
 FROM_POINTING = "panel=pointing&tune=touchpad"
 
@@ -122,40 +122,42 @@ def step_value(page: Page, label: str) -> str:
 
 
 def flow_settings(browser, url):
+    """Settings > Hardware: each touchpad row has a Tune touchpad button that opens the modal over Settings;
+    closing it leaves Settings as it was."""
     context, page, errors = open_page(browser, url, "panel=settings")
-    entry = page.locator("[data-touchpad-entry]")
+    expect(page.get_by_label("Search settings")).to_be_visible(timeout=15000)
+    entry = page.locator("[data-pointing-instance] [data-tuner=touchpad]").first
     expect(entry).to_be_visible(timeout=15000)
-    chips = page.get_by_role("navigation", name="Settings sections").get_by_role("button").all_inner_texts()
-    assert chips[:2] == ["Hardware", "Touchpad"], chips
     assert page.locator("[data-step]").count() == 0, "tuning controls inline in Settings"
-    entry.get_by_role("button", name=LINK).click()
+    entry.click()
     dialog = page.get_by_role("dialog", name=TITLE)
     expect(dialog).to_be_visible(timeout=5000)
-    for label, want in (("Dead zone", "1.2 mm"), ("Tap time", "150 ms"), ("Hold time", "300 ms"), ("Scroll start", "1.05 mm")):
+    for label, want in (("Dead Zone", "1.2 mm"), ("Tap Time", "150 ms"), ("Hold Time", "300 ms"), ("Scroll Start", "1.05 mm")):
         assert step_value(page, label) == want, f"{label} {step_value(page, label)}"
     page.keyboard.press("Escape")
     expect(dialog).to_be_hidden(timeout=5000)
+    expect(page.get_by_label("Search settings")).to_be_visible()
     context.close()
     context, page, errors2 = open_page(browser, url, FROM_SETTINGS)
     expect(page.get_by_role("dialog", name=TITLE)).to_be_visible(timeout=15000)
-    expect(page.locator("[data-touchpad-entry]")).to_be_attached()
+    expect(page.get_by_label("Search settings")).to_be_visible()
     assert not errors and not errors2, errors + errors2
     context.close()
 
 
 def flow_dialog(browser, url):
+    """Pointing Devices: the touchpad card's Tune touchpad button opens the modal over the panel; Escape returns."""
     context, page, errors = open_page(browser, url, "panel=pointing")
-    link = page.get_by_role("button", name=LINK)
+    link = page.get_by_role("button", name=LINK).first
     expect(link).to_be_visible(timeout=15000)
     assert page.locator("[data-step]").count() == 0, "Pointing Devices shows tuning controls"
-    for name in ("Dead Zone (0.01 mm)", "Tap Time (ms)", "Scroll Start (0.01 mm)"):
-        assert page.get_by_text(name).count() == 0, f"{name} shown in Pointing Devices"
     link.click()
     dialog = page.get_by_role("dialog", name=TITLE)
     expect(dialog).to_be_visible(timeout=5000)
-    expect(dialog.locator("[data-step='Dead zone']")).to_be_visible()
+    expect(dialog.locator("[data-step='Dead Zone']")).to_be_visible()
     page.keyboard.press("Escape")
     expect(dialog).to_be_hidden(timeout=5000)
+    expect(page.locator("[data-pointing-top]")).to_be_visible()
     context.close()
     context, page, errors2 = open_page(browser, url, FROM_POINTING)
     expect(page.get_by_role("dialog", name=TITLE)).to_be_visible(timeout=15000)
@@ -225,48 +227,49 @@ def saves_after(page: Page, vid: int) -> int:
 
 def flow_dead_zone(browser, url):
     context, page, errors = open_page(browser, url, FROM_SETTINGS)
-    expect(page.locator("[data-step='Dead zone']")).to_be_visible(timeout=15000)
-    press_slider(page, "Dead zone", "ArrowLeft", 6)  # 1.2 -> 1.0 -> 0.9 -> 0.8 -> 0.7 -> 0.6 -> 0.5
+    expect(page.locator("[data-step='Dead Zone']")).to_be_visible(timeout=15000)
+    press_slider(page, "Dead Zone", "ArrowLeft", 6)  # 1.2 -> 1.0 -> 0.9 -> 0.8 -> 0.7 -> 0.6 -> 0.5
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 50", timeout=5000)
     page.wait_for_timeout(300)
     assert saves_after(page, 55) >= 1, "dead zone not saved"
-    assert step_value(page, "Dead zone") == "0.5 mm"
+    assert step_value(page, "Dead Zone") == "0.5 mm"
     # The rolling tap (0.6 mm at the lift) is now canceled.
     page.locator("[data-pad] [data-outcome='canceled']", has_text="moved 0.6").first.wait_for(state="attached", timeout=15000)
-    press_slider(page, "Dead zone", "ArrowRight", 6)
+    press_slider(page, "Dead Zone", "ArrowRight", 6)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 120", timeout=5000)
-    press_slider(page, "Tap time", "ArrowRight", 1)
+    press_slider(page, "Tap Time", "ArrowRight", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.tapMs === 175", timeout=5000)
-    press_slider(page, "Hold time", "ArrowRight", 1)
+    press_slider(page, "Hold Time", "ArrowRight", 1)
     page.wait_for_function("((window.keybardFakeBoard.device.firmware.padSetting >> 3) & 15) === 7", timeout=5000)  # 350 ms
-    assert step_value(page, "Hold time") == "350 ms", step_value(page, "Hold time")
+    assert step_value(page, "Hold Time") == "350 ms", step_value(page, "Hold Time")
     assert not errors, errors
     context.close()
 
 
 def flow_layout(browser, url):
+    """One layout: the pads first, each with a timer ring in its close-up, and the settings below them."""
     for query in (FROM_SETTINGS, FROM_POINTING):
         context, page, errors = open_page(browser, url, query)
         v = view(page)
         expect(v).to_be_visible(timeout=15000)
         v.locator("[data-timer-ring]").first.wait_for(timeout=15000)
         assert v.locator("[data-timer-bar]").count() == 0, f"{query}: a timeline"
-        controls, pads = v.locator("[data-tuning-controls]").bounding_box(), v.locator("[data-pads]").bounding_box()
-        assert controls["y"] < pads["y"], f"{query}: the controls are not above the pads"
+        pads = v.locator("[data-pads]").bounding_box()
+        settings = page.locator("[data-touchpad-settings]").bounding_box()
+        assert settings["y"] > pads["y"], f"{query}: the settings are not below the pads"
         assert not errors, errors
         context.close()
 
 
 def flow_hidden(browser, url):
+    """No touchpad, or firmware without the setting: no Tune touchpad button on Settings or Pointing Devices."""
     for board, why in (("fakeBoard", "no touchpad"), ("fakeBoard=old", "firmware without the setting")):
         context, page, errors = open_page(browser, url, "panel=settings", board=board)
-        expect(page.get_by_role("navigation", name="Settings sections")).to_be_visible(timeout=15000)
-        chips = page.get_by_role("navigation", name="Settings sections").get_by_role("button").all_inner_texts()
-        assert "Touchpad" not in chips, f"{why}: {chips}"
-        assert page.locator("[data-touchpad-entry]").count() == 0, f"{why}: the entry shows"
+        expect(page.get_by_label("Search settings")).to_be_visible(timeout=15000)
+        assert page.locator("[data-tuner=touchpad]").count() == 0, f"{why}: the Settings tuner shows"
         context.close()
         context, page, errors2 = open_page(browser, url, "panel=pointing", board=board)
-        expect(page.get_by_role("group", name="Natural Scroll", exact=True)).to_be_visible(timeout=15000)
+        expect(page.locator("[data-shared], [data-no-module]").first).to_be_visible(timeout=15000)
         assert page.get_by_role("button", name=LINK).count() == 0, f"{why}: the link shows"
         assert not errors and not errors2, errors + errors2
         context.close()
@@ -296,7 +299,7 @@ def flow_layout_checks(browser, url):
                 box = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
                 assert over <= 1 and box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1 and box["y"] >= 0 and box["y"] + box["height"] <= height + 1, \
                     f"{query} {width}px {scheme}: overflow {over}, dialog {box}"
-                ink = page.locator("[data-step='Dead zone'] [data-step-value]").evaluate("e => getComputedStyle(e).color")
+                ink = page.locator("[data-step='Dead Zone'] [data-step-value]").evaluate("e => getComputedStyle(e).color")
                 bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
                 assert ink != bg, f"ink {ink} on {bg}"
                 context.close()
@@ -420,14 +423,14 @@ OPEN_SAMPLES_JS = """async (ms) => { const out = []; const t0 = performance.now(
     while (performance.now() - t0 < ms) {
         const v = document.querySelector('[data-touchpad-tuning]');
         if (v) out.push([Math.round(performance.now() - t0), v.dataset.layout || '', getComputedStyle(v).visibility !== 'hidden',
-            [...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone')]);
+            [...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead Zone')]);
         await new Promise(r => setTimeout(r, 20)); }
     return out; }"""
 
 
 def open_from_pointing(page: Page):
-    expect(page.get_by_role("button", name=LINK)).to_be_visible(timeout=15000)
-    page.get_by_role("button", name=LINK).click()
+    expect(page.get_by_role("button", name=LINK).first).to_be_visible(timeout=15000)
+    page.get_by_role("button", name=LINK).first.click()
 
 
 def flow_open_no_flash(browser, url):
@@ -462,10 +465,10 @@ def flow_open_no_answer(browser, url):
 
 
 def flow_unplug(browser, url):
-    """Touchpad mode, dialog open, the board unplugged: the layout stays touchpad mode's, compact, with no
+    """Touchpad mode, modal open, the board unplugged: the layout stays touchpad mode's, compact, with no
     sliders that don't apply. Back: the pads are asked again, and the layout comes back without a flash."""
     context, page, errors = open_page(browser, url, FROM_POINTING, board=PTP)
-    expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
+    expect(page.locator("[data-touchpad-tuning][data-layout=os]")).to_be_visible(timeout=15000)
     page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
     before = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
     page.evaluate("() => { const e = new Event('disconnect'); e.device = window.keybardFakeBoard.device; navigator.hid.dispatchEvent(e); }")
@@ -475,9 +478,9 @@ def flow_unplug(browser, url):
     for label in CHIP_SETTINGS:
         expect(page.get_by_role("slider", name=label)).to_have_count(0)
     after = page.locator("[data-touchpad-tuning-dialog]").bounding_box()
-    assert after["height"] <= before["height"] + 1 and after["width"] <= before["width"] + 1, f"the dialog grew on unplug: {before} -> {after}"
+    assert after["height"] <= before["height"] + 1 and after["width"] <= before["width"] + 1, f"the modal grew on unplug: {before} -> {after}"
     assert_filled(page, "unplugged")
-    # Back: the page's own Connect (behind the dialog), then the normal wait for the pads.
+    # Back: the page's own Connect (behind the modal), then the normal wait for the pads.
     page.evaluate("() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Connect').click()")
     samples = page.evaluate(OPEN_SAMPLES_JS, 4000)
     shown = [x for x in samples if x[2]]
@@ -559,20 +562,20 @@ def flow_fingers(browser, url):
 
 def flow_palm(browser, url):
     context, page, errors = open_page(browser, url, FROM_SETTINGS)
-    expect(page.locator("[data-step='Palm rejection']")).to_be_visible(timeout=15000)
-    assert step_value(page, "Palm rejection") == "Off"
-    press_slider(page, "Palm rejection", "ArrowRight", 7)  # off, 4, 5, 6, 7, 8, 9, 10
+    expect(page.locator("[data-step='Palm Rejection']")).to_be_visible(timeout=15000)
+    assert step_value(page, "Palm Rejection") == "Off"
+    press_slider(page, "Palm Rejection", "ArrowRight", 7)  # off, 4, 5, 6, 7, 8, 9, 10
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 10", timeout=5000)
     page.wait_for_timeout(300)
     assert saves_after(page, 58) >= 1, "palm rejection not saved"
-    assert step_value(page, "Palm rejection") == "wider than 20 mm"
+    assert step_value(page, "Palm Rejection") == "wider than 20 mm"
     page.locator("[data-pad] [data-palm]").first.wait_for(state="attached", timeout=30000)
     page.locator("[data-pad] [data-outcome='palm']", has_text="Palm, 23 mm wide").first.wait_for(state="attached", timeout=30000)
     assert not errors, errors
     context.close()
 
 
-CHIP_SETTINGS = ("Dead zone", "Tap time", "Hold time", "Scroll start")
+CHIP_SETTINGS = ("Dead Zone", "Tap Time", "Hold Time", "Scroll Start")
 SWITCHES = ("Tap to Click", "Two-Finger Tap to Right Click", "Press and Hold to Drag")
 PTP = "fakeBoard=touchpad"
 
@@ -582,57 +585,44 @@ def mode_writes(page: Page) -> list:
 
 
 def flow_os_mode(browser, url):
-    # The shipped board: Windows has the pads in touchpad mode.
-    context, page, errors = open_page(browser, url, FROM_SETTINGS, board=PTP)
-    note = page.locator("[data-os-mode-note]")
-    expect(note).to_be_visible(timeout=15000)
-    expect(note).to_contain_text("Set taps and scrolling in")
-    # What each computer uses, said once on the screen, in these words.
-    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
+    """Touchpad mode (the shipped board: Windows has the pads in touchpad mode): the modal shows fingers and
+    palms only, with palm rejection and none of the chip's settings; Gestures on the card says Automatic."""
+    context, page, errors = open_page(browser, url, FROM_POINTING, board=PTP)
+    expect(page.locator("[data-touchpad-tuning][data-layout=os]")).to_be_visible(timeout=15000)
     for label in CHIP_SETTINGS:
         expect(page.get_by_role("slider", name=label)).to_have_count(0)
-    expect(page.get_by_role("slider", name="Palm rejection")).to_have_count(1)
-    expect(page.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
+    for name in SWITCHES:
+        expect(page.get_by_role("group", name=name, exact=True)).to_have_count(0)
+    expect(page.get_by_role("slider", name="Palm Rejection")).to_have_count(1)
     page.locator("[data-pad='left'] [data-outcome]").first.wait_for(state="attached", timeout=30000)
     page.locator("[data-pad='left'] [data-finger]").first.wait_for(state="attached", timeout=30000)
     page.wait_for_timeout(9000)
     texts = page.locator("[data-pad] [data-outcome]").all_inner_texts()
-    import re
     assert texts and all(re.match(r"^(One finger|(Two|Three|Four|Five) fingers), \d+ ms$|^Palm: ", t) for t in texts), texts
     guides = "[data-dead-zone], [data-scroll-ring], [data-timer-ring], [data-two-line], [data-mark], [data-path]"
     assert page.locator(guides).count() == 0, "gesture guides in touchpad mode"
     assert page.locator("[data-close-up], [data-close-caption]").count() == 0, "close-ups in touchpad mode"
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("dialog", name=TITLE)).to_be_hidden(timeout=5000)
+    expect(page.locator("[data-hand=right]").get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
     context.close()
-    # Pointing Devices: the built-in gesture switches are absent; the mode is there.
-    context, page, errors2 = open_page(browser, url, "panel=pointing", board=PTP)
-    expect(page.get_by_role("combobox", name="Touchpad Mode")).to_be_visible(timeout=15000)
+    # Built-in gestures (a Mac): the switches and the chip settings are in the modal.
+    context, page, errors2 = open_page(browser, url, FROM_POINTING, board="fakeBoard=touchpad-gestures")
+    expect(page.get_by_role("slider", name="Dead Zone")).to_be_visible(timeout=15000)
     for name in SWITCHES:
-        expect(page.get_by_role("group", name=name, exact=True)).to_have_count(0)
-    expect(page.get_by_text("Hold Time (ms)")).to_have_count(0)
+        expect(page.get_by_role("group", name=name, exact=True)).to_be_visible(timeout=5000)
+    assert not (errors or errors2), errors + errors2
     context.close()
-    # Built-in gestures (a Mac): the switches and the chip settings are there, the line is not.
-    context, page, errors3 = open_page(browser, url, "panel=pointing", board="fakeBoard=touchpad-gestures")
-    for name in SWITCHES:
-        expect(page.get_by_role("group", name=name, exact=True)).to_be_visible(timeout=15000)
-    context.close()
-    context, page, errors4 = open_page(browser, url, FROM_SETTINGS, board="fakeBoard=touchpad-gestures")
-    expect(page.get_by_role("slider", name="Dead zone")).to_be_visible(timeout=15000)
-    page.wait_for_timeout(500)
-    assert not page.locator("[data-os-mode-note]").is_visible(), "the touchpad-mode line shows on built-in gestures"
-    expect(view(page).get_by_text("Windows and Linux use their native Precision Touchpad Protocol by default. Mac is limited to the built-in gestures from Azoteq.", exact=True)).to_have_count(1)
-    context.close()
-    assert not (errors or errors2 or errors3 or errors4), errors + errors2 + errors3 + errors4
 
 
 def flow_mode_toggle(browser, url):
-    context, page, errors = open_page(browser, url, FROM_SETTINGS, board=PTP)
-    expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
-    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
-    page.wait_for_timeout(500)
-    assert_filled(page, "Automatic")
+    """Gestures on the touchpad card: to Built-in gestures asks first (Cancel the default; Escape and Cancel write
+    nothing), confirming writes it and the chip settings come into the modal; back to Automatic writes at once."""
+    context, page, errors = open_page(browser, url, "panel=pointing", board=PTP)
+    card = page.locator("[data-hand=right]")
+    expect(card.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true", timeout=15000)
     confirm = page.get_by_role("dialog", name="Use built-in gestures?")
-    tuning = page.get_by_role("dialog", name=TITLE)
-    built_in = page.get_by_role("radio", name="Built-in gestures")
+    built_in = card.get_by_role("radio", name="Built-in gestures")
     # Escape cancels, and Cancel is the default.
     built_in.click()
     expect(confirm).to_be_visible(timeout=5000)
@@ -644,7 +634,6 @@ def flow_mode_toggle(browser, url):
     assert confirm.locator("ul, li, b, strong").count() == 0, "the body is not plain sentences"
     page.keyboard.press("Escape")
     expect(confirm).to_be_hidden(timeout=5000)
-    expect(tuning).to_be_visible()
     # Cancel does the same.
     built_in.click()
     expect(confirm).to_be_visible(timeout=5000)
@@ -653,51 +642,28 @@ def flow_mode_toggle(browser, url):
     page.wait_for_timeout(300)
     assert mode_writes(page) == [], f"written on cancel: {mode_writes(page)}"
     assert page.evaluate("window.keybardFakeBoard.device.firmware.padMode") == 0
-    expect(page.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
-    # Confirm: written, and the chip's settings come in, live.
+    expect(card.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
+    # Confirm: written; the modal now has the chip's settings, live.
     built_in.click()
     confirm.get_by_role("button", name="Use built-in gestures").click()
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 1", timeout=5000)
     assert mode_writes(page) == [1], mode_writes(page)
-    expect(page.get_by_role("slider", name="Dead zone")).to_be_visible(timeout=5000)
-    expect(page.locator("[data-os-mode-note]")).to_be_hidden(timeout=5000)
+    card.get_by_role("button", name=LINK).click()
+    expect(page.get_by_role("slider", name="Dead Zone")).to_be_visible(timeout=10000)
     page.wait_for_timeout(500)
     assert_filled(page, "built-in gestures, after the switch")
+    page.keyboard.press("Escape")
     # Back to Automatic: no check, written at once.
-    page.get_by_role("radio", name="Automatic").click()
+    card.get_by_role("radio", name="Automatic").click()
     expect(confirm).to_be_hidden()
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 0", timeout=5000)
     assert mode_writes(page) == [1, 0], mode_writes(page)
-    expect(page.get_by_role("slider", name="Dead zone")).to_have_count(0, timeout=5000)
+    card.get_by_role("button", name=LINK).click()
+    expect(page.get_by_role("slider", name="Palm Rejection")).to_be_visible(timeout=10000)
+    expect(page.get_by_role("slider", name="Dead Zone")).to_have_count(0, timeout=5000)
     page.wait_for_timeout(500)
     assert_filled(page, "Automatic, after the switch back")
     assert not errors, errors
-    context.close()
-    # Pointing Devices: the same check from its dropdown; the switches come in after it.
-    context, page, errors2 = open_page(browser, url, "panel=pointing", board=PTP)
-    combo = page.get_by_role("combobox", name="Touchpad Mode")
-    confirm = page.get_by_role("dialog", name="Use built-in gestures?")
-    expect(combo).to_be_visible(timeout=15000)
-    combo.click()
-    page.get_by_role("option", name="Built-in gestures").click()
-    expect(confirm).to_be_visible(timeout=5000)
-    confirm.get_by_role("button", name="Cancel").click()
-    page.wait_for_timeout(300)
-    assert mode_writes(page) == [], mode_writes(page)
-    expect(combo).to_contain_text("Automatic")
-    combo.click()
-    page.get_by_role("option", name="Built-in gestures").click()
-    confirm.get_by_role("button", name="Use built-in gestures").click()
-    page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 1", timeout=5000)
-    for name in SWITCHES:
-        expect(page.get_by_role("group", name=name, exact=True)).to_be_visible(timeout=5000)
-    combo.click()
-    page.get_by_role("option", name="Automatic").click()
-    page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 0", timeout=5000)
-    expect(confirm).to_be_hidden()
-    for name in SWITCHES:
-        expect(page.get_by_role("group", name=name, exact=True)).to_have_count(0, timeout=5000)
-    assert not errors2, errors2
     context.close()
 
 
@@ -705,71 +671,49 @@ PENDING_JS = r"""() => [...document.querySelectorAll('button')].some(b => /^(Pen
 
 
 def flow_mode_immediate(browser, url):
-    """The touchpad mode takes effect at once: with Manual Updates (Live Updating off)
-    the switch is written to the board right away, read back, and never becomes a
-    pending change; the UI stays in the new mode."""
-    for query in (FROM_SETTINGS, FROM_POINTING):
-        context, page, errors = open_page(browser, url, query, board=PTP, init=MANUAL_UPDATES)
-        expect(page.locator("[data-os-mode-note]")).to_be_visible(timeout=15000)
-        assert page.evaluate("JSON.parse(localStorage.getItem('keyboard-settings') || '{}')['live-updating']") is False, "Manual Updates didn't take"
-        page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
-        # Automatic: a report with no valid pad, or with the left pad's touchpad flag dropped
-        # for a moment (the real board's other half, seen on the touch test board), must not
-        # blink the settings in.
-        page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 3; window.keybardFakeBoard.device.firmware.leftOsDropEvery = 4")
-        blinks = page.evaluate("""async () => { let n = 0; for (let i = 0; i < 15; i++) { await new Promise(r => setTimeout(r, 100));
-            if ([...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone' && !e.closest('[aria-hidden="true"]'))) n++; } return n; }""")
-        assert blinks == 0, f"{query}: the gesture settings blinked in {blinks} times in Automatic"
-        page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 0; window.keybardFakeBoard.device.firmware.leftOsDropEvery = 0")
-        page.get_by_role("radio", name="Built-in gestures").click()
-        page.get_by_role("dialog", name="Use built-in gestures?").get_by_role("button", name="Use built-in gestures").click()
-        # On the board at once, with no Apply.
-        page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 1", timeout=3000)
-        samples = page.evaluate(r"""async () => { const out = []; for (let i = 0; i < 25; i++) { await new Promise(r => setTimeout(r, 100));
-            const s = [...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead zone' && !e.closest('[aria-hidden="true"]'));
-            const radio = document.querySelector("[role='radio'][aria-checked='true']")?.textContent;
-            const pending = [...document.querySelectorAll('button')].some(b => /^(Pending \(|Apply \d+ Change)/.test(b.textContent.trim()));
-            out.push([s, radio, pending, window.keybardFakeBoard.device.firmware.padMode]); } return out; }""")
-        assert all(x[0] for x in samples[3:]), f"{query}: the gesture settings didn't stay: {[x[0] for x in samples]}"
-        assert all(x[1] == "Built-in gestures" for x in samples), f"{query}: the mode fell back: {[x[1] for x in samples]}"
-        assert not any(x[2] for x in samples), f"{query}: a pending change appeared"
-        assert all(x[3] == 1 for x in samples), f"{query}: the board's mode changed back"
-        assert mode_writes(page) == [1], f"{query}: writes {mode_writes(page)}"
-        assert page.locator("[data-builtin-confirm]").count() == 0, "the confirmation came back"
-        assert_filled(page, f"{query}: after the switch")
-        # The tuning steppers write at once too, with no pending change (the dialog covers Apply).
-        press_slider(page, "Dead zone", "ArrowLeft", 1)  # 1.2 -> 1.0 mm
-        page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 100", timeout=3000)
-        page.wait_for_timeout(500)
-        assert not page.evaluate(PENDING_JS), f"{query}: the dead zone became a pending change"
-        press_slider(page, "Dead zone", "ArrowRight", 1)
-        page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 120", timeout=3000)
-        # Back to Automatic: at once too, no pending change.
-        page.get_by_role("radio", name="Automatic").click()
-        page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 0", timeout=3000)
-        page.wait_for_timeout(1000)
-        assert not page.evaluate(PENDING_JS), f"{query}: a pending change after Automatic"
-        expect(page.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
-        expect(page.get_by_role("slider", name="Dead zone")).to_have_count(0)
-        assert mode_writes(page) == [1, 0], mode_writes(page)
-        if query == FROM_POINTING:
-            # The switch made in the dialog reaches Pointing Devices behind it (0x2C read again).
-            page.get_by_role("radio", name="Built-in gestures").click()
-            page.get_by_role("dialog", name="Use built-in gestures?").get_by_role("button", name="Use built-in gestures").click()
-            page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 1", timeout=3000)
-            expect(page.locator("[data-builtin-confirm]")).to_have_count(0, timeout=5000)  # Escape goes to the tuning dialog
-            page.keyboard.press("Escape")
-            expect(page.get_by_role("dialog", name=TITLE)).to_be_hidden(timeout=5000)
-            for name in SWITCHES:
-                expect(page.get_by_role("group", name=name, exact=True)).to_be_visible(timeout=5000)
-            assert not page.evaluate(PENDING_JS), "a pending change in Pointing Devices"
-            assert no_leave_prompt(page), "leaving the page warns about the mode"
-            assert not errors, errors
-            context.close()
-            continue
-        assert_filled(page, f"{query}: after the switch")
-        assert not errors, errors
-        context.close()
+    """The touchpad mode takes effect at once: with Manual Updates (Live Updating off) the switch is written to
+    the board right away, read back, and never becomes a pending change. In Automatic a report with no valid pad
+    never blinks the chip's settings into the modal."""
+    context, page, errors = open_page(browser, url, "panel=pointing", board=PTP, init=MANUAL_UPDATES)
+    card = page.locator("[data-hand=right]")
+    expect(card.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true", timeout=15000)
+    assert page.evaluate("JSON.parse(localStorage.getItem('keyboard-settings') || '{}')['live-updating']") is False, "Manual Updates didn't take"
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 3; window.keybardFakeBoard.device.firmware.leftOsDropEvery = 4")
+    card.get_by_role("button", name=LINK).click()
+    page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
+    blinks = page.evaluate("""async () => { let n = 0; for (let i = 0; i < 15; i++) { await new Promise(r => setTimeout(r, 100));
+        if ([...document.querySelectorAll("[role='slider']")].some(e => e.getAttribute('aria-label') === 'Dead Zone' && !e.closest('[aria-hidden="true"]'))) n++; } return n; }""")
+    assert blinks == 0, f"the gesture settings blinked in {blinks} times in Automatic"
+    page.evaluate("window.keybardFakeBoard.device.firmware.invalidFrameEvery = 0; window.keybardFakeBoard.device.firmware.leftOsDropEvery = 0")
+    page.keyboard.press("Escape")
+    card.get_by_role("radio", name="Built-in gestures").click()
+    page.get_by_role("dialog", name="Use built-in gestures?").get_by_role("button", name="Use built-in gestures").click()
+    # On the board at once, with no Apply.
+    page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 1", timeout=3000)
+    page.wait_for_timeout(1000)
+    assert not page.evaluate(PENDING_JS), "a pending change appeared"
+    expect(card.get_by_role("radio", name="Built-in gestures")).to_have_attribute("aria-checked", "true")
+    assert mode_writes(page) == [1], f"writes {mode_writes(page)}"
+    assert page.locator("[data-builtin-confirm]").count() == 0, "the confirmation came back"
+    # The modal's steppers write at once too, with no pending change.
+    card.get_by_role("button", name=LINK).click()
+    press_slider(page, "Dead Zone", "ArrowLeft", 1)  # 1.2 -> 1.0 mm
+    page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 100", timeout=3000)
+    page.wait_for_timeout(500)
+    assert not page.evaluate(PENDING_JS), "the dead zone became a pending change"
+    press_slider(page, "Dead Zone", "ArrowRight", 1)
+    page.wait_for_function("window.keybardFakeBoard.device.firmware.padTuning.deadZone === 120", timeout=3000)
+    page.keyboard.press("Escape")
+    # Back to Automatic: at once too, no pending change.
+    card.get_by_role("radio", name="Automatic").click()
+    page.wait_for_function("window.keybardFakeBoard.device.firmware.padMode === 0", timeout=3000)
+    page.wait_for_timeout(1000)
+    assert not page.evaluate(PENDING_JS), "a pending change after Automatic"
+    expect(card.get_by_role("radio", name="Automatic")).to_have_attribute("aria-checked", "true")
+    assert mode_writes(page) == [1, 0], mode_writes(page)
+    assert no_leave_prompt(page), "leaving the page warns about the mode"
+    assert not errors, errors
+    context.close()
 
 
 def no_leave_prompt(page: Page) -> bool:
@@ -786,23 +730,23 @@ def flow_errors_and_halves(browser, url):
     rejection changes live; a missing half shows as gone after a moment, with the
     other pad and the mode carrying on."""
     context, page, errors = open_page(browser, url, FROM_SETTINGS, board=PTP)
-    expect(page.locator("[data-step='Palm rejection']")).to_be_visible(timeout=15000)
+    expect(page.locator("[data-step='Palm Rejection']")).to_be_visible(timeout=15000)
     page.locator("[data-pad-svg]").nth(1).wait_for(timeout=15000)
     # The next palm write fails on the way to the board.
     page.evaluate("""() => { const d = window.keybardFakeBoard.device; const send = d.sendReport.bind(d); let armed = true;
         d.sendReport = async (id, data) => { const b = new Uint8Array(data.buffer ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data);
             if (armed && b[5] === 0xfe && b[6] === 0x07 && b[8] === 58) { armed = false; throw new Error('simulated write failure'); }
             return send(id, data); }; }""")
-    press_slider(page, "Palm rejection", "ArrowRight", 1)
+    press_slider(page, "Palm Rejection", "ArrowRight", 1)
     expect(page.locator("[data-write-error]")).to_be_visible(timeout=5000)
-    expect(page.locator("[data-step='Palm rejection'] [data-step-value]")).to_have_text("Off", timeout=5000)
+    expect(page.locator("[data-step='Palm Rejection'] [data-step-value]")).to_have_text("Off", timeout=5000)
     assert page.evaluate("window.keybardFakeBoard.device.firmware.padPalm") == 0
     # The next one lands, live: the error goes and the board has it.
-    press_slider(page, "Palm rejection", "ArrowRight", 1)
+    press_slider(page, "Palm Rejection", "ArrowRight", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 4", timeout=5000)
     expect(page.locator("[data-write-error]")).to_have_count(0, timeout=5000)
     page.locator("[data-pad] [data-palm]").first.wait_for(state="attached", timeout=30000)  # the resting palm, wider than 13 mm
-    press_slider(page, "Palm rejection", "ArrowLeft", 1)
+    press_slider(page, "Palm Rejection", "ArrowLeft", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 0", timeout=5000)
     page.wait_for_timeout(500)  # that write's read-back done before the next failure is armed
     # The write and the read-back both fail (the cable drops): the old value comes back, the
@@ -811,9 +755,9 @@ def flow_errors_and_halves(browser, url):
         d.sendReport = async (id, data) => { const b = new Uint8Array(data.buffer ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data);
             if (left > 0 && b[5] === 0xfe && (b[6] === 0x07 || b[6] === 0x08) && b[8] === 58) { left--; throw new Error('simulated write failure'); }
             return send(id, data); }; }""")
-    press_slider(page, "Palm rejection", "ArrowRight", 1)
+    press_slider(page, "Palm Rejection", "ArrowRight", 1)
     expect(page.locator("[data-write-error]")).to_be_visible(timeout=5000)
-    expect(page.locator("[data-step='Palm rejection'] [data-step-value]")).to_have_text("Off", timeout=5000)
+    expect(page.locator("[data-step='Palm Rejection'] [data-step-value]")).to_have_text("Off", timeout=5000)
     assert page.evaluate("window.keybardFakeBoard.device.firmware.padPalm") == 0
     # The write lands but its read-back fails: the board has it, and the message says just that.
     page.wait_for_timeout(500)
@@ -821,11 +765,11 @@ def flow_errors_and_halves(browser, url):
         d.sendReport = async (id, data) => { const b = new Uint8Array(data.buffer ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data);
             if (left > 0 && b[5] === 0xfe && b[6] === 0x08 && b[8] === 58) { left--; throw new Error('simulated read failure'); }
             return send(id, data); }; }""")
-    press_slider(page, "Palm rejection", "ArrowRight", 1)
+    press_slider(page, "Palm Rejection", "ArrowRight", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 4", timeout=5000)
     expect(page.locator("[data-write-error]")).to_contain_text("couldn't read it back", timeout=5000)
-    expect(page.locator("[data-step='Palm rejection'] [data-step-value]")).to_have_text("wider than 13 mm")
-    press_slider(page, "Palm rejection", "ArrowLeft", 1)
+    expect(page.locator("[data-step='Palm Rejection'] [data-step-value]")).to_have_text("wider than 13 mm")
+    press_slider(page, "Palm Rejection", "ArrowLeft", 1)
     page.wait_for_function("window.keybardFakeBoard.device.firmware.padPalm === 0", timeout=5000)
     page.wait_for_timeout(500)
     # The left half stops answering: shown as gone after about a second; the right pad and the mode carry on.
@@ -833,7 +777,7 @@ def flow_errors_and_halves(browser, url):
     page.evaluate("window.keybardFakeBoard.device.firmware.leftMissing = true")
     expect(page.locator("[data-pad='left'] [data-pad-absent]")).to_be_visible(timeout=5000)
     expect(page.locator("[data-pad='right'] [data-pad-svg]")).to_be_visible()
-    expect(page.get_by_role("slider", name="Dead zone")).to_have_count(0)  # still touchpad mode (the error line holds the note's place)
+    expect(page.get_by_role("slider", name="Dead Zone")).to_have_count(0)  # still touchpad mode (the error line holds the note's place)
     page.evaluate("window.keybardFakeBoard.device.firmware.leftMissing = false")
     expect(page.locator("[data-pad='left'] [data-pad-svg]")).to_be_visible(timeout=5000)
     page.wait_for_timeout(300)
@@ -844,22 +788,18 @@ def flow_errors_and_halves(browser, url):
 
 
 def flow_old_firmware(browser, url):
-    """v4.3.4's firmware (the touch page only): no mode control, no palm rejection,
-    no fingers page read, and the dialog works as before."""
-    context, page, errors = open_page(browser, url, FROM_SETTINGS, board="fakeBoard=touchpad-434")
+    """v4.3.4's firmware (the touch page only): no Gestures row, no palm rejection, no fingers page read, and the
+    modal works as before."""
+    context, page, errors = open_page(browser, url, FROM_POINTING, board="fakeBoard=touchpad-434")
     expect(page.locator("[data-pad='left'] [data-pad-svg]")).to_be_visible(timeout=15000)
     page.wait_for_timeout(3000)
-    assert page.locator("[data-touchpad-mode]").count() == 0, "a mode control on firmware without it"
-    assert page.get_by_role("slider", name="Palm rejection").count() == 0, "palm rejection on firmware without it"
+    assert page.get_by_role("slider", name="Palm Rejection").count() == 0, "palm rejection on firmware without it"
     assert page.evaluate("window.keybardFakeBoard.device.firmware.fingersReads") == 0, "the fingers page was read"
     page.locator("[data-pad] [data-outcome]").first.wait_for(state="attached", timeout=30000)
-    expect(page.locator("[data-os-mode-note]")).to_be_visible()
+    page.keyboard.press("Escape")
+    assert page.locator("[data-hand] [data-row=Gestures]").count() == 0, "a Gestures row on firmware without it"
+    expect(page.get_by_role("button", name=LINK).first).to_be_visible()
     assert not errors, errors
-    context.close()
-    context, page, errors2 = open_page(browser, url, "panel=pointing", board="fakeBoard=touchpad-434")
-    expect(page.get_by_role("button", name=LINK)).to_be_visible(timeout=15000)
-    assert page.get_by_role("combobox", name="Touchpad Mode").count() == 0, "a mode dropdown on firmware without it"
-    assert not errors2, errors2
     context.close()
 
 
@@ -868,59 +808,35 @@ def hold_writes(page: Page) -> list:
 
 
 def flow_queued_then_dialog(browser, url):
-    """Manual Updates: a Hold Time change waiting in the queue (Pointing Devices),
-    then the dialog's own Hold time, written at once. The queued change goes, so
-    Apply can't put the older value back on the board."""
-    context, page, errors = open_page(browser, url, "panel=pointing", init=MANUAL_UPDATES)
-    hold = page.get_by_role("slider", name="Hold Time (ms)")
-    expect(hold).to_be_visible(timeout=15000)
-    hold.focus()
-    hold.press("End")  # 1500 ms, queued
-    page.wait_for_function(PENDING_JS, timeout=5000)
-    assert hold_writes(page) == [], "the queued change was written"
-    page.get_by_role("button", name=LINK).click()
-    dialog = page.get_by_role("dialog", name=TITLE)
-    expect(dialog).to_be_visible(timeout=5000)
-    step = page.get_by_role("slider", name="Hold time")
+    """Manual Updates: the modal's Hold Time is written to the board at once, never queued; a write that fails along
+    with its read-back shows the board's value and the error, and nothing is left to apply."""
+    context, page, errors = open_page(browser, url, FROM_POINTING, init=MANUAL_UPDATES)
+    expect(page.get_by_role("dialog", name=TITLE)).to_be_visible(timeout=15000)
+    step = page.get_by_role("slider", name="Hold Time")
     step.focus()
     step.press("Home")  # 20 ms, at once
     page.wait_for_function("((window.keybardFakeBoard.device.firmware.padSetting >> 3) & 15) === 1", timeout=5000)  # 20 ms
     page.wait_for_timeout(400)
-    assert not page.evaluate(PENDING_JS), "the older queued Hold Time is still waiting to overwrite the dialog's"
+    assert not page.evaluate(PENDING_JS), "the Hold Time became a pending change"
     page.keyboard.press("Escape")
-    expect(dialog).to_be_hidden(timeout=5000)
-    apply = page.get_by_role("button", name=re.compile(r"^Apply \d+ Change"))
-    if apply.count():
-        apply.first.click()
-        page.wait_for_timeout(800)
-    assert ((page.evaluate("window.keybardFakeBoard.device.firmware.padSetting") >> 3) & 15) == 1, f"the board ended at another hold time: writes {hold_writes(page)}"
+    expect(page.get_by_role("dialog", name=TITLE)).to_be_hidden(timeout=5000)
     assert hold_writes(page) == [20], f"hold time writes {hold_writes(page)}"
     assert not errors, errors
     context.close()
-    # Queued again, then a dialog write that fails along with its read-back. The queued change went
-    # (the dialog's write replaced it), so the dialog shows what the board was loaded with, and
-    # nothing is left to apply.
-    context, page, errors = open_page(browser, url, "panel=pointing", init=MANUAL_UPDATES)
-    hold = page.get_by_role("slider", name="Hold Time (ms)")
-    expect(hold).to_be_visible(timeout=15000)
-    hold.focus()
-    hold.press("End")  # 1500 ms, queued
-    page.wait_for_function(PENDING_JS, timeout=5000)
-    page.get_by_role("button", name=LINK).click()
-    expect(page.get_by_role("dialog", name=TITLE)).to_be_visible(timeout=5000)
+    # A write that fails along with its read-back: the modal shows what the board has.
+    context, page, errors = open_page(browser, url, FROM_POINTING, init=MANUAL_UPDATES)
+    expect(page.get_by_role("dialog", name=TITLE)).to_be_visible(timeout=15000)
     page.evaluate("""() => { const d = window.keybardFakeBoard.device; const send = d.sendReport.bind(d); let left = 2;
         d.sendReport = async (id, data) => { const b = new Uint8Array(data.buffer ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data);
             if (left > 0 && b[5] === 0xfe && (b[6] === 0x07 || b[6] === 0x08) && b[8] === 54) { left--; throw new Error('simulated write failure'); }
             return send(id, data); }; }""")
-    step = page.get_by_role("slider", name="Hold time")
+    step = page.get_by_role("slider", name="Hold Time")
     step.focus()
     step.press("Home")  # 20 ms: the write fails
     expect(page.locator("[data-write-error]")).to_be_visible(timeout=5000)
     page.wait_for_timeout(300)
     assert not page.evaluate(PENDING_JS), "a change is still waiting after the failed write"
-    assert step_value(page, "Hold time") == "300 ms", f"shown {step_value(page, 'Hold time')}, not the board's 300 ms"
-    page.keyboard.press("Escape")
-    expect(hold).to_have_attribute("aria-valuenow", "300", timeout=5000)
+    assert step_value(page, "Hold Time") == "300 ms", f"shown {step_value(page, 'Hold Time')}, not the board's 300 ms"
     assert ((page.evaluate("window.keybardFakeBoard.device.firmware.padSetting") >> 3) & 15) == 0, "the board's hold time changed"
     assert not [e for e in errors if "simulated write failure" not in e], errors
     context.close()
@@ -929,8 +845,9 @@ def flow_queued_then_dialog(browser, url):
 def flow_confirm_layout(browser, url):
     for width, height in ((390, 844), (1440, 1000)):
         for scheme in ("light", "dark"):
-            context, page, _ = open_page(browser, url, FROM_SETTINGS, board=PTP, viewport=(width, height), scheme=scheme)
-            page.get_by_role("radio", name="Built-in gestures").click()
+            context, page, _ = open_page(browser, url, "panel=pointing", board=PTP, viewport=(width, height), scheme=scheme)
+            page.locator("[data-hand=right]").get_by_role("radio", name="Built-in gestures").click()
+            expect(page.locator("[data-builtin-confirm]")).to_be_visible(timeout=15000)
             box = page.locator("[data-builtin-confirm]").bounding_box()
             assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1 and box["y"] >= 0 and box["y"] + box["height"] <= height + 1, f"{width} {scheme}: {box}"
             over = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
@@ -953,7 +870,8 @@ def fingers_shots(browser, url, out):
         expect(view(page)).to_be_visible(timeout=15000)
         wait_fingers(page, 2, "os", timeout=40000)
         page.screenshot(path=os.path.join(out, f"touchpad-mode-{scheme}.png"))
-        page.get_by_role("radio", name="Built-in gestures").click()
+        page.keyboard.press("Escape")
+        page.locator("[data-hand=right]").get_by_role("radio", name="Built-in gestures").click()
         expect(page.locator("[data-builtin-confirm]")).to_be_visible(timeout=5000)
         page.wait_for_timeout(300)
         page.screenshot(path=os.path.join(out, f"confirm-{scheme}.png"))
@@ -1000,12 +918,12 @@ def shots(browser, url, out):
 
 def main() -> int:
     flows = [
-        ("1. Settings: the entry opens the dialog, defaults; ?panel=settings&tune=touchpad", flow_settings),
-        ("2. Pointing Devices: Tune touchpad… opens the dialog; ?tune=touchpad too", flow_dialog),
+        ("1. Settings > Hardware: Tune touchpad opens the modal, defaults; ?panel=settings&tune=touchpad", flow_settings),
+        ("2. Pointing Devices: Tune touchpad opens the modal; ?tune=touchpad too", flow_dialog),
         ("3. both pads live, touch-down shows within ~100 ms, touches listed", flow_live),
         ("4. dead zone 0.5 mm writes, saves, cancels the rolling tap; tap and hold times", flow_dead_zone),
-        ("5. one layout: controls above the pads, timer ring", flow_layout),
-        ("6. no touchpad, or older firmware: no entry, no chip, no link", flow_hidden),
+        ("5. one layout: pads, timer ring, settings below", flow_layout),
+        ("6. no touchpad, or older firmware: no tuner button", flow_hidden),
         ("7. no animation beyond the live finger and timer", flow_no_animation),
         ("8. layout: 390 and 1440 px, light and dark, no overflow", flow_layout_checks),
         ("9. no layout shift within a mode over 50+ touches and 1-3 fingers, lists scroll in place (390, 1440; both modes)", flow_stable),
@@ -1015,13 +933,13 @@ def main() -> int:
         ("19. each mode's own layout has no large empty region, and touchpad mode's lists fit a few touches, every screen scrolled (390, 1440, light and dark; both modes)", flow_filled),
         ("10. every finger: two with the scroll-start ring and a line, three with none; listed", flow_fingers),
         ("11. palm rejection: off, then wider than 20 mm writes and marks the resting palm", flow_palm),
-        ("12. touchpad mode: the system line, chip settings and switches absent, fingers and palms only", flow_os_mode),
-        ("13. the mode toggle: the check (Escape, Cancel write nothing), confirm writes, Automatic at once, each mode filled", flow_mode_toggle),
+        ("12. touchpad mode: chip settings and switches absent from the modal, fingers and palms only", flow_os_mode),
+        ("13. Gestures on the card: the check (Escape, Cancel write nothing), confirm writes, Automatic at once, each mode filled", flow_mode_toggle),
         ("14. the check fits at 390 and 1440 px, light and dark", flow_confirm_layout),
-        ("15. the mode switch writes at once with Manual Updates: no pending change, read back, the UI stays (both entries)", flow_mode_immediate),
+        ("15. the mode switch writes at once with Manual Updates: no pending change, read back, no blink in Automatic", flow_mode_immediate),
         ("16. a failed write says so and shows the board's value; palm live; a missing half; no leave-page prompt", flow_errors_and_halves),
         ("17. v4.3.4 firmware: no mode, no palm, no fingers page read; works as before", flow_old_firmware),
-        ("18. Manual Updates: a queued Hold Time, then the dialog's written at once; Apply can't overwrite it", flow_queued_then_dialog),
+        ("18. Manual Updates: the modal's Hold Time is written at once, never queued; a failed write shows the board's value", flow_queued_then_dialog),
     ]
     only = os.environ.get("E2E_ONLY")
     if only:

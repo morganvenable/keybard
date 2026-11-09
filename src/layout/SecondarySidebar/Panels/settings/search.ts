@@ -11,8 +11,7 @@ import { TYPING_BEHAVIOR_SECTIONS, type SettingsBlock, type SettingsRow, type Se
 
 /** Words people search with that are not on screen, by section. */
 export const SECTION_SYNONYMS: Record<string, string[]> = {
-    hardware: ["clusters", "fragments", "pointing devices"],
-    pointing: ["pointer speed", "dpi", "scroll speed", "scroll mode", "gestures", "touchpad", "trackpad", "trackball", "trackpoint", "auto mouse", "natural scroll", "axis lock", "palm rejection", "tap", "drag", "live view"],
+    hardware: ["clusters", "fragments", "pointing devices", "tune touchpad", "trackball sensors", "pointer speed", "scroll speed", "gestures"],
     firmware: ["update", "flash", "uf2"],
     backups: ["backup", "back up", "files", "layout files"],
     appearance: ["look", "display", "editor", "keymap"],
@@ -46,8 +45,7 @@ function typingBehaviorWords(): string[] {
 /** Synonyms for a block row (rendered by the page itself). */
 export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
     hardware: ["clusters", "cluster presets", "fragments", "finger", "thumb", "5-key", "6-key", "pointing", "trackball",
-        "touchpad", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
-    pointing: ["pointing", "pointer", "pointer speed", "dpi", "scroll speed", "scroll mode", "gestures", "built-in gestures", "touchpad", "trackpad", "trackball", "trackpoint", "auto mouse", "natural scroll", "axis lock", "tap to click", "dead zone", "tap time", "hold time", "press and hold", "drag", "palm rejection", "scroll start", "live view", "sensor", "characterization"],
+        "touchpad", "tune touchpad", "trackball sensors", "pointer speed", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
     firmware: ["update", "upgrade", "install", "flash", "version", "release", "qmk", "wipe", "reset", "bootloader"],
     board: ["board name", "serial", "rename", "identity"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],

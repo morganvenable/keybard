@@ -23,6 +23,9 @@ function showBadge(choice: FakeBoardChoice, wipe: () => void) {
         : choice === "touchpad" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads`
         : choice === "touchpad-gestures" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads on built-in gestures`
         : choice === "pointing" ? `${FAKE_BOARD_PRODUCT_NAME}, left trackball and right touchpad`
+        : choice === "two-balls" ? `${FAKE_BOARD_PRODUCT_NAME}, a trackball on each half`
+        : choice === "ball-trackpoint" ? `${FAKE_BOARD_PRODUCT_NAME}, left trackball and right TrackPoint`
+        : choice === "no-module" ? `${FAKE_BOARD_PRODUCT_NAME}, no pointing module`
         : choice === "touchpad-434" ? `${FAKE_BOARD_PRODUCT_NAME}, touchpads, v4.3.4 firmware`
         : choice === "altrepeat" ? `${FAKE_BOARD_PRODUCT_NAME}, one Alt-Repeat entry`
         : choice === "legends" ? `${FAKE_BOARD_PRODUCT_NAME}, legend samples`
@@ -53,12 +56,14 @@ export function installFakeBoard(choice: FakeBoardChoice): HIDDevice {
     const pads = choice === "touchpad" || choice === "touchpad-gestures" || choice === "touchpad-434" || choice === "pointing";
     // "unread" is this firmware on a board that doesn't answer the QMK settings, two custom
     // values, and holds a tap dance with a term of 0.
-    const current = choice === "combo-names" || choice === "turbo6" || choice === "leader0" || choice === "unread" || choice === "legends" || choice === "altrepeat" || pads;
+    const current = choice === "combo-names" || choice === "turbo6" || choice === "leader0" || choice === "unread" || choice === "legends" || choice === "altrepeat" || choice === "two-balls" || choice === "ball-trackpoint" || choice === "no-module" || pads;
+    const modules = choice === "two-balls" ? { left: "pmw3389", right: "pmw3389" } as const
+        : choice === "ball-trackpoint" ? { left: "pmw3389", right: "trackpoint" } as const : undefined;
     // The debug console command (0x3E) came after v4.3.4.
     const device = new FakeSvalboardDevice({ comboLabels: choice !== "old", typingPause: current, flickerLatch: current,
         debugConsole: current && choice !== "touchpad-434", debounceSwitch: current,
         timingUsOnly: current, seedTurbo: choice === "turbo6" ? 6 : undefined, seedLeaderZero: choice === "leader0", seedUnread: choice === "unread", seedLegends: choice === "legends", seedAltRepeat: choice === "altrepeat", reportLength: current ? 64 : 32,
-        padGestures: current, scrollSpeed: current && choice !== "touchpad-434", leftTrackball: choice === "pointing", touchpad: pads, hostTouchpad: choice === "touchpad" || choice === "touchpad-434", multiFinger: choice !== "touchpad-434" });
+        padGestures: current, scrollSpeed: current && choice !== "touchpad-434", leftTrackball: choice === "pointing", touchpad: pads, modules, hostTouchpad: choice === "touchpad" || choice === "touchpad-434", multiFinger: choice !== "touchpad-434" });
     const wipe = () => {
         device.forgetSettings();
         window.location.reload();

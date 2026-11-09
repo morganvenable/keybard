@@ -18,9 +18,11 @@ import { useModifierSide } from "@/hooks/useModifierSide";
 interface Props {
     compact?: boolean;
     variant?: "small" | "medium" | "default";
+    /** The bottom tray: each group is a column that keeps its width and scrolls sideways with the rest. */
+    columns?: boolean;
 }
 
-const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
+const MouseKeysSection = ({ compact, variant: variantOverride, columns }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
@@ -57,6 +59,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "KC_BTN5", label: "Mouse 5" },
     ];
 
+    // Pointer speed, second half: the Sniper and Boost keys. The toggles go in its closed More keys group.
     // Row 2: 6 sniper keys. Toggle labels are "NxTG" (4 chars after the family
     // word is stripped) so they stay at the variant's native text size instead of
     // falling into Key.tsx's long-label shrink/wrap rule, which cropped "TOGGLE"
@@ -65,6 +68,8 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_SNIPER_2", label: "Sniper 2x" },
         { keycode: "SV_SNIPER_3", label: "Sniper 3x" },
         { keycode: "SV_SNIPER_5", label: "Sniper 5x" },
+    ];
+    const sniperToggles = [
         { keycode: "SV_SNIPER_2_TG", label: "Sniper 2xTG" },
         { keycode: "SV_SNIPER_3_TG", label: "Sniper 3xTG" },
         { keycode: "SV_SNIPER_5_TG", label: "Sniper 5xTG" },
@@ -75,6 +80,8 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         { keycode: "SV_BOOST_2", label: "Boost 2x" },
         { keycode: "SV_BOOST_3", label: "Boost 3x" },
         { keycode: "SV_BOOST_5", label: "Boost 5x" },
+    ];
+    const boostToggles = [
         { keycode: "SV_BOOST_2_TG", label: "Boost 2xTG" },
         { keycode: "SV_BOOST_3_TG", label: "Boost 3xTG" },
         { keycode: "SV_BOOST_5_TG", label: "Boost 5xTG" },
@@ -88,16 +95,17 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     // key (they came after Drag Scroll, the toggle after the hold key).
     const firmwareKeycodes = keyboard?.custom_keycodes;
     const firmwareHas = (name: string) => !firmwareKeycodes || firmwareKeycodes.some((ck) => ck.name === name);
-    const optional = (keycode: string, label: string) => (firmwareHas(keycode) ? [{ keycode, label }] : []);
+    const optional = (keycode: string, label: string, fullName?: string) => (firmwareHas(keycode) ? [{ keycode, label, ...(fullName ? { fullName } : {}) }] : []);
     const scrollKeys = [
         ...optional("SV_LEFT_SCROLL_TOGGLE", "Left Scroll Toggle"),
         ...optional("SV_RIGHT_SCROLL_TOGGLE", "Right Scroll Toggle"),
         ...optional("SV_SCROLL_TOGGLE", "Scroll Toggle"),
         ...optional("SV_VELOCITY_SCROLL", "Velocity Scroll"),
         ...optional("SV_VELOCITY_SCROLL_TOGGLE", "Velocity Scroll Toggle"),
-        ...optional("SV_NATURAL_SCROLL_TOGGLE", "Natural Scroll"),
         ...optional("SV_AXIS_SCROLL_LOCK", "Axis Lock"),
     ];
+    // Natural Scroll's toggle key is out of sight, in the closed More keys group of Scroll.
+    const scrollMore = optional("SV_NATURAL_SCROLL_TOGGLE", "Natural Scroll");
     // Drag Scroll is out of sight, in the closed More keys group at the end.
     const moreKeys = [{ keycode: "SV_SCROLL_HOLD", label: "Drag Scroll" }];
     // Pointer speed: the DPI keys, one pair per hand.
@@ -106,18 +114,23 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         ...optional("SV_LEFT_DPI_DEC", "Left DPI -"),
         ...optional("SV_RIGHT_DPI_INC", "Right DPI +"),
         ...optional("SV_RIGHT_DPI_DEC", "Right DPI -"),
+        ...sniperKeys,
+        ...boostKeys,
     ];
+    const speedMore = [...sniperToggles, ...boostToggles];
     // Pointer: calibration and the auto mouse layer.
     const pointerKeys = [
         ...optional("SV_RECALIBRATE_POINTER", "Fix Drift"),
         ...optional("SV_TOGGLE_AUTOMOUSE", "AutoMouse Toggle"),
-        ...optional("SV_MH_CHANGE_TIMEOUTS", "Mouse Key Timer"),
+        // Key.tsx drops "Mouse" and "Timer" from a label (the mouse and clock icons stand for them), which left
+        // just "KEY": the tile reads "Layer Time" with the clock icon, and its name on hover is the full one.
+        ...optional("SV_MH_CHANGE_TIMEOUTS", "Layer Time", "Mouse Key Timer"),
     ];
 
     // Every key row in this section MUST go through renderKey so it picks up the
     // same effectiveVariant / keySizeClass. Do not render <Key> directly in the
     // panels that embed this section (see CLAUDE.md: key sizing consistency).
-    const renderKey = (k: { keycode: string; label: string }, withModifiers: boolean = false) => {
+    const renderKey = (k: { keycode: string; label: string; fullName?: string }, withModifiers: boolean = false) => {
         const finalKeycode = withModifiers ? applyModifiers(k.keycode, activeModifiers, false, modifierSide) : k.keycode;
         const keyContents = keyboard ? getKeyContents(keyboard, finalKeycode) : undefined;
 
@@ -135,6 +148,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 col={0}
                 keycode={finalKeycode}
                 label={k.label}
+                fullName={k.fullName}
                 forceLabel={true}
                 keyContents={keyContents as KeyContent | undefined}
                 layerColor="sidebar"
@@ -151,9 +165,28 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
         );
     };
 
+    const title = (text: string) => (
+        <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>{text}</span>
+    );
+    // One key group with its own closed More keys row (the rows carry the keys that are set once and rarely used).
+    const group = (name: string, keys: { keycode: string; label: string; fullName?: string }[], category: string, more: { keycode: string; label: string }[]) => {
+        if (!keys.length && !more.length) return null;
+        return (
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")} data-key-group={name}>
+                {title(name)}
+                <div className="flex flex-wrap gap-1">{keys.map((k) => renderKey(k, false))}</div>
+                {more.length > 0 && (
+                    <MoreKeysDisclosure category={category} count={more.length} compact={compact}>
+                        <div className="flex flex-wrap gap-1">{more.map((k) => renderKey(k, false))}</div>
+                    </MoreKeysDisclosure>
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className={compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
-            <div className="flex flex-col gap-1">
+        <div className={columns ? "flex flex-row flex-nowrap items-start gap-4" : compact ? "flex min-w-0 flex-wrap items-start gap-4" : "flex min-w-0 flex-col gap-4"}>
+            <div className={cn("flex flex-col gap-1", columns && "w-[15rem] shrink-0")}>
                 <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                     Mouse Buttons
                 </span>
@@ -164,7 +197,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
             </div>
 
             {/* Modifiers section */}
-            <div className="flex flex-col gap-2">
+            <div className={cn("flex flex-col gap-2", columns && "w-[15rem] shrink-0")}>
                 <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
                     <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
                         Modifiers
@@ -245,63 +278,9 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                 )}
             </div>
 
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Sniper Keys
-                </span>
-                {/* Row 2: Sniper keys */}
-                <div className="flex flex-wrap gap-1">
-                    {sniperKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Boost
-                </span>
-                {/* Row 3: Boost keys */}
-                <div className="flex flex-wrap gap-1">
-                    {boostKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                    Scroll
-                </span>
-                {/* Row 4: Drag Scroll, scroll toggles, Velocity Scroll, Natural Scroll, Axis Lock */}
-                <div className="flex flex-wrap gap-1">
-                    {scrollKeys.map((k) => renderKey(k, false))}
-                </div>
-            </div>
-
-            {speedKeys.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                        Pointer Speed
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                        {speedKeys.map((k) => renderKey(k, false))}
-                    </div>
-                </div>
-            )}
-
-            {pointerKeys.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    <span className={compact ? "text-[9px] font-bold text-slate-500 dark:text-neutral-400 uppercase" : "font-semibold text-lg text-kb-ink"}>
-                        Pointer
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                        {pointerKeys.map((k) => renderKey(k, false))}
-                    </div>
-                </div>
-            )}
-
-            <MoreKeysDisclosure category="pointing" count={moreKeys.length} compact={compact}>
-                <div className="flex flex-wrap gap-1">
-                    {moreKeys.map((k) => renderKey(k, false))}
-                </div>
-            </MoreKeysDisclosure>
+            {group("Scroll", scrollKeys, "pointing-scroll", scrollMore)}
+            {speedKeys.length > 0 && group("Pointer Speed", speedKeys, "pointing-speed", speedMore)}
+            {group("Pointer", pointerKeys, "pointing", moreKeys)}
         </div>
     );
 };

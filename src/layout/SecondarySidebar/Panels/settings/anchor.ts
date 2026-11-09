@@ -41,11 +41,6 @@ export const PANELS_IN_SETTINGS: Record<string, string> = {
     firmware: "firmware",
     // Not an old panel either: Settings at Backups (?panel=backups).
     backups: "backups",
-    // Pointer speed, scroll speed, gestures and the auto mouse layer: Settings at Pointing
-    // (?panel=pointing is the rail's Pointing Devices keys).
-    "pointing-settings": "pointing",
-    // The same card with its Advanced disclosure open.
-    "pointing-advanced": "pointing-advanced",
 };
 
 /** The Settings section an old panel name opens, if it is one. */
@@ -54,8 +49,8 @@ export function settingsSectionForPanel(panel: string): string | undefined {
 }
 
 /**
- * Opening Pointing's Advanced disclosure for this visit (a link to the live
- * view, ?panel=pointing-advanced). Held until the card mounts, like the
+ * Opening the Pointing Devices panel's Advanced disclosure for this visit
+ * (?panel=pointing-advanced). Held until the card mounts, like the
  * section request above.
  */
 const ADVANCED_EVENT = "keybard-pointing-advanced";

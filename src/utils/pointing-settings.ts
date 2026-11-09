@@ -1,4 +1,4 @@
-// Settings > Pointing: what each hand's card shows, from what the board reports.
+// Pointing Devices panel: what each hand's card shows, from what the board reports.
 //
 // One card per hand, named by the module detected on that half. Pointer speed
 // lists only the DPI values that do something on that module; Scroll speed is

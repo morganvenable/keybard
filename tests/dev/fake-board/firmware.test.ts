@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { blankBoard, LABEL_SIZE, MACRO_BUFFER_SIZE, MACRO_BUFFER_SIZE_NO_COMBO_LABELS } from "@/dev/fake-board/board";
 import { FakeSvalFirmware, KEYBOARD_UID, validLabel } from "@/dev/fake-board/firmware";
+import { parsePointingHardware } from "@/utils/pointing-hardware";
 import { DEFINITION, DEFINITION_BYTES } from "@/dev/fake-board/definition";
 
 const L = 32;
@@ -332,5 +333,37 @@ describe("other Sval commands", () => {
     it("answers an unknown command with sval_cmd_error", () => {
         const fw = firmware();
         expect(sval(fw, bootstrap(fw), 0x33)[0]).toBe(0xff);
+    });
+
+    describe("the fake boards for each pointing layout", () => {
+        const modulesOf = (fw: FakeSvalFirmware) => {
+            const report = parsePointingHardware(sval(fw, bootstrap(fw), 0x2c))!;
+            return Object.fromEntries(report.halves.map((h) => [h.side, h.detected]));
+        };
+        const make = (options: ConstructorParameters<typeof FakeSvalFirmware>[1]) => new FakeSvalFirmware(blankBoard(), options);
+
+        it("reports left trackball and right touchpad for ?fakeBoard=pointing", () => {
+            expect(modulesOf(make({ touchpad: true, leftTrackball: true }))).toEqual({ left: "pmw3389", right: "azoteq" });
+        });
+        it("reports a trackball on each half for two-balls", () => {
+            expect(modulesOf(make({ modules: { left: "pmw3389", right: "pmw3389" } }))).toEqual({ left: "pmw3389", right: "pmw3389" });
+        });
+        it("reports a trackball and a TrackPoint, and the TrackPoint speed flag", () => {
+            const fw = make({ modules: { left: "pmw3389", right: "trackpoint" } });
+            expect(modulesOf(fw)).toEqual({ left: "pmw3389", right: "trackpoint" });
+            const info = sval(fw, bootstrap(fw), 0x00);
+            expect(info[20] & 0x40).toBe(0x40);
+        });
+        it("reports no module on either half by default", () => {
+            expect(modulesOf(make({}))).toEqual({ left: "none", right: "none" });
+        });
+        it("answers the sensor view only for a half with a trackball (the touchpad half has none)", () => {
+            const fw = make({ touchpad: true, leftTrackball: true, now: () => 123456 });
+            const id = bootstrap(fw);
+            const left = sval(fw, id, 0x39, [0, 0, 0, 0]);
+            const right = sval(fw, id, 0x39, [0, 1, 0, 0]);
+            expect(left[2] & 0x01).toBe(1);
+            expect(right[2] & 0x01).toBe(0);
+        });
     });
 });

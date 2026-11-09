@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 /**
- * The rows of Settings > Pointing. Every row is a label with one plain line under
+ * The rows of the Pointing Devices panel. Every row is a label with one plain line under
  * it on the left and its control on the right; a slider row puts the value beside
  * the label and the slider below. A value the board didn't give says "Not read"
  * and never shows a stand-in.

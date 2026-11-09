@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Whether the Trackball sensor dialog is open (Settings > Pointing > Advanced >
- * Live view, or ?panel=trackball). One dialog per page, mounted once
- * (TrackballSensorDialog in EditorLayout). Like the touchpad live view, it is
- * a modal over Settings, so closing it leaves Settings as it was.
+ * Whether the Trackball sensors dialog is open (opened from the Pointing Devices
+ * panel or tray, Settings > Hardware, or ?tune=trackball). One dialog per page,
+ * mounted once (TrackballSensorDialog in EditorLayout). It is a modal over the
+ * panel that opened it and changes no navigation, so closing it returns there.
  */
 let open = false;
 const listeners = new Set<() => void>();
