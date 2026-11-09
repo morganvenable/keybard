@@ -34,7 +34,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tests:
+    # The full test suite on the tag (test.yml); a failure stops the release.
+    if: github.repository == 'svalboard/keybard'
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: refs/tags/${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
   deploy:
+    needs: tests
     if: github.repository == 'svalboard/keybard'
     runs-on: ubuntu-latest
     env:

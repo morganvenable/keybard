@@ -40,7 +40,15 @@ permissions:
   contents: read
 
 jobs:
+  tests:
+    # The full test suite on the tag (test.yml); a failure stops the release.
+    if: github.repository == 'svalboard/keybard' && !inputs.dry_run
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: refs/tags/${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
   package:
+    needs: tests
     if: github.repository == 'svalboard/keybard' && !inputs.dry_run
     runs-on: ubuntu-latest
     permissions:
