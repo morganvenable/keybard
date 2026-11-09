@@ -114,10 +114,11 @@ export function useHost({ overlay = false }: { overlay?: boolean } = {}) {
     }, [attempt, base, local, bootstrap, overlay]);
     /** Connect a hosted Keybard page to a running Keybard Overlay (user-initiated). */
     const connect = useCallback(() => { if (PARANOID) return; asked.current = true; setError(''); setAttempt(n => n + 1); window.dispatchEvent(new Event(CONNECT_EVENT)); }, []);
-    // Another copy of this hook (the settings sync) joins once the user connects from the Overlay dialog.
+    // Another copy of this hook (the settings sync) joins once the user connects from the Overlay dialog,
+    // also when it tried before and found no overlay running (a remembered connection at page load).
     useEffect(() => {
         if (PARANOID) return;
-        const join = () => setAttempt(n => n || 1);
+        const join = () => { if (!current.current) setAttempt(n => n + 1); };
         window.addEventListener(CONNECT_EVENT, join);
         return () => window.removeEventListener(CONNECT_EVENT, join);
     }, []);
