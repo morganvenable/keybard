@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import { keyLegendsOptions } from "@/lib/keyLegendsSetting";
 import { createPortal } from "react-dom";
 
 import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
@@ -20,7 +21,7 @@ import { usePickerTray } from "@/contexts/PickerTrayContext";
 import { trayKeyboardScale } from "@/lib/pickerShape";
 import { NUMPAD_COLUMNS, NUMPAD_GAP_PX, NUMPAD_VARIANT_PX, numpadCellSize, numpadVariantFor } from "@/lib/numpadFit";
 
-import { BUTTON_TO_KEYCODE_MAP, LAYOUTS } from "@/components/Keyboards/layouts";
+import { BUTTON_TO_KEYCODE_MAP } from "@/components/Keyboards/layouts";
 
 const getKeyCodeForButton = (keyboard: KeyboardInfo, button: string): string | undefined => {
     const k = BUTTON_TO_KEYCODE_MAP[button] || BUTTON_TO_KEYCODE_MAP[button.toLowerCase()];
@@ -62,7 +63,7 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
     const { assignKeycode, isBinding, selectedTarget } = useKeyBinding();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
-    const { keyVariant, layoutMode, internationalLayout, setInternationalLayout } = useLayoutSettings();
+    const { keyVariant, layoutMode, internationalLayout, keyLegendsChoice, setInternationalLayout } = useLayoutSettings();
     // AltGr is Right Alt: its own button, shown only when the layout has an AltGr level. While it is
     // on, the picker shows each key's AltGr character and a click binds RALT(key); it is exclusive
     // with the other modifiers and ignores the L/R side.
@@ -273,15 +274,11 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                     {/* Language selector at top */}
                     <select
                         className="border rounded text-[10px] text-slate-600 dark:text-neutral-300 py-0.5 px-1 border-gray-200 dark:border-neutral-500 bg-gray-50 dark:bg-neutral-800/60 !outline-none focus:border-gray-300 dark:focus:border-neutral-400 cursor-pointer w-full mb-1"
-                        value={internationalLayout}
+                        value={keyLegendsChoice}
                         onChange={(e) => setInternationalLayout(e.target.value)}
                         title="Keyboard layout"
                     >
-                        {Object.values(LAYOUTS).map((kb: any) => (
-                            <option key={kb.value} value={kb.value}>
-                                {kb.value.toUpperCase()}
-                            </option>
-                        ))}
+                        {keyLegendsOptions(keyLegendsChoice, internationalLayout, true).map((kb) => (<option key={kb.value} value={kb.value}>{kb.label}</option>))}
                     </select>
 
                     {/* Modifiers section */}
@@ -537,15 +534,11 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                 {createPortal(
                     <select
                         className="text-sm font-medium text-kb-ink bg-transparent border-none p-0 cursor-pointer outline-none focus:ring-0"
-                        value={internationalLayout}
+                        value={keyLegendsChoice}
                         onChange={(e) => setInternationalLayout(e.target.value)}
                         aria-label="Keyboard layout"
                     >
-                        {Object.values(LAYOUTS).map((kb: any) => (
-                            <option key={kb.value} value={kb.value}>
-                                {kb.label}
-                            </option>
-                        ))}
+                        {keyLegendsOptions(keyLegendsChoice, internationalLayout).map((kb) => (<option key={kb.value} value={kb.value}>{kb.label}</option>))}
                     </select>,
                     tray.header!,
                 )}
@@ -558,15 +551,11 @@ const BasicKeyboards = ({ isPicker, trayPortal = false }: Props) => {
                 <div className="flex flex-row items-center justify-start">
                     <select
                         className="font-semibold text-lg text-kb-ink bg-transparent border-none p-0 cursor-pointer outline-none focus:ring-0"
-                        value={internationalLayout}
+                        value={keyLegendsChoice}
                         onChange={(e) => setInternationalLayout(e.target.value)}
                         aria-label="Keyboard layout"
                     >
-                        {Object.values(LAYOUTS).map((kb: any) => (
-                            <option key={kb.value} value={kb.value}>
-                                {kb.label}
-                            </option>
-                        ))}
+                        {keyLegendsOptions(keyLegendsChoice, internationalLayout).map((kb) => (<option key={kb.value} value={kb.value}>{kb.label}</option>))}
                     </select>
                 </div>
                 <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} modifierSide={modifierSide} altGr={altGrOn} hideLanguageSelector disableTooltip={true} />

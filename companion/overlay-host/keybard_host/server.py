@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import os
 import re
+import select
 import socket
 import time
 import json
@@ -30,6 +31,9 @@ REMOTE_ORIGINS = frozenset({
     'https://keybard.svalboard.com',       # stable
     'https://next.keybard.svalboard.com',  # bleeding edge: prerelease (x) tags
 })
+
+# How long /api/host/layout holds a request before answering with an unchanged layout.
+LAYOUT_WAIT_S = 10
 
 
 def paranoid_policy_ok(html):
@@ -125,6 +129,14 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
             self.end_headers()
             self.wfile.write(body)
 
+        def peer_gone(self):
+            """True once the client has closed its connection (a readable socket with nothing to read)."""
+            try:
+                readable, _, _ = select.select([self.connection], [], [], 0)
+                return bool(readable) and self.connection.recv(1, socket.MSG_PEEK) == b''
+            except OSError:
+                return True
+
         def do_GET(self):
             path = urlsplit(self.path)
             if not (self.api_ok() if path.path.startswith('/api/host/') else self.origin_ok()):
@@ -136,7 +148,22 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 except ValueError: return self.reply({'error': 'Invalid layout revision'}, 400)
                 # A page drawing the overlay (?hostOverlay) shows the layer and held keys: read them fast.
                 if query.get('overlay') == ['1']: state.polled_at = time.monotonic()
+                state.read_at = time.monotonic()
                 return self.reply(state.snapshot(revision))
+            if path.path == '/api/host/layout':
+                # Long poll for Key legends: Automatic. Answers when the computer's layout is no longer
+                # `known` (its osLayout id), or after LAYOUT_WAIT_S. Keybard asks only while its tab is visible.
+                known = parse_qs(path.query).get('known', [''])[0][:64]
+                deadline = time.monotonic() + LAYOUT_WAIT_S
+                while True:
+                    # Short waits, so a tab that hides or closes (its fetch aborted, the socket closed) stops
+                    # holding a waiter, and with it the Overlay's layout reads, within a quarter second.
+                    value, changed = state.wait_os_layout(known, min(0.25, max(0.0, deadline - time.monotonic())))
+                    if changed or time.monotonic() >= deadline: break
+                    if self.peer_gone(): self.close_connection = True; return
+                # A tab hidden or closed while waiting has gone: nothing to answer, and nothing to log.
+                try: return self.reply(dict(osLayout=value))
+                except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError): self.close_connection = True; return
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)
                 self.send_response(200)

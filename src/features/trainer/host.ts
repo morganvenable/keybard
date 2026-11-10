@@ -3,6 +3,7 @@ import type { KeyboardInfo } from '@/types/keyboard.types';
 import type { Preferences } from './core';
 import { appStorage } from '@/utils/app-storage';
 import { PARANOID } from '@/lib/paranoid';
+import type { OsLayout } from '@/lib/autoLegends';
 
 // The Keybard Overlay app serves its own copy of Keybard and the host API on this port.
 // Any other copy (keybard.svalboard.com) calls it directly on loopback, which
@@ -11,6 +12,8 @@ import { PARANOID } from '@/lib/paranoid';
 export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string | undefined) || 'http://127.0.0.1:5178';
 /** How often a background copy looks for the Overlay or a restarted one. */
 export const HOST_SLOW_POLL_MS = 2000;
+/** The Overlay holds a /api/host/layout request this long (LAYOUT_WAIT_S) before answering with no change. */
+const HOST_LAYOUT_WAIT_MS = 10000;
 const REMOTE_KEY = 'keybard-host-remote';
 const CONNECT_EVENT = 'keybard-host-connect';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
@@ -28,6 +31,8 @@ export interface HostSnapshot {
     active: number; default: number | null; valid: boolean; pressed: number[];
     practiceHidden: number[]; practiceTarget: number | null;
     matrixAvailable: boolean | null; visible: boolean; session: string;
+    /** The keyboard layout of the window in front, for Key legends: Automatic. Older Overlays don't send it. */
+    osLayout?: OsLayout;
 }
 /** The host's release and the Keybard it bundles. Hosts before vLaunch2 don't report them: 'unknown'. */
 export interface HostBuild { version: string; keybardCommit: string | null; testBuild?: boolean }
@@ -37,6 +42,8 @@ declare global { interface Window { __keybardNativeState?: boolean } }
  * so its polls tell the Overlay app that the layer and held keys are on show and worth reading fast.
  * background: the settings sync, which has no live display. It reads state once on connecting, then only
  * every HOST_SLOW_POLL_MS and only while the tab is visible (it also notices an Overlay that starts later).
+ * While the Overlay reads the computer's keyboard layout, it also waits on /api/host/layout, which the
+ * Overlay answers at a layout switch, so Key legends: Automatic follows at once. Nothing while hidden.
  */
 export function useHost({ overlay = false, background = false }: { overlay?: boolean; background?: boolean } = {}) {
     const [state, setState] = useState<HostSnapshot | null>(null);
@@ -116,12 +123,33 @@ export function useHost({ overlay = false, background = false }: { overlay?: boo
                 const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
                 if (!r.ok) throw new Error('Connection to the overlay app lost');
                 receive(await r.json() as HostSnapshot);
+                void watchLayout();
             } catch {
                 if (alive && current.current) { current.current = null; setState(null); }
             }
             if (alive && !native && !hidden()) timer = setTimeout(slowTick, HOST_SLOW_POLL_MS);
         }
-        const onVisible = () => { if (!hidden()) void slowTick(); else clearTimeout(timer); };
+        /** Background copy: wait on the Overlay's layout long poll while it reads the layout and the tab is visible. */
+        let watching = false, watchAbort: AbortController | undefined;
+        async function watchLayout() {
+            if (watching) return;
+            watching = true; watchAbort = new AbortController();
+            const signal = AbortSignal.any([abort.signal, watchAbort.signal]);
+            try {
+                while (alive && !hidden() && current.current?.osLayout?.available) {
+                    const known = current.current.osLayout.id ?? '';
+                    const r = await fetch(`${base}/api/host/layout?known=${encodeURIComponent(known)}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(HOST_LAYOUT_WAIT_MS + 5000)]), cache: 'no-store' });
+                    if (!r.ok) break; // the slow poll starts it again
+                    const { osLayout } = await r.json() as { osLayout?: OsLayout };
+                    const now = current.current;
+                    if (!alive || !now || !osLayout) break;
+                    if (JSON.stringify(osLayout) === JSON.stringify(now.osLayout)) continue;
+                    receive({ ...now, osLayout });
+                }
+            } catch { /* hidden, closed, or timed out: the slow poll starts it again */ }
+            watching = false;
+        }
+        const onVisible = () => { if (!hidden()) void slowTick(); else { clearTimeout(timer); watchAbort?.abort(); } };
         if (background && !native) document.addEventListener('visibilitychange', onVisible);
         void (async () => {
             if (background && !native) { void slowTick(); return; }

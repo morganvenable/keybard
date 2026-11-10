@@ -4,7 +4,7 @@ import json
 import re
 import secrets
 import time
-from threading import RLock
+from threading import Condition, RLock
 from pathlib import Path
 
 # The overlay's styles, offered in the Host's menus (Keybard's src/features/trainer/core.ts has the same).
@@ -20,7 +20,8 @@ PRESETS = {
 # Layer-change highlight choices; each sets the effect and its duration together.
 EFFECTS = {'Off': dict(effect='Off'), 'Flash': dict(effect='Quick flash', duration=150), 'Fade': dict(effect='Short fade', duration=400)}
 
-DEFAULTS = dict(layoutId='us', appearance=dict(PRESETS['Outline only']),
+# layoutId 'auto': Key legends follow the computer's layout (osLayout in the snapshot).
+DEFAULTS = dict(layoutId='auto', appearance=dict(PRESETS['Outline only']),
     effect='Short fade', duration=150, scale=100, hands='Both', highlightPressed=True, manualDefault=1,
     capitalAlphas=False, adaptiveContrast=False,
     # Keybard's Shifted Key Symbols and AltGr Symbols settings (same defaults); Keybard sends them with layoutId.
@@ -69,8 +70,13 @@ def _highlight_held_keys(config):
     config['highlightPressed'] = True
 
 
+def _automatic_legends(config):
+    # Automatic became the default keyboard language; anyone still on the old default, US, moves to it.
+    if config.get('layoutId') == 'us': config['layoutId'] = 'auto'
+
+
 # PREFERENCES_MIGRATIONS[n] upgrades a preferences config saved at version n to n + 1.
-PREFERENCES_MIGRATIONS = [_highlight_held_keys]
+PREFERENCES_MIGRATIONS = [_highlight_held_keys, _automatic_legends]
 PREFERENCES_VERSION = len(PREFERENCES_MIGRATIONS)
 
 
@@ -128,6 +134,9 @@ def pinned_board(value):
 class HostState:
     def __init__(self, path):
         self.lock = RLock()
+        # Wakes Keybard pages waiting on /api/host/layout when the computer's keyboard layout changes.
+        self.layout_changed = Condition(self.lock)
+        self.layout_waiters = 0
         self.path = Path(path)
         self.token = secrets.token_urlsafe(32)
         self.config = copy.deepcopy(DEFAULTS)
@@ -158,6 +167,10 @@ class HostState:
         # When a page drawing the overlay (Keybard's ?hostOverlay page, e.g. a stream capture) last
         # polled /api/host/state with overlay=1. Keybard's Overlay dialog shows neither and doesn't send it.
         self.polled_at = 0.0
+        # When any Keybard page last read the state; the computer's layout is read only while someone looks.
+        self.read_at = 0.0
+        # The computer's keyboard layout, for Key legends: Automatic (keyboard_layout.LayoutReader).
+        self.os_layout = dict(available=False, layoutId=None, name=None, id=None)
         self.session = secrets.token_hex(12)
         self.pointing_looks = {}
         # When Keybard last sent each uid's look, and the balls chosen in the Overlay per board
@@ -262,7 +275,27 @@ class HostState:
                 layoutRevision=self.layout_revision, board=self.board if known_layout != self.layout_revision else None,
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device,
                 boards=self.boards, follow=self.follow, pointingDevice=self.pointing_device, paused=self.paused, active=self.active, default=self.default, valid=self.valid,
-                modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session))
+                modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session, osLayout=self.os_layout))
+
+    def set_os_layout(self, value):
+        """Store the computer's keyboard layout; True when it changed (waiting pages are woken)."""
+        with self.lock:
+            if value == self.os_layout: return False
+            self.os_layout = value
+            self.layout_changed.notify_all()
+            return True
+
+    def wait_os_layout(self, known, timeout):
+        """(layout, changed): the computer's keyboard layout once its id is no longer `known` (changed True),
+        or after `timeout` seconds. A Keybard page's long poll waits on it in short steps."""
+        key = lambda: (self.os_layout.get('id') or '') if self.os_layout.get('available') else ''
+        with self.lock:
+            self.layout_waiters += 1
+            try:
+                changed = self.layout_changed.wait_for(lambda: key() != known, timeout)
+                return dict(self.os_layout), changed
+            finally:
+                self.layout_waiters -= 1
 
 
 def serialize_profile(profile):

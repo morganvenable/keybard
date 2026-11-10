@@ -1,4 +1,5 @@
 import { FunctionComponent, useState, useRef, useLayoutEffect, useEffect } from "react";
+import { keyLegendsOptions } from "@/lib/keyLegendsSetting";
 import { usePreviewedLayerColors } from "@/hooks/useLayerColorPreview";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
@@ -34,7 +35,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
     // the picker as it is (letters already draw as capitals), so display and binding agree.
     const [pickerShift, setPickerShift] = useState<ModifierSide | null>(null);
     const layoutName: "default" | "shift" = pickerShift ? "shift" : "default";
-    const { internationalLayout, setInternationalLayout, layoutMode } = useLayoutSettings();
+    const { internationalLayout, keyLegendsChoice, setInternationalLayout, layoutMode } = useLayoutSettings();
     const { keyboard } = useKeyboard();
     const { selectedLayer } = useLayer();
     const { isBinding } = useKeyBinding();
@@ -119,7 +120,9 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
         return (
             <div className="flex gap-1 justify-center">
                 {defaultKeys.map((defaultKey, i) => {
-                    const shiftKey = shiftKeys[i] || defaultKey;
+                    // "{none}": Shift types nothing on this key (French Shift+²). It shows its base legend, dimmed with Shift on.
+                    const shiftTypesNothing = shiftKeys[i] === "{none}";
+                    const shiftKey = shiftTypesNothing ? defaultKey : shiftKeys[i] || defaultKey;
 
                     // Visual key is determined by shift state
                     const visualKey = isShiftActive ? shiftKey : defaultKey;
@@ -188,7 +191,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // With the AltGr button on, only the keys that type an AltGr character stand out:
                     // the rest are dimmed, drawn plain (no RALT band), and bind as before.
                     const typesAltGr = !!altgrKeys[i] && altgrKeys[i] !== "{none}";
-                    const dimmed = altGr && !typesAltGr && defaultKey !== "{altright}";
+                    const dimmed = (altGr && !typesAltGr && defaultKey !== "{altright}") || (isShiftActive && shiftTypesNothing);
                     if (dimmed && keycode.startsWith("RALT(")) keycode = keycode.slice(5, -1);
 
                     const displayLabel = KEY_DISPLAY_OVERRIDES[visualKey] || visualKey.replace("{", "").replace("}", "");
@@ -236,29 +239,21 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     <div className="flex flex-row items-center justify-end -mb-1">
                         <select
                             className="border rounded text-[10px] text-slate-500 dark:text-neutral-400 py-0.5 px-1 border-gray-200 dark:border-neutral-500 bg-gray-50 dark:bg-neutral-800/60 !outline-none focus:border-gray-300 dark:focus:border-neutral-400 cursor-pointer"
-                            value={internationalLayout}
+                            value={keyLegendsChoice}
                             onChange={(e) => setInternationalLayout(e.target.value)}
                             title="Keyboard layout"
                         >
-                            {Object.values(LAYOUTS).map((kb) => (
-                                <option key={kb.value} value={kb.value}>
-                                    {kb.value.toUpperCase()}
-                                </option>
-                            ))}
+                            {keyLegendsOptions(keyLegendsChoice, internationalLayout, true).map((kb) => (<option key={kb.value} value={kb.value}>{kb.label}</option>))}
                         </select>
                     </div>
                 ) : (
                     <div className="flex flex-row items-center gap-2">
                         <select
                             className="border rounded-md text-lg text-slate-600 dark:text-neutral-300 py-4 border-none !outline-none focus:border-none focus:outline-none cursor-pointer font-semibold"
-                            value={internationalLayout}
+                            value={keyLegendsChoice}
                             onChange={(e) => setInternationalLayout(e.target.value)}
                         >
-                            {Object.values(LAYOUTS).map((kb) => (
-                                <option key={kb.value} value={kb.value}>
-                                    {kb.label}
-                                </option>
-                            ))}
+                            {keyLegendsOptions(keyLegendsChoice, internationalLayout).map((kb) => (<option key={kb.value} value={kb.value}>{kb.label}</option>))}
                         </select>
                     </div>
                 )

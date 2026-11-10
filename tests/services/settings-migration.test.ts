@@ -43,11 +43,11 @@ describe("settings migration", () => {
 
     it("keeps a v2 key that shares a dead v1 name, since v2 never strips it", () => {
         const v2 = { __v: 2, "left-dpi": 900 };
-        expect(migrateSettings(v2)).toEqual(v2);
+        expect(migrateSettings(v2)).toEqual({ ...v2, __v: SETTINGS_SCHEMA_VERSION });
     });
 
     it("does not downgrade an object from a newer build", () => {
-        expect(migrateSettings({ __v: 3, theme: "light" })).toEqual({ __v: 3, theme: "light" });
+        expect(migrateSettings({ __v: 99, theme: "light" })).toEqual({ __v: 99, theme: "light" });
     });
 
     it.each([null, undefined, 42, "settings", [1, 2], true])("turns %j into the defaults", (garbage) => {
@@ -64,6 +64,27 @@ describe("settings migration", () => {
     });
 });
 
+describe("Key legends: Automatic (v3)", () => {
+    it("moves anyone still on the old default, English (US), to Automatic", () => {
+        expect(migrateSettings({ __v: 2, "international-keyboards": "us" })["international-keyboards"]).toBe("auto");
+        expect(migrateSettings({ "international-keyboards": "us" })["international-keyboards"]).toBe("auto");
+    });
+
+    it("keeps any other layout someone picked, and older names of them", () => {
+        for (const layout of ["german", "uk", "french", "japanese", "german-qwertz"])
+            expect(migrateSettings({ __v: 2, "international-keyboards": layout })["international-keyboards"]).toBe(layout);
+    });
+
+    it("stores nothing when nothing was stored: the default is Automatic", () => {
+        expect(migrateSettings({ __v: 2, theme: "dark" })).not.toHaveProperty("international-keyboards");
+    });
+
+    it("runs once: US chosen after the update stays US", () => {
+        const after = { __v: SETTINGS_SCHEMA_VERSION, "international-keyboards": "us" };
+        expect(migrateSettings(after)["international-keyboards"]).toBe("us");
+    });
+});
+
 describe("settings migration on load", () => {
     it("migrates the stored object once, when the provider loads it", async () => {
         const { render, waitFor } = await import("@testing-library/react");
@@ -72,7 +93,7 @@ describe("settings migration on load", () => {
         const { SettingsProvider } = await import("../../src/contexts/SettingsContext");
         appStorage.setItem("keyboard-settings", JSON.stringify(v1));
         render(createElement(SettingsProvider, null, null));
-        await waitFor(() => expect(JSON.parse(appStorage.getItem("keyboard-settings")!).__v).toBe(2));
+        await waitFor(() => expect(JSON.parse(appStorage.getItem("keyboard-settings")!).__v).toBe(SETTINGS_SCHEMA_VERSION));
         const stored = JSON.parse(appStorage.getItem("keyboard-settings")!);
         expect(stored).not.toHaveProperty("left-dpi");
         // The old select value becomes the switch: "small" is on.

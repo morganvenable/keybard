@@ -40,6 +40,7 @@ from .state import BALL_NAMES, DEFAULT_BALL, DEFAULTS, EFFECTS, PRESETS, HostSta
 from .host_pointing import demo_motion
 from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
+from .keyboard_layout import ForegroundHook, LayoutReader
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info, build_label
 from .handoff import hand_off, REFUSED
@@ -407,6 +408,14 @@ class Host(QObject):
         # bit 2) is used alone; older firmware falls back to the computer's state.
         self.modifier_reader = ModifierReader()
         self.modifier_timer = QTimer(self); self.modifier_timer.timeout.connect(self.read_modifiers); self.modifier_timer.start(16)
+        # Key legends: Automatic. The window in front's keyboard layout: read when another window comes to
+        # the front (Windows), and 4 times a second while the overlay is on screen, a visible Keybard tab
+        # waits on /api/host/layout, or a page read the state in the last second (a layout switch inside one
+        # app sends no event to other apps). Nothing while no one looks.
+        self.layout_reader = LayoutReader()
+        self.layout_hook = ForegroundHook(lambda: self.read_layout())
+        self.layout_timer = QTimer(self); self.layout_timer.timeout.connect(self.read_layout); self.layout_timer.start(250)
+        self.read_layout(force=True)
         self.timer = QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(100)
         self.scan_timer = QTimer(self); self.scan_timer.timeout.connect(self.scan); self.scan_timer.start(2500)
         QTimer.singleShot(0, self.scan)
@@ -429,6 +438,12 @@ class Host(QObject):
             if value == self.state.modifiers: return
             self.state.modifiers = value
         self.publish_state()
+
+    def read_layout(self, force=False):
+        if not force and not (self.surface_shown() or self.state.layout_waiters or time.monotonic() - self.state.read_at < 1): return
+        value = self.layout_reader.read()
+        if value is None or not self.state.set_os_layout(value): return
+        if not force: self.publish_state()
 
     def renderer_loaded(self, ok):
         self.published_layout = -1
@@ -1001,6 +1016,7 @@ class Host(QObject):
 
     def shutdown(self):
         self.modifier_timer.stop(); self.modifier_reader.close()
+        self.layout_timer.stop(); self.layout_hook.close(); self.layout_reader.close()
         if self.demo_pointing is not None: self.demo_pointing.stop()
         self.scan_timer.stop(); self.timer.stop()
         if self.colors_panel is not None: self.colors_panel.close()

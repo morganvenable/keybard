@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { INTERNATIONAL_SETTING, keyLegendsItems } from "@/lib/keyLegendsSetting";
 import { openTrackballSensor } from "@/components/trackball-sensor/trackball-open";
 import { ChevronDown, Search, X } from "lucide-react";
 import ExportDialog from "@/components/ExportDialog";
@@ -88,7 +89,7 @@ const SettingsPanel = () => {
     const [query, setQuery] = useState("");
     // The Debug console row shows only on firmware with the command.
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
-    const { internationalLayout } = useLayoutSettings();
+    const { internationalLayout, keyLegendsChoice = internationalLayout, keyLegendsStatus, setInternationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
     const powerShown = isConnected && developerTuningMenuIndex(keyboard?.menus) >= 0;
     const pageSections = useMemo(() => shownPage({ debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [debugShown, altgrShown, powerShown]);
@@ -187,6 +188,21 @@ const SettingsPanel = () => {
         const definition = getSettingDefinition(row.setting);
         if (!definition) return null;
         const label = row.label ?? definition.label;
+        if (row.setting === INTERNATIONAL_SETTING) {
+            // Key legends: Automatic says what it found; a chosen layout says when Automatic can't work here.
+            return (
+                <SettingRow
+                    key={row.setting}
+                    definition={{ ...definition, items: keyLegendsItems(keyLegendsChoice) }}
+                    label={label}
+                    description={keyLegendsStatus?.text || (row.description ?? definition.description)}
+                    value={keyLegendsChoice}
+                    onChange={(value) => setInternationalLayout(String(value))}
+                    onAction={runAction}
+                    highlight={highlight}
+                />
+            );
+        }
         return (
             <SettingRow
                 key={row.setting}

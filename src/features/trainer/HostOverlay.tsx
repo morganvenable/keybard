@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { OverlaySurface, type SurfaceKey } from './OverlaySurface';
 import { useHost } from './host';
+import { overlayLayoutFor } from '@/lib/autoLegends';
 import { surfaceKeys } from './useSurfaceKeys';
 import type { Appearance } from './core';
 import { adaptKeys, keyPad, type Backdrop } from './adaptiveContrast';
@@ -12,9 +13,9 @@ export default function HostOverlay() {
     const previous = useRef<SurfaceKey[]>([]);
     const keys = useMemo(() => {
         if (!state?.valid || !state.board) return [];
-        try { return surfaceKeys(state.board, state.active, state.default ?? state.config.manualDefault, state.config.hands, state.config.layoutId, state.modifiers, { shifted: state.config.shiftedLegends, altgr: state.config.altgrLegends }); }
+        try { return surfaceKeys(state.board, state.active, state.default ?? state.config.manualDefault, state.config.hands, overlayLayoutFor(state.config.layoutId, state.osLayout), state.modifiers, { shifted: state.config.shiftedLegends, altgr: state.config.altgrLegends }); }
         catch { return []; }
-    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands, state?.config.layoutId, state?.config.shiftedLegends, state?.config.altgrLegends, state?.modifiers?.shift, state?.modifiers?.capsLock, state?.modifiers?.altgr]);
+    }, [state?.board, state?.valid, state?.active, state?.default, state?.config.manualDefault, state?.config.hands, state?.config.layoutId, state?.osLayout?.available, state?.osLayout?.layoutId, state?.config.shiftedLegends, state?.config.altgrLegends, state?.modifiers?.shift, state?.modifiers?.capsLock, state?.modifiers?.altgr]);
     useEffect(() => {
         document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
         document.body.style.margin = '0'; document.body.style.overflow = 'hidden';

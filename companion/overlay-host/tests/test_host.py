@@ -2,7 +2,7 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
-from keybard_host.state import HostState, DEFAULTS, validate_config
+from keybard_host.state import HostState, DEFAULTS, PREFERENCES_VERSION, validate_config
 
 class StateTests(unittest.TestCase):
     def test_atomic_preferences_conflict_and_reopen(self):
@@ -38,7 +38,7 @@ class StateTests(unittest.TestCase):
             self.assertIs(state.config['highlightPressed'], True)
             self.assertEqual(state.config['scale'], 80)
             saved = json.loads(path.read_text())
-            self.assertEqual(saved['version'], 1)
+            self.assertEqual(saved['version'], PREFERENCES_VERSION)
             self.assertIs(saved['config']['highlightPressed'], True)
             self.assertEqual(saved['remembered'], {'serial': 'S', 'uid': '1'})
             # Turned off after the upgrade: that choice is kept from now on.
@@ -57,8 +57,31 @@ class StateTests(unittest.TestCase):
         self.assertEqual(state.snapshot(8)['board']['keymap'], [[4]])
 
     def test_language_defaults_and_validation(self):
-        self.assertEqual(validate_config({})['layoutId'], 'us')
+        self.assertEqual(validate_config({})['layoutId'], 'auto')
         self.assertEqual(validate_config({'layoutId': 'uk'})['layoutId'], 'uk')
+        self.assertEqual(validate_config({'layoutId': 'auto'})['layoutId'], 'auto')
+
+    def test_saved_us_moves_to_automatic_once_and_other_languages_stay(self):
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'prefs.json'
+            path.write_text('{"version": 1, "config": {"layoutId": "us"}}')
+            self.assertEqual(HostState(path).config['layoutId'], 'auto')
+            self.assertEqual(json.loads(path.read_text())['config']['layoutId'], 'auto')
+            path.write_text('{"version": 1, "config": {"layoutId": "german"}}')
+            self.assertEqual(HostState(path).config['layoutId'], 'german')
+            # US chosen after the update is a choice: kept.
+            state = HostState(path)
+            cfg = copy.deepcopy(state.config); cfg['layoutId'] = 'us'
+            state.configure(cfg, 0)
+            self.assertEqual(HostState(path).config['layoutId'], 'us')
+
+    def test_snapshot_carries_the_computers_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = HostState(Path(tmp) / 'prefs.json')
+            self.assertEqual(state.snapshot()['osLayout'], {'available': False, 'layoutId': None, 'name': None, 'id': None})
+            state.os_layout = {'available': True, 'layoutId': 'german', 'name': 'German', 'id': '00000407'}
+            self.assertEqual(state.snapshot()['osLayout']['layoutId'], 'german')
         for value in (None, 1, '', 'x' * 33, '<script>'):
             with self.assertRaises(ValueError): validate_config({'layoutId': value})
 

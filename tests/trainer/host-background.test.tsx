@@ -86,6 +86,73 @@ describe('background polling', () => {
     });
 });
 
+describe('layout long poll', () => {
+    const german = { available: true, layoutId: 'german', name: 'German', id: '00000407' };
+    const french = { available: true, layoutId: 'french', name: 'French', id: '0000040C' };
+    let osLayout: typeof german = german;
+    let waiting: (() => void)[] = [];
+    beforeEach(() => {
+        osLayout = german; waiting = [];
+        const base = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            const u = String(url);
+            if (u.includes('/api/host/state')) return new Response(JSON.stringify({ apiVersion: 1, config, revision: 1, layoutRevision: 1, session: 's', board: null, devices: [], selectedDevice: null, osLayout }));
+            if (u.includes('/api/host/layout')) {
+                const known = new URL(u).searchParams.get('known');
+                if (known !== osLayout.id) return new Response(JSON.stringify({ osLayout }));
+                // Held until the layout switches, or the request is aborted.
+                return new Promise<Response>((resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+                    waiting.push(() => resolve(new Response(JSON.stringify({ osLayout }))));
+                });
+            }
+            return base(url, init);
+        });
+    });
+    const switchTo = (value: typeof german) => { osLayout = value; const w = waiting; waiting = []; w.forEach((f) => f()); };
+
+    it('follows a layout switch at once, without waiting for the slow poll', async () => {
+        const { result, unmount } = renderHook(() => useHost({ background: true }));
+        await flush(10);
+        expect(result.current.state?.osLayout?.layoutId).toBe('german');
+        expect(waiting.length).toBe(1);
+        const statePolls = calls('/api/host/state');
+        switchTo(french);
+        await flush(10);
+        expect(result.current.state?.osLayout?.layoutId).toBe('french');
+        expect(calls('/api/host/state')).toBe(statePolls);
+        expect(waiting.length).toBe(1); // waiting again, for the next switch
+        unmount();
+    });
+
+    it('stops waiting while the tab is hidden', async () => {
+        const { unmount } = renderHook(() => useHost({ background: true }));
+        await flush(10);
+        expect(waiting.length).toBe(1);
+        setVisibility('hidden');
+        await flush(10);
+        fetchMock.mockClear(); waiting = [];
+        await flush(60_000);
+        expect(fetchMock).not.toHaveBeenCalled();
+        setVisibility('visible');
+        await flush(10);
+        expect(waiting.length).toBe(1);
+        unmount();
+    });
+
+    it('an older Overlay, which reports no layout, is never long polled', async () => {
+        const base = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => String(url).includes('/api/host/state')
+            ? new Response(JSON.stringify({ apiVersion: 1, config, revision: 1, layoutRevision: 1, session: 's', board: null, devices: [], selectedDevice: null }))
+            : base(url, init));
+        const { unmount } = renderHook(() => useHost({ background: true }));
+        await flush(HOST_SLOW_POLL_MS * 5);
+        expect(calls('/api/host/state')).toBeGreaterThan(0);
+        expect(calls('/api/host/layout')).toBe(0);
+        unmount();
+    });
+});
+
 describe('settings sync is event driven', () => {
     it('writes once on connect, again only when a setting changes, never on polls', async () => {
         const { rerender, unmount } = render(<HostSettingsSync />);

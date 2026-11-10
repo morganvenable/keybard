@@ -68,6 +68,38 @@ class RemoteOriginTests(ServerTests):
         with self.get('/api/host/state?layout=-1&overlay=1', {'Origin': self.PROD}): pass
         self.assertGreater(self.state.polled_at, 0.0)
 
+    def test_layout_long_poll_answers_at_a_switch(self):
+        import time
+        german = dict(available=True, layoutId='german', name='German', id='00000407')
+        french = dict(available=True, layoutId='french', name='French', id='0000040C')
+        self.state.set_os_layout(german)
+        # A page that doesn't know the current layout is answered at once.
+        with self.get('/api/host/layout?known=', {'Origin': self.PROD}) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'], self.PROD)
+            self.assertEqual(json.loads(r.read())['osLayout'], german)
+        # One that does waits, and is answered when the layout switches.
+        threading.Timer(0.3, lambda: self.state.set_os_layout(french)).start()
+        start = time.monotonic()
+        with self.get('/api/host/layout?known=00000407', {'Origin': self.PROD}) as r:
+            self.assertEqual(json.loads(r.read())['osLayout'], french)
+        self.assertLess(time.monotonic() - start, 2)
+        self.assertEqual(self.state.layout_waiters, 0)
+        self.assertFalse(self.state.set_os_layout(dict(french)))  # the same reading changes nothing
+        # A tab that hides or closes drops its request: the Overlay stops waiting, and reading, at once.
+        import socket
+        client = socket.create_connection(('127.0.0.1', self.server.server_port))
+        client.sendall(f'GET /api/host/layout?known=0000040C HTTP/1.1\r\nHost: 127.0.0.1:{self.server.server_port}\r\nOrigin: {self.PROD}\r\n\r\n'.encode())
+        deadline = time.monotonic() + 2
+        while not self.state.layout_waiters and time.monotonic() < deadline: time.sleep(0.01)
+        self.assertEqual(self.state.layout_waiters, 1)
+        client.close(); closed = time.monotonic()
+        while self.state.layout_waiters and time.monotonic() < closed + 2: time.sleep(0.01)
+        self.assertEqual(self.state.layout_waiters, 0)
+        self.assertLess(time.monotonic() - closed, 0.6)
+        # A foreign origin can't wait on it.
+        with self.assertRaises(HTTPError) as error: self.get('/api/host/layout?known=', {'Origin': 'https://evil.example'})
+        self.assertEqual(error.exception.code, 403)
+
     def test_preflight_allows_token_header_for_hosted_keybard_only(self):
         with urlopen(Request(self.base + '/api/host/command', method='OPTIONS', headers={'Origin': self.PROD, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Private-Network': 'true'})) as r:
             self.assertEqual(r.status, 204)

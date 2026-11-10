@@ -30,7 +30,7 @@ export function preferences(value: unknown): Preferences {
             if (typeof colors[name] === 'number' && Number.isFinite(colors[name])) result.appearance[name] = Math.max(0, Math.min(name === 'width' ? 4 : 100, colors[name] as number));
         if (typeof colors.halo === 'boolean') result.appearance.halo = colors.halo;
     }
-    if (typeof data.layoutId === 'string' && Object.prototype.hasOwnProperty.call(LAYOUTS, data.layoutId)) result.layoutId = data.layoutId;
+    if (typeof data.layoutId === 'string' && (data.layoutId === 'auto' || Object.prototype.hasOwnProperty.call(LAYOUTS, data.layoutId))) result.layoutId = data.layoutId;
     if (['Off', 'Quick flash', 'Short fade'].includes(data.effect as string)) result.effect = data.effect as Preferences['effect'];
     if (['Both', 'Left', 'Right'].includes(data.hands as string)) result.hands = data.hands as Preferences['hands'];
     for (const key of ['duration', 'scale'] as const) if (typeof data[key] === 'number' && Number.isFinite(data[key]))
