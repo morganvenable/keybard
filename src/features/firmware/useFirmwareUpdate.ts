@@ -25,8 +25,17 @@ export interface FirmwareUiHost extends FlowHost {
     makeBackup(info: { fromTag: string; toTag: string }): Promise<UpdateBackup>;
     /** Pause Keybard Overlay, close Scan Lab, Linux device access: extra check rows. */
     prepareRows?(): Promise<CheckRow[]>;
+    /**
+     * Load the code "Restore my layout" runs (restore.ts loadRestoreModules), before anything
+     * is installed. Rejects when it can't be fetched, typically because the site was updated
+     * since this page loaded.
+     */
+    prepareRestore?(): Promise<void>;
     boardName(): string;
 }
+
+/** The sheet's message when the restore's code can't be loaded: nothing has been installed. */
+export const RESTORE_CODE_MISSING = "Keybard was updated since this page opened, so it can't put your layout back after the update. Reload Keybard, then update.";
 
 export type BackupStatus = { state: "pending" } | { state: "ok"; fileName: string; backup: UpdateBackup } | { state: "failed"; error: string };
 
@@ -77,6 +86,7 @@ export function useFirmwareUpdate(host: FirmwareUiHost | null, o: UseFirmwareUpd
     const [flow, setFlow] = useState<UpdateFlow | null>(null);
     const hostRef = useRef(host);
     hostRef.current = host;
+    const starting = useRef(false);
     const lastSource = useRef<{ source: InstallSource; onlyHand?: Hand } | null>(lastSources.get(storeRef.current) ?? null);
     const releases = o.releases ?? CARRIED_RELEASES;
 
@@ -129,6 +139,8 @@ export function useFirmwareUpdate(host: FirmwareUiHost | null, o: UseFirmwareUpd
         lastSource.current = { source, onlyHand };
         lastSources.set(storeRef.current, lastSource.current);
         setUi({ kind: "sheet", source, onlyHand, plan: null, preFailure: null, backup: { state: "pending" }, afterwards: "restore", error: null });
+        // Early, while the customer reads the sheet; start() waits for it.
+        h.prepareRestore?.().catch(() => undefined);
         const t = h.transport();
         if (!t) {
             setUi((u) => (u.kind === "sheet" ? { ...u, error: "Connect your keyboard first." } : u));
@@ -166,7 +178,15 @@ export function useFirmwareUpdate(host: FirmwareUiHost | null, o: UseFirmwareUpd
         // Keep my layout and the default layout wait for the backup; a blank board needs none.
         if (ui.backup.state === "pending" && ui.afterwards !== "blank") return;
         const backup = ui.backup.state === "ok" ? ui.backup.backup : null;
-        runFlow(UpdateFlow.create(h, storeRef.current, { plan: ui.plan, afterwards: ui.afterwards, backup }));
+        const { plan, afterwards } = ui;
+        const go = () => runFlow(UpdateFlow.create(h, storeRef.current, { plan, afterwards, backup }));
+        // Restore my layout runs after the install: install nothing until its code is here.
+        if (afterwards !== "restore" || !h.prepareRestore) return go();
+        if (starting.current) return; // a second click while the code loads
+        starting.current = true;
+        void h.prepareRestore().then(go, () => {
+            setUi((u) => (u.kind === "sheet" ? { ...u, error: RESTORE_CODE_MISSING } : u));
+        }).finally(() => { starting.current = false; });
     }, [ui, runFlow]);
 
     const close = useCallback(() => {

@@ -17,7 +17,7 @@ import { noteResetNoticeCleared } from "@/services/updater/flow";
 import { realClock, type UpdaterTransport } from "@/services/updater/transport";
 import { WebHidUpdaterTransport } from "@/services/updater/webhid-transport";
 import { usbSideHost } from "@/services/side-host";
-import { restoreLayoutToBoard } from "./restore";
+import { loadRestoreModules, restoreLayoutToBoard } from "./restore";
 import { withBoardState } from "./board-state";
 import type { FirmwareUiHost, UpdateBackup } from "./useFirmwareUpdate";
 
@@ -195,6 +195,9 @@ function createAppHost(ref: { current: AppState }): FirmwareUiHost {
                 // (Not by editing the layout: that would count as an unsaved change.)
                 noteResetNoticeCleared(ref.current.kb.connectionSessionId);
             }
+        },
+        async prepareRestore() {
+            await loadRestoreModules();
         },
         async restoreLayout(svil) {
             // Wait for the reconnect's load, then write onto what the board holds now: the
