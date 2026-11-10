@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { AUTO_LAYOUT_IDS, classifyLayoutMap, detectBrowserLayout, layoutCodeMap, overlayLayoutFor, resolveKeyLegends } from "@/lib/autoLegends";
+import { AUTO_LAYOUT_IDS, classifyLayoutMap, matchLayoutMap, detectBrowserLayout, layoutCodeMap, overlayLayoutFor, resolveKeyLegends } from "@/lib/autoLegends";
 
 describe("Key legends: Automatic resolves to a layout", () => {
     it("a chosen layout is used as it is", () => {
@@ -75,6 +75,24 @@ describe("the browser's keyboard map", () => {
 
     it("allows a key or two reported differently, such as a dead key", () => {
         expect(classifyLayoutMap(mapFor("german", { Backquote: "̂", Equal: "́" }))).toBe("german");
+    });
+
+    it("is unsure, and doesn't pick, when two layouts come close (Mac British reads almost like US)", () => {
+        const macBritish = mapFor("uk", { Backslash: "\\", IntlBackslash: "§", Backquote: "§" });
+        expect(matchLayoutMap(macBritish, false)).toEqual({ unsure: ["us", "uk"] });
+        expect(classifyLayoutMap(macBritish)).toBeNull();
+        const s = resolveKeyLegends("auto", undefined, { unsure: ["us", "uk"] });
+        expect(s).toMatchObject({ layoutId: "us", source: "browser" });
+        expect(s.text).toBe("Keybard can't be sure your computer uses English (US) or English (UK), so keys show English (US). Choose your layout to change that.");
+    });
+
+    it("on a Mac, trusts only an exact match", () => {
+        expect(matchLayoutMap(mapFor("german"), true)).toBe("german");
+        expect(matchLayoutMap(mapFor("german", { Backquote: "̂" }), true)).toEqual({ unsure: ["german"] });
+        expect(matchLayoutMap(mapFor("german", { Backquote: "̂" }), false)).toBe("german");
+        expect(resolveKeyLegends("auto", undefined, { unsure: ["german"] }).text).toBe("Keybard can't be sure your computer uses German, so keys show English (US). Choose your layout to change that.");
+        // A layout chosen by hand is unaffected.
+        expect(resolveKeyLegends("german", undefined, { unsure: ["us", "uk"] })).toMatchObject({ layoutId: "german", source: "chosen" });
     });
 
     it("matches nothing for a layout Keybard has no legends for, or a short map", () => {

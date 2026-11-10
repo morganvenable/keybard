@@ -85,6 +85,17 @@ class RemoteOriginTests(ServerTests):
         self.assertLess(time.monotonic() - start, 2)
         self.assertEqual(self.state.layout_waiters, 0)
         self.assertFalse(self.state.set_os_layout(dict(french)))  # the same reading changes nothing
+        # A tab that hides or closes drops its request: the Overlay stops waiting, and reading, at once.
+        import socket
+        client = socket.create_connection(('127.0.0.1', self.server.server_port))
+        client.sendall(f'GET /api/host/layout?known=0000040C HTTP/1.1\r\nHost: 127.0.0.1:{self.server.server_port}\r\nOrigin: {self.PROD}\r\n\r\n'.encode())
+        deadline = time.monotonic() + 2
+        while not self.state.layout_waiters and time.monotonic() < deadline: time.sleep(0.01)
+        self.assertEqual(self.state.layout_waiters, 1)
+        client.close(); closed = time.monotonic()
+        while self.state.layout_waiters and time.monotonic() < closed + 2: time.sleep(0.01)
+        self.assertEqual(self.state.layout_waiters, 0)
+        self.assertLess(time.monotonic() - closed, 0.6)
         # A foreign origin can't wait on it.
         with self.assertRaises(HTTPError) as error: self.get('/api/host/layout?known=', {'Origin': 'https://evil.example'})
         self.assertEqual(error.exception.code, 403)

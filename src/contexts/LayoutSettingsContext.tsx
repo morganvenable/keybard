@@ -3,7 +3,7 @@ import { ALTGR_LEGENDS_SETTING, DEFAULT_ALTGR_LEGENDS, DEFAULT_SHIFTED_LEGENDS, 
 import { altgrLegendsFromSearch, keyLegendsFromSearch } from "@/lib/deepLinks";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
 import { DEFAULT_KEY_LEGENDS, INTERNATIONAL_SETTING, resolveKeyLegendsLayout } from "@/lib/keyLegendsSetting";
-import { AUTO_LAYOUT, detectBrowserLayout, resolveKeyLegends, useOverlayLayout, type KeyLegendsStatus } from "@/lib/autoLegends";
+import { AUTO_LAYOUT, detectBrowserLayout, resolveKeyLegends, useOverlayLayout, type BrowserLayout, type KeyLegendsStatus } from "@/lib/autoLegends";
 import { MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import {
@@ -103,12 +103,13 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     // browser's keyboard map. That is read again only when it may have changed: the window comes back into
     // focus, or a modifier is released (Windows and most desktops switch layouts with modifier shortcuts).
     const overlayLayout = useOverlayLayout();
-    const [browserLayout, setBrowserLayout] = useState<string | null | undefined>(undefined);
+    const [browserLayout, setBrowserLayout] = useState<BrowserLayout | undefined>(undefined);
     const following = keyLegendsChoice === AUTO_LAYOUT && !overlayLayout?.available;
     useEffect(() => {
         if (!following || typeof window === "undefined") return;
         let alive = true, last = 0;
-        const read = () => { void detectBrowserLayout().then((id) => { if (alive) setBrowserLayout(id); }); };
+        // An unsure match is a new object each read: keep the old one while it says the same.
+        const read = () => { void detectBrowserLayout().then((id) => { if (alive) setBrowserLayout((prev) => JSON.stringify(prev) === JSON.stringify(id) ? prev : id); }); };
         const onKeyUp = (e: KeyboardEvent) => {
             if (!["Shift", "Alt", "Control", "Meta", "OS"].includes(e.key)) return;
             const now = Date.now();

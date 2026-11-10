@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { LAYOUTS } from "@/components/Keyboards/layouts";
+import { isMacOS } from "@/lib/platform";
 
 /**
  * Key legends: Automatic. The legends follow the keyboard layout the computer is using right now.
@@ -45,11 +46,18 @@ export interface KeyLegendsStatus {
 const label = (id: string) => LAYOUTS[id]?.label ?? id;
 
 /**
+ * What the browser's keyboard map says: a layout id, null for no layout Keybard has, or `unsure` when it
+ * comes close to more than one (Mac British reads almost like US) or to a Windows layout on a Mac,
+ * whose own layouts differ from the Windows tables Keybard's legends follow.
+ */
+export type BrowserLayout = string | null | { unsure: string[] };
+
+/**
  * The layout the keys show for a Key legends choice.
  * overlay: what a connected Keybard Overlay reports (undefined: none connected, or an older one).
  * browser: what the browser's keyboard map matched (undefined: not known; null: no layout matched).
  */
-export function resolveKeyLegends(choice: string, overlay?: OsLayout | null, browser?: string | null): KeyLegendsStatus {
+export function resolveKeyLegends(choice: string, overlay?: OsLayout | null, browser?: BrowserLayout): KeyLegendsStatus {
     if (choice !== AUTO_LAYOUT) {
         const layoutId = LAYOUTS[choice] ? choice : "us";
         const text = overlay && !overlay.available
@@ -71,6 +79,16 @@ export function resolveKeyLegends(choice: string, overlay?: OsLayout | null, bro
     }
     if (isAutoLayoutId(browser)) {
         return { layoutId: browser, source: "browser", text: `Your computer is using ${label(browser)}, so keys show ${label(browser)}.` };
+    }
+    if (browser && typeof browser === "object") {
+        const names = browser.unsure.map(label);
+        const which = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names[0];
+        return {
+            layoutId: "us", source: "browser",
+            text: names.length
+                ? `Keybard can't be sure your computer uses ${which}, so keys show English (US). Choose your layout to change that.`
+                : "Keybard can't be sure which keyboard layout your computer uses, so keys show English (US). Choose your layout to change that.",
+        };
     }
     if (browser === null) {
         return { layoutId: "us", source: "browser", text: "Keybard has no key legends for your computer's keyboard layout yet, so keys show English (US)." };
@@ -117,10 +135,11 @@ const BROWSER_LAYOUT_IDS = AUTO_LAYOUT_IDS.filter((id) => id !== "us_intl");
 
 /**
  * The Automatic layout whose unshifted characters match the browser's keyboard map, or null when none does.
- * Each candidate is compared on its own keys; the best must be clearly best (one or two keys off at most,
- * such as a dead key the browser reports differently, and alone at its score).
+ * Each candidate is compared on its own keys; the best may be one or two keys off (a dead key the browser
+ * reports differently). It is `unsure` when it is off at all and another layout is within two keys of it,
+ * and, on a Mac, whenever it is not an exact match (Mac layouts aren't the Windows tables the legends follow).
  */
-export function classifyLayoutMap(layoutMap: ReadonlyMap<string, string> | Record<string, string>): string | null {
+export function matchLayoutMap(layoutMap: ReadonlyMap<string, string> | Record<string, string>, mac = isMacOS()): BrowserLayout {
     const get = (code: string) => (layoutMap instanceof Map ? layoutMap.get(code) : (layoutMap as Record<string, string>)[code]);
     const scores: [string, number][] = [];
     for (const id of BROWSER_LAYOUT_IDS) {
@@ -135,17 +154,26 @@ export function classifyLayoutMap(layoutMap: ReadonlyMap<string, string> | Recor
     }
     scores.sort((a, b) => a[1] - b[1]);
     const [best, next] = scores;
-    if (!best || best[1] > 2 || (next && next[1] === best[1])) return null;
+    if (!best || best[1] > 2) return null;
+    if (best[1] === 0 && (!next || next[1] > 0)) return best[0];
+    const close = scores.filter(([, misses]) => misses <= best[1] + 2).map(([id]) => id);
+    if (close.length > 1 || mac) return { unsure: close };
     return best[0];
+}
+
+/** matchLayoutMap's layout, or null when it matches none or is unsure. */
+export function classifyLayoutMap(layoutMap: ReadonlyMap<string, string> | Record<string, string>, mac = false): string | null {
+    const match = matchLayoutMap(layoutMap, mac);
+    return typeof match === "string" ? match : null;
 }
 
 interface KeyboardWithMap { getLayoutMap?: () => Promise<ReadonlyMap<string, string>> }
 
 /** The browser's keyboard map, matched to a layout; undefined when the browser can't say (not Chromium, an iframe). */
-export async function detectBrowserLayout(): Promise<string | null | undefined> {
+export async function detectBrowserLayout(): Promise<BrowserLayout | undefined> {
     const keyboard = (typeof navigator !== "undefined" ? (navigator as Navigator & { keyboard?: KeyboardWithMap }).keyboard : undefined);
     if (!keyboard?.getLayoutMap) return undefined;
-    try { return classifyLayoutMap(await keyboard.getLayoutMap()); } catch { return undefined; }
+    try { return matchLayoutMap(await keyboard.getLayoutMap()); } catch { return undefined; }
 }
 
 // ---- What a connected Keybard Overlay reports, shared by the settings sync and the layout settings ----

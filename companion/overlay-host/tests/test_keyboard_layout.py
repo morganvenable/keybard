@@ -112,11 +112,36 @@ class OtherSystemsTests(unittest.TestCase):
         source.display = 1
         runs = []
         source.run = lambda: runs.append(1) or 'layout: us,de\nvariant: ,\n'
-        source.group = source.query = source.reading = None
+        source.names = lambda: None  # no _XKB_RULES_NAMES: setxkbmap
+        source.group = source.query = source.reading = source.rules_names = None
         with mock.patch.object(kl.ctypes, 'byref', lambda obj: mock.Mock(obj=obj)):
             reader = LayoutReader(source=source)
             self.assertEqual([reader.read()['layoutId'] for _ in range(4)], ['us', 'us', 'us', 'german'])
         self.assertEqual(len(runs), 2)
+
+    def test_x11_reads_a_new_layout_list_in_the_same_group(self):
+        # us,de becomes us,fr while group 1 stays active: _XKB_RULES_NAMES changes, so it is read again.
+        source = kl._X11Source.__new__(kl._X11Source)
+
+        class State:
+            group = 1
+        source.State = State
+        source.x11 = mock.Mock(XkbGetState=lambda display, device, ref: 0)
+        source.display = 1
+        source.run = mock.Mock(side_effect=AssertionError('setxkbmap is not needed'))
+        names = iter([b'evdev\0pc105\0us,de\0,\0', b'evdev\0pc105\0us,de\0,\0', b'evdev\0pc105\0us,fr\0,\0'])
+        source.names = lambda: next(names)
+        source.group = source.query = source.reading = source.rules_names = None
+        with mock.patch.object(kl.ctypes, 'byref', lambda obj: mock.Mock(obj=obj)):
+            reader = LayoutReader(source=source)
+            self.assertEqual([reader.read()['layoutId'] for _ in range(3)], ['german', 'german', 'french'])
+
+    def test_x11_us_intl_is_named_but_not_mapped(self):
+        # xkb's us(intl) differs from Windows' US-International at AltGr, so Keybard has no legends for it.
+        reading = xkb_reading(kl.query_from_rules_names(b'evdev\0pc105\0us\0intl\0'), 0)
+        self.assertEqual(reading, {'available': True, 'layoutId': None, 'name': 'English (US, intl., with dead keys)', 'id': 'us(intl)'})
+        # An empty variant (as an X server writes it) is no variant.
+        self.assertEqual(xkb_reading(kl.query_from_rules_names(b'evdev\0pc105\0us\0\0\0'), 0)['layoutId'], 'us')
 
     def test_a_failing_read_keeps_the_last(self):
         source = mock.Mock(read=mock.Mock(side_effect=OSError))

@@ -286,14 +286,14 @@ class HostState:
             return True
 
     def wait_os_layout(self, known, timeout):
-        """The computer's keyboard layout once its id is no longer `known`, or after `timeout` seconds:
-        a Keybard page's long poll, so a layout switch reaches it at once without fast polling."""
+        """(layout, changed): the computer's keyboard layout once its id is no longer `known` (changed True),
+        or after `timeout` seconds. A Keybard page's long poll waits on it in short steps."""
         key = lambda: (self.os_layout.get('id') or '') if self.os_layout.get('available') else ''
         with self.lock:
             self.layout_waiters += 1
             try:
-                self.layout_changed.wait_for(lambda: key() != known, timeout)
-                return dict(self.os_layout)
+                changed = self.layout_changed.wait_for(lambda: key() != known, timeout)
+                return dict(self.os_layout), changed
             finally:
                 self.layout_waiters -= 1
 

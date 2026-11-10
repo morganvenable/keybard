@@ -25,6 +25,9 @@ WINDOWS_LAYOUTS = {
 XKB_LAYOUTS = {'us': 'us', 'gb': 'uk', 'de': 'german', 'fr': 'french', 'es': 'spanish', 'it': 'italian',
                'br': 'br', 'dk': 'danish', 'ch': 'swiss', 'ru': 'russian'}
 XKB_SAME_VARIANTS = ('', 'nodeadkeys')
+# xkb layouts Keybard has no legends for, by the name xkb gives them. us(intl) is not Windows'
+# US-International: its AltGr level differs (AltGr+' types ', AltGr+f types ë), so it isn't mapped.
+XKB_NAMES = {'us(intl)': 'English (US, intl., with dead keys)', 'us(altgr-intl)': 'English (US, intl., with AltGr dead keys)'}
 
 UNAVAILABLE = dict(available=False, layoutId=None, name=None, id=None)
 
@@ -50,7 +53,7 @@ def windows_reading(klid, name):
 
 def xkb_reading(query, group):
     """From `setxkbmap -query` output and the active group, the reading for that group's layout."""
-    fields = dict(re.findall(r'^(\w+):\s*(.*)$', query or '', re.M))
+    fields = dict(re.findall(r'^(\w+):[ \t]*(.*)$', query or '', re.M))
     layouts = [x.strip() for x in fields.get('layout', '').split(',')]
     variants = [x.strip() for x in fields.get('variant', '').split(',')]
     if not layouts or not layouts[0] or not 0 <= group < len(layouts): return UNAVAILABLE
@@ -58,7 +61,15 @@ def xkb_reading(query, group):
     variant = variants[group] if group < len(variants) else ''
     known = XKB_LAYOUTS.get(layout) if variant in XKB_SAME_VARIANTS else None
     xkb = f'{layout}({variant})' if variant else layout
-    return dict(available=True, layoutId=known, name=xkb, id=xkb)
+    return dict(available=True, layoutId=known, name=XKB_NAMES.get(xkb, xkb), id=xkb)
+
+
+def query_from_rules_names(raw):
+    """setxkbmap -query's text from the root window's _XKB_RULES_NAMES (rules, model, layout, variant, options)."""
+    parts = (raw or b'').split(b'\0') + [b''] * 5
+    rules, model, layout, variant, options = (x.decode('utf-8', 'replace') for x in parts[:5])
+    return f'rules: {rules}\nmodel: {model}\nlayout: {layout}\nvariant: {variant}\noptions: {options}\n'
+
 
 
 class _WindowsSource:
@@ -129,19 +140,44 @@ class _X11Source:
         self.x11.XOpenDisplay.restype = ctypes.c_void_p
         self.x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
         self.x11.XkbGetState.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(XkbState)]
+        self.x11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        self.x11.XInternAtom.restype = ctypes.c_ulong
+        self.x11.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+        self.x11.XDefaultRootWindow.restype = ctypes.c_ulong
+        self.x11.XGetWindowProperty.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_long, ctypes.c_long, ctypes.c_int, ctypes.c_ulong,
+                                                ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_ulong),
+                                                ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_void_p)]
+        self.x11.XFree.argtypes = [ctypes.c_void_p]
         self.display = self.x11.XOpenDisplay(None)
         if not self.display: raise OSError('No X display')
+        self.atom = self.x11.XInternAtom(self.display, b'_XKB_RULES_NAMES', 1)
         self.run = run or (lambda: subprocess.run(['setxkbmap', '-query'], capture_output=True, text=True, timeout=2).stdout)
-        self.group, self.query, self.reading = None, None, None
+        self.group, self.query, self.reading, self.rules_names = None, None, None, None
+
+    def names(self):
+        """The root window's _XKB_RULES_NAMES, which a layout list change (setxkbmap, the desktop's settings)
+        rewrites: one cheap X request, no process. None where the server doesn't have it."""
+        if not self.atom: return None
+        kind, fmt, count, after, data = ctypes.c_ulong(), ctypes.c_int(), ctypes.c_ulong(), ctypes.c_ulong(), ctypes.c_void_p()
+        if self.x11.XGetWindowProperty(self.display, self.x11.XDefaultRootWindow(self.display), self.atom, 0, 1024, 0, 0,
+                                       ctypes.byref(kind), ctypes.byref(fmt), ctypes.byref(count), ctypes.byref(after), ctypes.byref(data)) != 0:
+            return None
+        try: return ctypes.string_at(data.value, count.value) if data.value and fmt.value == 8 else None
+        finally:
+            if data.value: self.x11.XFree(data)
 
     def read(self):
         state = self.State()
         if self.x11.XkbGetState(self.display, 0x100, ctypes.byref(state)) != 0: return None
-        # The layout list changes rarely: ask setxkbmap only when the group changes (and once at start).
-        if state.group != self.group or self.query is None:
-            try: self.query = self.run()
-            except (OSError, subprocess.SubprocessError): self.query = ''
-            self.group = state.group
+        # Read again when the group or the layout list changes. The list comes from _XKB_RULES_NAMES;
+        # without it, from setxkbmap, asked only when the group changes (and once at start).
+        names = self.names()
+        if state.group != self.group or names != self.rules_names or self.query is None:
+            if names is not None: self.query = query_from_rules_names(names)
+            else:
+                try: self.query = self.run()
+                except (OSError, subprocess.SubprocessError): self.query = ''
+            self.group, self.rules_names = state.group, names
             self.reading = xkb_reading(self.query, state.group)
         return self.reading
 

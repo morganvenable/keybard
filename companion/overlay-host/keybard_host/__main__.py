@@ -409,9 +409,9 @@ class Host(QObject):
         self.modifier_reader = ModifierReader()
         self.modifier_timer = QTimer(self); self.modifier_timer.timeout.connect(self.read_modifiers); self.modifier_timer.start(16)
         # Key legends: Automatic. The window in front's keyboard layout: read when another window comes to
-        # the front (Windows), and 4 times a second while the overlay is on screen or a Keybard page reads
-        # the state or waits on /api/host/layout (a layout switch inside one app sends no event to other
-        # apps). Nothing while no one looks.
+        # the front (Windows), and 4 times a second while the overlay is on screen, a visible Keybard tab
+        # waits on /api/host/layout, or a page read the state in the last second (a layout switch inside one
+        # app sends no event to other apps). Nothing while no one looks.
         self.layout_reader = LayoutReader()
         self.layout_hook = ForegroundHook(lambda: self.read_layout())
         self.layout_timer = QTimer(self); self.layout_timer.timeout.connect(self.read_layout); self.layout_timer.start(250)
@@ -440,7 +440,7 @@ class Host(QObject):
         self.publish_state()
 
     def read_layout(self, force=False):
-        if not force and not (self.surface_shown() or self.state.layout_waiters or time.monotonic() - self.state.read_at < 5): return
+        if not force and not (self.surface_shown() or self.state.layout_waiters or time.monotonic() - self.state.read_at < 1): return
         value = self.layout_reader.read()
         if value is None or not self.state.set_os_layout(value): return
         if not force: self.publish_state()
