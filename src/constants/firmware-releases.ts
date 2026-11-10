@@ -38,7 +38,7 @@ export interface FirmwareReleasePin {
 
 /** Releases pinned into this build. */
 export const CARRIED_RELEASES: FirmwareReleasePin[] = [
-    // TEST BUILD ONLY (test/x4.6.1-scrollfix): x4.6.1 plus the wheel fix (svalboard/qmk #92).
+    // TEST BUILD ONLY (test/x4.6.1-scrollfix): svalboard (x4.6.1 + #91) plus the wheel fix (svalboard/qmk #92).
     {
         tag: "x4.6.1-scrollfix",
         kind: "x",
@@ -47,7 +47,7 @@ export const CARRIED_RELEASES: FirmwareReleasePin[] = [
         svalProtocol: 3,
         file: {
             uf2: "svalboard_sval_x4.6.1-scrollfix.uf2",
-            sha256: "690e14684ab7c1396da70f03f08234a9a8ae02698205a3d4f02846162563cf8e",
+            sha256: "3d84dbb8a9c1419c68b1dbb7073262bfe395054dccca4359b42ce10f4814b4a1",
             size: 368640,
         },
         notesUrl: "",
