@@ -38,6 +38,20 @@ export interface FirmwareReleasePin {
 
 /** Releases pinned into this build. */
 export const CARRIED_RELEASES: FirmwareReleasePin[] = [
+    // TEST BUILD ONLY (test/x4.6.1-scrollfix): x4.6.1 plus the wheel fix (svalboard/qmk #92).
+    {
+        tag: "x4.6.1-scrollfix",
+        kind: "x",
+        fwVersion: 26,
+        updaterProtocol: 4,
+        svalProtocol: 3,
+        file: {
+            uf2: "svalboard_sval_x4.6.1-scrollfix.uf2",
+            sha256: "690e14684ab7c1396da70f03f08234a9a8ae02698205a3d4f02846162563cf8e",
+            size: 368640,
+        },
+        notesUrl: "",
+    },
     // TEST BUILD ONLY (test/x4.6-altgr-rc): the private rc, and padtest4 to go back to.
     {
         tag: "x4.6-altgr-rc",
@@ -83,7 +97,7 @@ export const CARRIED_RELEASES: FirmwareReleasePin[] = [
 /** The updater protocol a carried release must speak. */
 export const CARRIED_UPDATER_PROTOCOL = 4;
 
-const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-altgr-rc|-padtest\d+)?$/; // TEST BUILD ONLY: test suffixes
+const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-altgr-rc|-scrollfix|-padtest\d+)?$/; // TEST BUILD ONLY: test suffixes
 
 /** "v3.1" -> { kind: "v", parts: [3, 1] }; null for any other tag. */
 export function parseReleaseTag(tag: string): { kind: ReleaseKind; parts: number[] } | null {
