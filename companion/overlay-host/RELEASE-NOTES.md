@@ -4,6 +4,16 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in x4.6.2
+
+Goes with Svalboard firmware x4.6.2, and bundles the Keybard that next.keybard.svalboard.com now runs:
+
+- **Keybard Overlay:** follows the computer's keyboard layout when Key legends is set to Automatic.
+- **Key legends:** a new Automatic setting follows the computer's keyboard layout.
+- **US-International** key legends, with AltGr symbols.
+- **Macro editor:** warns about characters the keyboard can't type.
+- **Firmware update:** your settings restore more reliably after an install.
+
 ## New in x4.6.1
 
 Goes with Svalboard firmware x4.6.1, and bundles the Keybard that next.keybard.svalboard.com now runs:
