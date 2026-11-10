@@ -13,10 +13,11 @@ export const AUTO_LAYOUT = "auto";
 
 /**
  * The layouts Automatic may pick: each one's base and Shift rows were checked against the
- * Windows layout tables (ToUnicodeEx on every key, both levels). Arabic's Shift row is not
- * right yet, and the placeholders that borrow another layout's rows were not checked.
+ * Windows layout tables (ToUnicodeEx on every key, both levels, and the AltGr level where a layout
+ * has one). Arabic's Shift row is not right yet, and the placeholders that borrow another layout's
+ * rows were not checked.
  */
-export const AUTO_LAYOUT_IDS = ["us", "uk", "german", "french", "spanish", "italian", "br", "danish", "swiss", "russian"] as const;
+export const AUTO_LAYOUT_IDS = ["us", "us_intl", "uk", "german", "french", "spanish", "italian", "br", "danish", "swiss", "russian"] as const;
 const AUTO_SET = new Set<string>(AUTO_LAYOUT_IDS);
 export const isAutoLayoutId = (id: unknown): id is string => typeof id === "string" && AUTO_SET.has(id);
 
@@ -111,6 +112,9 @@ export function layoutCodeMap(layoutId: string): Record<string, string> {
     return map;
 }
 
+/** US-International types US's base characters, so the browser's map can't tell it from US: it reads as US. */
+const BROWSER_LAYOUT_IDS = AUTO_LAYOUT_IDS.filter((id) => id !== "us_intl");
+
 /**
  * The Automatic layout whose unshifted characters match the browser's keyboard map, or null when none does.
  * Each candidate is compared on its own keys; the best must be clearly best (one or two keys off at most,
@@ -119,7 +123,7 @@ export function layoutCodeMap(layoutId: string): Record<string, string> {
 export function classifyLayoutMap(layoutMap: ReadonlyMap<string, string> | Record<string, string>): string | null {
     const get = (code: string) => (layoutMap instanceof Map ? layoutMap.get(code) : (layoutMap as Record<string, string>)[code]);
     const scores: [string, number][] = [];
-    for (const id of AUTO_LAYOUT_IDS) {
+    for (const id of BROWSER_LAYOUT_IDS) {
         let misses = 0, compared = 0;
         for (const [code, want] of Object.entries(layoutCodeMap(id))) {
             const got = get(code);

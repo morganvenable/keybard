@@ -43,10 +43,10 @@ export interface DualLegend {
 export function hasAltGr(layoutId: string): boolean {
     if (isMacOS()) return false; // the data is the Windows AltGr level, not the Mac Option layer
     const rows = LAYOUTS[layoutId]?.altgr;
-    return !!rows && rows.some((r) => r.split(" ").some((tok) => tok !== "" && tok !== NO_ALTGR));
+    return !!rows && rows.some((r) => r.split(" ").some((tok) => tok !== "" && tok !== NO_CHAR));
 }
 
-const NO_ALTGR = "{none}";
+const NO_CHAR = "{none}";
 
 const PLAIN_KEYCODE = /^KC_[A-Z0-9_]+$/;
 
@@ -78,10 +78,11 @@ export function positionalLegends(code: string, layoutId: string): (DualLegend &
             const token = tokens[i];
             const mapped = keyMap[token] || keyMap[token.toLowerCase()] || BUTTON_TO_KEYCODE_MAP[token] || BUTTON_TO_KEYCODE_MAP[token.toLowerCase()];
             if (mapped !== code) continue;
-            const shiftToken = shiftTokens[i];
+            // "{none}": Shift types nothing there (French Shift+²), so the key has no shifted legend.
+            const shiftToken = shiftTokens[i] === NO_CHAR ? token : shiftTokens[i];
             if (!shiftToken) return null;
             const altgrToken = hasAltGr(layoutId) ? layout.altgr?.[r]?.split(" ")[i] : undefined;
-            const altgr = altgrToken && altgrToken !== NO_ALTGR ? legendText(altgrToken) : undefined;
+            const altgr = altgrToken && altgrToken !== NO_CHAR ? legendText(altgrToken) : undefined;
             return altgr ? { base: legendText(token), shifted: legendText(shiftToken), altgr } : { base: legendText(token), shifted: legendText(shiftToken) };
         }
     }

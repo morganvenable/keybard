@@ -4,7 +4,7 @@ import json
 import re
 import secrets
 import time
-from threading import RLock
+from threading import Condition, RLock
 from pathlib import Path
 
 # The overlay's styles, offered in the Host's menus (Keybard's src/features/trainer/core.ts has the same).
@@ -134,6 +134,9 @@ def pinned_board(value):
 class HostState:
     def __init__(self, path):
         self.lock = RLock()
+        # Wakes Keybard pages waiting on /api/host/layout when the computer's keyboard layout changes.
+        self.layout_changed = Condition(self.lock)
+        self.layout_waiters = 0
         self.path = Path(path)
         self.token = secrets.token_urlsafe(32)
         self.config = copy.deepcopy(DEFAULTS)
@@ -273,6 +276,26 @@ class HostState:
                 status=self.status, devices=self.devices, selectedDevice=self.selected_device,
                 boards=self.boards, follow=self.follow, pointingDevice=self.pointing_device, paused=self.paused, active=self.active, default=self.default, valid=self.valid,
                 modifiers=self.modifiers, modifiersFromBoard=self.modifiers_reported, pointingLook=self.pointing_look(), practiceHidden=self.practice_hidden, practiceTarget=self.practice_target, pressed=self.pressed, matrixAvailable=self.matrix_available, visible=self.visible, session=self.session, osLayout=self.os_layout))
+
+    def set_os_layout(self, value):
+        """Store the computer's keyboard layout; True when it changed (waiting pages are woken)."""
+        with self.lock:
+            if value == self.os_layout: return False
+            self.os_layout = value
+            self.layout_changed.notify_all()
+            return True
+
+    def wait_os_layout(self, known, timeout):
+        """The computer's keyboard layout once its id is no longer `known`, or after `timeout` seconds:
+        a Keybard page's long poll, so a layout switch reaches it at once without fast polling."""
+        key = lambda: (self.os_layout.get('id') or '') if self.os_layout.get('available') else ''
+        with self.lock:
+            self.layout_waiters += 1
+            try:
+                self.layout_changed.wait_for(lambda: key() != known, timeout)
+                return dict(self.os_layout)
+            finally:
+                self.layout_waiters -= 1
 
 
 def serialize_profile(profile):

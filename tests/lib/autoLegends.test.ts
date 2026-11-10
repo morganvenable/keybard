@@ -64,7 +64,8 @@ describe("the browser's keyboard map", () => {
     });
 
     it("matches each Automatic layout to itself", () => {
-        for (const id of AUTO_LAYOUT_IDS) expect(classifyLayoutMap(mapFor(id))).toBe(id);
+        // US-International types US's base characters: the browser's map reads it as US.
+        for (const id of AUTO_LAYOUT_IDS) expect(classifyLayoutMap(mapFor(id))).toBe(id === "us_intl" ? "us" : id);
     });
 
     it("tells US from UK by the keys they differ on", () => {

@@ -5,7 +5,7 @@ import { altgrLegendsFromSearch, keyLegendsFromSearch, pickerAltGrFromSearch } f
 import { ALTGR_MODIFIERS, ALTGR_SIDE, applyModifiers } from "@/utils/modifierUtils";
 import { shownPage, SETTINGS_PAGE } from "@/layout/SecondarySidebar/Panels/settings/layout";
 
-const ALTGR_LAYOUTS = ["german", "french", "spanish", "italian", "br", "danish", "swiss"];
+const ALTGR_LAYOUTS = ["us_intl", "german", "french", "spanish", "italian", "br", "danish", "swiss"];
 
 describe("AltGr data", () => {
     it("German has exactly the AltGr level Windows' German layout has", () => {
@@ -21,6 +21,33 @@ describe("AltGr data", () => {
             if (a) got[kc] = a;
         }
         expect(got).toEqual(want);
+    });
+
+    it("US-International has exactly the AltGr level Windows' US-International layout has", () => {
+        // Read from KBDUSX.DLL (00020409) with ToUnicodeEx at Ctrl+Alt, loaded for reading only.
+        const want: Record<string, string> = {
+            KC_1: "¡", KC_2: "²", KC_3: "³", KC_4: "¤", KC_5: "€", KC_6: "¼", KC_7: "½", KC_8: "¾", KC_9: "‘", KC_0: "’",
+            KC_MINUS: "¥", KC_EQUAL: "×",
+            KC_Q: "ä", KC_W: "å", KC_E: "é", KC_R: "®", KC_T: "þ", KC_Y: "ü", KC_U: "ú", KC_I: "í", KC_O: "ó", KC_P: "ö",
+            KC_LBRACKET: "«", KC_RBRACKET: "»", KC_BSLASH: "¬",
+            KC_A: "á", KC_S: "ß", KC_D: "ð", KC_L: "ø", KC_SCOLON: "¶", KC_QUOTE: "´",
+            KC_Z: "æ", KC_C: "©", KC_N: "ñ", KC_M: "µ", KC_COMMA: "ç", KC_SLASH: "¿",
+        };
+        const got: Record<string, string> = {};
+        for (const kc of new Set(Object.values(BUTTON_TO_KEYCODE_MAP))) {
+            const a = positionalLegends(kc, "us_intl")?.altgr;
+            if (a) got[kc] = a;
+        }
+        expect(got).toEqual(want);
+        // Base and Shift are US's.
+        expect(LAYOUTS.us_intl.default).toEqual(LAYOUTS.us.default);
+        expect(LAYOUTS.us_intl.shift).toEqual(LAYOUTS.us.shift);
+    });
+
+    it("French Shift+² types nothing, so the key shows no shifted legend", () => {
+        expect(positionalLegends("KC_GRAVE", "french")).toMatchObject({ base: "²", shifted: "²" });
+        expect(dualLegendFor("KC_GRAVE", "²", undefined, "french")).toBeNull();
+        expect(LAYOUTS.french.shift.join(" ")).not.toContain("³");
     });
 
     it("spot checks on the other layouts", () => {

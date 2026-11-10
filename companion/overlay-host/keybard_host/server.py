@@ -31,6 +31,9 @@ REMOTE_ORIGINS = frozenset({
     'https://next.keybard.svalboard.com',  # bleeding edge: prerelease (x) tags
 })
 
+# How long /api/host/layout holds a request before answering with an unchanged layout.
+LAYOUT_WAIT_S = 20
+
 
 def paranoid_policy_ok(html):
     """The page's first element after <meta charset> must be the strict Keybard Paranoid policy."""
@@ -138,6 +141,14 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 if query.get('overlay') == ['1']: state.polled_at = time.monotonic()
                 state.read_at = time.monotonic()
                 return self.reply(state.snapshot(revision))
+            if path.path == '/api/host/layout':
+                # Long poll for Key legends: Automatic. Answers when the computer's layout is no longer
+                # `known` (its osLayout id), or after LAYOUT_WAIT_S. Keybard asks only while its tab is visible.
+                known = parse_qs(path.query).get('known', [''])[0][:64]
+                state.read_at = time.monotonic()
+                value = state.wait_os_layout(known, LAYOUT_WAIT_S)
+                state.read_at = time.monotonic()
+                return self.reply(dict(osLayout=value))
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)
                 self.send_response(200)

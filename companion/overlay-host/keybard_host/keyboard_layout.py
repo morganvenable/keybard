@@ -15,10 +15,9 @@ import subprocess
 import sys
 
 # Windows keyboard layout IDs (KLID) of layouts whose Keybard legends were checked against the
-# Windows layout tables, base and Shift level (src/lib/autoLegends.ts AUTO_LAYOUT_IDS).
-# US-International types the same base and Shift characters as US; it differs only at AltGr.
+# Windows layout tables, base, Shift and AltGr level (src/lib/autoLegends.ts AUTO_LAYOUT_IDS).
 WINDOWS_LAYOUTS = {
-    '00000409': 'us', '00020409': 'us', '00000809': 'uk', '00000407': 'german', '0000040C': 'french',
+    '00000409': 'us', '00020409': 'us_intl', '00000809': 'uk', '00000407': 'german', '0000040C': 'french',
     '0000040A': 'spanish', '00000410': 'italian', '00000416': 'br', '00010416': 'br', '00000406': 'danish',
     '00000807': 'swiss', '00000419': 'russian',
 }

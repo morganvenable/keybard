@@ -11,12 +11,15 @@ be switched while the page is open, as a person switching their computer's layou
   3. A layout Keybard has no legends for, and a browser with no keyboard map: keys show English (US),
      and Settings says so.
   4. Choosing a layout by hand sticks across a reload; choosing Automatic again follows the computer.
+  5. With Keybard Overlay running (its API mocked), a layout switch the Overlay reports reaches the tab within
+     0.5 s through its /api/host/layout long poll, not the 2 s background poll.
 
 Builds the app like combo_editor_e2e.py (E2E_URL and E2E_SKIP_BUILD work the same way). Exits 1 when a check fails.
 """
 import json
 import os
 import sys
+import time
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -141,6 +144,77 @@ def main() -> int:
         check(select(page).input_value() == "auto", "a first visit starts on Automatic")
         check(described(page, "Keybard can't tell which keyboard layout your computer uses, so keys show English (US). "
                               "Choose your layout to change that."), "without a keyboard map: US, said plainly")
+        context.close()
+
+        # 5. Keybard Overlay reports the layout; a switch arrives through the long poll.
+        overlay = {"os": {"available": True, "layoutId": "german", "name": "German", "id": "00000407"}}
+        held, polls = [], {"state": 0}
+        cors = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
+        config = {"layoutId": "auto", "shiftedLegends": True, "altgrLegends": False, "highlightPressed": True, "manualDefault": 1}
+
+        def answer(route, value):
+            route.fulfill(status=200, headers=cors, content_type="application/json", body=json.dumps(value))
+
+        def host(route):
+            req = route.request
+            path = req.url.split("?")[0]
+            if req.method == "OPTIONS":
+                return route.fulfill(status=204, headers={**cors, "Access-Control-Allow-Headers": "Content-Type, X-Keybard-Token",
+                                                          "Access-Control-Allow-Methods": "GET, POST"})
+            if path.endswith("/api/host/bootstrap"):
+                return answer(route, {"token": "t", "apiVersion": 1, "version": "test"})
+            if path.endswith("/api/host/state"):
+                polls["state"] += 1
+                return answer(route, {"apiVersion": 1, "config": config, "revision": 1, "layoutRevision": 1, "session": "s",
+                                      "board": None, "devices": [], "selectedDevice": None, "osLayout": overlay["os"]})
+            if path.endswith("/api/host/config"):
+                return answer(route, {"revision": 2})
+            if path.endswith("/api/host/layout"):
+                known = req.url.split("known=")[-1]
+                if known != overlay["os"]["id"]:
+                    return answer(route, {"osLayout": overlay["os"]})
+                if page.url.startswith("about:"):
+                    return route.abort()
+                held.append(route)  # answered at the switch
+                return None
+            return route.fulfill(status=404, headers=cors, body="{}")
+
+        context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+        context.add_init_script(stub("us"))
+        context.add_init_script("localStorage.setItem('keybard-host-remote', '1');")
+        context.route("http://127.0.0.1:5178/**", host)
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + SETTINGS)
+        expect(page.get_by_label("Search settings")).to_be_visible(timeout=20000)
+        toggle = page.locator("#settings-section-appearance-title button")
+        if toggle.get_attribute("aria-expanded") != "true":
+            toggle.click()
+        check(described(page, "Your computer is using German, so keys show German."), "the Overlay's layout wins over the browser's map")
+        deadline = time.monotonic() + 5
+        while not held and time.monotonic() < deadline:
+            page.wait_for_timeout(20)
+        check(len(held) == 1, f"the tab waits on the Overlay's layout long poll ({len(held)} held)")
+        before = polls["state"]
+        overlay["os"] = {"available": True, "layoutId": "french", "name": "French", "id": "0000040C"}
+        start = time.monotonic()
+        for route in held[:]:
+            held.remove(route)
+            answer(route, {"osLayout": overlay["os"]})
+        try:
+            expect(select(page)).to_have_attribute("aria-description", "Your computer is using French, so keys show French.", timeout=500)
+            took = time.monotonic() - start
+            check(True, f"a switch reported by the Overlay shows in {took:.2f} s")
+        except AssertionError:
+            check(False, "a switch reported by the Overlay shows within 0.5 s")
+        check(polls["state"] - before <= 1, f"without fast state polling ({polls['state'] - before} state reads)")
+        check(not errors, f"no page errors {errors}")
+        # The next long poll is still held: answer it and leave the page before closing.
+        for route in held:
+            route.abort()
+        held.clear()
+        page.goto("about:blank")
         context.close()
         browser.close()
 

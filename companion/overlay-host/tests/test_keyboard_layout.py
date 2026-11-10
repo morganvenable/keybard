@@ -37,7 +37,7 @@ class WindowsReaderTests(unittest.TestCase):
     def test_language_and_keyboard_ids(self):
         cases = {
             0x04070407: ('german', '00000407'), 0x04090409: ('us', '00000409'),
-            0xF0010409: ('us', '00020409'),        # US-International: a layout variant, found by its Layout Id
+            0xF0010409: ('us_intl', '00020409'),        # US-International: a layout variant, found by its Layout Id
             0x040C040C: ('french', '0000040C'), 0x08090809: ('uk', '00000809'),
             0x08070807: ('swiss', '00000807'),
             0x04070409: ('german', '00000407'),    # English (US) language with the German keyboard

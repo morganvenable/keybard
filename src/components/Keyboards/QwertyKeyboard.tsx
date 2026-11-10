@@ -120,7 +120,9 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
         return (
             <div className="flex gap-1 justify-center">
                 {defaultKeys.map((defaultKey, i) => {
-                    const shiftKey = shiftKeys[i] || defaultKey;
+                    // "{none}": Shift types nothing on this key (French Shift+²). It shows its base legend, dimmed with Shift on.
+                    const shiftTypesNothing = shiftKeys[i] === "{none}";
+                    const shiftKey = shiftTypesNothing ? defaultKey : shiftKeys[i] || defaultKey;
 
                     // Visual key is determined by shift state
                     const visualKey = isShiftActive ? shiftKey : defaultKey;
@@ -189,7 +191,7 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
                     // With the AltGr button on, only the keys that type an AltGr character stand out:
                     // the rest are dimmed, drawn plain (no RALT band), and bind as before.
                     const typesAltGr = !!altgrKeys[i] && altgrKeys[i] !== "{none}";
-                    const dimmed = altGr && !typesAltGr && defaultKey !== "{altright}";
+                    const dimmed = (altGr && !typesAltGr && defaultKey !== "{altright}") || (isShiftActive && shiftTypesNothing);
                     if (dimmed && keycode.startsWith("RALT(")) keycode = keycode.slice(5, -1);
 
                     const displayLabel = KEY_DISPLAY_OVERRIDES[visualKey] || visualKey.replace("{", "").replace("}", "");
