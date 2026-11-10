@@ -47,10 +47,32 @@ export class LayoutNotLanded extends Error {
 
 interface PlannedWrite { desc: string; cb: () => Promise<void>; metadata?: Partial<PendingChange> }
 
+type RestoreModules = {
+    importService: typeof import("@/services/import.service")["importService"];
+    keyboardService: typeof import("@/services/keyboard.service")["keyboardService"];
+};
+let restoreModules: Promise<RestoreModules> | null = null;
+
+/**
+ * The code a restore runs, loaded once. The update sheet loads it when it opens, and an
+ * update that restores starts only once it has: after the board restarts, a page whose
+ * site has since been redeployed can no longer fetch its old chunks, and the restore
+ * would fail with the board on its defaults. A failed load is forgotten, so the next
+ * call (Try again opens the sheet again) fetches it afresh.
+ */
+export function loadRestoreModules(): Promise<RestoreModules> {
+    restoreModules ??= Promise.all([import("@/services/import.service"), import("@/services/keyboard.service")])
+        .then(([i, k]) => ({ importService: i.importService, keyboardService: k.keyboardService }))
+        .catch((error: unknown) => {
+            restoreModules = null;
+            throw error;
+        });
+    return restoreModules;
+}
+
 /** The writes that would make `board` hold `wanted` (the import's own comparison). */
 export async function planWrites(wanted: KeyboardInfo, board: KeyboardInfo): Promise<PlannedWrite[]> {
-    const { importService } = await import("@/services/import.service");
-    const { keyboardService } = await import("@/services/keyboard.service");
+    const { importService, keyboardService } = await loadRestoreModules();
     const writes: PlannedWrite[] = [];
     await importService.syncWithKeyboard(wanted, board, async (desc, cb, metadata) => { writes.push({ desc, cb, metadata }); }, { keyboardService });
     return writes;
@@ -190,7 +212,7 @@ export async function restoreLayoutToBoard(svil: string, t: RestoreTarget): Prom
     const report: RestoreReport = { trimmed: plan.warnings, replaced: plan.replaced, unavailable: plan.unavailable, notKept: landed.notKept, unchecked: landed.unchecked };
     // The layout is back either way: a mode that didn't go back carries the layout's notes.
     if (t.applyBoardState) {
-        const { keyboardService } = await import("@/services/keyboard.service");
+        const { keyboardService } = await loadRestoreModules();
         try {
             await restoreBoardState(boardStateFromSvil(svil), { keyboard: board, applyBoardState: t.applyBoardState, readPointing: t.readPointing ?? ((probe) => keyboardService.getPointingHardware(probe)) });
         } catch (error) {
