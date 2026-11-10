@@ -140,12 +140,15 @@ describe('layout long poll', () => {
         unmount();
     });
 
-    it('an Overlay without the long poll is asked once, then left to the slow poll', async () => {
+    it('an older Overlay, which reports no layout, is never long polled', async () => {
         const base = fetchMock.getMockImplementation()!;
-        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => String(url).includes('/api/host/layout') ? new Response('{}', { status: 404 }) : base(url, init));
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => String(url).includes('/api/host/state')
+            ? new Response(JSON.stringify({ apiVersion: 1, config, revision: 1, layoutRevision: 1, session: 's', board: null, devices: [], selectedDevice: null }))
+            : base(url, init));
         const { unmount } = renderHook(() => useHost({ background: true }));
         await flush(HOST_SLOW_POLL_MS * 5);
-        expect(calls('/api/host/layout')).toBe(1);
+        expect(calls('/api/host/state')).toBeGreaterThan(0);
+        expect(calls('/api/host/layout')).toBe(0);
         unmount();
     });
 });

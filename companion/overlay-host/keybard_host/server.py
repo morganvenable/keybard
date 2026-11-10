@@ -32,7 +32,7 @@ REMOTE_ORIGINS = frozenset({
 })
 
 # How long /api/host/layout holds a request before answering with an unchanged layout.
-LAYOUT_WAIT_S = 20
+LAYOUT_WAIT_S = 10
 
 
 def paranoid_policy_ok(html):
@@ -147,8 +147,9 @@ def make_server(state, assets, dispatch, port=0, remote_origins=REMOTE_ORIGINS, 
                 known = parse_qs(path.query).get('known', [''])[0][:64]
                 state.read_at = time.monotonic()
                 value = state.wait_os_layout(known, LAYOUT_WAIT_S)
-                state.read_at = time.monotonic()
-                return self.reply(dict(osLayout=value))
+                # A tab hidden or closed while waiting has gone: nothing to answer, and nothing to log.
+                try: return self.reply(dict(osLayout=value))
+                except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError): self.close_connection = True; return
             if page is not None:
                 if path.path not in ('/', '/index.html'): return self.reply({'error': 'Not found'}, 404)
                 self.send_response(200)

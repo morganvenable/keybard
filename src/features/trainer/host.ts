@@ -13,7 +13,7 @@ export const HOST_ORIGIN = (import.meta.env.VITE_KEYBARD_HOST_ORIGIN as string |
 /** How often a background copy looks for the Overlay or a restarted one. */
 export const HOST_SLOW_POLL_MS = 2000;
 /** The Overlay holds a /api/host/layout request this long (LAYOUT_WAIT_S) before answering with no change. */
-const HOST_LAYOUT_WAIT_MS = 20000;
+const HOST_LAYOUT_WAIT_MS = 10000;
 const REMOTE_KEY = 'keybard-host-remote';
 const CONNECT_EVENT = 'keybard-host-connect';
 const servedByHost = () => typeof document !== 'undefined' && document.documentElement.dataset.keybardHost === 'true';
@@ -130,17 +130,16 @@ export function useHost({ overlay = false, background = false }: { overlay?: boo
             if (alive && !native && !hidden()) timer = setTimeout(slowTick, HOST_SLOW_POLL_MS);
         }
         /** Background copy: wait on the Overlay's layout long poll while it reads the layout and the tab is visible. */
-        let watching = false, layoutWatchMissing = false, watchAbort: AbortController | undefined;
+        let watching = false, watchAbort: AbortController | undefined;
         async function watchLayout() {
-            if (watching || layoutWatchMissing) return;
+            if (watching) return;
             watching = true; watchAbort = new AbortController();
             const signal = AbortSignal.any([abort.signal, watchAbort.signal]);
             try {
                 while (alive && !hidden() && current.current?.osLayout?.available) {
                     const known = current.current.osLayout.id ?? '';
                     const r = await fetch(`${base}/api/host/layout?known=${encodeURIComponent(known)}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(HOST_LAYOUT_WAIT_MS + 5000)]), cache: 'no-store' });
-                    if (r.status === 404) { layoutWatchMissing = true; break; } // an older Overlay: the slow poll alone
-                    if (!r.ok) break;
+                    if (!r.ok) break; // the slow poll starts it again
                     const { osLayout } = await r.json() as { osLayout?: OsLayout };
                     const now = current.current;
                     if (!alive || !now || !osLayout) break;
