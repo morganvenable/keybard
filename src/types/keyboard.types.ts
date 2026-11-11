@@ -45,6 +45,10 @@ export interface KeyboardInfo {
         svalboard: boolean;                  // written by Svalboard's Vial firmware
         unassigned_custom_keycodes: number;  // USERnn positions Vial left unassigned (now KC_NO)
         foreign_custom_keycodes: number;     // USERnn from another keyboard's Vial firmware
+        /** Tap dances whose term was too short to tap: Vial always ran them as this one key, which now takes their place. */
+        hold_only_tapdances?: Array<{ index: number; term: number; keycode: string }>;
+        /** Tap dances whose term was too short to tap and that had no Tap or Hold key, so they did nothing in Vial. */
+        inert_tapdances?: Array<{ index: number; term: number }>;
     };
 
     // Fragment composition (modular layouts)
