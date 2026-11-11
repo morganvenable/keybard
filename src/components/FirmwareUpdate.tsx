@@ -4,7 +4,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SVALBOARD_FIRMWARE_URL } from "@/constants/firmware";
-import { currentSite, releasesForSite } from "@/constants/firmware-releases";
+import { currentSite, releasesForSite, TEST_BUILD } from "@/constants/firmware-releases";
 import { ManualInstall } from "@/features/firmware/ManualInstall";
 import { InFirmwareDialog } from "@/features/firmware/parts";
 import type { Afterwards } from "@/services/updater/flow";
@@ -31,7 +31,7 @@ function ManualInstallButton({ fromVial, onConnect }: { fromVial: boolean; onCon
     const [open, setOpen] = useState(false);
     const [afterwards, setAfterwards] = useState<Afterwards>("defaults");
     // Keybard Paranoid carries no release (it fetches nothing), as in Settings > Firmware.
-    const release = PARANOID ? null : releasesForSite(currentSite())[0] ?? null;
+    const release = PARANOID && !TEST_BUILD ? null : releasesForSite(currentSite())[0] ?? null; // TEST BUILD ONLY: the carried file
     return (
         <>
             <Button size="sm" variant="kb-primary" className="self-start" onClick={() => setOpen(true)}>Install by hand</Button>

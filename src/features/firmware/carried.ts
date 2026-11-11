@@ -4,11 +4,18 @@
 
 import { carriedFileUrl, type FirmwareReleasePin } from "@/constants/firmware-releases";
 import { PARANOID } from "@/lib/paranoid";
+import { carriedBytes } from "./file-bytes";
 import type { SvupFile } from "@/services/updater/svup";
 import { loadFirmwareFile } from "@/services/updater/uf2";
 import type { Hand } from "@/services/updater/protocol";
 
 export async function loadCarriedRelease(release: FirmwareReleasePin, fetcher: typeof fetch = fetch): Promise<Record<Hand, SvupFile>> {
+    // TEST BUILD ONLY: a file inside the page (checked against its pin), with no request.
+    const inPage = await carriedBytes(release, { fetcher: (async () => { throw new Error("no network"); }) as unknown as typeof fetch, paranoid: true });
+    if (inPage) {
+        const file = await loadFirmwareFile(inPage);
+        return { 0: file, 1: file } as Record<Hand, SvupFile>;
+    }
     if (PARANOID) throw new Error("Keybard Paranoid installs only a file you choose.");
     const name = release.file.uf2;
     const res = await fetcher(carriedFileUrl(release, name), { cache: "no-store" });

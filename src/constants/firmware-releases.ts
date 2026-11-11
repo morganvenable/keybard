@@ -9,6 +9,8 @@
 // A release lands here by PR, with its SHA-256 pins (tech doc 3.4), and its file goes in
 // public/firmware/<tag>/ so every deploy carries it.
 
+import { TEST_PINS } from "@/generated/test-pins"; // TEST BUILD ONLY
+
 export type ReleaseKind = "v" | "x";
 export type Site = "production" | "next" | "dev";
 
@@ -37,7 +39,7 @@ export interface FirmwareReleasePin {
 }
 
 /** Releases pinned into this build. */
-export const CARRIED_RELEASES: FirmwareReleasePin[] = [
+const OFFICIAL_RELEASES: FirmwareReleasePin[] = [
     {
         tag: "x4.6.2",
         kind: "x",
@@ -53,10 +55,14 @@ export const CARRIED_RELEASES: FirmwareReleasePin[] = [
     },
 ];
 
+// TEST BUILD ONLY: a single-file test build carries its own pins, over the official ones.
+export const TEST_BUILD = TEST_PINS.length > 0;
+export const CARRIED_RELEASES: FirmwareReleasePin[] = [...TEST_PINS, ...OFFICIAL_RELEASES.filter((r) => !TEST_PINS.some((p) => p.tag === r.tag))];
+
 /** The updater protocol a carried release must speak. */
 export const CARRIED_UPDATER_PROTOCOL = 4;
 
-const TAG = /^([vx])(\d+(?:\.\d+)*)$/;
+const TAG = /^([vx])(\d+(?:\.\d+)*)(?:-tdfix)?$/; // TEST BUILD ONLY: the test suffix
 
 /** "v3.1" -> { kind: "v", parts: [3, 1] }; null for any other tag. */
 export function parseReleaseTag(tag: string): { kind: ReleaseKind; parts: number[] } | null {
@@ -68,6 +74,7 @@ const newestFirst = (a: FirmwareReleasePin, b: FirmwareReleasePin) => b.fwVersio
 
 /** Which site this build is, from its build mode and channel. */
 export function currentSite(env: { MODE?: string; VITE_CHANNEL?: string; BASE_URL?: string } = import.meta.env): Site {
+    if (TEST_BUILD) return "dev"; // TEST BUILD ONLY: offer every carried file
     if (env.VITE_CHANNEL === "next" || (env.BASE_URL ?? "").includes("keybard-test")) return "next";
     if (env.MODE === "svalboard" || env.MODE === "paranoid") return "production";
     return "dev";

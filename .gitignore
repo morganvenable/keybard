@@ -11,3 +11,4 @@ docs/dev-sessions/
 
 # Screenshots from scripts/check-side-panel-overflow.cjs
 .side-panel-shots/
+/src/generated/embedded-test.ts
