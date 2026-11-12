@@ -10,10 +10,11 @@ import { fakeSetup, fixtureOneImage, fixtureRelease, type FixtureRelease } from 
 import type { Fault } from "@/services/updater/fake-board";
 import { memoryFlowStore, UpdateFlow } from "@/services/updater/flow";
 import {
-    CHUNK_PIECE_MAX, HAND_LEFT, HAND_RIGHT, Op, Status, UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, beginArgs, decodeInfo0, encodeInfo0,
+    CHUNK_PIECE_MAX, HAND_LEFT, HAND_RIGHT, Op, State, Status, UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, beginArgs, decodeInfo0, encodeInfo0,
 } from "@/services/updater/protocol";
-import { VirtualClock, type UpdaterRequest } from "@/services/updater/transport";
-import { chooseUploader, stopAndWait } from "@/services/updater/upload";
+import { ReplyTimeoutError, VirtualClock, type UpdaterRequest } from "@/services/updater/transport";
+import { chooseUploader, stopAndWait, windowed } from "@/services/updater/upload";
+import type { UpdaterClient } from "@/services/updater/client";
 
 const L = HAND_LEFT;
 const R = HAND_RIGHT;
@@ -35,7 +36,7 @@ const pin = (r: FixtureRelease): FirmwareReleasePin => ({
     notesUrl: "",
 });
 
-async function run(o: { fast: boolean; release?: FixtureRelease; faults?: Fault[]; cancelAt?: string }) {
+async function run(o: { fast: boolean; release?: FixtureRelease; faults?: Fault[]; cancelAt?: string; reflashOldAfterPlan?: boolean }) {
     const release = o.release ?? one;
     const { board, host } = fakeSetup({ clock, running: v3, half: { fastUpload: o.fast }, faults: o.faults });
     const begins: number[][] = [];
@@ -49,6 +50,8 @@ async function run(o: { fast: boolean; release?: FixtureRelease; faults?: Fault[
     board.requestMany = async (reqs: UpdaterRequest[], inFlight?: number) => { burstChunks += reqs.length; return many(reqs, inFlight); };
     const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(release), files: release.files }, { clock, releases: [pin(v3), pin(release)] });
     if ("id" in p) throw new Error(`plan failed: ${p.id}`);
+    // The sheet stays open while the board goes back to firmware without the faster upload.
+    if (o.reflashOldAfterPlan) for (const h of [L, R] as const) board.halves[h].cfg.fastUpload = false;
     const flow = UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: "restore", backup: { fileName: "Kip.svil", svil: "{}" } });
     if (o.cancelAt) flow.subscribe((s) => { if (s.step === o.cancelAt && s.rows.some((r) => r.progress && r.progress > 0.3)) flow.cancel(); });
     const state = await flow.run();
@@ -149,6 +152,15 @@ describe("a board with the CHUNK window and BEGIN reuse", () => {
         expect(board.halves[R].cfg.tag).toBe("v3");
     });
 
+    it("a board reflashed to older firmware while the sheet was open: today's upload, no burst, no BEGIN flags", async () => {
+        const { state, board, begins, burstChunks } = await run({ fast: true, reflashOldAfterPlan: true });
+        expect(state.phase).toBe("result");
+        expect(board.bursts).toBe(0);
+        expect(burstChunks).toBe(0);
+        expect(begins.every((a) => a.length === 4)).toBe(true);
+        expect(state.upload).toEqual({ uploadFlags: 0, chunkWindow: 1 });
+    });
+
     it("never takes a burst it didn't advertise", async () => {
         const { board } = fakeSetup({ clock, running: v3 });
         await expect(board.requestMany([{ op: Op.CHUNK, hand: L, args: [0, 0, 0, 1, 0] }])).rejects.toThrow(/CHUNK window/);
@@ -165,6 +177,41 @@ describe("choosing the uploader", () => {
     });
     it("the board's window when both take it", () => {
         expect(chooseUploader(caps, true).name).toBe("window-16");
+    });
+});
+
+describe("the windowed uploader's resync", () => {
+    // A stub board: takes every CHUNK in order, but the replies to the first burst are lost and
+    // the STATUS asked after it times out `statusTimeouts` times before it answers.
+    function stub(statusTimeouts: number, lostBursts = 1) {
+        let staged = 0;
+        let burstsLost = lostBursts;
+        let left = statusTimeouts;
+        const client = {
+            async chunks(_hand: number, pieces: Array<[number, Uint8Array]>) {
+                const replies = pieces.map(([o, b]) => { if (o === staged) staged += b.length; return { status: Status.OK, next: staged }; });
+                if (burstsLost-- > 0) throw new ReplyTimeoutError(Op.CHUNK);
+                return replies;
+            },
+            async status() {
+                if (left-- > 0) throw new ReplyTimeoutError(Op.STATUS);
+                return { state: State.RECEIVING, staged, lastError: 0 };
+            },
+        };
+        return { client: client as unknown as UpdaterClient, staged: () => staged };
+    }
+    const image = new Uint8Array(5000).map((_, i) => i & 0xff);
+    const job = (client: UpdaterClient) => ({ client, hand: L, image, from: 0, onProgress: () => {}, checkCancel: () => {} });
+
+    it("a STATUS that times out after a lost burst counts against the same budget, and the upload goes on", async () => {
+        const s = stub(2);
+        await windowed(16).upload(job(s.client));
+        expect(s.staged()).toBe(image.length);
+    });
+
+    it("past the budget, it stops", async () => {
+        const s = stub(10, 10);
+        await expect(windowed(16).upload(job(s.client))).rejects.toBeInstanceOf(ReplyTimeoutError);
     });
 });
 

@@ -17,7 +17,7 @@ import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
 import type { SettingReplacement } from "../settings-migrate";
 import {
-    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_REUSE, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
+    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_REUSE, HAND_SELF, UPLOAD_CHUNK_WINDOW, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
     UPLOAD_REUSE_STAGED, handName, hex, otherHand, statusName, type Hand,
 } from "./protocol";
 import { chooseUploader, type UploadCaps } from "./upload";
@@ -598,10 +598,28 @@ export class UpdateFlow {
     private sessionHand: Hand | null = null;
 
     private async install() {
+        await this.confirmUploadCaps();
         const { target, usbHand } = this.state;
         const oHand = otherHand(usbHand);
         if (target === "both" || target === oHand) await this.installOther(target === "both");
         if (target === "both" || target === usbHand) await this.installUsb(target === "both");
+    }
+
+    /**
+     * The upload capabilities come from the INFO read when the sheet opened. The board may have
+     * been swapped or reflashed since: before the first upload they are narrowed to what the
+     * half with USB reports now, so a board never gets a burst or a BEGIN flags byte it doesn't
+     * advertise. An INFO that fails here means today's upload.
+     */
+    private async confirmUploadCaps() {
+        const caps = this.state.upload;
+        if (!caps || !caps.uploadFlags) return;
+        const info = await this.connection().info(HAND_SELF).catch(() => null);
+        const uploadFlags = caps.uploadFlags & (info?.uploadFlags ?? 0);
+        const chunkWindow = uploadFlags & UPLOAD_CHUNK_WINDOW ? Math.min(caps.chunkWindow, info?.chunkWindow ?? 1) : 1;
+        if (uploadFlags === caps.uploadFlags && chunkWindow === caps.chunkWindow) return;
+        trace("upload capabilities changed since the sheet opened", { was: caps, now: { uploadFlags, chunkWindow } });
+        this.update({ upload: { uploadFlags, chunkWindow } });
     }
 
     /** Poll STATUS until `until` holds; an ERROR latched on the board ends the poll. */

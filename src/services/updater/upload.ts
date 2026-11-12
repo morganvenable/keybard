@@ -88,7 +88,15 @@ export function windowed(window: number): ImageUploader {
                 } catch (error) {
                     if (!(error instanceof ReplyTimeoutError) || ++lost > TIMEOUT_RESYNCS) throw error;
                     // A reply went missing: the board says where it is, and the upload goes on from there.
-                    const st = await client.status(hand);
+                    // That STATUS may time out too (the board briefly busy): it counts against the same
+                    // budget, and the next batch starts from the last offset known.
+                    let st;
+                    try {
+                        st = await client.status(hand);
+                    } catch (statusError) {
+                        if (!(statusError instanceof ReplyTimeoutError) || ++lost > TIMEOUT_RESYNCS) throw statusError;
+                        continue;
+                    }
                     if (st.state !== State.RECEIVING) throw new UpdaterStatusError("STATUS", st.lastError || Status.INVALID, st.state);
                     off = st.staged;
                     checkCancel();
