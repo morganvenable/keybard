@@ -63,9 +63,16 @@ export const stopAndWait: ImageUploader = {
     },
 };
 
-/** Up to `window` CHUNKs in flight; resend from the board's offset when one is missed. */
+/**
+ * Up to `window` CHUNKs in flight, sliding: the next goes out as each reply comes back. One
+ * call to the transport carries BATCH_WINDOWS windows, so progress and Cancel are checked
+ * every few tens of ms. Resend from the board's offset when one is missed.
+ */
+const BATCH_WINDOWS = 4;
+
 export function windowed(window: number): ImageUploader {
     const size = Math.max(1, Math.floor(window));
+    const batch = size * BATCH_WINDOWS;
     return {
         name: `window-${size}`,
         async upload({ client, hand, image, from, onProgress, checkCancel }) {
@@ -73,10 +80,10 @@ export function windowed(window: number): ImageUploader {
             let lost = 0;
             while (off < image.length) {
                 const pieces: Array<[number, Uint8Array]> = [];
-                for (let o = off; o < image.length && pieces.length < size; o += CHUNK_PIECE_MAX) pieces.push([o, piece(image, o)]);
+                for (let o = off; o < image.length && pieces.length < batch; o += CHUNK_PIECE_MAX) pieces.push([o, piece(image, o)]);
                 let replies: Array<{ status: number; next: number }>;
                 try {
-                    replies = await client.chunks(hand, pieces);
+                    replies = await client.chunks(hand, pieces, size);
                     lost = 0;
                 } catch (error) {
                     if (!(error instanceof ReplyTimeoutError) || ++lost > TIMEOUT_RESYNCS) throw error;

@@ -149,7 +149,7 @@ export class UpdaterClient {
      * REBIND first after an ID change; after a wrapper rejection, new ID, REBIND, once more.
      * Returns each CHUNK's status and next offset, in order.
      */
-    async chunks(hand: number, pieces: Array<[number, Uint8Array]>): Promise<Array<{ status: number; next: number }>> {
+    async chunks(hand: number, pieces: Array<[number, Uint8Array]>, inFlight?: number): Promise<Array<{ status: number; next: number }>> {
         const many = this.transport.requestMany?.bind(this.transport);
         if (!many) {
             const out: Array<{ status: number; next: number }> = [];
@@ -161,12 +161,12 @@ export class UpdaterClient {
         if (this.rebindNonce !== null && id !== this.boundClient) await this.rebind();
         let replies: UpdaterReply[];
         try {
-            replies = await many(requests);
+            replies = await many(requests, inFlight);
         } catch (error) {
             if (!(error instanceof ClientRejectedError)) throw error;
             await this.transport.renewClient();
             if (this.rebindNonce !== null) await this.rebind();
-            replies = await many(requests);
+            replies = await many(requests, inFlight);
         }
         for (const r of replies) this.record(Op.CHUNK, hand, r.status);
         return replies.map((r) => ({ status: r.status, next: decodeNextOffset(r) }));

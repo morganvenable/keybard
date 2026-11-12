@@ -449,8 +449,9 @@ export class FakeSvalboard implements UpdaterTransport {
     }
 
     /** A burst of requests (a board with the CHUNK window); refused for a board without it. */
-    async requestMany(requests: UpdaterRequest[]): Promise<UpdaterReply[]> {
+    async requestMany(requests: UpdaterRequest[], inFlight = requests.length): Promise<UpdaterReply[]> {
         if (!this.usb().cfg.fastUpload) throw new Error("burst sent to a board that doesn't take a CHUNK window");
+        if (inFlight > 16) throw new Error(`${inFlight} CHUNKs in flight, more than the board's window of 16`);
         this.bursts++;
         const replies: UpdaterReply[] = [];
         let missing = false;

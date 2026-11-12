@@ -46,7 +46,7 @@ async function run(o: { fast: boolean; release?: FixtureRelease; faults?: Fault[
     };
     let burstChunks = 0;
     const many = board.requestMany.bind(board);
-    board.requestMany = async (reqs: UpdaterRequest[]) => { burstChunks += reqs.length; return many(reqs); };
+    board.requestMany = async (reqs: UpdaterRequest[], inFlight?: number) => { burstChunks += reqs.length; return many(reqs, inFlight); };
     const p = await planInstall(new UpdaterClient(board), { kind: "release", release: pin(release), files: release.files }, { clock, releases: [pin(v3), pin(release)] });
     if ("id" in p) throw new Error(`plan failed: ${p.id}`);
     const flow = UpdateFlow.create(host, memoryFlowStore(), { plan: p, afterwards: "restore", backup: { fileName: "Kip.svil", svil: "{}" } });
@@ -81,7 +81,7 @@ describe("a board with the CHUNK window and BEGIN reuse", () => {
         expect(state.result?.tags).toEqual({ [L]: "x4", [R]: "x4" });
         expect(chunks).toBe(pieces(one));
         expect(burstChunks).toBe(pieces(one));
-        expect(board.bursts).toBe(Math.ceil(pieces(one) / 16));
+        expect(board.bursts).toBe(Math.ceil(pieces(one) / 64)); // 4 windows of 16 per call, sliding
         expect(begins).toHaveLength(2);
         expect(begins.every((a) => a.length === 5 && a[4] === 1)).toBe(true);
         expect(state.measurements.send_left_window).toBe(16);
@@ -107,7 +107,7 @@ describe("a board with the CHUNK window and BEGIN reuse", () => {
         const { state, chunks } = await run({ fast: true, faults: [{ kind: "chunk-lost", at }] });
         expect(state.phase).toBe("result");
         expect(chunks).toBeGreaterThan(pieces(one));
-        expect(chunks).toBeLessThan(pieces(one) + 16);
+        expect(chunks).toBeLessThan(pieces(one) + 64);
     });
 
     it("a changed CHUNK: END's SHA-512 refuses the image and nothing is installed on either half", async () => {

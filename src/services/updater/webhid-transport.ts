@@ -51,12 +51,12 @@ export class WebHidUpdaterTransport implements UpdaterTransport {
         return error;
     }
 
-    async requestMany(requests: UpdaterRequest[]) {
+    async requestMany(requests: UpdaterRequest[], inFlight?: number) {
         if (!this.usb.isOpen()) throw new DisconnectedError();
         const t0 = performance.now();
         let reports: Uint8Array[];
         try {
-            reports = await this.usb.sendUpdaterReports(requests.map((r) => encodeViaPayload(r.op, r.hand, r.args)), 3, this.timeoutMs);
+            reports = await this.usb.sendUpdaterReports(requests.map((r) => encodeViaPayload(r.op, r.hand, r.args)), 3, this.timeoutMs, inFlight);
         } catch (error) {
             throw this.mapError(error, requests[0]?.op ?? 0);
         }

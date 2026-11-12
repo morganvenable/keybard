@@ -388,12 +388,13 @@ export class SvilUSB {
 
   /**
    * Several wrapped updater requests back to back, for a board that takes a CHUNK window:
-   * each report goes out as soon as the one before it is written, without waiting for its
-   * reply. Resolves with every reply, in order (the board answers in order). Rejects on a
-   * wrapper rejection, or with a timeout when the replies stop coming for timeoutMs; after
-   * a timeout the next request waits UPDATER_DRAIN_MS, so late replies aren't taken for its.
+   * each report goes out as soon as the one before it is written and fewer than `inFlight`
+   * are unanswered, without waiting for each reply. Resolves with every reply, in order (the
+   * board answers in order). Rejects on a wrapper rejection, or with a timeout when the
+   * replies stop coming for timeoutMs; after a timeout the next request waits
+   * UPDATER_DRAIN_MS, so late replies aren't taken for its.
    */
-  async sendUpdaterReports(payloads: number[][], echo = 3, timeoutMs = 1000): Promise<Uint8Array[]> {
+  async sendUpdaterReports(payloads: number[][], echo = 3, timeoutMs = 1000, inFlight = payloads.length): Promise<Uint8Array[]> {
     if (!this.device) throw new Error("USB device not connected");
     if (!payloads.length) return [];
     await this.ensureClientId();
@@ -406,9 +407,12 @@ export class SvilUSB {
       const replies: Uint8Array[] = [];
       let done = false;
       let timeoutId = 0 as unknown as ReturnType<typeof timers.setTimeout>;
+      /** Wakes the sender when a reply frees a place in the window. */
+      let wake: (() => void) | null = null;
       const finish = (error: Error | null) => {
         if (done) return;
         done = true;
+        wake?.();
         timers.clearTimeout(timeoutId);
         if (error) reject(error); else resolve(replies);
       };
@@ -428,10 +432,14 @@ export class SvilUSB {
         replies.push(new Uint8Array(u8));
         arm();
         if (replies.length === payloads.length) finish(null);
+        wake?.();
       };
       void (async () => {
-        for (const m of messages) {
+        const limit = Math.max(1, inFlight);
+        for (let i = 0; i < messages.length; i++) {
+          while (!done && i - replies.length >= limit) await new Promise<void>((r) => { wake = () => { wake = null; r(); }; });
           if (done) return;
+          const m = messages[i];
           try {
             await device.sendReport(0, m as BufferSource);
           } catch (err) {
