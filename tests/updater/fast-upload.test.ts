@@ -135,6 +135,20 @@ describe("a board with the CHUNK window and BEGIN reuse", () => {
         expect(board.halves[R].cfg.tag).toBe("v3");
     });
 
+    it("a block erase that outlasts the reply timeout: STATUS is asked again and the update goes on", async () => {
+        const { state } = await run({ fast: true, faults: [{ kind: "erase-stall", replies: 3 }] });
+        expect(state.phase).toBe("result");
+        expect(state.result?.tags).toEqual({ [L]: "x4", [R]: "x4" });
+    });
+
+    it("a board that stops answering while it erases: stops with nothing installed", async () => {
+        const { state, board } = await run({ fast: true, faults: [{ kind: "erase-stall", replies: 4 }] });
+        expect(state.phase).toBe("failed");
+        expect(state.committed).toEqual([]);
+        expect(board.halves[L].cfg.tag).toBe("v3");
+        expect(board.halves[R].cfg.tag).toBe("v3");
+    });
+
     it("never takes a burst it didn't advertise", async () => {
         const { board } = fakeSetup({ clock, running: v3 });
         await expect(board.requestMany([{ op: Op.CHUNK, hand: L, args: [0, 0, 0, 1, 0] }])).rejects.toThrow(/CHUNK window/);

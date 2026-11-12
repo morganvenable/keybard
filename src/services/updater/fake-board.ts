@@ -67,7 +67,12 @@ export type Fault =
     | { kind: "chunk-lost"; at: number }
     /** The CHUNK at this offset arrives with a byte changed, once: the board stages it, END's SHA-512 refuses it. */
     | { kind: "chunk-corrupt"; at: number }
-    | { kind: "renew-every"; ms: number };
+    | { kind: "renew-every"; ms: number }
+    /**
+     * A block erase that holds the board past the host's reply timeout: while a session erases,
+     * this many STATUS requests get no reply (counted down as they happen).
+     */
+    | { kind: "erase-stall"; replies: number };
 
 export interface FakeTiming {
     eraseMsPerSector: number;
@@ -424,6 +429,13 @@ export class FakeSvalboard implements UpdaterTransport {
             await this.clock.sleep(1000);
             this.tick();
             if (!this.isConnected) throw new DisconnectedError();
+            throw new ReplyTimeoutError(op);
+        }
+        const stall = op === Op.STATUS && this.session?.state === State.ERASING ? this.fault("erase-stall") : undefined;
+        if (stall && stall.replies > 0) {
+            stall.replies--;
+            this.session!.beginAt += 1000; // the erase is held as long as the request
+            await this.clock.sleep(1000);
             throw new ReplyTimeoutError(op);
         }
         const a = Uint8Array.from(args);

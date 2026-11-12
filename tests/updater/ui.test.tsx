@@ -9,6 +9,7 @@ import { CARRIED_RELEASES, currentSite, matchPin, parseReleaseTag, releasesForSi
 import { FirmwareSection } from "@/features/firmware/FirmwareSection";
 import { lightFor } from "@/features/firmware/lights";
 import { ConfirmView, LIGHTS_CHANGE, ProgressView, overallProgress, stageLine, timeLeft } from "@/features/firmware/ProgressDialog";
+import { UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED } from "@/services/updater/protocol";
 import { UpdateDialog, resultTitle } from "@/features/firmware/UpdateDialog";
 import { UpdateSheet } from "@/features/firmware/UpdateSheet";
 import { useFirmwareUpdate, type FirmwareUiHost } from "@/features/firmware/useFirmwareUpdate";
@@ -144,7 +145,8 @@ describe("the running screens (5.1)", () => {
         const values = steps.map((step) => overallProgress(fs(step)));
         for (let i = 1; i < values.length; i++) expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
         expect(values[values.length - 1]).toBe(1);
-        expect(timeLeft(fs("start"), 0)).toBe("About 2 minutes left");
+        expect(timeLeft(fs("start"), 0)).toBe("About a minute left"); // older firmware: about 75 s
+        expect(timeLeft(fs("start", { upload: { uploadFlags: UPLOAD_CHUNK_WINDOW | UPLOAD_REUSE_STAGED, chunkWindow: 16 } }), 0)).toBe("Less than a minute left");
     });
 
     it("the restart between the halves names no light color, only that the lights change", () => {
@@ -317,7 +319,7 @@ describe("the sheet (B1) and the dialog against the mock board", () => {
         expect(screen.queryByText(/Both halves connected|Firmware files verified|Layout saved/)).toBeNull();
         expect(screen.getByText("Keybard can't check where this file came from.")).toBeTruthy();
         expect(screen.getByText("Install it only if you trust where you got it.")).toBeTruthy();
-        expect(screen.getByText("Keybard updates both halves through the cable to your computer. It takes about 2 minutes.")).toBeTruthy();
+        expect(screen.getByText("Keybard updates both halves through the cable to your computer. It takes about a minute and a half.")).toBeTruthy();
         expect(screen.queryByText(/\bhold\b|approv/i)).toBeNull();
         expect(screen.getByRole("button", { name: "Update anyway" })).not.toBeDisabled();
     });

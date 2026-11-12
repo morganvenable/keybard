@@ -6,6 +6,7 @@ import type { CheckRow } from "@/services/updater/checks";
 import type { Afterwards } from "@/services/updater/flow";
 import { handName, otherHand, type Hand } from "@/services/updater/protocol";
 import { LayoutChoice } from "./LayoutChoice";
+import { fastUpload } from "./ProgressDialog";
 import { FwTitle, Problem, SectionLabel, Spinner } from "./parts";
 import type { UpdateUi } from "./useFirmwareUpdate";
 
@@ -23,11 +24,15 @@ function ProblemRow({ row }: { row: CheckRow }) {
     return <Problem id={row.id} title={row.label}>{row.detail}</Problem>;
 }
 
-/** What the update does, in one sentence. */
-function summary(target: "both" | Hand, usb: Hand): string {
-    if (target === "both") return "Keybard updates both halves through the cable to your computer. It takes about 2 minutes.";
-    if (target === usb) return `Keybard updates the ${handName(usb)} half. It takes about a minute.`;
-    return `Keybard updates the ${handName(otherHand(usb))} half through the split cable. It takes about a minute.`;
+/**
+ * What the update does, in one sentence. The times are measured ones: both halves take about
+ * 40 s on firmware with the faster upload and about 75 s on older firmware; one half takes
+ * well under a minute either way.
+ */
+function summary(target: "both" | Hand, usb: Hand, fast: boolean): string {
+    if (target === "both") return `Keybard updates both halves through the cable to your computer. It takes ${fast ? "under a minute" : "about a minute and a half"}.`;
+    if (target === usb) return `Keybard updates the ${handName(usb)} half. It takes under a minute.`;
+    return `Keybard updates the ${handName(otherHand(usb))} half through the split cable. It takes under a minute.`;
 }
 
 export function UpdateSheet({ ui, onAfterwards, onStart, onCancel, onSaveManually }: UpdateSheetProps) {
@@ -60,7 +65,7 @@ export function UpdateSheet({ ui, onAfterwards, onStart, onCancel, onSaveManuall
     const ready = !refusal && (backup.state !== "pending" || afterwards === "blank");
     return (
         <div className="flex flex-col gap-5" data-testid="update-sheet">
-            <FwTitle sub={refusal ? undefined : summary(plan.target, usb)}>{plan.title}</FwTitle>
+            <FwTitle sub={refusal ? undefined : summary(plan.target, usb, fastUpload(plan.board.usb.uploadFlags))}>{plan.title}</FwTitle>
 
             {refusal && <div role="alert"><ProblemRow row={refusal} /></div>}
             {!refusal && anyWarning && (

@@ -58,6 +58,9 @@ os.environ.setdefault("VITE_STORAGE_NAMESPACE", "keybard-test")
 
 from playwright.sync_api import expect, sync_playwright
 
+# The sheet's sentence: under a minute on firmware with the faster upload, longer on older firmware.
+BOTH_HALVES_SENTENCE = re.compile(r"^Keybard updates both halves through the cable to your computer\. It takes (under a minute|about a minute and a half)\.$")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from combo_editor_e2e import app_url  # noqa: E402
 
@@ -191,7 +194,7 @@ def main() -> int:
         section.get_by_role("button", name="Update to x4").click()
         sheet = page.get_by_test_id("update-sheet")
         expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
-        check(sheet.get_by_text("Keybard updates both halves through the cable to your computer. It takes about 2 minutes.").count() == 1, f"{label}: one sentence")
+        check(sheet.get_by_text(BOTH_HALVES_SENTENCE).count() == 1, f"{label}: one sentence")
         check(sheet.get_by_role("radio", name="Restore my layout").is_checked(), f"{label}: Restore my layout chosen")
         check(page.get_by_test_id("update-confirm").count() == 0, f"{label}: no confirm screen before Update")
         check(sheet.locator("[data-problem]").count() == 0, f"{label}: no checks shown when they all pass")
@@ -300,7 +303,7 @@ def main() -> int:
             sheet = page.get_by_test_id("update-sheet")
             expect(sheet.get_by_text("Saved to Downloads")).to_be_visible(timeout=20000)
             check(page.get_by_role("heading", name="Update to x4").count() == 1, f"{label}: the file is x4, matched to its pin")
-            check(sheet.get_by_text("Keybard updates both halves through the cable to your computer. It takes about 2 minutes.").count() == 1, f"{label}: both halves from one file")
+            check(sheet.get_by_text(BOTH_HALVES_SENTENCE).count() == 1, f"{label}: both halves from one file")
             layout(page, label)
             if theme == "light":
                 shot(page, "13-from-file-start")

@@ -350,6 +350,8 @@ function trace(...args: unknown[]) {
 
 const POLL_MS = 250;
 const CHORD_WAIT_MS = 35_000;
+/** STATUS replies in a row that may time out while the board erases (a block erase holds it). */
+const ERASE_STATUS_TIMEOUTS = 3;
 const RECONNECT_MS = 30_000;
 /**
  * The other half answering after its restart, presence MATCH after the half with USB is
@@ -642,7 +644,23 @@ export class UpdateFlow {
         const caps = this.state.upload;
         const reuse = !!caps && (caps.uploadFlags & UPLOAD_REUSE_STAGED) !== 0;
         await c.begin(hand, nonce, reuse ? BEGIN_REUSE : 0);
-        const ready = await this.poll(() => c.status(hand), (s) => s.state === State.RECEIVING, 120_000, (s) => {
+        // Firmware that erases its slot in 64 KiB blocks holds the board for about 400 ms per
+        // block (2 s at the flash's maximum), and a STATUS sent then waits until the block is
+        // done: one that times out during the erase is asked again, a few times in a row.
+        let lost = 0;
+        const statusThroughErase = async () => {
+            for (;;) {
+                try {
+                    const s = await c.status(hand);
+                    lost = 0;
+                    return s;
+                } catch (error) {
+                    if (!(error instanceof ReplyTimeoutError) || ++lost > ERASE_STATUS_TIMEOUTS) throw error;
+                    this.checkCancel();
+                }
+            }
+        };
+        const ready = await this.poll(statusThroughErase, (s) => s.state === State.RECEIVING, 120_000, (s) => {
             if (s.sectorsToErase) this.row(hand, { progress: s.sectorsErased / s.sectorsToErase });
         });
         const image = file.image;
