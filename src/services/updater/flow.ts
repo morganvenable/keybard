@@ -17,9 +17,10 @@ import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
 import type { SettingReplacement } from "../settings-migrate";
 import {
-    ARM_MODE_PAIR, ARM_MODE_SINGLE, CHUNK_PIECE_MAX, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
-    handName, hex, otherHand, statusName, type Hand,
+    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_BLOCK_ERASE, BEGIN_REUSE, HAND_SELF, UPLOAD_BLOCK_ERASE, UPLOAD_CHUNK_WINDOW, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
+    UPLOAD_REUSE_STAGED, handName, hex, otherHand, statusName, type Hand,
 } from "./protocol";
+import { chooseUploader, type UploadCaps } from "./upload";
 import { manualOwnsResetNotice } from "./manual";
 import { loadSvup, type SvupFile } from "./svup";
 import { isUf2, loadFirmwareFile } from "./uf2";
@@ -154,6 +155,8 @@ export interface FlowState {
     backup: { snapshotId?: string; fileName: string } | null;
     /** The board installs without the chord (INFO flags bit7). */
     noChord: boolean;
+    /** What the half with USB takes for uploads (INFO rsp[26], rsp[27]); absent or 0 on older builds. */
+    upload?: UploadCaps;
     step: Step;
     stepAt: number;
     /** When the approval step began (for the 30 s countdown). */
@@ -172,6 +175,8 @@ export interface FlowState {
     failure: Failure | null;
     /** WebHID round trips and stage times, for update-technical.md 1.9. */
     measurements: Record<string, number>;
+    /** Every step as it began, in ms after Start: the whole update's timing, step by step. */
+    timeline?: Array<{ step: Step; at: number }>;
     /** One-image firmware: each half's side as read before the install. */
     sidesBefore?: KnownSides | null;
     /** sidesBefore came from SIDE (true) or from a per-hand build's updater hand (false). */
@@ -345,6 +350,8 @@ function trace(...args: unknown[]) {
 
 const POLL_MS = 250;
 const CHORD_WAIT_MS = 35_000;
+/** STATUS replies in a row that may time out while the board erases (a block erase holds it). */
+const ERASE_STATUS_TIMEOUTS = 3;
 const RECONNECT_MS = 30_000;
 /**
  * The other half answering after its restart, presence MATCH after the half with USB is
@@ -428,6 +435,7 @@ export class UpdateFlow {
             afterwards: input.backup || input.afterwards === "blank" ? input.afterwards : "defaults",
             backup: input.backup ? { snapshotId: input.backup.snapshotId, fileName: input.backup.fileName } : null,
             noChord: plan.board.noChord,
+            upload: { uploadFlags: plan.board.usb.uploadFlags ?? 0, chunkWindow: plan.board.usb.chunkWindow ?? 1 },
             step: "start",
             stepAt: now,
             approveAt: null,
@@ -442,6 +450,7 @@ export class UpdateFlow {
             result: null,
             failure: null,
             measurements: {},
+            timeline: [],
             sidesBefore: plan.sidesBefore ?? null,
             sidesFromSide: plan.sidesFromSide ?? true,
             sideAsk: null,
@@ -486,7 +495,14 @@ export class UpdateFlow {
 
     private step(step: Step) {
         this.checkCancel();
-        this.update({ step, stepAt: this.host.clock.now() });
+        const now = this.host.clock.now();
+        const timeline = [...(this.state.timeline ?? []), { step, at: now - this.state.startedAt }];
+        this.update({ step, stepAt: now, timeline });
+    }
+
+    /** Add stage times and board figures to the measurements. */
+    private measure(m: Record<string, number>) {
+        this.update({ measurements: { ...this.state.measurements, ...m } });
     }
 
     /** Forget the update (after Done, Close, or a failure the user dismissed). */
@@ -582,10 +598,28 @@ export class UpdateFlow {
     private sessionHand: Hand | null = null;
 
     private async install() {
+        await this.confirmUploadCaps();
         const { target, usbHand } = this.state;
         const oHand = otherHand(usbHand);
         if (target === "both" || target === oHand) await this.installOther(target === "both");
         if (target === "both" || target === usbHand) await this.installUsb(target === "both");
+    }
+
+    /**
+     * The upload capabilities come from the INFO read when the sheet opened. The board may have
+     * been swapped or reflashed since: before the first upload they are narrowed to what the
+     * half with USB reports now, so a board never gets a burst or a BEGIN flags byte it doesn't
+     * advertise. An INFO that fails here means today's upload.
+     */
+    private async confirmUploadCaps() {
+        const caps = this.state.upload;
+        if (!caps || !caps.uploadFlags) return;
+        const info = await this.connection().info(HAND_SELF).catch(() => null);
+        const uploadFlags = caps.uploadFlags & (info?.uploadFlags ?? 0);
+        const chunkWindow = uploadFlags & UPLOAD_CHUNK_WINDOW ? Math.min(caps.chunkWindow, info?.chunkWindow ?? 1) : 1;
+        if (uploadFlags === caps.uploadFlags && chunkWindow === caps.chunkWindow) return;
+        trace("upload capabilities changed since the sheet opened", { was: caps, now: { uploadFlags, chunkWindow } });
+        this.update({ upload: { uploadFlags, chunkWindow } });
     }
 
     /** Poll STATUS until `until` holds; an ERROR latched on the board ends the poll. */
@@ -615,35 +649,67 @@ export class UpdateFlow {
         for (const r of this.state.rows) this.row(r.hand, { stage: "waiting", progress: 0 });
     }
 
-    /** BEGIN, erase, CHUNKs, END, verify and the CRC check, for one session. */
+    /**
+     * BEGIN, erase, the image, END, verify and the CRC check, for one session. A board that
+     * reports UPLOAD_REUSE_STAGED is asked to keep the image already in its slot: it keeps it
+     * only when it verified this very image there (a pair update of one image for both halves:
+     * the half with USB installs the image it relayed), and says so in STATUS's staged count.
+     * END verifies the slot either way before COMMIT.
+     */
     private async transfer(c: UpdaterClient, hand: Hand, nonce: number, file: SvupFile, steps: { erase: Step; send: Step; verify: Step }) {
         this.step(steps.erase);
         this.row(hand, { stage: "preparing", progress: 0 });
-        await c.begin(hand, nonce);
-        await this.poll(() => c.status(hand), (s) => s.state === State.RECEIVING, 120_000, (s) => {
+        const caps = this.state.upload;
+        const reuse = !!caps && (caps.uploadFlags & UPLOAD_REUSE_STAGED) !== 0;
+        const blocks = !!caps && (caps.uploadFlags & UPLOAD_BLOCK_ERASE) !== 0;
+        await c.begin(hand, nonce, (reuse ? BEGIN_REUSE : 0) | (blocks ? BEGIN_BLOCK_ERASE : 0));
+        // Asked for block erases, the board holds for about 400 ms per 64 KiB block (2 s at the
+        // flash's maximum), and a STATUS sent then waits until the block is done: one that
+        // times out during the erase is asked again, a few times in a row.
+        let lost = 0;
+        const statusThroughErase = async () => {
+            for (;;) {
+                try {
+                    const s = await c.status(hand);
+                    lost = 0;
+                    return s;
+                } catch (error) {
+                    if (!(error instanceof ReplyTimeoutError) || ++lost > ERASE_STATUS_TIMEOUTS) throw error;
+                    this.checkCancel();
+                }
+            }
+        };
+        const ready = await this.poll(statusThroughErase, (s) => s.state === State.RECEIVING, 120_000, (s) => {
             if (s.sectorsToErase) this.row(hand, { progress: s.sectorsErased / s.sectorsToErase });
         });
-        this.step(steps.send);
-        const t0 = this.now();
         const image = file.image;
-        let off = 0;
-        let lastShown = -1;
-        this.row(hand, { stage: "sending", progress: 0 });
-        while (off < image.length) {
-            const n = Math.min(CHUNK_PIECE_MAX, image.length - off);
-            const { status, next } = await c.chunk(hand, off, image.subarray(off, off + n));
-            if (status === Status.OK) off = next;
-            else if (status === Status.OUT_OF_ORDER && next <= image.length) off = next;
-            else throw new UpdaterStatusError("CHUNK", status);
-            this.checkCancel();
-            const pct = Math.floor((off / image.length) * 100);
-            if (pct !== lastShown) { lastShown = pct; this.row(hand, { progress: off / image.length }); }
+        const from = Math.min(ready.staged, image.length);
+        const name = handName(hand);
+        if (from >= image.length) {
+            // The board kept the image it verified: nothing to send.
+            this.measure({ [`send_${name}_ms`]: 0, [`reused_${name}`]: 1 });
+        } else {
+            this.step(steps.send);
+            const t0 = this.now();
+            let lastShown = -1;
+            this.row(hand, { stage: "sending", progress: from / image.length });
+            const uploader = chooseUploader(caps, !!c.transport.requestMany);
+            trace(`upload: ${uploader.name}, from ${from} of ${image.length}`);
+            await uploader.upload({
+                client: c, hand, image, from,
+                checkCancel: () => this.checkCancel(),
+                onProgress: (staged) => {
+                    const pct = Math.floor((staged / image.length) * 100);
+                    if (pct !== lastShown) { lastShown = pct; this.row(hand, { progress: staged / image.length }); }
+                },
+            });
+            this.measure({ [`send_${name}_ms`]: this.now() - t0, [`send_${name}_window`]: uploader.name === "stop-and-wait" ? 1 : caps!.chunkWindow });
         }
-        this.update({ measurements: { ...this.state.measurements, [`send_${handName(hand)}_ms`]: this.now() - t0 } });
         this.step(steps.verify);
         this.row(hand, { stage: "checking", progress: null });
         await c.end(hand, nonce);
         const s = await this.poll(() => c.status(hand), (st) => st.state === State.VERIFIED, 60_000);
+        this.measure({ [`verify_${handName(hand)}_board_ms`]: s.verifyMs, [`erase_${handName(hand)}_sector_max_ms`]: s.eraseMsMax });
         if (s.crcLo16 !== (file.crcBody & 0xffff)) throw new Stop({ id: "F5", tags: this.fromTags(), detail: "The keyboard's copy doesn't match the file." });
     }
 
@@ -670,10 +736,10 @@ export class UpdateFlow {
         this.row(o, { stage: "copying", progress: 0 });
         await c.commit(o, arm.nonce, fileO.crcBody & 0xffff);
         const t0 = this.now();
-        await this.poll(async () => { const r = await c.relay(o); return { ...r, lastError: r.error }; }, (r) => r.state === State.RELAYED, 180_000, (r) => {
+        const relayed = await this.poll(async () => { const r = await c.relay(o); return { ...r, lastError: r.error }; }, (r) => r.state === State.RELAYED, 180_000, (r) => {
             if (r.phase === RelayPhase.PAGES && r.imageLen) this.row(o, { progress: r.acked / r.imageLen });
         });
-        this.update({ measurements: { ...this.state.measurements, relay_ms: this.now() - t0 } });
+        this.measure({ relay_ms: this.now() - t0, relay_board_ms: relayed.relayMs });
 
         // COMMIT #2: the other half installs. From here it runs the new release. A COMMIT
         // whose reply went missing may have been taken: it counts as sent, and STATUS says.
@@ -1118,6 +1184,7 @@ export class UpdateFlow {
             phase: "result",
             step: "done",
             finishedAt: this.now(),
+            timeline: [...(this.state.timeline ?? []), { step: "done", at: this.now() - this.state.startedAt }],
             result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed, ...notes, sides: this.sidesResult, ...(touchpadMode ? { touchpadMode } : {}) },
         });
     }

@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 
 import type { FlowState, Step } from "@/services/updater/flow";
-import { handName, otherHand } from "@/services/updater/protocol";
+import { UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, handName, otherHand } from "@/services/updater/protocol";
 import { CHORD_KEYS_PHRASE, ChordDiagram, chordHalfPhrase } from "./ChordDiagram";
 import { FwTitle, Spinner } from "./parts";
 
@@ -93,15 +93,33 @@ export function stageLine(s: FlowState): string {
     }
 }
 
+/**
+ * Seconds left at the start of each step of an update of both halves, from measured runs
+ * (Keybard's step timeline, with about 8 s for the key press). A board whose firmware
+ * takes the windowed upload and keeps the relayed image (UPLOAD_CHUNK_WINDOW and
+ * UPLOAD_REUSE_STAGED) takes about 40 s; older firmware gets one upload per half at the
+ * old speed, about 75 s.
+ */
 const REMAINING_S: Partial<Record<Step, number>> = {
-    start: 110, approve: 100, "other-erase": 95, "other-send": 85, "other-verify": 78, relay: 70, "other-install": 55,
-    "other-restart": 50, "self-arm": 45, "self-erase": 44, "self-send": 38, "self-verify": 30, "self-install": 28,
-    reconnect: 25, "check-halves": 15, "settings-reset": 15, restore: 10,
+    start: 77, approve: 75, "other-erase": 67, "other-send": 64, "other-verify": 48, relay: 47, "other-install": 36,
+    "other-restart": 31, "self-arm": 28, "self-erase": 28, "self-send": 25, "self-verify": 9, "self-install": 8,
+    reconnect: 5, "check-halves": 3, "settings-reset": 3, restore: 2,
 };
+const REMAINING_FAST_S: Partial<Record<Step, number>> = {
+    start: 40, approve: 38, "other-erase": 30, "other-send": 29, "other-verify": 24, relay: 23, "other-install": 17,
+    "other-restart": 12, "self-arm": 9, "self-erase": 9, "self-send": 9, "self-verify": 9, "self-install": 8,
+    reconnect: 5, "check-halves": 3, "settings-reset": 3, restore: 2,
+};
+
+/** Whether the board takes the faster upload: a window of CHUNKs, and one upload for both halves. */
+export function fastUpload(uploadFlags: number | undefined): boolean {
+    const both = UPLOAD_CHUNK_WINDOW | UPLOAD_REUSE_STAGED;
+    return ((uploadFlags ?? 0) & both) === both;
+}
 
 /** About how long is left. */
 export function timeLeft(s: FlowState, now: number): string {
-    const left = REMAINING_S[s.step];
+    const left = (fastUpload(s.upload?.uploadFlags) ? REMAINING_FAST_S : REMAINING_S)[s.step];
     if (left === undefined) return "";
     const share = s.target === "both" ? 1 : 0.55;
     const secs = Math.max(5, Math.round(left * share - (now - s.stepAt) / 1000));

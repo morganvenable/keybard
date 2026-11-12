@@ -169,6 +169,8 @@ function generateNonce(): Uint8Array {
 
 /** How long a late updater reply gets to arrive, after a timeout, before the next request goes out. */
 const UPDATER_DRAIN_MS = 500;
+/** sendUpdaterReports: reports written to the device at once (each still waits its turn in the window). */
+const UPDATER_WRITES_IN_FLIGHT = 4;
 
 export class SvilUSB {
   // VIA command constants (unchanged, used via wrapper)
@@ -379,6 +381,82 @@ export class SvilUSB {
     // After a timeout the board may still answer that request. Its late reply carries the same
     // op as the next request's (INFO page 0 and page 1 can't be told apart by the echo), so hold
     // the next request back and let the timed-out listener swallow the straggler.
+    this.queue = operation.then(() => undefined).catch((error) => {
+      if (!(error instanceof Error) || !/timeout/i.test(error.message)) return undefined;
+      return new Promise<void>((resolve) => updaterTimers().setTimeout(resolve, UPDATER_DRAIN_MS));
+    });
+    return operation;
+  }
+
+  /**
+   * Several wrapped updater requests back to back, for a board that takes a CHUNK window:
+   * each report goes out as soon as the one before it is written and fewer than `inFlight`
+   * are unanswered, without waiting for each reply. Resolves with every reply, in order (the
+   * board answers in order). Rejects on a wrapper rejection, or with a timeout when the
+   * replies stop coming for timeoutMs; after a timeout the next request waits
+   * UPDATER_DRAIN_MS, so late replies aren't taken for its.
+   */
+  async sendUpdaterReports(payloads: number[][], echo = 3, timeoutMs = 1000, inFlight = payloads.length): Promise<Uint8Array[]> {
+    if (!this.device) throw new Error("USB device not connected");
+    if (!payloads.length) return [];
+    await this.ensureClientId();
+    const clientId = this.clientId;
+    const messages = payloads.map((p) => this.buildWrappedMessage(VIA_PREFIX, p));
+    const operation = this.queue.then(() => new Promise<Uint8Array[]>((resolve, reject) => {
+      const device = this.device;
+      if (!device) { reject(new Error("USB device not connected")); return; }
+      const timers = updaterTimers();
+      const replies: Uint8Array[] = [];
+      let done = false;
+      let timeoutId = 0 as unknown as ReturnType<typeof timers.setTimeout>;
+      /** Wakes the sender when a reply frees a place in the window. */
+      let wake: (() => void) | null = null;
+      const finish = (error: Error | null) => {
+        if (done) return;
+        done = true;
+        wake?.();
+        timers.clearTimeout(timeoutId);
+        if (error) reject(error); else resolve(replies);
+      };
+      // The timeout counts from the last sign of life: a report written or a reply read.
+      const arm = () => { timers.clearTimeout(timeoutId); timeoutId = timers.setTimeout(() => finish(new Error("USB Command Timeout")), timeoutMs); };
+      arm();
+      this.listener = (data: ArrayBuffer) => {
+        if (done) return;
+        const u8 = new Uint8Array(data);
+        if (u8[0] !== WRAPPER_PREFIX) return;
+        const respClientId = (u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24)) >>> 0;
+        if (respClientId !== clientId >>> 0) return;
+        if (u8[5] === CLIENT_ERROR_PROTOCOL) { finish(new ClientIdRejectedError(u8[6])); return; }
+        if (u8[5] !== VIA_PREFIX) return;
+        const want = payloads[replies.length];
+        for (let i = 0; i < echo; i++) if (u8[6 + i] !== want[i]) return;
+        replies.push(new Uint8Array(u8));
+        arm();
+        if (replies.length === payloads.length) finish(null);
+        wake?.();
+      };
+      void (async () => {
+        const limit = Math.max(1, inFlight);
+        // A few writes outstanding at once: waiting for each write to complete before the
+        // next costs about a frame per report. The browser keeps them in order.
+        const writes: Promise<void>[] = [];
+        const fail = (err: unknown) => finish(err instanceof Error ? err : new Error(String(err)));
+        for (let i = 0; i < messages.length; i++) {
+          while (!done && i - replies.length >= limit) await new Promise<void>((r) => { wake = () => { wake = null; r(); }; });
+          if (done) return;
+          if (writes.length >= UPDATER_WRITES_IN_FLIGHT) {
+            try { await writes.shift(); } catch (err) { fail(err); return; }
+            if (done) return;
+          }
+          writes.push(device.sendReport(0, messages[i] as BufferSource).then(arm));
+          writes[writes.length - 1].catch(() => undefined); // reported when awaited above or below
+        }
+        for (const w of writes) {
+          try { await w; } catch (err) { fail(err); return; }
+        }
+      })();
+    }));
     this.queue = operation.then(() => undefined).catch((error) => {
       if (!(error instanceof Error) || !/timeout/i.test(error.message)) return undefined;
       return new Promise<void>((resolve) => updaterTimers().setTimeout(resolve, UPDATER_DRAIN_MS));

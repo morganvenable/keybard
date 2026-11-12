@@ -47,3 +47,5 @@ with the next free ID; never renumber one. `K-` cases are Keybard's own.
 | K-05 | A wrapper rejection: new ID, REBIND, then the op once more | `protocol4-cases.test.ts` |
 | K-06 | CHUNK out of order: OUT_OF_ORDER with the board's next offset | `protocol4-cases.test.ts` |
 | K-07 | Presence VERSION while the halves differ, INFO bit5 | `protocol4-cases.test.ts` |
+| P4-33 | CHUNK window: a board that reports it gets its CHUNKs sliding, never more in flight than its window; a missed CHUNK resumes from the board's offset; a board that doesn't report it never gets a burst | `fast-upload.test.ts` |
+| P4-34 | BEGIN reuse: one image for both halves is uploaded once; the half with USB installs the image it relayed after its own verify; per-hand files are sent to each half; an older board gets BEGIN with no flags | `fast-upload.test.ts` |

@@ -8,7 +8,7 @@
 //   REBINDs, and only then sends the op again, once.
 
 import {
-    ARM_MODE_SINGLE, HAND_SELF, Op, Status, armArgs, chunkArgs, commitArgs, decodeArm, decodeFilled, decodeInfo0,
+    ARM_MODE_SINGLE, HAND_SELF, Op, Status, armArgs, beginArgs, chunkArgs, commitArgs, decodeArm, decodeFilled, decodeInfo0,
     decodeInfo1, decodeNextOffset, decodeRelay, decodeResetMask, decodeStateReply, decodeStatus, infoArgs,
     manifestArgs, manifestPieces, nonceArgs, settingsResetArgs, statusName, type ArmReply, type Info0, type Info1,
     type RelayReply, type StatusReply, type UpdaterReply,
@@ -133,14 +133,43 @@ export class UpdaterClient {
         return arm;
     }
 
-    async begin(hand: number, nonce: number): Promise<number> {
-        return decodeStateReply(await this.expect("BEGIN", await this.op(Op.BEGIN, hand, nonceArgs(nonce)), Status.ACCEPTED));
+    /** BEGIN; flags (BEGIN_REUSE) only to a board that reports UPLOAD_REUSE_STAGED. */
+    async begin(hand: number, nonce: number, flags = 0): Promise<number> {
+        return decodeStateReply(await this.expect("BEGIN", await this.op(Op.BEGIN, hand, beginArgs(nonce, flags)), Status.ACCEPTED));
     }
 
     /** One CHUNK. Returns the status and the board's next offset (OUT_OF_ORDER: resync to it). */
     async chunk(hand: number, off: number, data: Uint8Array): Promise<{ status: number; next: number }> {
         const reply = await this.op(Op.CHUNK, hand, chunkArgs(off, data));
         return { status: reply.status, next: decodeNextOffset(reply) };
+    }
+
+    /**
+     * CHUNKs back to back (a board with a CHUNK window), with the client-ID rules of op():
+     * REBIND first after an ID change; after a wrapper rejection, new ID, REBIND, once more.
+     * Returns each CHUNK's status and next offset, in order.
+     */
+    async chunks(hand: number, pieces: Array<[number, Uint8Array]>, inFlight?: number): Promise<Array<{ status: number; next: number }>> {
+        const many = this.transport.requestMany?.bind(this.transport);
+        if (!many) {
+            const out: Array<{ status: number; next: number }> = [];
+            for (const [off, data] of pieces) out.push(await this.chunk(hand, off, data));
+            return out;
+        }
+        const requests = pieces.map(([off, data]) => ({ op: Op.CHUNK, hand, args: chunkArgs(off, data) }));
+        const id = await this.transport.ensureClient();
+        if (this.rebindNonce !== null && id !== this.boundClient) await this.rebind();
+        let replies: UpdaterReply[];
+        try {
+            replies = await many(requests, inFlight);
+        } catch (error) {
+            if (!(error instanceof ClientRejectedError)) throw error;
+            await this.transport.renewClient();
+            if (this.rebindNonce !== null) await this.rebind();
+            replies = await many(requests, inFlight);
+        }
+        for (const r of replies) this.record(Op.CHUNK, hand, r.status);
+        return replies.map((r) => ({ status: r.status, next: decodeNextOffset(r) }));
     }
 
     async end(hand: number, nonce: number): Promise<number> {

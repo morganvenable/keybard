@@ -135,6 +135,18 @@ export const INFO_FLAG_OTHER_DIFFERS = 0x20;
 /** F-N1: a no-chord developer build. Read from the half with USB only. */
 export const INFO_FLAG_NO_CHORD = 0x80;
 
+// INFO page 0 rsp[26]: faster uploads (still protocol 4; 0 from older builds).
+/** CHUNKs may be sent back to back, up to INFO rsp[27] in flight; each is still answered, in order. */
+export const UPLOAD_CHUNK_WINDOW = 0x01;
+/** BEGIN takes a flags byte; BEGIN_REUSE keeps the slot's verified image when it's this manifest's. */
+export const UPLOAD_REUSE_STAGED = 0x02;
+/** BEGIN takes BEGIN_BLOCK_ERASE: the slot erased in 64 KiB blocks, each holding the board about 400 ms. */
+export const UPLOAD_BLOCK_ERASE = 0x04;
+/** BEGIN flags (after the nonce). */
+export const BEGIN_REUSE = 0x01;
+/** Erase in 64 KiB blocks: Keybard waits through each (STATUS asked again after a timeout). */
+export const BEGIN_BLOCK_ERASE = 0x02;
+
 // STATUS rsp[21]
 export const STATUS_FLAG_CHORD_MADE = 0x01;
 export const STATUS_FLAG_BOUND = 0x02;
@@ -241,6 +253,8 @@ export const manifestArgs = (off: number, piece: ArrayLike<number>): number[] =>
 };
 export const armArgs = (mode: number = ARM_MODE_SINGLE): number[] => [mode];
 export const nonceArgs = (nonce: number): number[] => le32(nonce);
+/** BEGIN: the nonce, then (UPLOAD_REUSE_STAGED boards only) the flags byte. */
+export const beginArgs = (nonce: number, flags = 0): number[] => (flags ? [...le32(nonce), flags] : le32(nonce));
 export const chunkArgs = (off: number, data: ArrayLike<number>): number[] => {
     if (data.length < 1 || data.length > CHUNK_PIECE_MAX) throw new RangeError(`chunk of ${data.length} bytes`);
     return [...le24(off), data.length, ...Array.from(data)];
@@ -283,6 +297,10 @@ export interface Info0 {
     chunkMax: number;
     manifestMax: number;
     reportBytes: number;
+    /** What the board adds for uploads (UPLOAD_*): 0 from builds before them. */
+    uploadFlags: number;
+    /** CHUNKs a host may have in flight (UPLOAD_CHUNK_WINDOW); 1 without the window. */
+    chunkWindow: number;
 }
 
 /**
@@ -334,14 +352,17 @@ export function decodeInfo0({ rsp }: UpdaterReply): Info0 {
         chunkMax: rsp[23],
         manifestMax: rsp[24],
         reportBytes: rsp[25],
+        uploadFlags: rsp[26],
+        chunkWindow: rsp[26] & UPLOAD_CHUNK_WINDOW ? Math.max(1, rsp[27]) : 1,
     };
 }
 
-export function encodeInfo0(i: Omit<Info0, "answered" | "flash16MiB" | "writesFailing" | "releaseBuild" | "testHooks" | "otherDiffers" | "noChord" | "jedec"> & { jedec?: number[] }): Uint8Array {
+export function encodeInfo0(i: Omit<Info0, "answered" | "flash16MiB" | "writesFailing" | "releaseBuild" | "testHooks" | "otherDiffers" | "noChord" | "jedec" | "uploadFlags" | "chunkWindow"> & { jedec?: number[]; uploadFlags?: number; chunkWindow?: number }): Uint8Array {
     return makeRsp(i.status, [
         i.state, i.protocol, ...le16(i.slotBase / 4096), ...le16(i.slotSize / 4096), ...le16(i.maxImage / 4096),
         ...(i.jedec ?? [0xef, 0x40, 0x18]), i.pointingId, i.hand, ...le32(i.fwVersion), i.storageFormat,
         ...le16(i.securityEpoch), i.flags, i.lastError, i.chunkMax, i.manifestMax, i.reportBytes,
+        ...(i.uploadFlags ? [i.uploadFlags, i.chunkWindow ?? 0] : []),
     ]);
 }
 
