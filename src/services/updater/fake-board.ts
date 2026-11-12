@@ -13,7 +13,7 @@ import {
     INFO_FLAG_16MIB, INFO_FLAG_NO_CHORD, INFO_FLAG_OTHER_DIFFERS, INFO_FLAG_RELEASE, INFO_FLAG_WRITES_FAILING,
     MANIFEST_BYTES, MANIFEST_FLAG_DIAGNOSTIC, MANIFEST_PIECE_MAX, Op, Presence, RelayPhase, SETTINGS_RESET_MAGIC,
     STATE_NO_ANSWER, STATUS2_APPROVAL_HELD, STATUS2_PRE_APPROVED, STATUS_FLAG_BOUND, STATUS_FLAG_CHORD_MADE, State,
-    BEGIN_REUSE, UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, Status, encodeArm, encodeInfo0, encodeInfo1, encodeRelay, encodeStatus, hex, le24, makeRsp, otherHand, u16, u24,
+    BEGIN_BLOCK_ERASE, BEGIN_REUSE, UPLOAD_BLOCK_ERASE, UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, Status, encodeArm, encodeInfo0, encodeInfo1, encodeRelay, encodeStatus, hex, le24, makeRsp, otherHand, u16, u24,
     u32, type Hand, type UpdaterReply,
 } from "./protocol";
 import { findBuildInfo, imageCrc, parseManifest, sha512, type SvupManifest } from "./svup";
@@ -274,6 +274,8 @@ export class FakeSvalboard implements UpdaterTransport {
     usbReboots = 0;
     /** requestMany calls (bursts of CHUNKs). */
     bursts = 0;
+    /** BEGINs that asked for block erases. */
+    blockErases = 0;
     /** The image the half with USB last verified in its slot (BEGIN reuse): RAM, gone with a restart. */
     private kept: { manifest: string; image: Uint8Array } | null = null;
 
@@ -721,7 +723,7 @@ export class FakeSvalboard implements UpdaterTransport {
             jedec: self ? [0xef, 0x40, 0x18] : [0, 0, 0], pointingId: c.pointingId, hand, fwVersion: c.fwVersion,
             storageFormat: c.storageFormat, securityEpoch: c.securityEpoch, flags, lastError: self ? this.lastError : 0,
             chunkMax: CHUNK_PIECE_MAX, manifestMax: MANIFEST_PIECE_MAX, reportBytes: 64,
-            ...(c.fastUpload ? { uploadFlags: UPLOAD_CHUNK_WINDOW | UPLOAD_REUSE_STAGED, chunkWindow: 16 } : {}),
+            ...(c.fastUpload ? { uploadFlags: UPLOAD_CHUNK_WINDOW | UPLOAD_REUSE_STAGED | UPLOAD_BLOCK_ERASE, chunkWindow: 16 } : {}),
         });
     }
 
@@ -866,6 +868,8 @@ export class FakeSvalboard implements UpdaterTransport {
         if (s!.state !== State.CONFIRM_WAIT) return makeRsp(Status.INVALID, [s!.state]);
         if (s!.chordAt === null) return makeRsp(Status.NOT_CONFIRMED, [s!.state]);
         const fast = this.usb().cfg.fastUpload;
+        if (!fast && flags) throw new Error(`BEGIN flags ${flags} sent to a board that doesn't take them`);
+        if (fast && flags & BEGIN_BLOCK_ERASE) this.blockErases++;
         const kept = this.kept;
         if (fast && flags & BEGIN_REUSE && kept && kept.manifest === hex(s!.manifest) && kept.image.length === s!.m!.imageLen) {
             // The slot holds this very image, verified: no erase, every byte staged.

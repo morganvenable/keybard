@@ -140,8 +140,12 @@ export const INFO_FLAG_NO_CHORD = 0x80;
 export const UPLOAD_CHUNK_WINDOW = 0x01;
 /** BEGIN takes a flags byte; BEGIN_REUSE keeps the slot's verified image when it's this manifest's. */
 export const UPLOAD_REUSE_STAGED = 0x02;
+/** BEGIN takes BEGIN_BLOCK_ERASE: the slot erased in 64 KiB blocks, each holding the board about 400 ms. */
+export const UPLOAD_BLOCK_ERASE = 0x04;
 /** BEGIN flags (after the nonce). */
 export const BEGIN_REUSE = 0x01;
+/** Erase in 64 KiB blocks: Keybard waits through each (STATUS asked again after a timeout). */
+export const BEGIN_BLOCK_ERASE = 0x02;
 
 // STATUS rsp[21]
 export const STATUS_FLAG_CHORD_MADE = 0x01;

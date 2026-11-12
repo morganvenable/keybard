@@ -70,6 +70,7 @@ describe("an older board (no upload flags)", () => {
         expect(begins.every((a) => a.length === 4)).toBe(true);
         expect(chunks).toBe(2 * pieces(one));
         expect(state.upload).toEqual({ uploadFlags: 0, chunkWindow: 1 });
+        expect(board.blockErases).toBe(0);
         expect(state.measurements.send_left_window).toBe(1);
         expect(state.measurements.send_right_window).toBe(1);
         expect(state.measurements.reused_right).toBeUndefined();
@@ -86,7 +87,8 @@ describe("a board with the CHUNK window and BEGIN reuse", () => {
         expect(burstChunks).toBe(pieces(one));
         expect(board.bursts).toBe(Math.ceil(pieces(one) / 64)); // 4 windows of 16 per call, sliding
         expect(begins).toHaveLength(2);
-        expect(begins.every((a) => a.length === 5 && a[4] === 1)).toBe(true);
+        expect(begins.every((a) => a.length === 5 && a[4] === 3)).toBe(true); // reuse and block erase
+        expect(board.blockErases).toBe(2);
         expect(state.measurements.send_left_window).toBe(16);
         expect(state.measurements.reused_right).toBe(1);
         expect(state.measurements.send_right_ms).toBe(0);

@@ -17,7 +17,7 @@ import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
 import type { SettingReplacement } from "../settings-migrate";
 import {
-    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_REUSE, HAND_SELF, UPLOAD_CHUNK_WINDOW, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
+    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_BLOCK_ERASE, BEGIN_REUSE, HAND_SELF, UPLOAD_BLOCK_ERASE, UPLOAD_CHUNK_WINDOW, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
     UPLOAD_REUSE_STAGED, handName, hex, otherHand, statusName, type Hand,
 } from "./protocol";
 import { chooseUploader, type UploadCaps } from "./upload";
@@ -661,10 +661,11 @@ export class UpdateFlow {
         this.row(hand, { stage: "preparing", progress: 0 });
         const caps = this.state.upload;
         const reuse = !!caps && (caps.uploadFlags & UPLOAD_REUSE_STAGED) !== 0;
-        await c.begin(hand, nonce, reuse ? BEGIN_REUSE : 0);
-        // Firmware that erases its slot in 64 KiB blocks holds the board for about 400 ms per
-        // block (2 s at the flash's maximum), and a STATUS sent then waits until the block is
-        // done: one that times out during the erase is asked again, a few times in a row.
+        const blocks = !!caps && (caps.uploadFlags & UPLOAD_BLOCK_ERASE) !== 0;
+        await c.begin(hand, nonce, (reuse ? BEGIN_REUSE : 0) | (blocks ? BEGIN_BLOCK_ERASE : 0));
+        // Asked for block erases, the board holds for about 400 ms per 64 KiB block (2 s at the
+        // flash's maximum), and a STATUS sent then waits until the block is done: one that
+        // times out during the erase is asked again, a few times in a row.
         let lost = 0;
         const statusThroughErase = async () => {
             for (;;) {
