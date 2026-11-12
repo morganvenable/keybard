@@ -17,9 +17,10 @@ import { UpdaterClient, UpdaterStatusError } from "./client";
 import type { Plan, Target } from "./checks";
 import type { SettingReplacement } from "../settings-migrate";
 import {
-    ARM_MODE_PAIR, ARM_MODE_SINGLE, CHUNK_PIECE_MAX, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
-    handName, hex, otherHand, statusName, type Hand,
+    ARM_MODE_PAIR, ARM_MODE_SINGLE, BEGIN_REUSE, HAND_SELF, Presence, RelayPhase, SETTINGS_RESET_BLANK, SETTINGS_RESET_BOTH, State, Status,
+    UPLOAD_REUSE_STAGED, handName, hex, otherHand, statusName, type Hand,
 } from "./protocol";
+import { chooseUploader, type UploadCaps } from "./upload";
 import { manualOwnsResetNotice } from "./manual";
 import { loadSvup, type SvupFile } from "./svup";
 import { isUf2, loadFirmwareFile } from "./uf2";
@@ -154,6 +155,8 @@ export interface FlowState {
     backup: { snapshotId?: string; fileName: string } | null;
     /** The board installs without the chord (INFO flags bit7). */
     noChord: boolean;
+    /** What the half with USB takes for uploads (INFO rsp[26], rsp[27]); absent or 0 on older builds. */
+    upload?: UploadCaps;
     step: Step;
     stepAt: number;
     /** When the approval step began (for the 30 s countdown). */
@@ -430,6 +433,7 @@ export class UpdateFlow {
             afterwards: input.backup || input.afterwards === "blank" ? input.afterwards : "defaults",
             backup: input.backup ? { snapshotId: input.backup.snapshotId, fileName: input.backup.fileName } : null,
             noChord: plan.board.noChord,
+            upload: { uploadFlags: plan.board.usb.uploadFlags ?? 0, chunkWindow: plan.board.usb.chunkWindow ?? 1 },
             step: "start",
             stepAt: now,
             approveAt: null,
@@ -625,31 +629,45 @@ export class UpdateFlow {
         for (const r of this.state.rows) this.row(r.hand, { stage: "waiting", progress: 0 });
     }
 
-    /** BEGIN, erase, CHUNKs, END, verify and the CRC check, for one session. */
+    /**
+     * BEGIN, erase, the image, END, verify and the CRC check, for one session. A board that
+     * reports UPLOAD_REUSE_STAGED is asked to keep the image already in its slot: it keeps it
+     * only when it verified this very image there (a pair update of one image for both halves:
+     * the half with USB installs the image it relayed), and says so in STATUS's staged count.
+     * END verifies the slot either way before COMMIT.
+     */
     private async transfer(c: UpdaterClient, hand: Hand, nonce: number, file: SvupFile, steps: { erase: Step; send: Step; verify: Step }) {
         this.step(steps.erase);
         this.row(hand, { stage: "preparing", progress: 0 });
-        await c.begin(hand, nonce);
-        await this.poll(() => c.status(hand), (s) => s.state === State.RECEIVING, 120_000, (s) => {
+        const caps = this.state.upload;
+        const reuse = !!caps && (caps.uploadFlags & UPLOAD_REUSE_STAGED) !== 0;
+        await c.begin(hand, nonce, reuse ? BEGIN_REUSE : 0);
+        const ready = await this.poll(() => c.status(hand), (s) => s.state === State.RECEIVING, 120_000, (s) => {
             if (s.sectorsToErase) this.row(hand, { progress: s.sectorsErased / s.sectorsToErase });
         });
-        this.step(steps.send);
-        const t0 = this.now();
         const image = file.image;
-        let off = 0;
-        let lastShown = -1;
-        this.row(hand, { stage: "sending", progress: 0 });
-        while (off < image.length) {
-            const n = Math.min(CHUNK_PIECE_MAX, image.length - off);
-            const { status, next } = await c.chunk(hand, off, image.subarray(off, off + n));
-            if (status === Status.OK) off = next;
-            else if (status === Status.OUT_OF_ORDER && next <= image.length) off = next;
-            else throw new UpdaterStatusError("CHUNK", status);
-            this.checkCancel();
-            const pct = Math.floor((off / image.length) * 100);
-            if (pct !== lastShown) { lastShown = pct; this.row(hand, { progress: off / image.length }); }
+        const from = Math.min(ready.staged, image.length);
+        const name = handName(hand);
+        if (from >= image.length) {
+            // The board kept the image it verified: nothing to send.
+            this.measure({ [`send_${name}_ms`]: 0, [`reused_${name}`]: 1 });
+        } else {
+            this.step(steps.send);
+            const t0 = this.now();
+            let lastShown = -1;
+            this.row(hand, { stage: "sending", progress: from / image.length });
+            const uploader = chooseUploader(caps, !!c.transport.requestMany);
+            trace(`upload: ${uploader.name}, from ${from} of ${image.length}`);
+            await uploader.upload({
+                client: c, hand, image, from,
+                checkCancel: () => this.checkCancel(),
+                onProgress: (staged) => {
+                    const pct = Math.floor((staged / image.length) * 100);
+                    if (pct !== lastShown) { lastShown = pct; this.row(hand, { progress: staged / image.length }); }
+                },
+            });
+            this.measure({ [`send_${name}_ms`]: this.now() - t0, [`send_${name}_window`]: uploader.name === "stop-and-wait" ? 1 : caps!.chunkWindow });
         }
-        this.update({ measurements: { ...this.state.measurements, [`send_${handName(hand)}_ms`]: this.now() - t0 } });
         this.step(steps.verify);
         this.row(hand, { stage: "checking", progress: null });
         await c.end(hand, nonce);

@@ -13,11 +13,11 @@ import {
     INFO_FLAG_16MIB, INFO_FLAG_NO_CHORD, INFO_FLAG_OTHER_DIFFERS, INFO_FLAG_RELEASE, INFO_FLAG_WRITES_FAILING,
     MANIFEST_BYTES, MANIFEST_FLAG_DIAGNOSTIC, MANIFEST_PIECE_MAX, Op, Presence, RelayPhase, SETTINGS_RESET_MAGIC,
     STATE_NO_ANSWER, STATUS2_APPROVAL_HELD, STATUS2_PRE_APPROVED, STATUS_FLAG_BOUND, STATUS_FLAG_CHORD_MADE, State,
-    Status, encodeArm, encodeInfo0, encodeInfo1, encodeRelay, encodeStatus, hex, le24, makeRsp, otherHand, u16, u24,
+    BEGIN_REUSE, UPLOAD_CHUNK_WINDOW, UPLOAD_REUSE_STAGED, Status, encodeArm, encodeInfo0, encodeInfo1, encodeRelay, encodeStatus, hex, le24, makeRsp, otherHand, u16, u24,
     u32, type Hand, type UpdaterReply,
 } from "./protocol";
 import { findBuildInfo, imageCrc, parseManifest, sha512, type SvupManifest } from "./svup";
-import { ClientRejectedError, DisconnectedError, ReplyTimeoutError, type Clock, type UpdaterTransport } from "./transport";
+import { ClientRejectedError, DisconnectedError, ReplyTimeoutError, type Clock, type UpdaterRequest, type UpdaterTransport } from "./transport";
 
 export interface FakeHalfConfig {
     fwVersion: number;
@@ -36,6 +36,8 @@ export interface FakeHalfConfig {
     writesFailing?: boolean;
     /** SETTINGS_RESET mode 1 (D44): false for a protocol 4 build from before it. */
     blankWipe?: boolean;
+    /** Faster uploads (INFO rsp[26]): the CHUNK window and BEGIN reuse. False: a build from before them. */
+    fastUpload?: boolean;
 }
 
 export type FaultPoint = "other-send" | "relay" | "subside" | "self-send" | "self-commit";
@@ -61,6 +63,10 @@ export type Fault =
     | { kind: "info-crossed" }
     | { kind: "other-no-return" }
     | { kind: "expire-client"; afterOps: number }
+    /** The CHUNK at this offset never reaches the board, once: no reply, the CHUNKs after it OUT_OF_ORDER. */
+    | { kind: "chunk-lost"; at: number }
+    /** The CHUNK at this offset arrives with a byte changed, once: the board stages it, END's SHA-512 refuses it. */
+    | { kind: "chunk-corrupt"; at: number }
     | { kind: "renew-every"; ms: number };
 
 export interface FakeTiming {
@@ -216,6 +222,7 @@ const fill = (c: FakeHalfConfig): Required<FakeHalfConfig> => ({
     flash16MiB: true,
     writesFailing: false,
     blankWipe: true,
+    fastUpload: false,
     ...c,
 });
 
@@ -260,6 +267,10 @@ export class FakeSvalboard implements UpdaterTransport {
     chordsMade = 0;
     /** Restarts of the half with USB. */
     usbReboots = 0;
+    /** requestMany calls (bursts of CHUNKs). */
+    bursts = 0;
+    /** The image the half with USB last verified in its slot (BEGIN reuse): RAM, gone with a restart. */
+    private kept: { manifest: string; image: Uint8Array } | null = null;
 
     constructor(o: FakeBoardOptions) {
         this.clock = o.clock;
@@ -437,6 +448,32 @@ export class FakeSvalboard implements UpdaterTransport {
         return { status: rsp[0], rsp };
     }
 
+    /** A burst of requests (a board with the CHUNK window); refused for a board without it. */
+    async requestMany(requests: UpdaterRequest[]): Promise<UpdaterReply[]> {
+        if (!this.usb().cfg.fastUpload) throw new Error("burst sent to a board that doesn't take a CHUNK window");
+        this.bursts++;
+        const replies: UpdaterReply[] = [];
+        let missing = false;
+        for (const r of requests) {
+            const lost = r.op === Op.CHUNK ? this.takeChunkFault("chunk-lost", u24(Uint8Array.from(r.args), 0)) : false;
+            if (lost) { missing = true; continue; }
+            replies.push(await this.request(r.op, r.hand, r.args));
+        }
+        if (missing) {
+            // The host waits for the missing reply until its timeout.
+            await this.clock.sleep(1000);
+            throw new ReplyTimeoutError(Op.CHUNK);
+        }
+        return replies;
+    }
+
+    private takeChunkFault(kind: "chunk-lost" | "chunk-corrupt", off: number): boolean {
+        const i = this.faults.findIndex((f) => f.kind === kind && f.at === off);
+        if (i < 0) return false;
+        this.faults.splice(i, 1);
+        return true;
+    }
+
     private faultsAfter(op: number) {
         const unplug = this.fault("unplug");
         const s = this.session;
@@ -487,6 +524,7 @@ export class FakeSvalboard implements UpdaterTransport {
             // The half with USB checks either image; the other half checks its own again (the relay).
             if (s.devImage && (this.usb().cfg.release || (s.hand !== this.usbHand && this.other().cfg.release))) return this.fail(Status.BAD_IMAGE);
             s.state = State.VERIFIED;
+            this.kept = { manifest: hex(s.manifest), image: s.image.slice() };
         }
         if (s.state === State.RELAYING) {
             const t = now - s.relayAt;
@@ -544,6 +582,7 @@ export class FakeSvalboard implements UpdaterTransport {
     }
 
     private restartUsb(now: number) {
+        this.kept = null;
         this.session = null;
         this.held = null;
         this.latched = null;
@@ -632,7 +671,7 @@ export class FakeSvalboard implements UpdaterTransport {
             case Op.MANIFEST: return this.opManifest(h, a, client, false);
             case Op.PAIR_MANIFEST: return this.opManifest(h, a, client, true);
             case Op.ARM: return this.opArm(h, a[0] ?? ARM_MODE_SINGLE, client);
-            case Op.BEGIN: return this.opBegin(h, u32(a, 0), client);
+            case Op.BEGIN: return this.opBegin(h, u32(a, 0), client, a[4] ?? 0);
             case Op.CHUNK: return this.opChunk(h, a, client);
             case Op.END: return this.opEnd(h, u32(a, 0), client);
             case Op.COMMIT: return this.opCommit(h, u32(a, 0), u16(a, 4), client);
@@ -669,6 +708,7 @@ export class FakeSvalboard implements UpdaterTransport {
             jedec: self ? [0xef, 0x40, 0x18] : [0, 0, 0], pointingId: c.pointingId, hand, fwVersion: c.fwVersion,
             storageFormat: c.storageFormat, securityEpoch: c.securityEpoch, flags, lastError: self ? this.lastError : 0,
             chunkMax: CHUNK_PIECE_MAX, manifestMax: MANIFEST_PIECE_MAX, reportBytes: 64,
+            ...(c.fastUpload ? { uploadFlags: UPLOAD_CHUNK_WINDOW | UPLOAD_REUSE_STAGED, chunkWindow: 16 } : {}),
         });
     }
 
@@ -806,12 +846,24 @@ export class FakeSvalboard implements UpdaterTransport {
         return null;
     }
 
-    private opBegin(hand: Hand, nonce: number, client: number): Uint8Array {
+    private opBegin(hand: Hand, nonce: number, client: number, flags: number): Uint8Array {
         const s = this.session;
         const refused = this.bound(s, hand, nonce, client);
         if (refused) return refused;
         if (s!.state !== State.CONFIRM_WAIT) return makeRsp(Status.INVALID, [s!.state]);
         if (s!.chordAt === null) return makeRsp(Status.NOT_CONFIRMED, [s!.state]);
+        const fast = this.usb().cfg.fastUpload;
+        const kept = this.kept;
+        if (fast && flags & BEGIN_REUSE && kept && kept.manifest === hex(s!.manifest) && kept.image.length === s!.m!.imageLen) {
+            // The slot holds this very image, verified: no erase, every byte staged.
+            s!.image = kept.image.slice();
+            s!.staged = s!.image.length;
+            s!.sectors = 0;
+            s!.beginAt = this.clock.now();
+            s!.state = State.VERIFYING_MANIFEST;
+            return makeRsp(Status.ACCEPTED, [s!.state]);
+        }
+        this.kept = null; // the erase
         s!.image = new Uint8Array(s!.m!.imageLen);
         s!.staged = 0;
         s!.sectors = Math.ceil(s!.m!.imageLen / 4096);
@@ -832,6 +884,7 @@ export class FakeSvalboard implements UpdaterTransport {
         if (off !== s!.staged) return makeRsp(Status.OUT_OF_ORDER, le24(s!.staged));
         if (off + n > s!.image.length) { this.fail(Status.OVERRUN); return makeRsp(Status.OVERRUN, le24(s!.staged)); }
         s!.image.set(a.subarray(4, 4 + n), off);
+        if (this.takeChunkFault("chunk-corrupt", off)) s!.image[off] ^= 0x01;
         s!.staged = off + n;
         return makeRsp(Status.OK, le24(s!.staged));
     }

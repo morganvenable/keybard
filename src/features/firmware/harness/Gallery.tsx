@@ -37,7 +37,7 @@ const LEGACY: BoardSummary = { updater: false, legacyLabel: "Svalboard QMK vLaun
 const info0 = (o: Partial<Info0>): Info0 => ({
     status: 0, state: 0, answered: true, protocol: 4, slotBase: 0, slotSize: 0, maxImage: 0x160000, jedec: "ef4018", pointingId: 5, hand: 1,
     fwVersion: 8, storageFormat: 2, securityEpoch: 0, flags: 1, flash16MiB: true, writesFailing: false, releaseBuild: true, testHooks: false,
-    otherDiffers: false, noChord: false, lastError: 0, chunkMax: 50, manifestMax: 52, reportBytes: 64, ...o,
+    otherDiffers: false, noChord: false, lastError: 0, chunkMax: 50, manifestMax: 52, reportBytes: 64, uploadFlags: 0, chunkWindow: 1, ...o,
 });
 const status = { presence: 1 } as StatusReply;
 const boardState = (noChord = false): BoardState => ({ usb: info0({ noChord }), usbTag: "v3", other: info0({ hand: 0 }), status, noChord });

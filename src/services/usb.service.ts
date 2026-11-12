@@ -386,6 +386,69 @@ export class SvilUSB {
     return operation;
   }
 
+  /**
+   * Several wrapped updater requests back to back, for a board that takes a CHUNK window:
+   * each report goes out as soon as the one before it is written, without waiting for its
+   * reply. Resolves with every reply, in order (the board answers in order). Rejects on a
+   * wrapper rejection, or with a timeout when the replies stop coming for timeoutMs; after
+   * a timeout the next request waits UPDATER_DRAIN_MS, so late replies aren't taken for its.
+   */
+  async sendUpdaterReports(payloads: number[][], echo = 3, timeoutMs = 1000): Promise<Uint8Array[]> {
+    if (!this.device) throw new Error("USB device not connected");
+    if (!payloads.length) return [];
+    await this.ensureClientId();
+    const clientId = this.clientId;
+    const messages = payloads.map((p) => this.buildWrappedMessage(VIA_PREFIX, p));
+    const operation = this.queue.then(() => new Promise<Uint8Array[]>((resolve, reject) => {
+      const device = this.device;
+      if (!device) { reject(new Error("USB device not connected")); return; }
+      const timers = updaterTimers();
+      const replies: Uint8Array[] = [];
+      let done = false;
+      let timeoutId = 0 as unknown as ReturnType<typeof timers.setTimeout>;
+      const finish = (error: Error | null) => {
+        if (done) return;
+        done = true;
+        timers.clearTimeout(timeoutId);
+        if (error) reject(error); else resolve(replies);
+      };
+      // The timeout counts from the last sign of life: a report written or a reply read.
+      const arm = () => { timers.clearTimeout(timeoutId); timeoutId = timers.setTimeout(() => finish(new Error("USB Command Timeout")), timeoutMs); };
+      arm();
+      this.listener = (data: ArrayBuffer) => {
+        if (done) return;
+        const u8 = new Uint8Array(data);
+        if (u8[0] !== WRAPPER_PREFIX) return;
+        const respClientId = (u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24)) >>> 0;
+        if (respClientId !== clientId >>> 0) return;
+        if (u8[5] === CLIENT_ERROR_PROTOCOL) { finish(new ClientIdRejectedError(u8[6])); return; }
+        if (u8[5] !== VIA_PREFIX) return;
+        const want = payloads[replies.length];
+        for (let i = 0; i < echo; i++) if (u8[6 + i] !== want[i]) return;
+        replies.push(new Uint8Array(u8));
+        arm();
+        if (replies.length === payloads.length) finish(null);
+      };
+      void (async () => {
+        for (const m of messages) {
+          if (done) return;
+          try {
+            await device.sendReport(0, m as BufferSource);
+          } catch (err) {
+            finish(err instanceof Error ? err : new Error(String(err)));
+            return;
+          }
+          arm();
+        }
+      })();
+    }));
+    this.queue = operation.then(() => undefined).catch((error) => {
+      if (!(error instanceof Error) || !/timeout/i.test(error.message)) return undefined;
+      return new Promise<void>((resolve) => updaterTimers().setTimeout(resolve, UPDATER_DRAIN_MS));
+    });
+    return operation;
+  }
+
   async open(filters: HIDDeviceFilter[]): Promise<boolean> {
     const device = await SvilUSB.requestDevice(filters);
     return device ? this.openDevice(device) : false;

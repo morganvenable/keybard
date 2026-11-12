@@ -28,9 +28,23 @@ export class ReplyTimeoutError extends Error {
     }
 }
 
+/** One updater request: the op, [hand], and the bytes after it. */
+export interface UpdaterRequest {
+    op: number;
+    hand: number;
+    args: ArrayLike<number>;
+}
+
 export interface UpdaterTransport {
     /** One wrapped updater request with the current client ID. No retry of any kind. */
     request(op: number, hand: number, args?: ArrayLike<number>): Promise<UpdaterReply>;
+    /**
+     * Several requests sent back to back, without waiting for each reply; resolves with
+     * every reply, in order. Only for a board that takes a CHUNK window (UPLOAD_CHUNK_WINDOW).
+     * A reply that doesn't come throws ReplyTimeoutError; the caller asks the board where
+     * it is (STATUS) and goes on from there. Absent: the transport sends one at a time.
+     */
+    requestMany?(requests: UpdaterRequest[]): Promise<UpdaterReply[]>;
     /** The client ID requests are sent with now (0 before the first bootstrap). */
     clientId(): number;
     /** Bootstrap a client ID if there's none or it's due for renewal; returns it. */
