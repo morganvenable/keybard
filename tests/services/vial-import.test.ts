@@ -198,6 +198,48 @@ describe('a Vial tap dance with a 0 ms term', () => {
         expect(review.keyboard.keymap![0]).toEqual([keyService.parse('KC_LCTL'), keyService.parse('KC_ESC')]);
     });
 
+    it('gives a macro the Tap key, as a macro tapping the dance did in Vial', () => {
+        const kb = fileService.parseContent(vil(SVALBOARD_VIAL_UID, { ...dances, macro: [[['tap', 'TD(0)'], ['down', 'TD(2)'], ['up', 'TD(0)']]] }));
+        expect(kb.macros![0].actions).toEqual([['tap', 'KC_A'], ['down', 'TD(2)'], ['up', 'KC_A']]);
+        expect(kb.keymap![0][0]).toBe(keyService.parse('KC_LCTL'));
+    });
+
+    it('follows a dance whose Hold key is another such dance', () => {
+        const kb = fileService.parseContent(vil(SVALBOARD_VIAL_UID, {
+            layout: [[['TD(0)', 'TD(1)']]],
+            tap_dance: [['KC_A', 'TD(1)', 'KC_NO', 'KC_NO', 0], ['KC_ESC', 'KC_LALT', 'KC_NO', 'KC_NO', 0]],
+            combo: [['KC_J', 'KC_K', 'KC_NO', 'KC_NO', 'TD(0)']],
+        }));
+        expect(kb.keymap![0]).toEqual([keyService.parse('KC_LALT'), keyService.parse('KC_LALT')]);
+        expect(kb.combos![0].output).toBe('KC_LALT');
+        expect(kb.vial_import?.hold_only_tapdances).toEqual([
+            { index: 0, term: 0, keycode: 'KC_LALT' },
+            { index: 1, term: 0, keycode: 'KC_LALT' },
+        ]);
+    });
+
+    it('sends nothing for a KC_TRNS slot, as Vial did', () => {
+        const kb = fileService.parseContent(vil(SVALBOARD_VIAL_UID, { layout: [[['TD(0)', 'TD(1)']]], tap_dance: [['KC_A', 'KC_TRNS', 'KC_NO', 'KC_NO', 0], ['KC_TRNS', 'KC_NO', 'KC_B', 'KC_NO', 0]] }));
+        expect(kb.keymap![0]).toEqual([keyService.parse('KC_NO'), keyService.parse('KC_NO')]);
+        expect(kb.vial_import?.inert_tapdances).toEqual([]);
+    });
+
+    it('says when a combo, override or Alt Repeat entry now starts from the plain key', () => {
+        const kb = fileService.parseContent(vil(SVALBOARD_VIAL_UID, {
+            ...dances,
+            combo: [['TD(0)', 'KC_J', 'KC_NO', 'KC_NO', 'KC_ESC']],
+            key_override: [{ trigger: 'TD(1)', replacement: 'KC_B', layers: 65535, trigger_mods: 0, negative_mod_mask: 0, suppressed_mods: 0, options: 135 }],
+            alt_repeat_key: [{ keycode: 'TD(0)', alt_keycode: 'KC_O', allowed_mods: 0, options: 8 }],
+        }));
+        expect(kb.combos![0].keys[0]).toBe('KC_LCTL');
+        expect(kb.key_overrides![0].trigger).toBe('KC_ESC');
+        expect(kb.alt_repeat_keys![0].keycode).toBe('KC_LCTL');
+        const text = prepareImport(kb, fullBoard).warnings.join('\n');
+        expect(text).toMatch(/Combo 0 started from TD\(0\)\. It now starts from KC_LCTL, so any key that sends KC_LCTL starts it too\./);
+        expect(text).toMatch(/Key override 0 started from TD\(1\)\. It now starts from KC_ESC/);
+        expect(text).toMatch(/Alt Repeat entry 0 started from TD\(0\)/);
+    });
+
     it('treats any term too short to tap the same way', () => {
         const kb = fileService.parseContent(vil(SVALBOARD_VIAL_UID, { ...dances, tap_dance: [['KC_A', 'KC_LALT', 'KC_NO', 'KC_NO', 10]] }));
         expect(kb.keymap![0][0]).toBe(keyService.parse('KC_LALT'));

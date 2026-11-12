@@ -115,6 +115,10 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     for (const { index, term, keycode } of vial?.hold_only_tapdances ?? []) {
         warnings.push(`Tap dance ${index} had a ${term} ms term in Vial, so it always acted as ${keycode} held down. Svalboard QMK has no hold-only term, so keys that used TD(${index}) are set to ${keycode}, which does the same. The tap dance itself is kept with a ${usableTapdanceTerm(term)} ms term.`);
     }
+    const kindName = { combo: 'Combo', override: 'Key override', alt_repeat: 'Alt Repeat entry' } as const;
+    for (const { kind, index, tapdance, keycode } of vial?.widened_inputs ?? []) {
+        warnings.push(`${kindName[kind]} ${index} started from TD(${tapdance}). It now starts from ${keycode}, so any key that sends ${keycode} starts it too.`);
+    }
     for (const { index, term } of vial?.inert_tapdances ?? []) {
         warnings.push(`Tap dance ${index} had a ${term} ms term in Vial and no Tap or Hold key, so it did nothing there. It is kept with a ${usableTapdanceTerm(term)} ms term, so its Double tap and Tap-hold keys will start working. Clear it after importing if you don't want that.`);
     }

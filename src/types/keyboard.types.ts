@@ -49,6 +49,8 @@ export interface KeyboardInfo {
         hold_only_tapdances?: Array<{ index: number; term: number; keycode: string }>;
         /** Tap dances whose term was too short to tap and that had no Tap or Hold key, so they did nothing in Vial. */
         inert_tapdances?: Array<{ index: number; term: number }>;
+        /** Combos, overrides and Alt Repeat entries that started from such a dance, and now start from its key. */
+        widened_inputs?: Array<{ kind: 'combo' | 'override' | 'alt_repeat'; index: number; tapdance: number; keycode: string }>;
     };
 
     // Fragment composition (modular layouts)

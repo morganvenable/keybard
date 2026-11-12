@@ -621,24 +621,44 @@ export class FileService {
         // place of any term under 20 ms, so such a dance would start tapping.
         // A plain key with that keycode does exactly what the dance did, so it
         // takes the dance's place everywhere the dance was used.
+        // A slot Vial ran: anything but KC_NO. KC_TRNS ran too, and sent nothing.
+        const slotKey = (key: any): string | undefined => key === 'KC_NO' || key === -1 || key === 0 || key == null ? undefined : key === 'KC_TRNS' ? 'KC_NO' : key;
         const holdOnly: Array<{ index: number; term: number; keycode: string }> = [];
         const inert: Array<{ index: number; term: number }> = [];
+        // A macro presses and releases a key with no scan between, so a macro
+        // that used one of these dances got its Tap key (nothing without one).
+        const macroNames = new Map<string, string>();
         (vil.tap_dance || []).forEach((td: any[], index: number) => {
             const entry = kbinfo.tapdances![index];
             const term = td?.[4];
             if (typeof term !== 'number' || !isUnusableTapdanceTerm(term) || !tapdanceInUse(entry)) return;
-            const keycode = [entry.hold, entry.tap].find(used);
-            if (keycode) holdOnly.push({ index, term, keycode });
-            else inert.push({ index, term });
+            const keycode = slotKey(entry.hold) ?? slotKey(entry.tap);
+            if (!keycode) { inert.push({ index, term }); return; }
+            holdOnly.push({ index, term, keycode });
+            macroNames.set(`TD(${index})`, slotKey(entry.tap) ?? 'KC_NO');
         });
+        // A dance whose key is another such dance acts as that dance's key.
+        const direct = new Map(holdOnly.map(({ index, keycode }) => [`TD(${index})`, keycode]));
+        for (const item of holdOnly) {
+            for (let hops = 0; direct.has(item.keycode) && hops < holdOnly.length; hops++) item.keycode = direct.get(item.keycode)!;
+        }
         const holdOnlyNames = new Map(holdOnly.map(({ index, keycode }) => [`TD(${index})`, keycode]));
         const resolved = (key: any): any => typeof key === 'string' && holdOnlyNames.has(key) ? holdOnlyNames.get(key) : key;
         const holdOnlyCodes = new Map(holdOnly.map(({ index, keycode }) => [keyService.parse(`TD(${index})`), keyService.parse(keycode)]));
-        for (const combo of kbinfo.combos!) { combo.keys = combo.keys.map(resolved); combo.output = resolved(combo.output); }
+        // A combo, override or Alt Repeat entry that started from the dance now
+        // starts from its key, so any other key that sends it starts it too.
+        const widened: Array<{ kind: 'combo' | 'override' | 'alt_repeat'; index: number; tapdance: number; keycode: string }> = [];
+        const input = (kind: 'combo' | 'override' | 'alt_repeat', index: number, key: any): any => {
+            const out = resolved(key);
+            if (out !== key) widened.push({ kind, index, tapdance: Number(String(key).slice(3, -1)), keycode: out });
+            return out;
+        };
+        kbinfo.combos!.forEach((combo, i) => { combo.keys = combo.keys.map(key => input('combo', i, key)); combo.output = resolved(combo.output); });
         for (const td of kbinfo.tapdances!) for (const slot of ['tap', 'hold', 'doubletap', 'taphold'] as const) td[slot] = resolved(td[slot]);
-        for (const ko of kbinfo.key_overrides!) { ko.trigger = resolved(ko.trigger); ko.replacement = resolved(ko.replacement); }
-        for (const ark of kbinfo.alt_repeat_keys!) { ark.keycode = resolved(ark.keycode); ark.alt_keycode = resolved(ark.alt_keycode); }
-        for (const macro of kbinfo.macros!) macro.actions = macro.actions.map(action => ['tap', 'down', 'up'].includes(action[0]) ? [action[0], resolved(action[1])] as typeof action : action);
+        kbinfo.key_overrides!.forEach((ko, i) => { ko.trigger = input('override', i, ko.trigger); ko.replacement = resolved(ko.replacement); });
+        kbinfo.alt_repeat_keys!.forEach((ark, i) => { ark.keycode = input('alt_repeat', i, ark.keycode); ark.alt_keycode = resolved(ark.alt_keycode); });
+        const inMacro = (key: any): any => typeof key === 'string' && macroNames.has(key) ? macroNames.get(key) : key;
+        for (const macro of kbinfo.macros!) macro.actions = macro.actions.map(action => ['tap', 'down', 'up'].includes(action[0]) ? [action[0], inMacro(action[1])] as typeof action : action);
 
         // vil.layout is [layer][row][col]; -1 marks an unused position.
         const km: number[][] = [];
@@ -668,7 +688,7 @@ export class FileService {
         kbinfo.keymap = km;
         (kbinfo as any).keylayout = keylayout;
         kbinfo.kbid = '' + vil.uid;
-        kbinfo.vial_import = { svalboard, unassigned_custom_keycodes: unassigned, foreign_custom_keycodes: foreign, hold_only_tapdances: holdOnly, inert_tapdances: inert };
+        kbinfo.vial_import = { svalboard, unassigned_custom_keycodes: unassigned, foreign_custom_keycodes: foreign, hold_only_tapdances: holdOnly, inert_tapdances: inert, widened_inputs: widened };
 
         return kbinfo;
     }
