@@ -47,7 +47,7 @@ export class WebHidUpdaterTransport implements UpdaterTransport {
         if (error instanceof ClientIdRejectedError) return new ClientRejectedError(error.code);
         if (!this.usb.isOpen()) return new DisconnectedError();
         if (error instanceof Error && /timeout/i.test(error.message)) return new ReplyTimeoutError(op);
-        if (error instanceof Error && /not connected|closed|NotFoundError|InvalidStateError/i.test(`${error.name} ${error.message}`)) return new DisconnectedError(error.message);
+        if (error instanceof Error && /not connected|closed|must be opened|NotFoundError|InvalidStateError/i.test(`${error.name} ${error.message}`)) return new DisconnectedError(error.message);
         return error;
     }
 

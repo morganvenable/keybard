@@ -169,6 +169,8 @@ function generateNonce(): Uint8Array {
 
 /** How long a late updater reply gets to arrive, after a timeout, before the next request goes out. */
 const UPDATER_DRAIN_MS = 500;
+/** sendUpdaterReports: reports written to the device at once (each still waits its turn in the window). */
+const UPDATER_WRITES_IN_FLIGHT = 4;
 
 export class SvilUSB {
   // VIA command constants (unchanged, used via wrapper)
@@ -436,17 +438,22 @@ export class SvilUSB {
       };
       void (async () => {
         const limit = Math.max(1, inFlight);
+        // A few writes outstanding at once: waiting for each write to complete before the
+        // next costs about a frame per report. The browser keeps them in order.
+        const writes: Promise<void>[] = [];
+        const fail = (err: unknown) => finish(err instanceof Error ? err : new Error(String(err)));
         for (let i = 0; i < messages.length; i++) {
           while (!done && i - replies.length >= limit) await new Promise<void>((r) => { wake = () => { wake = null; r(); }; });
           if (done) return;
-          const m = messages[i];
-          try {
-            await device.sendReport(0, m as BufferSource);
-          } catch (err) {
-            finish(err instanceof Error ? err : new Error(String(err)));
-            return;
+          if (writes.length >= UPDATER_WRITES_IN_FLIGHT) {
+            try { await writes.shift(); } catch (err) { fail(err); return; }
+            if (done) return;
           }
-          arm();
+          writes.push(device.sendReport(0, messages[i] as BufferSource).then(arm));
+          writes[writes.length - 1].catch(() => undefined); // reported when awaited above or below
+        }
+        for (const w of writes) {
+          try { await w; } catch (err) { fail(err); return; }
         }
       })();
     }));
