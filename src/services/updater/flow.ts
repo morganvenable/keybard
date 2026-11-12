@@ -172,6 +172,8 @@ export interface FlowState {
     failure: Failure | null;
     /** WebHID round trips and stage times, for update-technical.md 1.9. */
     measurements: Record<string, number>;
+    /** Every step as it began, in ms after Start: the whole update's timing, step by step. */
+    timeline?: Array<{ step: Step; at: number }>;
     /** One-image firmware: each half's side as read before the install. */
     sidesBefore?: KnownSides | null;
     /** sidesBefore came from SIDE (true) or from a per-hand build's updater hand (false). */
@@ -442,6 +444,7 @@ export class UpdateFlow {
             result: null,
             failure: null,
             measurements: {},
+            timeline: [],
             sidesBefore: plan.sidesBefore ?? null,
             sidesFromSide: plan.sidesFromSide ?? true,
             sideAsk: null,
@@ -486,7 +489,14 @@ export class UpdateFlow {
 
     private step(step: Step) {
         this.checkCancel();
-        this.update({ step, stepAt: this.host.clock.now() });
+        const now = this.host.clock.now();
+        const timeline = [...(this.state.timeline ?? []), { step, at: now - this.state.startedAt }];
+        this.update({ step, stepAt: now, timeline });
+    }
+
+    /** Add stage times and board figures to the measurements. */
+    private measure(m: Record<string, number>) {
+        this.update({ measurements: { ...this.state.measurements, ...m } });
     }
 
     /** Forget the update (after Done, Close, or a failure the user dismissed). */
@@ -644,6 +654,7 @@ export class UpdateFlow {
         this.row(hand, { stage: "checking", progress: null });
         await c.end(hand, nonce);
         const s = await this.poll(() => c.status(hand), (st) => st.state === State.VERIFIED, 60_000);
+        this.measure({ [`verify_${handName(hand)}_board_ms`]: s.verifyMs, [`erase_${handName(hand)}_sector_max_ms`]: s.eraseMsMax });
         if (s.crcLo16 !== (file.crcBody & 0xffff)) throw new Stop({ id: "F5", tags: this.fromTags(), detail: "The keyboard's copy doesn't match the file." });
     }
 
@@ -670,10 +681,10 @@ export class UpdateFlow {
         this.row(o, { stage: "copying", progress: 0 });
         await c.commit(o, arm.nonce, fileO.crcBody & 0xffff);
         const t0 = this.now();
-        await this.poll(async () => { const r = await c.relay(o); return { ...r, lastError: r.error }; }, (r) => r.state === State.RELAYED, 180_000, (r) => {
+        const relayed = await this.poll(async () => { const r = await c.relay(o); return { ...r, lastError: r.error }; }, (r) => r.state === State.RELAYED, 180_000, (r) => {
             if (r.phase === RelayPhase.PAGES && r.imageLen) this.row(o, { progress: r.acked / r.imageLen });
         });
-        this.update({ measurements: { ...this.state.measurements, relay_ms: this.now() - t0 } });
+        this.measure({ relay_ms: this.now() - t0, relay_board_ms: relayed.relayMs });
 
         // COMMIT #2: the other half installs. From here it runs the new release. A COMMIT
         // whose reply went missing may have been taken: it counts as sent, and STATUS says.
@@ -1118,6 +1129,7 @@ export class UpdateFlow {
             phase: "result",
             step: "done",
             finishedAt: this.now(),
+            timeline: [...(this.state.timeline ?? []), { step: "done", at: this.now() - this.state.startedAt }],
             result: { tags, layout: this.state.afterwards === "blank" ? "blank" : this.state.afterwards === "restore" && this.backupSvil ? "restored" : "defaults", trimmed, ...notes, sides: this.sidesResult, ...(touchpadMode ? { touchpadMode } : {}) },
         });
     }
