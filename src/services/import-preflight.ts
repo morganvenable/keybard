@@ -15,6 +15,7 @@ import { customValueLabel, qmkSettingLabel } from '../utils/setting-labels';
 import { VARIABLE_LIMITS, ZERO_REPLACED_SETTINGS, ZERO_SETTINGS_RELEASE } from '../constants/qmk-settings';
 import { HAND_KEYS, findMenuItem, hasScrollSpeed, moduleOf, scrollSpeedFromDpi, VIA_LEFT_SCROLL_SPEED, VIA_RIGHT_SCROLL_SPEED } from "../utils/pointing-settings";
 import { NOT_LAYOUT_VALUES } from "../utils/touchpad-tuning";
+import { usableTapdanceTerm } from "../utils/tapdance-term";
 
 export interface ImportReview {
     keyboard: KeyboardInfo;
@@ -111,6 +112,16 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     const vial = file.vial_import;
     if (vial?.foreign_custom_keycodes) errors.push(`This Vial layout uses ${vial.foreign_custom_keycodes} custom key${vial.foreign_custom_keycodes === 1 ? '' : 's'} (USER00…) from another keyboard's firmware, which this keyboard cannot interpret.`);
     if (vial?.unassigned_custom_keycodes) warnings.push(`${vial.unassigned_custom_keycodes} key${vial.unassigned_custom_keycodes === 1 ? ' uses a custom keycode' : 's use custom keycodes'} that Svalboard's Vial firmware left unassigned; ${vial.unassigned_custom_keycodes === 1 ? 'it' : 'they'} did nothing there and will be set to KC_NO.`);
+    for (const { index, term, keycode } of vial?.hold_only_tapdances ?? []) {
+        warnings.push(`Tap dance ${index} had a ${term} ms term in Vial, so it always acted as ${keycode} held down. Svalboard QMK has no hold-only term, so keys that used TD(${index}) are set to ${keycode}, which does the same. The tap dance itself is kept with a ${usableTapdanceTerm(term)} ms term.`);
+    }
+    const kindName = { combo: 'Combo', override: 'Key override', alt_repeat: 'Alt Repeat entry' } as const;
+    for (const { kind, index, tapdance, keycode } of vial?.widened_inputs ?? []) {
+        warnings.push(`${kindName[kind]} ${index} started from TD(${tapdance}). It now starts from ${keycode}, so any key that sends ${keycode} starts it too.`);
+    }
+    for (const { index, term } of vial?.inert_tapdances ?? []) {
+        warnings.push(`Tap dance ${index} had a ${term} ms term in Vial and no Tap or Hold key, so it did nothing there. It is kept with a ${usableTapdanceTerm(term)} ms term, so its Double tap and Tap-hold keys will start working. Clear it after importing if you don't want that.`);
+    }
     if (vial?.svalboard) warnings.push('Vial layout files do not include pointing and hardware settings (DPI, scrolling, automouse, layer colors). Set them again after importing.');
     next.keymap = current.keymap?.map((layer, index) => file.keymap?.[index] ? [...file.keymap[index]] : [...layer]);
     for (const [field, count] of [['macros','macro_count'], ['combos','combo_count'], ['tapdances','tapdance_count'], ['key_overrides','key_override_count'], ['alt_repeat_keys','alt_repeat_key_count'], ['leaders','leader_count']] as const) {

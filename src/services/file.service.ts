@@ -1,5 +1,5 @@
 import type { CustomValueEntry, KeyboardInfo } from "../types/keyboard.types";
-import { ComboOptions } from "../types/keyboard.types";
+import { AltRepeatKeyOptions, ComboOptions } from "../types/keyboard.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import { FragmentComposerService, isWidgetInstance } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -7,7 +7,7 @@ import { keyService } from "./key.service";
 import { activeKeycodeVersion } from '@/constants/keycode-numbering';
 import { SVALBOARD_VIAL_CUSTOM_KEYCODES, SVALBOARD_VIAL_UID } from '@/constants/svalboard-vial';
 import { KleService } from "./kle.service";
-import { usableTapdanceTerm } from "@/utils/tapdance-term";
+import { isUnusableTapdanceTerm, tapdanceInUse, usableTapdanceTerm } from "@/utils/tapdance-term";
 import { isOverrideEnabled, overrideOptionsFromFile } from '@/utils/key-override';
 import { importBalls, savedBalls } from "./pointing-look.service";
 import { NOT_LAYOUT_VALUES } from "../utils/touchpad-tuning";
@@ -590,6 +590,21 @@ export class FileService {
             return { actions, mid };
         });
 
+        // Vial's Alt Repeat entries use the same option bits as Svalboard QMK
+        // (bit 3 = enabled), so they carry over as they are.
+        kbinfo.alt_repeat_key_count = vil.alt_repeat_key?.length || 0;
+        kbinfo.alt_repeat_keys = (vil.alt_repeat_key || []).map((ark: any, arkid: number) => {
+            const options = Number(ark?.options) || 0;
+            return {
+                arkid,
+                enabled: (options & AltRepeatKeyOptions.ENABLED) !== 0,
+                keycode: named(ark?.keycode ?? 'KC_NO'),
+                alt_keycode: named(ark?.alt_keycode ?? 'KC_NO'),
+                allowed_mods: Number(ark?.allowed_mods) || 0,
+                options,
+            };
+        });
+
         kbinfo.vial_proto = vil.vial_protocol || 6;
         kbinfo.settings = vil.settings;
         // A Vial tap dance with any action is on.
@@ -597,6 +612,53 @@ export class FileService {
             const [tap, hold, doubletap, taphold] = td.slice(0, 4).map(named);
             return { idx, enabled: true, tap, hold, doubletap, taphold, tapping_term: usableTapdanceTerm(td[4]) };
         });
+
+        // Vial ran a tap dance's own term as stored. With a term too short to
+        // tap (0, which Vial's editor allowed), the dance finished on the next
+        // scan while the key was still down, so it always acted as its Hold key
+        // (its Tap key when Hold was empty), held for as long as the key was.
+        // Svalboard QMK reads 0 as the global term, and Keybard writes 200 ms in
+        // place of any term under 20 ms, so such a dance would start tapping.
+        // A plain key with that keycode does exactly what the dance did, so it
+        // takes the dance's place everywhere the dance was used.
+        // A slot Vial ran: anything but KC_NO. KC_TRNS ran too, and sent nothing.
+        const slotKey = (key: any): string | undefined => key === 'KC_NO' || key === -1 || key === 0 || key == null ? undefined : key === 'KC_TRNS' ? 'KC_NO' : key;
+        const holdOnly: Array<{ index: number; term: number; keycode: string }> = [];
+        const inert: Array<{ index: number; term: number }> = [];
+        // A macro presses and releases a key with no scan between, so a macro
+        // that used one of these dances got its Tap key (nothing without one).
+        const macroNames = new Map<string, string>();
+        (vil.tap_dance || []).forEach((td: any[], index: number) => {
+            const entry = kbinfo.tapdances![index];
+            const term = td?.[4];
+            if (typeof term !== 'number' || !isUnusableTapdanceTerm(term) || !tapdanceInUse(entry)) return;
+            const keycode = slotKey(entry.hold) ?? slotKey(entry.tap);
+            if (!keycode) { inert.push({ index, term }); return; }
+            holdOnly.push({ index, term, keycode });
+            macroNames.set(`TD(${index})`, slotKey(entry.tap) ?? 'KC_NO');
+        });
+        // A dance whose key is another such dance acts as that dance's key.
+        const direct = new Map(holdOnly.map(({ index, keycode }) => [`TD(${index})`, keycode]));
+        for (const item of holdOnly) {
+            for (let hops = 0; direct.has(item.keycode) && hops < holdOnly.length; hops++) item.keycode = direct.get(item.keycode)!;
+        }
+        const holdOnlyNames = new Map(holdOnly.map(({ index, keycode }) => [`TD(${index})`, keycode]));
+        const resolved = (key: any): any => typeof key === 'string' && holdOnlyNames.has(key) ? holdOnlyNames.get(key) : key;
+        const holdOnlyCodes = new Map(holdOnly.map(({ index, keycode }) => [keyService.parse(`TD(${index})`), keyService.parse(keycode)]));
+        // A combo, override or Alt Repeat entry that started from the dance now
+        // starts from its key, so any other key that sends it starts it too.
+        const widened: Array<{ kind: 'combo' | 'override' | 'alt_repeat'; index: number; tapdance: number; keycode: string }> = [];
+        const input = (kind: 'combo' | 'override' | 'alt_repeat', index: number, key: any): any => {
+            const out = resolved(key);
+            if (out !== key) widened.push({ kind, index, tapdance: Number(String(key).slice(3, -1)), keycode: out });
+            return out;
+        };
+        kbinfo.combos!.forEach((combo, i) => { combo.keys = combo.keys.map(key => input('combo', i, key)); combo.output = resolved(combo.output); });
+        for (const td of kbinfo.tapdances!) for (const slot of ['tap', 'hold', 'doubletap', 'taphold'] as const) td[slot] = resolved(td[slot]);
+        kbinfo.key_overrides!.forEach((ko, i) => { ko.trigger = input('override', i, ko.trigger); ko.replacement = resolved(ko.replacement); });
+        kbinfo.alt_repeat_keys!.forEach((ark, i) => { ark.keycode = input('alt_repeat', i, ark.keycode); ark.alt_keycode = resolved(ark.alt_keycode); });
+        const inMacro = (key: any): any => typeof key === 'string' && macroNames.has(key) ? macroNames.get(key) : key;
+        for (const macro of kbinfo.macros!) macro.actions = macro.actions.map(action => ['tap', 'down', 'up'].includes(action[0]) ? [action[0], inMacro(action[1])] as typeof action : action);
 
         // vil.layout is [layer][row][col]; -1 marks an unused position.
         const km: number[][] = [];
@@ -613,8 +675,9 @@ export class FileService {
                 km.push([]);
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
-                        const keyStr = named(vil.layout[l][r][c]);
-                        km[l][(r * cols) + c] = keyStr === -1 ? 0 : typeof keyStr === 'string' ? keyService.parse(keyStr) : keyStr;
+                        const keyStr = resolved(named(vil.layout[l][r][c]));
+                        const code = keyStr === -1 ? 0 : typeof keyStr === 'string' ? keyService.parse(keyStr) : keyStr;
+                        km[l][(r * cols) + c] = holdOnlyCodes.get(code) ?? code;
                         if (l === 0) {
                             keylayout.push({ x: c, y: r, w: 1, h: 1, label: "", matrix: [(r * cols) + c] });
                         }
@@ -625,7 +688,7 @@ export class FileService {
         kbinfo.keymap = km;
         (kbinfo as any).keylayout = keylayout;
         kbinfo.kbid = '' + vil.uid;
-        kbinfo.vial_import = { svalboard, unassigned_custom_keycodes: unassigned, foreign_custom_keycodes: foreign };
+        kbinfo.vial_import = { svalboard, unassigned_custom_keycodes: unassigned, foreign_custom_keycodes: foreign, hold_only_tapdances: holdOnly, inert_tapdances: inert, widened_inputs: widened };
 
         return kbinfo;
     }
