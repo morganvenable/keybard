@@ -4,6 +4,12 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## New in x4.6.3
+
+Goes with Svalboard firmware x4.6.3, and bundles the Keybard that next.keybard.svalboard.com now runs:
+
+- **Vial layout import:** keeps its Alt Repeat keys, and converts always-hold tap dances.
+
 ## New in x4.6.2
 
 Goes with Svalboard firmware x4.6.2, and bundles the Keybard that next.keybard.svalboard.com now runs:
