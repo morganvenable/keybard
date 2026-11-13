@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { releasesForSite, currentSite, type FirmwareReleasePin, type Site } from "@/constants/firmware-releases";
 import { appStorage } from "@/utils/app-storage";
+import { PADTEST } from "@/lib/padtest";
 import type { BoardSummary } from "./board-summary";
 
 const seenKey = (tag: string) => `firmware-update-seen:${tag}`;
@@ -31,7 +32,7 @@ export function firmwareStatusFor(board: BoardSummary | null, releases: Firmware
     if (!board.updater) return { newest, updateAvailable: true };
     const behind = board.halves.some((h) => h.answered && h.fwVersion < newest.fwVersion);
     // The same version number, another build (one test build over another).
-    const otherBuild = board.fwVersion === newest.fwVersion && board.tag !== newest.tag && !releases.some((r) => r.tag === board.tag && r.fwVersion === board.fwVersion)
+    const otherBuild = board.fwVersion === newest.fwVersion && board.tag !== newest.tag && (PADTEST || !releases.some((r) => r.tag === board.tag && r.fwVersion === board.fwVersion))
         && board.halves.every((h) => h.answered);
     return { newest, updateAvailable: behind || board.differ || otherBuild };
 }

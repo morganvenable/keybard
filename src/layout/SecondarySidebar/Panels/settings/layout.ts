@@ -1,3 +1,4 @@
+import { BALLDIAG } from "@/lib/balldiag";
 import { THEME_SETTING_NAME } from "@/lib/theme";
 import { KEY_SIZE_SETTING, PANEL_POSITION_SETTING } from "@/lib/appearance-settings";
 import { COMBO_COLORBLIND_SETTING, COMBO_INDICATOR_SETTING } from "@/lib/comboIndicators";
@@ -17,7 +18,7 @@ import { ALTGR_LEGENDS_SETTING, SHIFTED_LEGENDS_SETTING } from "@/lib/shiftedLeg
  * description for this page) or a block this page renders itself. To add a
  * preference, add its definition to SETTINGS and its name to a section here.
  */
-export type SettingsBlock = "hardware" | "firmware" | "board" | "backups" | "typing" | "power" | "about" | "debug";
+export type SettingsBlock = "hardware" | "firmware" | "board" | "backups" | "balldiag" | "typing" | "power" | "about" | "debug";
 
 export type SettingsRow =
     | { setting: string; label?: string; description?: string }
@@ -54,7 +55,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         chip: "Hardware",
         // Set up once when the board arrives: open until someone collapses it.
         defaultOpen: true,
-        rows: [{ block: "hardware" }, { block: "board" }],
+        rows: [{ block: "hardware" }, { block: "board" }, ...(BALLDIAG ? [{ block: "balldiag" as const }] : [])],
         summary: "Clusters, pointing modules, ball color and board name",
     },
     {

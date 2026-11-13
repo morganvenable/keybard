@@ -14,6 +14,7 @@ import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
 import { cn } from "@/lib/utils";
 import BackupsSection from "./BackupsSection";
 import BoardIdentitySection from "./BoardIdentitySection";
+import TrackballDiagnostics from "./TrackballDiagnostics";
 import ClustersPanel from "./ClustersPanel";
 import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import DeveloperTuningSection, { developerTuningMenuIndex } from "./DeveloperTuningSection";
@@ -168,6 +169,8 @@ const SettingsPanel = () => {
                 return isConnected
                     ? <BoardIdentitySection />
                     : <p className="px-3 py-2.5 text-sm text-muted-foreground">{demoBoard ? "The example keyboard has no name or serial." : "Connect a keyboard to see its name and serial."}</p>;
+            case "balldiag":
+                return isConnected ? <TrackballDiagnostics /> : null;
             case "backups":
                 return <BackupsSection onRestore={reviewFile} highlight={highlight} />;
             case "hardware":

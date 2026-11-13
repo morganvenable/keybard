@@ -48,6 +48,7 @@ export const BLOCK_SYNONYMS: Record<SettingsBlock, string[]> = {
         "touchpad", "tune touchpad", "trackball sensors", "pointer speed", "ball", "ball color", "pearl", "auto-detected", "detected", "hardware"],
     firmware: ["update", "upgrade", "install", "flash", "version", "release", "qmk", "wipe", "reset", "bootloader"],
     board: ["board name", "serial", "rename", "identity"],
+    balldiag: ["trackball diagnostics", "trackball", "ball", "diagnostics", "copy"],
     backups: ["backups", "back up now", "restore", "recover", "undo", "history", "snapshot", "backup folder"],
     typing: typingBehaviorWords(),
     power: ["idle", "light idle", "deep idle", "scan pre-wait", "scan period", "trackball rest mode", "dim lights when idle", "power saving", "key scanning"],
