@@ -59,4 +59,10 @@ describe("click diagnostics", () => {
     it("names Ctrl on a left click (a Mac's Control-click is a right click)", () => {
         expect(eventText({ seq: 1, t: 0, type: 8, p: [1, 0, 1, 0, 5, 0, 0] })).toMatch(/buttons left .*mods LCtrl/);
     });
+
+    it("shows a touchpad report the firmware ignored, with its raw bytes", () => {
+        const t = eventText({ seq: 1, t: 0, type: 14, p: [1, 0, 0, 3, 0, 0, 0] });
+        expect(t).toMatch(/IGNORED \(not a real frame\): TWO-FINGER TAP \(right click\), scroll; 0 finger\(s\); raw cycle 0 ge0 00 ge1 03/);
+        expect(eventText({ seq: 1, t: 0, type: 14, p: [0x85, 10, 0, 1, 3, 0, 0] })).toMatch(/chip was asleep, chip just woke/);
+    });
 });

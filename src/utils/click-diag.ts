@@ -108,6 +108,8 @@ function gestureNames(ge0: number, ge1: number): string {
     if (ge1 & 4) n.push("zoom");
     return n.join(", ") || "none";
 }
+const GUARD_REASON = ["", "not a real frame", "tap with scroll or zoom at once", "no two fingers just before", "no touch just before", "chip was asleep"];
+const hex2 = (b: number) => b.toString(16).padStart(2, "0").toUpperCase();
 const CAUSE = ["not a key (firmware or unknown)", "key", "Auto Mouse", "Keybard/host"];
 
 export function eventText(e: Entry): string {
@@ -126,6 +128,7 @@ export function eventText(e: Entry): string {
         case 11: return `Auto Mouse layer ${p[0] ? "on" : "off"}${p[1] ? " (timeout)" : ""}`;
         case 12: return p[2] === 1 ? "Touchpad chip reset itself" : p[2] === 2 ? "Touchpad recalibrated (re-ATI)" : p[2] === 3 ? "Touchpad read failed" : p[2] === 4 ? "Touchpad ATI error" : `Touchpad status ${p[2]}`;
         case 13: return `Touchpad start #${p[0]}: ${p[1] ? "ok" : "no touchpad on this half"}`;
+        case 14: return `Touchpad report IGNORED (${GUARD_REASON[p[0] & 0x7f] ?? `reason ${p[0] & 0x7f}`}${p[0] & 0x80 ? ", chip just woke" : ""}): ${gestureNames(p[2] & 0x3f, p[3] & 7)}; ${p[6]} finger(s); raw cycle ${p[1]} ge0 ${hex2(p[2])} ge1 ${hex2(p[3])} sys ${hex2(p[4])} ${hex2(p[5])}`;
         default: return `Event ${e.type}: ${p.map((b) => b.toString(16).padStart(2, "0")).join(" ")}`;
     }
 }
