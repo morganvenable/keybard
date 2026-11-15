@@ -156,7 +156,7 @@ function defaultCustomValues(): Uint8Array {
     set(10, 7); // auto mouse decay
     set(11, 1); // left pointer activates
     set(12, 1); // right pointer activates
-    for (let id = 25; id <= 29; id++) set(id, 1); // idle toggles: SVAL_IDLE_FLAGS_DEFAULT has all five
+    for (let id = 25; id <= 29; id++) set(id, 0); // idle toggles: SVAL_IDLE_FLAGS_DEFAULT is 0 (every power-saving mode is opt-in)
     // Layer colors, [hue, sat] (svalboard.c defaults)
     const colors = [0x55ff, 0x15ff, 0x95ff, 0x0bb0, 0x2bff, 0x80ff, 0x00ff, 0x00ff, 0xeaff, 0xbfff, 0x0bb0, 0x6aff, 0x80ff, 0x80ff, 0x2bff, 0xd5ff];
     colors.forEach((hs, layer) => set(32 + layer, hs >> 8, hs & 0xff));
