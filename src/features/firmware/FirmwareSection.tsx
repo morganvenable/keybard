@@ -12,6 +12,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { FirmwareReleasePin } from "@/constants/firmware-releases";
 import { PARANOID } from "@/lib/paranoid";
+import { PADTEST } from "@/lib/padtest";
 import { SvupError, type SvupFile } from "@/services/updater/svup";
 import { loadFirmwareFile } from "@/services/updater/uf2";
 import type { Hand } from "@/services/updater/protocol";
@@ -76,7 +77,7 @@ function NotesLink({ release, label }: { release: FirmwareReleasePin; label: str
     return <a className={link} href={release.notesUrl} target="_blank" rel="noreferrer">{label} ↗</a>;
 }
 
-export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID, heading = true, sides, onRecheck, checking = false }: FirmwareSectionProps) {
+export function FirmwareSection({ board, releases, onInstall, onManual, onConnect, paranoid = PARANOID && !PADTEST, heading = true, sides, onRecheck, checking = false }: FirmwareSectionProps) {
     const offered = paranoid ? [] : releases;
     const newest = offered[0] ?? null;
     const [more, setMore] = useState(false);
@@ -92,7 +93,9 @@ export function FirmwareSection({ board, releases, onInstall, onManual, onConnec
     const boardNewer = !!(updater && newest && board!.fwVersion > newest.fwVersion);
     // The same version number but another build (say one test build over another): the version
     // check above sees nothing to do, so the card would say "newest" and offer no install.
-    const otherBuild = !!(updater && !unread && newest && !installed && !behind && !boardNewer && board!.fwVersion === newest.fwVersion && board!.tag !== newest.tag
+    // The test build (PADTEST) carries its own build beside the official one at the same version:
+    // a board on the official one is offered the test build too.
+    const otherBuild = !!(updater && !unread && newest && (!installed || PADTEST) && !behind && !boardNewer && board!.fwVersion === newest.fwVersion && board!.tag !== newest.tag
         && board!.halves.every((h) => h.answered));
     const silent = updater && !unread ? board!.halves.find((h) => !h.usb && !h.answered) ?? null : null;
 
