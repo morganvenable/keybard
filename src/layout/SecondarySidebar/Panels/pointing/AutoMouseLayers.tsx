@@ -10,7 +10,7 @@ import {
     AUTOMOUSE_EVERYWHERE, AUTOMOUSE_LAYER_MASK_KEY, AUTOMOUSE_LAYERS_ONLY_KEY, AUTOMOUSE_MODE_CHOICES, AUTOMOUSE_SELECTED,
     maskToLayers, pickableLayers, toggleMaskLayer,
 } from "@/utils/automouse-layers";
-import { ChoiceRow, RowLabel } from "./PointingControls";
+import { ChoiceRow } from "./PointingControls";
 
 /** A layer's name as the layer bar at the top of the screen shows it. */
 const layerName = (keyboard: KeyboardInfo, layer: number) => svalService.getLayerNameNoLabel(keyboard, layer);
@@ -82,8 +82,46 @@ export function AutoMouseLayersDialog({ open, keyboard, mask, onDone, onCancel }
 }
 
 /**
- * The Auto Mouse Layer setting, under Enable Auto Mouse: Everywhere (the default) or Only on
- * Selected Layers, and then the layers where it is off with a button that opens the picker.
+ * A compact, read-only line of the layer pills under the mode row: which layers Auto Mouse works on
+ * and which it is off on, with the dialog's off styling. Clicking it opens the picker.
+ */
+export function AutoMouseLayerSummary({ keyboard, mask, onOpen }: { keyboard: KeyboardInfo; mask: number; onOpen: () => void }) {
+    const layers = pickableLayers(keyboard.layers);
+    const offCount = layers.filter((i) => ((mask >> i) & 1) === 1).length;
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            title="Choose the layers"
+            aria-label={offCount === 0 ? "Auto Mouse works on every layer. Choose layers" : `Auto Mouse is off on ${offCount} ${offCount === 1 ? "layer" : "layers"}. Choose layers`}
+            className="flex w-full flex-wrap gap-1 rounded-md p-1 text-left hover:bg-kb-gray-border/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            data-automouse-summary
+        >
+            {layers.map((i) => {
+                const off = ((mask >> i) & 1) === 1;
+                return (
+                    <span
+                        key={i}
+                        data-layer={i}
+                        data-off={off ? 1 : 0}
+                        className={cn(
+                            "inline-flex items-center gap-0.5 rounded-full border px-2 py-px text-[11px] leading-4 whitespace-nowrap",
+                            off ? "border-kb-warn-ink bg-kb-warn-bg text-kb-warn-ink" : "border-kb-gray-border text-kb-ink",
+                        )}
+                    >
+                        {off && <Ban className="h-3 w-3" aria-hidden />}
+                        <span className={cn("select-none", off && "line-through")}>{layerName(keyboard, i)}</span>
+                    </span>
+                );
+            })}
+        </button>
+    );
+}
+
+/**
+ * The Auto Mouse Layer setting, under Enable Auto Mouse: one row with Everywhere (the default) or
+ * Only on Selected Layers and the Choose Layers button (enabled only for Only on Selected Layers),
+ * and under it, for Only on Selected Layers, the layers it is on and off.
  * Drawn only when the firmware has the setting (the values are in the menu).
  */
 export function AutoMouseLayersSetting({ keyboard, values, set }: {
@@ -92,20 +130,20 @@ export function AutoMouseLayersSetting({ keyboard, values, set }: {
     const [open, setOpen] = useState(false);
     const mode = values.get(AUTOMOUSE_LAYERS_ONLY_KEY);
     const mask = values.get(AUTOMOUSE_LAYER_MASK_KEY) ?? 0;
-    const off = maskToLayers(mask, keyboard.layers).filter((l) => pickableLayers(keyboard.layers).includes(l));
+    const selected = mode === AUTOMOUSE_SELECTED;
     return (
         <>
             <ChoiceRow label="Auto Mouse Layer" hint="Where pointer motion switches to the mouse layer" value={mode}
-                choices={AUTOMOUSE_MODE_CHOICES} onChange={(v) => set(AUTOMOUSE_LAYERS_ONLY_KEY, v === AUTOMOUSE_SELECTED ? AUTOMOUSE_SELECTED : AUTOMOUSE_EVERYWHERE)} />
-            {mode === AUTOMOUSE_SELECTED && (
-                <div className="flex flex-row flex-wrap items-center justify-between gap-3 rounded-md px-3 py-2 panel-layer-item" data-automouse-layers-row>
-                    <RowLabel label="Off on Layers"
-                        hint={off.length ? off.map((l) => layerName(keyboard, l)).join(", ") : "None yet: Auto Mouse works on every layer"} />
-                    <Button size="sm" variant="outline" className="rounded-full" onClick={() => setOpen(true)} data-automouse-choose>
+                choices={AUTOMOUSE_MODE_CHOICES} onChange={(v) => set(AUTOMOUSE_LAYERS_ONLY_KEY, v === AUTOMOUSE_SELECTED ? AUTOMOUSE_SELECTED : AUTOMOUSE_EVERYWHERE)}
+                trailing={
+                    <Button size="sm" variant="outline" className="rounded-full" disabled={!selected}
+                        title={selected ? undefined : "Pick Only on Selected Layers first"}
+                        onClick={() => setOpen(true)} data-automouse-choose>
                         Choose Layers
                     </Button>
-                </div>
-            )}
+                }>
+                {selected && <AutoMouseLayerSummary keyboard={keyboard} mask={mask} onOpen={() => setOpen(true)} />}
+            </ChoiceRow>
             <AutoMouseLayersDialog open={open} keyboard={keyboard} mask={mask}
                 onCancel={() => setOpen(false)}
                 onDone={(m) => { setOpen(false); if (m !== mask) set(AUTOMOUSE_LAYER_MASK_KEY, m); }} />

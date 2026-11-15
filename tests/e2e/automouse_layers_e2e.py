@@ -3,12 +3,14 @@ Browser flow of the Auto Mouse Layer setting against the simulated Svalboard
 (?fakeBoard=pointing, firmware with VIA 63 and 64). Headless, 1440 x 900.
 Run with `npm run test:e2e:automouse-layers`.
 
-  1. The AutoMouse group shows Auto Mouse Layer, Everywhere chosen, and no layer row.
-  2. Only on Selected Layers shows the Off on Layers row; Choose Layers opens the picker:
-     one pill per layer but the mouse layer, none marked.
+  1. The AutoMouse group shows Auto Mouse Layer, Everywhere chosen, Choose Layers on the
+     same row but disabled, and no layer pill line.
+  2. Only on Selected Layers enables Choose Layers and shows the pill line under the row;
+     Choose Layers opens the picker: one pill per layer but the mouse layer, none marked.
   3. Clicking pills marks them (aria-pressed, struck through); Cancel keeps the board's mask.
-  4. Done writes the mask: the row then names the layers the board read back.
-  5. Everywhere hides the row; Only on Selected Layers again shows the same layers.
+  4. Done writes the mask: the pill line then marks the layers the board read back;
+     clicking the pill line opens the picker too.
+  5. Everywhere hides the pill line and disables Choose Layers; Only on Selected Layers again shows the same layers.
   6. Older firmware (?fakeBoard=old): no Auto Mouse Layer setting at all.
 
 With E2E_SHOTS=<dir>, saves the toggle and the picker in light and dark there.
@@ -51,14 +53,17 @@ def main() -> int:
             check(row.is_visible(), f"{theme}: Auto Mouse Layer setting shown")
             check(row.get_by_role("radio", name="Everywhere").get_attribute("aria-checked") == "true",
                   f"{theme}: Everywhere is the default")
-            check(page.locator("[data-automouse-layers-row]").count() == 0, f"{theme}: no layer row under Everywhere")
+            check(row.locator("[data-automouse-choose]").is_disabled(), f"{theme}: Choose Layers on the row, disabled")
+            check(page.locator("[data-automouse-summary]").count() == 0, f"{theme}: no pill line under Everywhere")
+            check(page.get_by_text("Off on Layers").count() == 0, f"{theme}: no Off on Layers row")
+            if SHOTS:
+                group.screenshot(path=os.path.join(SHOTS, f"everywhere-{theme}.png"))
 
             # 2.
             row.get_by_role("radio", name="Only on Selected Layers").click()
-            expect(page.locator("[data-automouse-layers-row]")).to_be_visible()
-            check(True, f"{theme}: Only on Selected Layers shows the layer row")
-            if SHOTS:
-                group.screenshot(path=os.path.join(SHOTS, f"toggle-{theme}.png"))
+            expect(page.locator("[data-automouse-summary]")).to_be_visible()
+            check(row.locator("[data-automouse-choose]").is_enabled(), f"{theme}: Choose Layers enabled")
+            check(page.locator("[data-automouse-summary] [data-layer]").count() == 15, f"{theme}: pill line shows 15 layers")
             page.locator("[data-automouse-choose]").click()
             dialog = page.locator("[data-automouse-dialog]")
             expect(dialog).to_be_visible()
@@ -86,14 +91,22 @@ def main() -> int:
             dialog.locator("[data-automouse-done]").click()
             expect(dialog).to_be_hidden()
             page.wait_for_timeout(800)
-            hint = page.locator("[data-automouse-layers-row]").inner_text()
-            check("None yet" not in hint and "3" in hint, f"{theme}: the row names the layers after Done ({hint!r})")
+            offs = page.locator("[data-automouse-summary] [data-off='1']").evaluate_all("es => es.map(e => e.dataset.layer)")
+            check(offs == ["1", "3"], f"{theme}: the pill line marks the layers after Done ({offs!r})")
+            deco = page.locator("[data-automouse-summary] [data-layer='3'] span").evaluate("e => getComputedStyle(e).textDecorationLine")
+            check("line-through" in deco, f"{theme}: pill line strikes off layers through")
             if SHOTS:
-                group.screenshot(path=os.path.join(SHOTS, f"after-{theme}.png"))
+                group.screenshot(path=os.path.join(SHOTS, f"selected-{theme}.png"))
+            page.locator("[data-automouse-summary]").click()
+            expect(dialog).to_be_visible()
+            check(True, f"{theme}: clicking the pill line opens the picker")
+            dialog.get_by_role("button", name="Cancel").click()
+            expect(dialog).to_be_hidden()
 
             # 5.
             row.get_by_role("radio", name="Everywhere").click()
-            expect(page.locator("[data-automouse-layers-row]")).to_have_count(0)
+            expect(page.locator("[data-automouse-summary]")).to_have_count(0)
+            check(row.locator("[data-automouse-choose]").is_disabled(), f"{theme}: Everywhere disables Choose Layers again")
             row.get_by_role("radio", name="Only on Selected Layers").click()
             page.locator("[data-automouse-choose]").click()
             check(dialog.locator("[data-off='1']").count() == 2, f"{theme}: the layers survive Everywhere and back")
