@@ -143,8 +143,10 @@ export function SelectRow({ label, hint, value, options, onChange, disabled, des
 }
 
 /** Two or three named choices side by side, one of them chosen. */
-export function ChoiceRow({ label, hint, value, choices, onChange }: {
+export function ChoiceRow({ label, hint, value, choices, onChange, children }: {
     label: string;
+    /** Drawn under the row, full width, inside the same row box. */
+    children?: ReactNode;
     hint?: ReactNode;
     value: number | undefined;
     choices: { value: number; label: string }[];
@@ -175,6 +177,7 @@ export function ChoiceRow({ label, hint, value, choices, onChange }: {
                     ))}
                 </div>
             </div>
+            {children && <div className="basis-full">{children}</div>}
         </div>
     );
 }
