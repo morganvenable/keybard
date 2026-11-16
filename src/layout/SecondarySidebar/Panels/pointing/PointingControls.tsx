@@ -143,10 +143,8 @@ export function SelectRow({ label, hint, value, options, onChange, disabled, des
 }
 
 /** Two or three named choices side by side, one of them chosen. */
-export function ChoiceRow({ label, hint, value, choices, onChange, trailing, children }: {
+export function ChoiceRow({ label, hint, value, choices, onChange, children }: {
     label: string;
-    /** Drawn after the choices, on the same line (a button that goes with them). */
-    trailing?: ReactNode;
     /** Drawn under the row, full width, inside the same row box. */
     children?: ReactNode;
     hint?: ReactNode;
@@ -178,7 +176,6 @@ export function ChoiceRow({ label, hint, value, choices, onChange, trailing, chi
                         </button>
                     ))}
                 </div>
-                {trailing}
             </div>
             {children && <div className="basis-full">{children}</div>}
         </div>
