@@ -76,7 +76,7 @@ describe("app IDs", () => {
 
 describe("the record", () => {
     it("round trips the header and rules", () => {
-        const rules = [rule({ defaultLayer: 2, frontLayer: 5, onMask: 0b1010, offMask: 0x8001, label: "Notepad" }), rule({ appId: appId("firefox"), label: "ééééééé" })];
+        const rules = [rule({ defaultLayer: 2, frontLayer: 5, onMask: 0b1010, offMask: 0x4001, label: "Notepad" }), rule({ appId: appId("firefox"), label: "ééééééé" })];
         const bytes = serializeRecord(rules);
         expect(bytes.length).toBe(4 + 2 * 24);
         expect(Array.from(bytes.subarray(0, 4))).toEqual([1, 2, 0, 0]);
@@ -110,6 +110,16 @@ describe("layer pills", () => {
         expect([maskState(r, 3), r.onMask, r.offMask]).toEqual(["neutral", 0, 0]);
         expect(maskState({ onMask: 1, offMask: 1 }, 0)).toBe("off");
         expect(cycleMask(r, 16)).toBe(r);
+        expect(cycleMask(r, 15)).toBe(r); // the auto mouse layer is never masked
+    });
+
+    it("never sends the auto mouse layer's mask bits, from any source", () => {
+        const bytes = serializeRecord([rule({ onMask: 0xffff, offMask: 0x8001 })]);
+        expect([bytes[4 + 6] | (bytes[4 + 7] << 8), bytes[4 + 8] | (bytes[4 + 9] << 8)]).toEqual([0x7fff, 0x0001]);
+        const raw = serializeRecord([rule()]);
+        raw[4 + 7] = 0x80;
+        expect(parseRecord(raw)[0].onMask).toBe(0);
+        expect(appRulesFromSvil([{ app_id: 5, on_mask: 0x8003 }])![0].onMask).toBe(3);
     });
 });
 
@@ -157,7 +167,7 @@ describe("requests against the simulated board", () => {
 
     it("a full list of 64 round trips over 32-byte reports; a shorter list zeroes the rest", async () => {
         const { fw, link } = fakeLink(32);
-        const rules = Array.from({ length: 64 }, (_, i) => rule({ appId: appId(`app${i}.exe`), label: `app${i}`, onMask: i, defaultLayer: i % 16 }));
+        const rules = Array.from({ length: 64 }, (_, i) => rule({ appId: appId(`app${i}.exe`), label: `app${i}`, onMask: (i * 511) & 0x7fff, defaultLayer: i % 16 }));
         await writeAppRules(link, rules);
         expect((await readAppRules(link)).rules).toEqual(rules);
         await writeAppRules(link, rules.slice(0, 1));
@@ -229,7 +239,7 @@ describe("layout files and import", () => {
         const back = appRulesFromSvil(JSON.parse(JSON.stringify(svil)))!;
         expect(sameRules(back, rules)).toBe(true);
         expect(appRulesFromSvil([{ key: "firefox", app_id: 1, default_layer: 300, on_mask: 0x1ffff }])![0])
-            .toMatchObject({ appId: appId("firefox"), defaultLayer: null, onMask: 0xffff, label: "firefox" });
+            .toMatchObject({ appId: appId("firefox"), defaultLayer: null, onMask: 0x7fff, label: "firefox" });
         expect(appRulesFromSvil(undefined)).toBeNull();
         expect(appRulesFromSvil(Array.from({ length: 70 }, () => ({ app_id: 5 })))!.length).toBe(64);
     });

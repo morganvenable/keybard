@@ -35,6 +35,10 @@ export const APP_RULE_LABEL_BYTES = 13;
 export const APP_LAYER_NONE = 0xff;
 /** The masks hold 16 layers. */
 export const APP_MASK_LAYERS = 16;
+/** The auto mouse layer belongs to Auto Mouse: the board ignores its mask bits, and Keybard never sets them. */
+export const APP_MOUSE_LAYER = 15;
+/** The mask bits a rule may use: every layer but the auto mouse layer. */
+export const APP_MASK_USABLE = 0xffff & ~(1 << APP_MOUSE_LAYER);
 
 /** Framing around a READ reply's data, counted from the start of the report: [wrapper:6][0x41][op][status][offset:2][len]. */
 const READ_REPLY_HEADER_BYTES = 12;
@@ -123,8 +127,8 @@ export function parseRule(b: Uint8Array, o = 0): AppRule {
         appId: le32(b, o),
         defaultLayer: layerOrNull(b[o + 4]),
         frontLayer: layerOrNull(b[o + 5]),
-        onMask: le16(b, o + 6),
-        offMask: le16(b, o + 8),
+        onMask: le16(b, o + 6) & APP_MASK_USABLE,
+        offMask: le16(b, o + 8) & APP_MASK_USABLE,
         flags: b[o + 10],
         label: new TextDecoder().decode(end < 0 ? raw : raw.subarray(0, end)),
     };
@@ -158,8 +162,9 @@ export function serializeRecord(rules: readonly AppRule[]): Uint8Array {
         out[o] = id & 0xff; out[o + 1] = (id >>> 8) & 0xff; out[o + 2] = (id >>> 16) & 0xff; out[o + 3] = id >>> 24;
         out[o + 4] = putLayer(r.defaultLayer);
         out[o + 5] = putLayer(r.frontLayer);
-        out[o + 6] = r.onMask & 0xff; out[o + 7] = (r.onMask >> 8) & 0xff;
-        out[o + 8] = r.offMask & 0xff; out[o + 9] = (r.offMask >> 8) & 0xff;
+        const on = r.onMask & APP_MASK_USABLE, off = r.offMask & APP_MASK_USABLE;
+        out[o + 6] = on & 0xff; out[o + 7] = on >> 8;
+        out[o + 8] = off & 0xff; out[o + 9] = off >> 8;
         out[o + 10] = r.flags & 0xff;
         out.set(new TextEncoder().encode(truncateUtf8(r.label ?? "")), o + 11);
     });
@@ -167,7 +172,7 @@ export function serializeRecord(rules: readonly AppRule[]): Uint8Array {
 }
 
 /** What the board stores of a rule (Keybard's own `key` left out), for comparing. */
-export const ruleWire = (r: AppRule) => [r.appId >>> 0, putLayer(r.defaultLayer), putLayer(r.frontLayer), r.onMask & 0xffff, r.offMask & 0xffff, r.flags & 0xff, truncateUtf8(r.label ?? "")];
+export const ruleWire = (r: AppRule) => [r.appId >>> 0, putLayer(r.defaultLayer), putLayer(r.frontLayer), r.onMask & APP_MASK_USABLE, r.offMask & APP_MASK_USABLE, r.flags & 0xff, truncateUtf8(r.label ?? "")];
 export const sameRules = (a: readonly AppRule[] | undefined, b: readonly AppRule[] | undefined): boolean =>
     JSON.stringify((a ?? []).map(ruleWire)) === JSON.stringify((b ?? []).map(ruleWire));
 
@@ -183,7 +188,7 @@ export function maskState(rule: Pick<AppRule, "onMask" | "offMask">, layer: numb
 
 /** The next state on a click: neutral, on, off (struck through), neutral. */
 export function cycleMask<T extends Pick<AppRule, "onMask" | "offMask">>(rule: T, layer: number): T {
-    if (layer < 0 || layer >= APP_MASK_LAYERS) return rule;
+    if (layer < 0 || layer >= APP_MASK_LAYERS || layer === APP_MOUSE_LAYER) return rule;
     const bit = 1 << layer;
     const state = maskState(rule, layer);
     if (state === "neutral") return { ...rule, onMask: (rule.onMask | bit) & 0xffff, offMask: rule.offMask & ~bit & 0xffff };
@@ -307,7 +312,7 @@ export const appRulesToSvil = (rules: readonly AppRule[]): SvilAppRule[] => rule
 }));
 
 const fileLayer = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v < APP_LAYER_NONE ? v : null);
-const fileMask = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v & 0xffff : 0);
+const fileMask = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v & APP_MASK_USABLE : 0);
 
 /** Rules from a file: at most 64; a key in the file gives the ID (an ID that disagrees loses). Null when absent. */
 export function appRulesFromSvil(value: unknown): AppRule[] | null {
