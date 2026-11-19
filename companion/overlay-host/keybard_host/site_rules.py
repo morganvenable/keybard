@@ -29,7 +29,7 @@ def normalize_site(text):
     text = (text or '').strip(' \t')
     if text[:len(SITE_PREFIX)].lower() == SITE_PREFIX: text = text[len(SITE_PREFIX):].strip(' \t')
     text = _SCHEME.sub('', text)
-    text = re.split(r'[/?#\\]', text, 1)[0].rsplit('@', 1)[-1]
+    text = re.split(r'[/?#\\]', text, maxsplit=1)[0].rsplit('@', 1)[-1]
     text = re.sub(r':\d*$', '', text)
     text = app_key(text)
     while text.startswith('*.'): text = text[2:]

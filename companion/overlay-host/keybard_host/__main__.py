@@ -41,8 +41,8 @@ from .host_pointing import demo_motion
 from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
 from .keyboard_layout import ForegroundHook, LayoutReader
-from .foreground import app_id, foreground_window
-from .address_bar import TimedReader
+from .foreground import app_key, foreground_window
+from .address_bar import BROWSERS, TimedReader
 from .site_rules import PENDING, SiteWatcher, choose_id
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info, build_label
@@ -887,9 +887,13 @@ class Host(QObject):
             # Testing: which rule is sent, never the address or the title.
             site = next((s for s, i in sites if i == chosen), None) if host else None
             line = f'site rule {site}' if site else f'program {program or "none"}'
-            if (line, chosen) != self.logged_app:
-                self.logged_app = (line, chosen)
-                print(f'{time.strftime("%H:%M:%S")} app rules: sending {chosen:08X} ({line})', flush=True)
+            if sites and not site and window and app_key(program) in BROWSERS:
+                line += ', the tab matches no site rule' if host else ', no address read'
+            known = sorted({s for s, _ in sites})
+            if (line, chosen, known) != self.logged_app:
+                self.logged_app = (line, chosen, known)
+                print(f'{time.strftime("%H:%M:%S")} app rules: sending {chosen:08X} ({line}); '
+                      f'site rules on the board: {", ".join(known) or "none"}', flush=True)
 
     def tick(self):
         now = time.monotonic()

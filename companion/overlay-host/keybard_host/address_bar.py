@@ -37,7 +37,7 @@ def host_of_address(text):
     if match:
         if match.group(1).lower() not in ('http', 'https') or not match.group(2): return None
         text = text[match.end():]
-    host = re.split(r'[/?#\\]', text, 1)[0]
+    host = re.split(r'[/?#\\]', text, maxsplit=1)[0]
     host = host.rsplit('@', 1)[-1]
     if host.startswith('['): return None  # an IPv6 address: no site rule names one
     host = host.split(':', 1)[0].rstrip('.')
