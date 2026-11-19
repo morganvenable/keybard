@@ -329,4 +329,3 @@ function AppRulesEditor({ compact }: { compact: boolean }) {
         </section>
     );
 }
-
