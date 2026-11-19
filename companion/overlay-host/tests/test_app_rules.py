@@ -67,6 +67,8 @@ class AppDevice(ProtocolDevice):
     def __init__(self, flags5=APP_RULES_FLAG5, status=0):
         super().__init__()
         self.flags5, self.app_status, self.app_requests = flags5, status, []
+        # STATUS: the layers keys use now and the default layer state, as a rule leaves them.
+        self.app_layers, self.app_default = 0, 1
 
     def write(self, packet):
         request = bytes(packet[1:])
@@ -74,7 +76,12 @@ class AppDevice(ProtocolDevice):
             self.app_requests.append(request[7:])
             self.writes.append(packet)
             op = request[7]
-            data = bytes((op, self.app_status, 0xFF, 0)) if op == 1 else bytes((op, self.app_status))
+            if op == 0:
+                data = bytearray(31); data[0], data[1] = op, self.app_status if self.size - 7 >= 31 else 3
+                data[18:22] = self.app_default.to_bytes(4, "little"); data[26:30] = self.app_layers.to_bytes(4, "little")
+                data = bytes(data[:self.size - 7]) if self.size - 7 < 31 else bytes(data)
+            else:
+                data = bytes((op, self.app_status, 0xFF, 0)) if op == 1 else bytes((op, self.app_status))
             self.queue.append(request[:7] + data.ljust(self.size - 7, b'\0'))
             return len(packet)
         count = super().write(packet)
@@ -110,6 +117,26 @@ class ProtocolTests(unittest.TestCase):
         for args in ((-1,), (1 << 32,), ('1',), (1, 61), (1, -1)):
             with self.assertRaises(ValueError): reader.app_foreground(*args)
         self.assertEqual(device.app_requests, [])
+
+    def test_shown_layers_follow_the_rule(self):
+        # A rule's layers show (STATUS); 0x16 still gives the modifiers, and is never written.
+        device = AppDevice(); device.size = 64; device.feature_flags = 0x40; device.mask = 1; device.default_mask = 1
+        device.app_layers, device.app_default = (1 << 4) | (1 << 2), 1 << 1
+        reader = SvalReader(device); reader.info()
+        snapshot = reader.layer_snapshot()
+        self.assertEqual((snapshot.active, snapshot.default), ((1 << 4) | (1 << 2), 1 << 1))
+        self.assertEqual(reader.layer_state(), (1 << 4) | (1 << 2))
+        self.assertEqual([r[0] for r in device.app_requests], [0, 0])
+
+    def test_shown_layers_fall_back_to_0x16(self):
+        # Without the bit nothing is sent; a 32-byte report is too short for STATUS (status 3).
+        for flags5, size in ((0, 64), (APP_RULES_FLAG5, 32)):
+            device = AppDevice(flags5=flags5); device.size = size; device.feature_flags = 0x40; device.mask = 1 << 3; device.default_mask = 1
+            device.app_layers = 1 << 9
+            reader = SvalReader(device); reader.info()
+            snapshot = reader.layer_snapshot()
+            self.assertEqual((snapshot.active, snapshot.default), (1 << 3, 1), (flags5, size))
+            if not flags5: self.assertEqual(device.app_requests, [])
 
     def test_the_read_allowlist_still_has_no_setter(self):
         self.assertNotIn(0x40, READ_COMMANDS[0xDF]); self.assertNotIn(0x41, READ_COMMANDS[0xDF])

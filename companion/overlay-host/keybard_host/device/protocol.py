@@ -49,7 +49,7 @@ ALTGR_BIT = 0x40  # right Alt in the HID modifier byte: AltGr on layouts that ha
 # APP_FOREGROUND (0x40). Older firmware leaves it zero or sends a shorter reply.
 APP_RULES_FLAG5 = 0x01
 APP_FOREGROUND = 0x40
-APP_SET, APP_CLEAR = 0x01, 0x02
+APP_STATUS, APP_SET, APP_CLEAR = 0x00, 0x01, 0x02
 # APP_FOREGROUND status: the request reached the half without USB, which runs no rules.
 APP_STATUS_NOT_USB_HALF = 2
 # Protocol -> command -> exact request argument length. No setter is expressible: the
@@ -516,18 +516,35 @@ class SvalReader:
             raise UnsupportedCommand("Board does not advertise app rules")
         return self._transact(APP_FOREGROUND, bytes((APP_CLEAR,)), 0xDF)[1]
 
+    def app_layers(self):
+        """With app rules, the layers keys use now and the default layer state, from
+        APP_FOREGROUND STATUS: a rule changes layers without touching the user's own state
+        (0x16). None on other firmware or when the read fails, so callers use 0x16."""
+        if not self.app_rules():
+            return None
+        data = self._transact(APP_FOREGROUND, bytes((APP_STATUS,)), 0xDF)
+        if data is None or len(data) < 31 or data[1] != 0:
+            return None
+        return int.from_bytes(data[26:30], "little"), int.from_bytes(data[18:22], "little")
+
     def layer_state(self):
-        return int.from_bytes(self._read(0x16)[:4], "little")
+        shown = self.app_layers()
+        return shown[0] if shown else int.from_bytes(self._read(0x16)[:4], "little")
 
     def layer_snapshot(self):
+        """The layers to show (the rule's, with app rules), the default layer and the modifiers."""
         data = self._read(0x16)
         default = (int.from_bytes(data[4:8], "little")
                    if self.feature_flags & DEFAULT_LAYER_STATE_FLAG else None)
+        active = int.from_bytes(data[:4], "little")
+        shown = self.app_layers()
+        if shown:
+            active, default = shown
         modifiers = None
         if self.feature_flags2 & MODIFIER_STATE_FLAG2:
             mods, status = data[8], data[9]
             modifiers = dict(shift=bool(mods & SHIFT_BITS), capsLock=bool(status & 2) != bool(status & 1), altgr=bool(mods & ALTGR_BIT))
-        return LayerSnapshot(int.from_bytes(data[:4], "little"), default, modifiers)
+        return LayerSnapshot(active, default, modifiers)
 
     def pointing_motion(self):
         """Each hand's motion since the last read, or None on firmware without 0x2D (never sent there)."""
