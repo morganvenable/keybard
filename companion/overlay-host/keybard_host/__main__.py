@@ -41,6 +41,7 @@ from .host_pointing import demo_motion
 from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
 from .keyboard_layout import ForegroundHook, LayoutReader
+from .foreground import app_id, foreground_app
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info, build_label
 from .handoff import hand_off, REFUSED
@@ -416,6 +417,12 @@ class Host(QObject):
         self.layout_hook = ForegroundHook(lambda: self.read_layout())
         self.layout_timer = QTimer(self); self.layout_timer.timeout.connect(self.read_layout); self.layout_timer.start(250)
         self.read_layout(force=True)
+        # App rules: which app is in front, for boards that run rules (each worker sends it).
+        # Read 4 times a second and when another window comes to the front (Windows), only
+        # while a connected board takes it.
+        self.foreground_id = None
+        self.foreground_hook = ForegroundHook(lambda: self.poll_foreground())
+        self.foreground_timer = QTimer(self); self.foreground_timer.timeout.connect(self.poll_foreground); self.foreground_timer.start(250)
         self.timer = QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(100)
         self.scan_timer = QTimer(self); self.scan_timer.timeout.connect(self.scan); self.scan_timer.start(2500)
         QTimer.singleShot(0, self.scan)
@@ -846,6 +853,15 @@ class Host(QObject):
                 board.ready = False; board.default = None
                 self.follow()
 
+    def poll_foreground(self):
+        workers = [b.worker for b in self.boards.values() if b.worker is not None and b.worker.app_rules]
+        if not workers:
+            self.foreground_id = None
+            return
+        front = foreground_app()
+        self.foreground_id = app_id(front[0]) if front else 0
+        for worker in workers: worker.set_foreground(self.foreground_id)
+
     def tick(self):
         now = time.monotonic()
         for board in self.boards.values():
@@ -1017,6 +1033,7 @@ class Host(QObject):
     def shutdown(self):
         self.modifier_timer.stop(); self.modifier_reader.close()
         self.layout_timer.stop(); self.layout_hook.close(); self.layout_reader.close()
+        self.foreground_timer.stop(); self.foreground_hook.close()
         if self.demo_pointing is not None: self.demo_pointing.stop()
         self.scan_timer.stop(); self.timer.stop()
         if self.colors_panel is not None: self.colors_panel.close()
@@ -1064,6 +1081,15 @@ def quit_on_signals(app, platform=None):
     return timer
 
 
+def instance_name(instance):
+    """The Qt application name, which names the settings folder and the lock. A test instance
+    gets its own, so it never hands off to, asks to quit, or shares files with the installed one."""
+    if instance is None: return 'Keybard Host'
+    if not instance or not all(c.isalnum() or c in '-_' for c in instance) or len(instance) > 32:
+        raise SystemExit('--instance takes a short name of letters, digits, - and _')
+    return f'Keybard Host {instance}'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=5178)
@@ -1076,6 +1102,8 @@ def main():
     parser.add_argument('--demo-pointing', action='store_true', help='review: an illustration board with pointing devices, rolling, sniper on (no board needed)')
     parser.add_argument('--demo-velocity', action='store_true', help='review: --demo-pointing with Velocity Scroll held on the trackball, its offset moving')
     parser.add_argument('--show-pointing', action='store_true', help='review: turn on Show pointing devices for this run, without saving it')
+    parser.add_argument('--instance', help='testing: run as a separate Keybard Host with its own settings, lock and browser data '
+                        '(under "Keybard Host <name>"), alongside an installed one; use with --port and --no-open')
     parser.add_argument('--diagnose', action='store_true', help='print a report of the system, display session, Qt and the boards it can see, then exit')
     args = parser.parse_args()
     if args.diagnose:
@@ -1087,7 +1115,7 @@ def main():
         if args.assets == parser.get_default('assets'): args.assets = args.assets.parent / 'web-paranoid'
     # 'Keybard Host' is the app's earlier name. It names the settings folder and the lock,
     # so keep it: settings carry over, and an older copy and this one never run at once.
-    app = QApplication(sys.argv[:1]); app.setApplicationName('Keybard Host'); app.setQuitOnLastWindowClosed(False)
+    app = QApplication(sys.argv[:1]); app.setApplicationName(instance_name(args.instance)); app.setQuitOnLastWindowClosed(False)
     hide_dock_icon()  # macOS: a menu bar app, without a Dock icon
     folder = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
     folder.mkdir(parents=True, exist_ok=True)

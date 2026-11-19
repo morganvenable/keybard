@@ -1,4 +1,8 @@
-"""Strictly read-only Sval v2/v3 client with the mandatory client wrapper."""
+"""Read-only Sval v2/v3 client with the mandatory client wrapper.
+
+It reads, and sends one thing only: which app is in front (APP_FOREGROUND, 0x40, SET or
+CLEAR), to a board that advertises app rules. That is runtime state the board forgets
+after 15 s; it changes nothing stored on the board (see app_foreground below)."""
 from dataclasses import dataclass, replace
 import secrets
 import sys
@@ -41,7 +45,15 @@ MAX_CONTACTS = 6
 PAD_COUNTS_X, PAD_COUNTS_Y = 2048, 1792
 SHIFT_BITS = 0x22  # left and right Shift in the HID modifier byte
 ALTGR_BIT = 0x40  # right Alt in the HID modifier byte: AltGr on layouts that have one
-# Protocol -> command -> exact request argument length. No setter is expressible.
+# Fifth feature byte (GET_INFO byte 22), bit 0: the board runs app rules and takes
+# APP_FOREGROUND (0x40). Older firmware leaves it zero or sends a shorter reply.
+APP_RULES_FLAG5 = 0x01
+APP_FOREGROUND = 0x40
+APP_SET, APP_CLEAR = 0x01, 0x02
+# APP_FOREGROUND status: the request reached the half without USB, which runs no rules.
+APP_STATUS_NOT_USB_HALF = 2
+# Protocol -> command -> exact request argument length. No setter is expressible: the
+# one request that isn't a read, APP_FOREGROUND, has its own fixed-shape methods.
 READ_COMMANDS = {
     0xDF: {0x00: 0, 0x01: 2, 0x0D: 0, 0x0E: 3, 0x16: 0, 0x18: 0, 0x19: 0, 0x1B: 3, 0x2D: 1, 0x2F: 0},
     0xFE: {0x02: 2, 0x11: 0, 0x12: 3},
@@ -357,6 +369,7 @@ class SvalReader:
         self.renew_at = 0
         self.feature_flags = 0
         self.feature_flags2 = 0
+        self.feature_flags5 = 0
         self.load_deadline = None
         # The last board definition read: it only changes with new firmware, so a refresh reuses it.
         self.cached_definition = None
@@ -435,6 +448,9 @@ class SvalReader:
             raise ValueError("Command or argument length is outside the trainer read allowlist")
         if protocol == 0xFE and command == 0x02 and args != b"\x03\x00":
             raise ValueError("Only the read-only switch matrix at row zero is allowed")
+        return self._transact(command, args, protocol)
+
+    def _transact(self, command, args, protocol):
         for attempt in range(2):
             self.checkpoint()
             if not self.client_id or self.clock() >= self.renew_at:
@@ -457,7 +473,7 @@ class SvalReader:
                 data = reply[7:]
                 echo_length = (3 if protocol == 0xFE and command == 0x12 else
                                2 if (protocol == 0xDF and command in (0x01, 0x0E)) or (protocol == 0xFE and command == 0x02) else
-                               1 if protocol == 0xDF and command == 0x1B else 0)
+                               1 if protocol == 0xDF and command in (0x1B, APP_FOREGROUND) else 0)
                 if data[:echo_length] != args[:echo_length]:
                     return None
                 return data
@@ -477,7 +493,28 @@ class SvalReader:
             raise ProtocolError(f"Sval protocol {version} is not supported")
         self.feature_flags = data[12]
         self.feature_flags2 = data[17] if len(data) > 17 else 0
+        self.feature_flags5 = data[20] if len(data) > 20 else 0
         return version, int.from_bytes(data[4:12], "little")
+
+    def app_rules(self):
+        """Whether the board takes APP_FOREGROUND (known after info())."""
+        return bool(self.feature_flags5 & APP_RULES_FLAG5)
+
+    def app_foreground(self, app_id, lifetime=0):
+        """SET: the app in front (0: none). Lifetime 0 is the board's 15 s. Returns the reply's
+        (status, rule index or 0xFF, flags). Never sent to a board without app rules."""
+        if not self.app_rules():
+            raise UnsupportedCommand("Board does not advertise app rules")
+        if type(app_id) is not int or not 0 <= app_id <= 0xFFFFFFFF or type(lifetime) is not int or not 0 <= lifetime <= 60:
+            raise ValueError("App ID must be a u32 and the lifetime 0-60 s")
+        data = self._transact(APP_FOREGROUND, bytes((APP_SET,)) + app_id.to_bytes(4, "little") + bytes((lifetime,)), 0xDF)
+        return data[1], data[2], data[3]
+
+    def app_clear(self):
+        """CLEAR: the Host is leaving, so no app is in front now. Returns the status."""
+        if not self.app_rules():
+            raise UnsupportedCommand("Board does not advertise app rules")
+        return self._transact(APP_FOREGROUND, bytes((APP_CLEAR,)), 0xDF)[1]
 
     def layer_state(self):
         return int.from_bytes(self._read(0x16)[:4], "little")
