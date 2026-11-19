@@ -2,6 +2,22 @@
 // Keyboard configuration and Sval protocol data.
 import type { PointingHardwareReport } from "../utils/pointing-hardware";
 
+/**
+ * An app rule (svalboard/qmk docs/protocol.md, "App rules"). The board stores the 4-byte app ID,
+ * never the app key; `key` is what Keybard remembers of it (files and this browser).
+ */
+export interface AppRule {
+    appId: number;
+    defaultLayer: number | null;
+    frontLayer: number | null;
+    onMask: number;
+    offMask: number;
+    flags: number;
+    /** At most 13 UTF-8 bytes. */
+    label: string;
+    key?: string;
+}
+
 export interface KeyboardInfo {
     via_proto?: number;
     svil_proto?: number;  // Svil protocol version
@@ -33,6 +49,8 @@ export interface KeyboardInfo {
     feature_flags2?: number;                 // Second feature byte, after the storage flags; zero on older firmware
     feature_flags3?: number;                 // Third feature byte (GET_INFO byte 20); zero on older firmware
     feature_flags4?: number;                 // Fourth feature byte (GET_INFO byte 21); zero on older firmware
+    feature_flags5?: number;                 // Fifth feature byte (GET_INFO byte 22); zero on older firmware
+    app_rules?: AppRule[];                   // Boards with app rules (flags5 bit 0): the rules in use; absent when unread
     feature_flags?: number;                  // NEW: Svil feature flags
     keycode_version?: string;                // QMK keycode numbering the keycodes are in, e.g. "0.0.9"
     storage_reset?: boolean;                 // board reset its settings: its storage could not be read

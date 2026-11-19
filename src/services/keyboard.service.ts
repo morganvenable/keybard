@@ -1,6 +1,8 @@
 import { withTouchpadTaps } from "@/utils/touchpad-taps";
 import { withScrollSpeed } from "@/utils/pointing-settings";
 import { withAutoMouseLayers } from "@/utils/automouse-layers";
+import { hasAppRules, readAppRules } from "@/services/app-rules";
+import { appKeyFor } from "@/utils/app-rule-keys";
 import {
     hasPadFingers, hasPadTouch as hasPadTouchFlag, PAD_FINGERS_PAGE, PAD_TOUCH_PAGE, parsePadFingers, parsePadTouch, type PadTouchReport,
 } from "@/utils/touchpad-tuning";
@@ -213,6 +215,17 @@ export class KeyboardService {
 
         await this.getPointingHardware(kbinfo);
 
+        // App rules (GET_INFO byte 22 bit 0). A failed read leaves them unread (absent), never "none".
+        if (hasAppRules(kbinfo.feature_flags5)) {
+            try {
+                const { rules } = await readAppRules(this.usb);
+                kbinfo.app_rules = rules.map((rule) => ({ ...rule, key: appKeyFor(rule.appId) }));
+            } catch (e) {
+                delete kbinfo.app_rules;
+                console.warn("App rules not available:", e);
+            }
+        }
+
         // Load fragment data (hardware detection and EEPROM selections)
         if (this.fragment.hasFragments(kbinfo)) {
             try {
@@ -257,6 +270,8 @@ export class KeyboardService {
         kbinfo.feature_flags3 = svilInfo[19] ?? 0;
         // [feature_flags4:1] (GET_INFO byte 21) after that; older firmware sends zero.
         kbinfo.feature_flags4 = svilInfo[20] ?? 0;
+        // [feature_flags5:1] (GET_INFO byte 22) after that; older firmware sends zero.
+        kbinfo.feature_flags5 = svilInfo[21] ?? 0;
         // The QMK keycode numbering the board uses; older firmware sends zeros.
         const keycodeVersion = Array.from((svilInfo as Uint8Array).slice(14, 17));
         kbinfo.keycode_version_reported = keycodeVersion.some(Boolean);
