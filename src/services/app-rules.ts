@@ -268,6 +268,12 @@ export interface AppForegroundStatus {
     frontLayer: number | null;
     onMask: number;
     offMask: number;
+    /** The board's default layer state now (the rule's while one holds it). */
+    defaultState: number;
+    /** The user's own layer state (what 0x16 reports). */
+    userLayers: number;
+    /** The layers keys use now, the default layer apart: the user's, with the rule's applied. */
+    layers: number;
     flags: number;
 }
 
@@ -282,6 +288,9 @@ export async function readAppForeground(link: AppRulesLink): Promise<AppForegrou
         frontLayer: r[10] === 0xff ? null : r[10],
         onMask: le16(r, 11),
         offMask: le16(r, 13),
+        defaultState: le32(r, 19),
+        userLayers: le32(r, 23),
+        layers: le32(r, 27),
         flags: r[31] ?? 0,
     };
 }

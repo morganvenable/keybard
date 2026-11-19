@@ -1459,9 +1459,22 @@ export class FakeSvalFirmware {
             put32(d, 2, id);
             put16(d, 6, id ? Math.min(0xffff, this.appForegroundUntil - this.timer()) : 0);
             d[8] = rule < 0 ? 0xff : rule;
-            d[9] = rule < 0 ? 0xff : r[o + 5];
-            if (rule >= 0) { d[10] = r[o + 6]; d[11] = r[o + 7]; d[12] = r[o + 8]; d[13] = r[o + 9]; }
-            d[30] = rule < 0 ? 0 : 1;
+
+            // The mouse layer (15) is Auto Mouse's: the board ignores mask bits for it.
+            const keep = ~(1 << 15) & 0xffff;
+            const on = rule >= 0 ? (r[o + 6] | (r[o + 7] << 8)) & keep : 0;
+            const off = rule >= 0 ? (r[o + 8] | (r[o + 9] << 8)) & keep : 0;
+            put16(d, 10, on);
+            put16(d, 12, off);
+            const own = (1 << this.state.defaultLayer) >>> 0;
+            const ruleDefault = rule >= 0 && r[o + 4] !== 0xff ? (1 << r[o + 4]) >>> 0 : own;
+            const front = rule >= 0 && r[o + 5] !== 0xff && !((off >> r[o + 5]) & 1) ? r[o + 5] : 0xff;
+            d[9] = front;
+            put32(d, 14, own);
+            put32(d, 18, ruleDefault);
+            put32(d, 22, this.layerState);
+            put32(d, 26, ((((this.layerState | on) & ~off) | (front === 0xff ? 0 : 1 << front)) >>> 0));
+            d[30] = rule < 0 ? 0 : 1 | (ruleDefault !== own ? 2 : 0);
             return;
         }
         d.fill(0, 1, length);

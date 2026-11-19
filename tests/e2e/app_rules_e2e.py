@@ -1,15 +1,16 @@
 """
-Browser flow of the App Rules editor against the simulated Svalboard (?fakeBoard, firmware
+Browser flow of the App Layers panel (app rules) against the simulated Svalboard (?fakeBoard, firmware
 with GET_INFO byte 22 bit 0 and the 0x40/0x41 commands). Headless, 1440 x 900, light and dark.
 Run with `npm run test:e2e:app-rules`.
 
-  1. ?panel=app-rules opens Layer Keys with App Rules in view, "0 of 64 max".
+  1. ?panel=app-layers opens the App Layers panel, "0 of 64 max"; the rail has App Layers and
+     Layer Keys no longer holds the editor.
   2. Add a rule, type notepad.exe: the label follows the app.
   3. Pick a default layer and a front layer; set one pill on and one off.
   4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule.
   5. Reload (the board keeps its settings): the rule reads back from the board.
   6. Bottom bar: the section shows there too.
-  7. Older firmware (?fakeBoard=old): no App Rules at all.
+  7. Older firmware (?fakeBoard=old): no App Layers rail item, panel or editor.
 
 With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar) and editor-bottombar-<theme>.png.
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. Exits 1 when a check fails.
@@ -45,13 +46,16 @@ def main() -> int:
             page = context.new_page()
             errors: list[str] = []
             page.on("pageerror", lambda e: errors.append(str(e)))
-            page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-rules")
+            page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-layers")
             wait_connected(page)
             section = page.locator("[data-app-rules]")
             expect(section).to_be_visible(timeout=20000)
 
             # 1.
             check(page.get_by_test_id("app-rules-count").inner_text() == "0 of 64 max", f"{theme}: empty list, 64 max")
+            check(page.locator("[data-app-layers-panel]").count() == 1, f"{theme}: in the App Layers panel")
+            check(page.get_by_role("link", name="App Layers").or_(page.get_by_role("button", name="App Layers")).count() >= 1,
+                  f"{theme}: App Layers in the rail")
 
             # 2.
             section.get_by_role("button", name="Add rule").click()
@@ -59,6 +63,8 @@ def main() -> int:
             expect(rule).to_be_visible()
             rule.get_by_test_id("app-rule-key").fill("notepad.exe")
             check(rule.get_by_test_id("app-rule-label").input_value() == "notepad.exe", f"{theme}: label follows the app")
+            check(rule.get_by_text("Turn on layer", exact=True).count() == 1 and rule.get_by_text("Other layers while the app is in front").count() == 1
+                  and rule.get_by_text("Front layer").count() == 0, f"{theme}: plain labels")
 
             # 3.
             rule.get_by_test_id("app-rule-default").select_option("1")
@@ -102,7 +108,7 @@ def main() -> int:
                   f"{theme}: pills read back ({states!r})")
 
             # 6.
-            page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-rules&panelPosition=bottombar")
+            page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-layers&panelPosition=bottombar")
             wait_connected(page)
             expect(section).to_be_visible(timeout=20000)
             check(section.locator("[data-app-rule='0']").count() == 1, f"{theme}: bottom bar shows the rule")
@@ -119,7 +125,8 @@ def main() -> int:
         page.goto(f"{url}?fakeBoard=old&panel=layers")
         wait_connected(page)
         page.wait_for_timeout(2500)
-        check(page.locator("[data-app-rules]").count() == 0, "older firmware: no App Rules")
+        check(page.locator("[data-app-rules]").count() == 0, "older firmware: no App Layers editor in Layer Keys")
+        check(page.get_by_text("App Layers", exact=True).count() == 0, "older firmware: no App Layers rail item")
         context.close()
         browser.close()
 

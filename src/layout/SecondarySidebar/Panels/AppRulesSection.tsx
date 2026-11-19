@@ -152,11 +152,11 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                 </label>
                 <LayerSelect keyboard={keyboard} label="Default layer" testId="app-rule-default" value={rule.defaultLayer}
                     onChange={(defaultLayer) => onChange({ ...rule, defaultLayer })} />
-                <LayerSelect keyboard={keyboard} label="Front layer" testId="app-rule-front" value={rule.frontLayer}
+                <LayerSelect keyboard={keyboard} label="Turn on layer" testId="app-rule-front" value={rule.frontLayer}
                     onChange={(frontLayer) => onChange({ ...rule, frontLayer })} />
             </div>
             <div className={cn("flex flex-col gap-0.5", compact ? "pl-0" : "pl-7")}>
-                <span className="text-xs text-muted-foreground">Layers on or off while the app is in front</span>
+                <span className="text-xs text-muted-foreground">Other layers while the app is in front</span>
                 <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Rule ${n} layers`} data-app-rule-pills>
                     {/* The mouse layer (the last) is Auto Mouse's: the board ignores mask bits for it. */}
                     {pickableLayers(layers).map((i) => {
@@ -181,19 +181,19 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
 }
 
 /**
- * App Rules, under the layer list of the Layer Keys panel: layer changes while an app is in
+ * App Layers (app rules on the board), in its own panel: layer changes while an app is in
  * front on the computer. Shown only on firmware with the feature (GET_INFO byte 22 bit 0).
  * Edits show at once; a burst of them is written once, through the change queue, so Live
  * Updating and Manual Updates work as they do for every other edit.
  */
-export default function AppRulesSection({ compact = false }: { compact?: boolean }) {
+export default function AppRulesSection({ compact = false, inPanel = false }: { compact?: boolean; /** The App Layers panel, which has the title. */ inPanel?: boolean }) {
     const { keyboard } = useKeyboard();
     // Nothing runs on firmware without the feature: no hooks, no USB requests.
     if (!keyboard || !hasAppRules(keyboard.feature_flags5)) return null;
-    return <AppRulesEditor compact={compact} />;
+    return <AppRulesEditor compact={compact} inPanel={inPanel} />;
 }
 
-function AppRulesEditor({ compact }: { compact: boolean }) {
+function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boolean }) {
     const { keyboard, setKeyboard, isConnected } = useKeyboard();
     const { queue } = useChanges();
     const [hostApps, setHostApps] = useState<HostApps | null>(null);
@@ -234,7 +234,6 @@ function AppRulesEditor({ compact }: { compact: boolean }) {
         void refreshStatus();
         let alive = true;
         void fetchHostApps().then((apps) => { if (alive) setHostApps(apps); });
-        if (new URLSearchParams(window.location.search).get("panel") === "app-rules") ref.current?.scrollIntoView?.({ block: "start" });
         return () => { alive = false; };
     }, [supported, isConnected, refreshStatus]);
 
@@ -276,7 +275,7 @@ function AppRulesEditor({ compact }: { compact: boolean }) {
     return (
         <section ref={ref} className="flex flex-col gap-2" data-app-rules aria-labelledby="app-rules-title">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 id="app-rules-title" className={cn("font-semibold text-kb-ink", compact ? "text-base" : "text-lg")}>App Rules</h3>
+                <h3 id="app-rules-title" className={cn("font-semibold text-kb-ink", compact ? "text-base" : "text-lg", inPanel && "sr-only")}>App Layers</h3>
                 <span className="text-xs text-muted-foreground" data-testid="app-rules-count">{list.length} of {APP_RULES_MAX} max</span>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground max-w-prose">

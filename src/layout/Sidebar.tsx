@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Ellipsis, Keyboard, ListOrdered, LucideIcon, Mouse, PanelLeftClose, PanelLeftOpen, Piano, Rocket, Settings } from "lucide-react";
+import { AppWindow, ArrowLeft, BookOpen, Ellipsis, Keyboard, ListOrdered, LucideIcon, Mouse, PanelLeftClose, PanelLeftOpen, Piano, Rocket, Settings } from "lucide-react";
 import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
@@ -34,6 +34,7 @@ import { requestSettingsSection, settingsSectionForPanel } from "@/layout/Second
 import { useFirmwareUpdates } from "@/features/firmware/FirmwareUpdateProvider";
 import { bindingEditorKind, currentRailMode, isBindingEditorOpen, modalRailExitLabel, pickerCategoryForRail, effectivePickerMode, nudgeBindingEditor, reviewChoice, RAIL_BARS, RAIL_BAR_PARAM, usablePickerCategories } from "@/lib/bindingSpotlight";
 import { ALT_REPEAT_PANEL, hasAltRepeatEntries, MORE_PANEL } from "@/lib/altRepeatVisibility";
+import { hasAppRules } from "@/services/app-rules";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
@@ -98,10 +99,15 @@ export function featureSidebarItemsFor(hasAltRepeat: boolean): SidebarItem[] {
 }
 
 // Hardware (clusters, pointing devices, ball color) is set up once, so it lives in Settings.
-const layoutSidebarItems: SidebarItem[] = [
-    { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
-    { title: "Overlay", url: "trainer", icon: GraduationCapIcon },
-];
+// App Layers (layers that follow the app in front) shows only on firmware with app rules.
+export const APP_LAYERS_PANEL = "app-layers";
+export function layoutSidebarItemsFor(hasAppLayers: boolean): SidebarItem[] {
+    return [
+        { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
+        ...(hasAppLayers ? [{ title: "App Layers", url: APP_LAYERS_PANEL, icon: AppWindow }] : []),
+        { title: "Overlay", url: "trainer", icon: GraduationCapIcon },
+    ];
+}
 
 const footerItems: SidebarItem[] = [
     { title: "Quick Start", url: "quickstart", icon: Rocket },
@@ -292,6 +298,8 @@ const AppSidebar = () => {
     // Alt-Repeat has its own rail item once the board has entries; until then it waits under More.
     const hasAltRepeat = hasAltRepeatEntries(keyboard);
     const featureSidebarItems = useMemo(() => featureSidebarItemsFor(hasAltRepeat), [hasAltRepeat]);
+    const hasAppLayers = hasAppRules(keyboard?.feature_flags5);
+    const layoutSidebarItems = useMemo(() => layoutSidebarItemsFor(hasAppLayers), [hasAppLayers]);
 
     const handleItemSelect = useCallback(
         (selected: SidebarItem) => {

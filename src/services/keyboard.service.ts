@@ -1,7 +1,7 @@
 import { withTouchpadTaps } from "@/utils/touchpad-taps";
 import { withScrollSpeed } from "@/utils/pointing-settings";
 import { withAutoMouseLayers } from "@/utils/automouse-layers";
-import { hasAppRules, readAppRules } from "@/services/app-rules";
+import { hasAppRules, readAppForeground, readAppRules } from "@/services/app-rules";
 import { appKeyFor } from "@/utils/app-rule-keys";
 import {
     hasPadFingers, hasPadTouch as hasPadTouchFlag, PAD_FINGERS_PAGE, PAD_TOUCH_PAGE, parsePadFingers, parsePadTouch, type PadTouchReport,
@@ -756,11 +756,29 @@ export class KeyboardService {
      * layer on the board shows its default, which needn't be layer 0.
      */
     async getLayerIndexes(kbinfo: KeyboardInfo): Promise<{ active: number; defaultLayer: number | null }> {
-        const masks = await this.getLayerStateMasks(kbinfo);
+        const masks = await this.getShownLayerMasks(kbinfo);
         return {
             active: this.getActiveLayerIndexFromMask(masks.active | (masks.default ?? 0)),
             defaultLayer: masks.default === null ? null : this.getActiveLayerIndexFromMask(masks.default),
         };
+    }
+
+    /**
+     * The layers keys use now, for showing: with app layers (GET_INFO byte 22 bit 0) a rule
+     * can turn layers on or off without touching the user's own layer state, so this reads
+     * APP_FOREGROUND STATUS; other firmware, or a failed read, uses 0x16. Never write these
+     * back: getLayerStateMasks is the user's own state, for read-modify-write.
+     */
+    async getShownLayerMasks(kbinfo: KeyboardInfo): Promise<{ active: number; default: number | null }> {
+        if (hasAppRules(kbinfo.feature_flags5)) {
+            try {
+                const s = await readAppForeground(this.usb);
+                return { active: s.layers, default: s.defaultState };
+            } catch (e) {
+                console.warn("App layers status not available; showing 0x16:", e);
+            }
+        }
+        return this.getLayerStateMasks(kbinfo);
     }
 
     /** Sets the live layer state. QMK doesn't save it. */

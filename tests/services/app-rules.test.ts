@@ -185,6 +185,20 @@ describe("requests against the simulated board", () => {
         expect(await readAppForeground(link)).toMatchObject({ appId: id, rule: 1, frontLayer: 4, onMask: 2, flags: 1 });
     });
 
+    it("STATUS reports the layers in use with the rule applied, the mouse layer left alone", async () => {
+        const { fw, link } = fakeLink(64);
+        await writeAppRules(link, [rule({ appId: appId("notepad.exe"), defaultLayer: 1, frontLayer: 4, onMask: 0x8002, offMask: 0x8008 })]);
+        fw.layerState = (1 << 3) | (1 << 5) | (1 << 15);
+        const id = appId("notepad.exe");
+        await link.sendSvil(CMD_SVIL_APP_FOREGROUND, [1, id & 0xff, (id >>> 8) & 0xff, (id >>> 16) & 0xff, id >>> 24, 0], { uint8: true });
+        const s = await readAppForeground(link);
+        expect(s.onMask).toBe(0x0002);
+        expect(s.offMask).toBe(0x0008);
+        expect(s.userLayers).toBe((1 << 3) | (1 << 5) | (1 << 15));
+        expect(s.layers).toBe((1 << 1) | (1 << 4) | (1 << 5) | (1 << 15));
+        expect(s.defaultState).toBe(1 << 1);
+    });
+
     it("firmware without the command (0xFF echo) throws, and so does a nonzero status", async () => {
         const { link } = fakeLink(64, new FakeSvalFirmware(blankBoard(), { appRules: false }));
         await expect(readAppRules(link)).rejects.toThrow(/doesn't know command 0x41/);

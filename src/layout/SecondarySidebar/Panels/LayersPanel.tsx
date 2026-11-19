@@ -17,7 +17,6 @@ import { getKeyContents } from "@/utils/keys";
 import MoreKeysDisclosure from "@/layout/SecondarySidebar/components/MoreKeysDisclosure";
 import { LM_MODIFIERS } from "@/constants/special-key-groups";
 import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
-import AppRulesSection from "./AppRulesSection";
 
 /**
  * Valid layer modifiers supported by the UI
@@ -240,7 +239,6 @@ const LayersPanel = ({ isPicker }: Props) => {
                     </span>
                 </div>
                 {lmGroup(true)}
-                {!isPicker && <AppRulesSection compact />}
             </div>
         );
     }
@@ -320,7 +318,6 @@ const LayersPanel = ({ isPicker }: Props) => {
                     })}
                 </div>
                 <div className="pr-[26px] pt-3">{lmGroup(false)}</div>
-                {!isPicker && <div className="pr-[26px] pt-5"><AppRulesSection /></div>}
             </div>
         </section>
     );
