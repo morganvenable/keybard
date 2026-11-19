@@ -93,7 +93,9 @@ describe("AppRulesSection", () => {
         state.keyboard = board([{ ...blank }]);
         const view = renderSection();
         const pill = () => document.querySelector('[data-app-rule-pills] [data-layer="3"]') as HTMLButtonElement;
-        expect(document.querySelectorAll("[data-app-rule-pills] [data-layer]")).toHaveLength(16);
+        // The mouse layer (15, the last) is Auto Mouse's: no pill, as on the Auto Mouse pills.
+        expect(document.querySelectorAll("[data-app-rule-pills] [data-layer]")).toHaveLength(15);
+        expect(document.querySelector('[data-app-rule-pills] [data-layer="15"]')).toBeNull();
         expect(pill().dataset.state).toBe("neutral");
         expect(pill().getAttribute("aria-label")).toMatch(/Layer 3 .*: unchanged/);
         fireEvent.click(pill());

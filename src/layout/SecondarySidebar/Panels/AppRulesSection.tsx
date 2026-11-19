@@ -6,6 +6,7 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
 import { fetchHostApps, type HostApps, type HostPlatform } from "@/features/trainer/host-apps";
 import { isMacOS } from "@/lib/platform";
+import { pickableLayers } from "@/utils/automouse-layers";
 import { cn } from "@/lib/utils";
 import {
     APP_MASK_LAYERS, APP_RULE_LABEL_BYTES, APP_RULES_MAX, appId, appIdHex, cycleMask, hasAppRules, maskState,
@@ -157,7 +158,8 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
             <div className={cn("flex flex-col gap-0.5", compact ? "pl-0" : "pl-7")}>
                 <span className="text-xs text-muted-foreground">Layers on or off while the app is in front</span>
                 <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Rule ${n} layers`} data-app-rule-pills>
-                    {Array.from({ length: layers }, (_, i) => {
+                    {/* The mouse layer (the last) is Auto Mouse's: the board ignores mask bits for it. */}
+                    {pickableLayers(layers).map((i) => {
                         const state = maskState(rule, i);
                         const name = layerName(keyboard, i);
                         return (
