@@ -165,9 +165,11 @@ describe("AppRulesSection", () => {
         expect(state.keyboard!.app_rules).toHaveLength(1);
         expect(state.queue).not.toHaveBeenCalled();
     });
-    it("a Website rule: the site sets the ID and the label, with the hint, and a site that doesn't fit is flagged", () => {
+    it("a Website rule: the site sets the ID and the label, with the hint, and a site that doesn't fit is flagged", async () => {
+        state.hostApps = { platform: "windows", foreground: null, apps: [] }; // the hint is Windows' (CI runs on Linux)
         state.keyboard = board([{ ...blank }]);
         const view = renderSection();
+        await act(async () => { await Promise.resolve(); });
         expect(screen.queryByTestId("app-rule-site")).toBeNull();
         fireEvent.change(screen.getByTestId("app-rule-kind"), { target: { value: "site" } });
         view.rerender();
