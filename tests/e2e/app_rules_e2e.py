@@ -8,11 +8,13 @@ Run with `npm run test:e2e:app-rules`.
   2. Add a rule, type notepad.exe: the label follows the app.
   3. Pick a default layer and a front layer; set one pill on and one off.
   4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule.
-  5. Reload (the board keeps its settings): the rule reads back from the board.
+  4b. Website: a second rule for https://cad.onshape.com/documents is kept as onshape.com (13-byte
+     label), with the note and hint; the board holds site:onshape.com's ID and the site as label.
+  5. Reload (the board keeps its settings): the rules read back from the board, the second as Website.
   6. Bottom bar: the section shows there too.
   7. Older firmware (?fakeBoard=old): no App Layers rail item, panel or editor.
 
-With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar) and editor-bottombar-<theme>.png.
+With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar), website-<theme>.png and editor-bottombar-<theme>.png.
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. Exits 1 when a check fails.
 """
 import os
@@ -25,6 +27,7 @@ from playwright.sync_api import expect, sync_playwright  # noqa: E402
 SHOTS = os.environ.get("E2E_SHOTS")
 FW = "window.keybardFakeBoard.device.firmware"
 NOTEPAD_ID = 0xB884A32C
+ONSHAPE_ID = 0xB2AF5B45  # site:onshape.com
 
 
 def main() -> int:
@@ -95,6 +98,29 @@ def main() -> int:
                 section.screenshot(path=os.path.join(SHOTS, f"editor-{theme}.png"))
                 page.screenshot(path=os.path.join(SHOTS, f"editor-page-{theme}.png"))
 
+            # 4b.
+            section.get_by_role("button", name="Add rule").click()
+            site_rule = section.locator("[data-app-rule='1']")
+            expect(site_rule).to_be_visible()
+            site_rule.get_by_test_id("app-rule-kind").select_option("site")
+            check(site_rule.get_by_test_id("app-rule-pick").count() == 0, f"{theme}: no running-app picker for a website")
+            site_rule.get_by_test_id("app-rule-site").fill("https://cad.onshape.com/documents")
+            check(site_rule.get_by_test_id("app-rule-label").input_value() == "onshape.com", f"{theme}: website label is the site, shortened to fit")
+            check(site_rule.get_by_test_id("app-rule-label").get_attribute("readonly") is not None, f"{theme}: website label is read-only")
+            hint = site_rule.get_by_test_id("app-rule-site-hint").inner_text()
+            check("Kept as onshape.com" in hint and "Matches onshape.com and every address under it" in hint, f"{theme}: website note and hint ({hint!r})")
+            site_rule.get_by_test_id("app-rule-front").select_option("3")
+            page.wait_for_function(f"{FW}.state.appRules[1] === 2 && {FW}.state.appRules[33] === 3", timeout=5000)
+            rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(28, 52))")
+            sid = rec[0] | (rec[1] << 8) | (rec[2] << 16) | (rec[3] << 24)
+            label = bytes(rec[11:24]).split(b"\0", 1)[0].decode()
+            check(sid == ONSHAPE_ID and label == "onshape.com", f"{theme}: the board holds site:onshape.com ({sid:#x}, {label!r})")
+            page.mouse.move(0, 0)
+            if SHOTS:
+                site_rule.scroll_into_view_if_needed()
+                page.wait_for_timeout(200)
+                site_rule.screenshot(path=os.path.join(SHOTS, f"website-{theme}.png"))
+
             # 5.
             page.reload()
             wait_connected(page)
@@ -107,12 +133,16 @@ def main() -> int:
             states = rule.locator("[data-app-rule-pills] [data-layer]").evaluate_all("es => es.map(e => e.dataset.state)")
             check(states[3] == "on" and states[4] == "off" and states.count("neutral") == len(states) - 2,
                   f"{theme}: pills read back ({states!r})")
+            site_rule = section.locator("[data-app-rule='1']")
+            check(site_rule.get_by_test_id("app-rule-kind").input_value() == "site", f"{theme}: website rule read back as Website")
+            check(site_rule.get_by_test_id("app-rule-site").input_value() == "onshape.com", f"{theme}: site read back from the label")
 
             # 6.
             page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-layers&panelPosition=bottombar")
             wait_connected(page)
             expect(section).to_be_visible(timeout=20000)
             check(section.locator("[data-app-rule='0']").count() == 1, f"{theme}: bottom bar shows the rule")
+            check(section.locator("[data-app-rule='1'] [data-testid='app-rule-site']").count() == 1, f"{theme}: bottom bar shows the website rule")
             if SHOTS:
                 section.scroll_into_view_if_needed()
                 page.wait_for_timeout(200)

@@ -41,7 +41,9 @@ from .host_pointing import demo_motion
 from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
 from .keyboard_layout import ForegroundHook, LayoutReader
-from .foreground import app_id, foreground_app
+from .foreground import app_id, foreground_window
+from .address_bar import TimedReader
+from .site_rules import PENDING, SiteWatcher, choose_id
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info, build_label
 from .handoff import hand_off, REFUSED
@@ -330,8 +332,13 @@ class OverlayControls(QWidget):
 
 
 class Host(QObject):
-    def __init__(self, app, assets, state, port, remote_origins=(), paranoid=False, page=None):
+    # Site rules: the address bar was read (on its own thread); decide the app again at once.
+    site_read = Signal()
+
+    def __init__(self, app, assets, state, port, remote_origins=(), paranoid=False, page=None, log_app_rules=False, only_boards=None):
         super().__init__()
+        # Testing: the serial numbers of the only boards to use (--only-board); None: every board.
+        self.only_boards = frozenset(only_boards) if only_boards else None
         self.app, self.state = app, state
         self.auto_connect = True
         self.devices = {}
@@ -421,6 +428,11 @@ class Host(QObject):
         # Read 4 times a second and when another window comes to the front (Windows), only
         # while a connected board takes it.
         self.foreground_id = None
+        # Site rules: a browser's address bar is read only while a connected board has a site
+        # rule, off this thread; the host name is matched and dropped (site_rules.py).
+        self.log_app_rules, self.logged_app = log_app_rules, None
+        self.site_watcher = SiteWatcher(lambda done: TimedReader(done=done), notify=self.site_read.emit)
+        self.site_read.connect(self.poll_foreground)
         self.foreground_hook = ForegroundHook(lambda: self.poll_foreground())
         self.foreground_timer = QTimer(self); self.foreground_timer.timeout.connect(self.poll_foreground); self.foreground_timer.start(250)
         self.timer = QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(100)
@@ -680,7 +692,10 @@ class Host(QObject):
         """Find every Svalboard: start a reader for each new one, let go of the ones unplugged."""
         try:
             hid = hid_backend()
-            self.devices = device_keys(candidates(hid))
+            found = candidates(hid)
+            only = getattr(self, 'only_boards', None)
+            if only is not None: found = [d for d in found if d.get('serial_number') in only]
+            self.devices = device_keys(found)
         except (OSError, ValueError) as e:
             with self.state.lock: self.state.status = f'Could not enumerate boards: {e}'
             return
@@ -858,9 +873,23 @@ class Host(QObject):
         if not workers:
             self.foreground_id = None
             return
-        front = foreground_app()
-        self.foreground_id = app_id(front[0]) if front else 0
-        for worker in workers: worker.set_foreground(self.foreground_id)
+        window, front, title = foreground_window()
+        program = front[0] if front else None
+        # Site rules: the host name in the browser in front, only if some board has a site rule.
+        sites = [site for worker in workers for site in worker.sites]
+        host = self.site_watcher.host_for(window, program, title) if sites and program else None
+        if host is PENDING: return  # reading the address bar: the board keeps the app it has, for at most 150 ms
+        for worker in workers:
+            chosen = choose_id(program, host, worker.sites)
+            worker.set_foreground(chosen)
+        self.foreground_id = chosen
+        if self.log_app_rules:
+            # Testing: which rule is sent, never the address or the title.
+            site = next((s for s, i in sites if i == chosen), None) if host else None
+            line = f'site rule {site}' if site else f'program {program or "none"}'
+            if (line, chosen) != self.logged_app:
+                self.logged_app = (line, chosen)
+                print(f'{time.strftime("%H:%M:%S")} app rules: sending {chosen:08X} ({line})', flush=True)
 
     def tick(self):
         now = time.monotonic()
@@ -1033,7 +1062,7 @@ class Host(QObject):
     def shutdown(self):
         self.modifier_timer.stop(); self.modifier_reader.close()
         self.layout_timer.stop(); self.layout_hook.close(); self.layout_reader.close()
-        self.foreground_timer.stop(); self.foreground_hook.close()
+        self.foreground_timer.stop(); self.foreground_hook.close(); self.site_watcher.close()
         if self.demo_pointing is not None: self.demo_pointing.stop()
         self.scan_timer.stop(); self.timer.stop()
         if self.colors_panel is not None: self.colors_panel.close()
@@ -1104,6 +1133,10 @@ def main():
     parser.add_argument('--show-pointing', action='store_true', help='review: turn on Show pointing devices for this run, without saving it')
     parser.add_argument('--instance', help='testing: run as a separate Keybard Host with its own settings, lock and browser data '
                         '(under "Keybard Host <name>"), alongside an installed one; use with --port and --no-open')
+    parser.add_argument('--only-board', action='append', default=[], metavar='SERIAL', help='testing: use only the board with this serial '
+                        'number (sval:...), never any other; repeat for more')
+    parser.add_argument('--log-app-rules', action='store_true', help='testing: print each app rule ID sent to the board, with the site rule '
+                        'or program it stands for (never an address or a window title)')
     parser.add_argument('--diagnose', action='store_true', help='print a report of the system, display session, Qt and the boards it can see, then exit')
     args = parser.parse_args()
     if args.diagnose:
@@ -1153,7 +1186,7 @@ def main():
         try: page = load_paranoid_page(args.assets)
         except (OSError, ValueError) as e: return refuse(f'Paranoid mode will not start: {e}.')
     state = HostState(args.settings or folder / 'preferences.json')
-    host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid, page)
+    host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid, page, log_app_rules=args.log_app_rules, only_boards=args.only_board)
     host.keybard_url = args.keybard_url
     if args.show_pointing: state.config['showPointing'] = True
     if args.demo_pointing or args.demo_velocity: host.start_demo_pointing(velocity=args.demo_velocity)

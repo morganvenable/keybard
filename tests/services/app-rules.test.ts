@@ -283,3 +283,81 @@ describe("layout files and import", () => {
         expect(queued).not.toContain("Update app rules");
     });
 });
+
+// ---- website rules ------------------------------------------------------------------
+// Keybard Host normalizes and matches sites the same way (companion/overlay-host/tests/test_site_rules.py
+// has the same vectors).
+import { fitSite, normalizeSite, siteKey, siteNote, siteOfRule, siteProblem, withSite } from "@/services/app-rules";
+import { ruleKey } from "@/utils/app-rule-keys";
+
+describe("website rules", () => {
+    const rule: AppRule = { appId: 0, defaultLayer: null, frontLayer: 3, onMask: 0, offMask: 0, flags: 0, label: "", key: "" };
+
+    it("shares its ID vectors with Keybard Host", () => {
+        expect(siteKey("onshape.com")).toBe("site:onshape.com");
+        expect(appId(siteKey("onshape.com"))).toBe(0xB2AF5B45);
+        expect(appId(siteKey("cad.onshape.com"))).toBe(0x7E364D67);
+    });
+
+    it("comes down to the bare site, whatever is typed", () => {
+        for (const typed of ["onshape.com", "Onshape.COM", " onshape.com\t", "https://www.onshape.com/documents?x=1",
+            "http://onshape.com:8080", "*.onshape.com", "site:onshape.com", "SITE: onshape.com", "onshape.com.",
+            "user@onshape.com", "onshape.com#top", "www.onshape.com"]) {
+            expect(normalizeSite(typed), typed).toBe("onshape.com");
+        }
+        expect(normalizeSite("www.com")).toBe("www.com");
+        expect(normalizeSite("localhost:5173")).toBe("localhost");
+        for (const typed of ["", "   ", "site:", "https://", "*."]) expect(normalizeSite(typed), typed).toBe("");
+    });
+
+    it("keeps an IDN as plain text, punycode or not", () => {
+        expect(normalizeSite("xn--bcher-kva.de")).toBe("xn--bcher-kva.de");
+        expect(normalizeSite("bücher.de")).toBe("bücher.de");
+        expect(appId(siteKey("bücher.de"))).not.toBe(appId(siteKey("xn--bcher-kva.de")));
+    });
+
+    it("fits the 13-byte label, shortening from the front where that still names a site", () => {
+        expect(fitSite("onshape.com")).toBe("onshape.com");
+        expect(fitSite("cad.onshape.com")).toBe("onshape.com");          // still matches cad.onshape.com
+        expect(fitSite("a.b.docs.github.com")).toBe("github.com");
+        expect(fitSite("averyverylongname.com")).toBeNull();              // even its end is too long
+        expect(fitSite("shop.bbc.co.uk")).toBe("bbc.co.uk");
+        expect(fitSite("someshop.co.uk")).toBeNull();                     // never just "co.uk"
+        expect(siteProblem("onshape.com")).toBeNull();
+        expect(siteProblem("cad.onshape.com")).toBeNull();
+        expect(siteNote("cad.onshape.com")).toMatch(/Kept as onshape.com \(13 characters at most\), which still matches cad.onshape.com/);
+        expect(siteNote("onshape.com")).toBeNull();
+        expect(siteProblem("")).toBeNull();
+        expect(siteProblem("averyverylongname.com")).toMatch(/at most 13 characters/);
+        expect(siteProblem("on shape.com")).toMatch(/without spaces/);
+    });
+
+    it("sets the ID and the label from what is typed; a site that doesn't fit has no ID yet", () => {
+        expect(withSite(rule, "https://www.Onshape.com/x")).toMatchObject({ key: "site:https://www.Onshape.com/x", appId: 0xB2AF5B45, label: "onshape.com" });
+        expect(withSite(rule, "https://cad.onshape.com/documents")).toMatchObject({ appId: 0xB2AF5B45, label: "onshape.com" });
+        expect(withSite(rule, "averyverylongname.com")).toMatchObject({ appId: 0, label: "averyverylong" });
+        expect(withSite(rule, "")).toMatchObject({ key: "site:", appId: 0, label: "" });
+    });
+
+    it("round-trips through the board's label", () => {
+        const written = withSite(rule, "onshape.com");
+        const [back] = parseRecord(serializeRecord([written]));
+        expect(siteOfRule(back)).toBe("onshape.com");
+        expect(ruleKey(back)).toBe("site:onshape.com");
+        // A program rule whose label only looks like a site is not a website rule.
+        expect(siteOfRule({ appId: appId("chrome.exe"), label: "onshape.com" })).toBeNull();
+    });
+
+    it("comes from a layout file normalized, with its site as the label", () => {
+        const [fromFile] = appRulesFromSvil([{ app_id: 1, key: "site:https://www.onshape.com/", label: "Onshape", default_layer: null, front_layer: 2, on_mask: 0, off_mask: 0 }])!;
+        expect(fromFile).toMatchObject({ key: "site:onshape.com", appId: 0xB2AF5B45, label: "onshape.com", frontLayer: 2 });
+        const [tooLong] = appRulesFromSvil([{ app_id: 5, key: "site:averyverylongname.com", label: "x" }])!;
+        expect(tooLong.appId).toBe(0);
+    });
+
+    it("remembers a website rule's key in its normalized form", () => {
+        localStorage.clear();
+        rememberAppKey("site:https://www.onshape.com/");
+        expect(appKeyFor(0xB2AF5B45)).toBe("site:onshape.com");
+    });
+});

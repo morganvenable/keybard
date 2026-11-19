@@ -1,7 +1,8 @@
 """Read-only Sval v2/v3 client with the mandatory client wrapper.
 
 It reads, and sends one thing only: which app is in front (APP_FOREGROUND, 0x40, SET or
-CLEAR), to a board that advertises app rules. That is runtime state the board forgets
+CLEAR), to a board that advertises app rules. From APP_RULES (0x41) it sends only INFO and
+READ, to learn the rules' sites (site rules); it never writes rules. That is runtime state the board forgets
 after 15 s; it changes nothing stored on the board (see app_foreground below)."""
 from dataclasses import dataclass, replace
 import secrets
@@ -52,6 +53,11 @@ APP_FOREGROUND = 0x40
 APP_STATUS, APP_SET, APP_CLEAR = 0x00, 0x01, 0x02
 # APP_FOREGROUND status: the request reached the half without USB, which runs no rules.
 APP_STATUS_NOT_USB_HALF = 2
+# APP_RULES: only INFO and READ are ever sent from here.
+APP_RULES = 0x41
+APP_RULES_INFO, APP_RULES_READ = 0x00, 0x01
+APP_RULES_FORMAT, APP_RULE_BYTES, APP_RULES_HEADER, APP_RULES_MAX, APP_RULES_CHUNK = 1, 24, 4, 64, 48
+APP_RULE_LABEL = slice(11, 24)
 # Protocol -> command -> exact request argument length. No setter is expressible: the
 # one request that isn't a read, APP_FOREGROUND, has its own fixed-shape methods.
 READ_COMMANDS = {
@@ -473,7 +479,7 @@ class SvalReader:
                 data = reply[7:]
                 echo_length = (3 if protocol == 0xFE and command == 0x12 else
                                2 if (protocol == 0xDF and command in (0x01, 0x0E)) or (protocol == 0xFE and command == 0x02) else
-                               1 if protocol == 0xDF and command in (0x1B, APP_FOREGROUND) else 0)
+                               1 if protocol == 0xDF and command in (0x1B, APP_FOREGROUND, APP_RULES) else 0)
                 if data[:echo_length] != args[:echo_length]:
                     return None
                 return data
@@ -515,6 +521,37 @@ class SvalReader:
         if not self.app_rules():
             raise UnsupportedCommand("Board does not advertise app rules")
         return self._transact(APP_FOREGROUND, bytes((APP_CLEAR,)), 0xDF)[1]
+
+    def app_rules_read(self):
+        """The rules in use as [(app ID, label)], from APP_RULES INFO and READ (never a write).
+        Raises ProtocolError on a reply that doesn't fit; [] for a board with no rules."""
+        if not self.app_rules():
+            raise UnsupportedCommand("Board does not advertise app rules")
+        info = self._transact(APP_RULES, bytes((APP_RULES_INFO,)), 0xDF)
+        if info is None or len(info) < 10 or info[1] != 0:
+            raise ProtocolError("App rules INFO failed")
+        if info[2] != APP_RULES_FORMAT or info[4] != APP_RULE_BYTES:
+            raise ProtocolError(f"Unknown app rules format {info[2]}")
+        count = min(info[5], APP_RULES_MAX)
+        total = APP_RULES_HEADER + count * APP_RULE_BYTES
+        # Reply data: [op][status][offset:2][len][bytes], after the 7-byte wrapper and command.
+        chunk = max(1, min(info[8] or APP_RULES_CHUNK, APP_RULES_CHUNK, (self.report_size or 32) - 12))
+        record = bytearray()
+        for offset in range(0, total, chunk):
+            length = min(chunk, total - offset)
+            data = self._transact(APP_RULES, bytes((APP_RULES_READ,)) + offset.to_bytes(2, "little") + bytes((length,)), 0xDF)
+            if (data is None or len(data) < 5 + length or data[1] != 0
+                    or int.from_bytes(data[2:4], "little") != offset or data[4] != length):
+                raise ProtocolError("App rules READ failed")
+            record += data[5:5 + length]
+        if record[0] == 0 and record[1] == 0: return []
+        if record[0] != APP_RULES_FORMAT: raise ProtocolError(f"Unknown app rules record format {record[0]}")
+        out = []
+        for i in range(min(record[1], count)):
+            rule = record[APP_RULES_HEADER + i * APP_RULE_BYTES:APP_RULES_HEADER + (i + 1) * APP_RULE_BYTES]
+            label = bytes(rule[APP_RULE_LABEL]).split(b"\0", 1)[0].decode("utf-8", "replace")
+            out.append((int.from_bytes(rule[:4], "little"), label))
+        return out
 
     def app_layers(self):
         """With app rules, the layers keys use now and the default layer state, from

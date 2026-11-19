@@ -2,7 +2,7 @@ import { withTouchpadTaps } from "@/utils/touchpad-taps";
 import { withScrollSpeed } from "@/utils/pointing-settings";
 import { withAutoMouseLayers } from "@/utils/automouse-layers";
 import { hasAppRules, readAppForeground, readAppRules } from "@/services/app-rules";
-import { appKeyFor } from "@/utils/app-rule-keys";
+import { ruleKey } from "@/utils/app-rule-keys";
 import {
     hasPadFingers, hasPadTouch as hasPadTouchFlag, PAD_FINGERS_PAGE, PAD_TOUCH_PAGE, parsePadFingers, parsePadTouch, type PadTouchReport,
 } from "@/utils/touchpad-tuning";
@@ -219,7 +219,7 @@ export class KeyboardService {
         if (hasAppRules(kbinfo.feature_flags5)) {
             try {
                 const { rules } = await readAppRules(this.usb);
-                kbinfo.app_rules = rules.map((rule) => ({ ...rule, key: appKeyFor(rule.appId) }));
+                kbinfo.app_rules = rules.map((rule) => ({ ...rule, key: ruleKey(rule) }));
             } catch (e) {
                 delete kbinfo.app_rules;
                 console.warn("App rules not available:", e);

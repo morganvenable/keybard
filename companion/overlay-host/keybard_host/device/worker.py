@@ -7,6 +7,7 @@ from .protocol import (SvalReader, ProtocolError, Cancelled, candidates, hid_bac
                        APP_STATUS_NOT_USB_HALF)
 from .schedule import PollScheduler
 from .app_sender import AppSender
+from ..site_rules import site_rules
 
 
 class DeviceWorker(QThread):
@@ -39,6 +40,9 @@ class DeviceWorker(QThread):
         # app_rules is True while this connection's board takes it (GET_INFO fifth feature byte).
         self.foreground_id = None
         self.app_rules = False
+        # Site rules: [(site, app ID)] among the board's rules (site_rules.py), read at connect,
+        # after a layout refresh (Keybard saved something) and every RULES_INTERVAL seconds.
+        self.sites = []
         # The read loop's clock and sleep; tests drive them with a fake clock.
         self.clock = time.monotonic
         self.wait_for_wake = self.wake_event.wait
@@ -93,6 +97,13 @@ class DeviceWorker(QThread):
         sender.sent(app_id, now, accepted=status == 0)
         return True
 
+    RULES_INTERVAL = 5.0
+
+    def read_sites(self, reader):
+        """Read the board's rules for their sites. A failed read keeps the last ones."""
+        try: self.sites = site_rules(reader.app_rules_read())
+        except (UnsupportedCommand, ProtocolError): pass
+
     def clear_foreground(self, reader):
         """The Host is leaving this board: say no app is in front, so its rules let go now
         rather than when the lifetime runs out. Best effort, even while stopping."""
@@ -143,6 +154,7 @@ class DeviceWorker(QThread):
                 refresh_after, refresh_failures = 0.0, 0
                 pointing_next, pointing_supported = 0.0, True
                 settle_next = 0.0
+                rules_next = 0.0
                 schedule = PollScheduler(self.clock())
                 retry = .5
                 while not self.stop_event.is_set():
@@ -174,6 +186,7 @@ class DeviceWorker(QThread):
                             self.refresh_event.set()
                         else:
                             refresh_failures = 0
+                            rules_next = 0.0
                             reader.checkpoint()
                             self.profile.emit(profile)
                             schedule.read_now(self.clock())
@@ -218,11 +231,14 @@ class DeviceWorker(QThread):
                             pointing_supported = False  # older firmware: still devices, nothing said
                         if motion is not None:
                             self.pointing.emit(motion)
+                    if self.app_rules and self.clock() >= rules_next:
+                        rules_next = self.clock() + self.RULES_INTERVAL
+                        self.read_sites(reader)
                     if self.app_rules:
                         self.app_rules = self.send_foreground(reader, sender, self.clock())
                     # Sleep until the next read is due, or a new plan, reload, refresh or stop.
                     wake_at = schedule.next_at
-                    if self.app_rules: wake_at = min(wake_at, sender.next_at)
+                    if self.app_rules: wake_at = min(wake_at, sender.next_at, rules_next)
                     if (self.pointing_enabled or watching) and pointing_supported: wake_at = min(wake_at, pointing_next)
                     if reader.pointing_watching() and not self.refresh_event.is_set(): wake_at = min(wake_at, settle_next)
                     if self.refresh_event.is_set(): wake_at = min(wake_at, refresh_after)
@@ -236,6 +252,7 @@ class DeviceWorker(QThread):
                 if self.app_rules and sender is not None and sender.sent_id is not None and self.stop_event.is_set():
                     self.clear_foreground(reader)
                 self.app_rules = False
+                self.sites = []
                 if device is not None:
                     try:
                         device.close()

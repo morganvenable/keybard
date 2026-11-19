@@ -154,6 +154,11 @@ class AppReader(poll.FakeReader):
     def app_clear(self):
         self.log.append(('clear', poll.CLOCK.t)); return 0
 
+    board_rules = []
+
+    def app_rules_read(self):
+        self.took('rules', poll.FakeReader.RTT); return list(self.board_rules)
+
 
 @unittest.skipUnless(poll.QT, 'Requires the native Qt runtime')
 class SenderLoopTests(unittest.TestCase):
@@ -210,6 +215,17 @@ class SenderLoopTests(unittest.TestCase):
         log = self.run_loop(12.0)
         self.assertEqual(len(self.sets(log)), 1)
         self.assertFalse(self.worker.app_rules)
+
+    def test_site_rules_are_read_at_connect_and_every_five_seconds(self):
+        onshape = app_id('site:onshape.com')
+        AppReader.board_rules = [(app_id('notepad.exe'), 'Notepad'), (onshape, 'onshape.com')]
+        self.addCleanup(setattr, AppReader, 'board_rules', [])
+        seen = []
+        self.worker.set_foreground(self.A)
+        log = self.run_loop(11.0, [(3.0, lambda: seen.append(list(self.worker.sites)))])
+        self.assertEqual(seen, [[('onshape.com', onshape)]])
+        self.assertEqual(len([k for k, _ in log if k == 'rules']), 3)  # at 0, 5 and 10 s
+        self.assertEqual(self.worker.sites, [])                         # forgotten once disconnected
 
     def test_clear_is_sent_even_though_the_worker_is_stopping(self):
         self.worker.set_foreground(self.A)

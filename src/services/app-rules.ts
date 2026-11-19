@@ -96,6 +96,95 @@ export function appId(key: string): number {
 
 export const appIdHex = (id: number): string => (id >>> 0).toString(16).toUpperCase().padStart(8, "0");
 
+// ---- website rules ----------------------------------------------------------------
+//
+// A rule for a website rather than a program: its app key is `site:<site>` (`site:onshape.com`),
+// hashed like any other, and its label is the site itself, so Keybard Host can read the sites
+// back from the board and match the browser's address against them (only on Windows for now).
+// A site matches its host name and every host under it. Keybard Host normalizes and matches
+// the same way (companion/overlay-host/keybard_host/site_rules.py): keep the two in step.
+
+export const SITE_PREFIX = "site:";
+
+/** Whether an app key names a website (`site:...`). */
+export const isSiteKey = (key: string | undefined | null): boolean =>
+    !!key && canonicalAppKey(key).startsWith(SITE_PREFIX);
+
+/**
+ * A site as typed ("https://www.Onshape.com/documents", "*.onshape.com:443") as the bare name it
+ * matches ("onshape.com"): no scheme, user, port, path, `www.`, `*.` or trailing dot; ASCII
+ * lowercased (an IDN stays as typed, punycode or not). "" when nothing is left.
+ */
+export function normalizeSite(text: string): string {
+    let t = text.replace(/^[ \t]+|[ \t]+$/g, "");
+    if (t.slice(0, SITE_PREFIX.length).toLowerCase() === SITE_PREFIX) t = t.slice(SITE_PREFIX.length).replace(/^[ \t]+/, "");
+    t = t.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+    t = t.split(/[/?#\\]/, 1)[0];
+    t = t.slice(t.lastIndexOf("@") + 1);
+    t = t.replace(/:\d*$/, "");
+    t = canonicalAppKey(t);
+    while (t.startsWith("*.")) t = t.slice(2);
+    t = t.replace(/^\.+|\.+$/g, "").replace(/^\*+/, "");
+    if (t.startsWith("www.") && t.split(".").length > 2) t = t.slice(4);
+    return t.replace(/^\.+|\.+$/g, "");
+}
+
+/** The app key of a website rule: `site:onshape.com`, "" for no site. */
+export const siteKey = (site: string): string => {
+    const s = normalizeSite(site);
+    return s ? SITE_PREFIX + s : "";
+};
+
+// Second-level names under a country code that are suffixes, not sites (co.uk, com.au): a site
+// shortened to fit is never cut down to one of these.
+const SHARED_SECOND_LEVEL = new Set(["co", "com", "net", "org", "ac", "gov", "edu", "ne", "or", "go", "gv", "ltd", "plc", "nic", "mil"]);
+
+/**
+ * The site as the board keeps it: the label holds 13 bytes, so a longer one loses names from
+ * its front until it fits ("cad.onshape.com" → "onshape.com", which still matches it). Null when
+ * even its end doesn't fit, or only a suffix like "co.uk" would be left.
+ */
+export function fitSite(site: string): string | null {
+    let parts = normalizeSite(site).split(".").filter(Boolean);
+    if (!parts.length) return null;
+    if (utf8Length(parts.join(".")) <= APP_RULE_LABEL_BYTES) return parts.join(".");
+    while (parts.length > 2 && utf8Length(parts.join(".")) > APP_RULE_LABEL_BYTES) parts = parts.slice(1);
+    const fits = parts.length >= 2 && utf8Length(parts.join(".")) <= APP_RULE_LABEL_BYTES;
+    const suffixOnly = parts.length === 2 && parts[1].length === 2 && SHARED_SECOND_LEVEL.has(parts[0]);
+    return fits && !suffixOnly ? parts.join(".") : null;
+}
+
+/** Why a site can't be a rule's, or null when it can (or is still empty). */
+export function siteProblem(site: string): string | null {
+    const s = normalizeSite(site);
+    if (!s) return null;
+    if (/[\s,;]/.test(s)) return "A site is one name, like onshape.com, without spaces.";
+    if (fitSite(s) === null) {
+        return `Too long: the board keeps at most ${APP_RULE_LABEL_BYTES} characters of a site. Use the end of it, like onshape.com, which also matches every address under it.`;
+    }
+    return null;
+}
+
+/** What the editor says when a site was shortened to fit, or null. */
+export function siteNote(site: string): string | null {
+    const s = normalizeSite(site);
+    const fitted = siteProblem(site) === null ? fitSite(s) : null;
+    return fitted && fitted !== s ? `Kept as ${fitted} (${APP_RULE_LABEL_BYTES} characters at most), which still matches ${s}.` : null;
+}
+
+/** The site a rule read from the board is for, or null: its ID must be the hash of `site:` + its label. */
+export function siteOfRule(rule: Pick<AppRule, "appId" | "label">): string | null {
+    const s = normalizeSite(rule.label ?? "");
+    return s && rule.appId >>> 0 === appId(SITE_PREFIX + s) ? s : null;
+}
+
+/** A website rule as the editor sets it from what was typed: the label is the site, and a site that doesn't fit has no ID yet. */
+export function withSite<T extends AppRule>(rule: T, typed: string): T {
+    const s = normalizeSite(typed);
+    const fitted = s && siteProblem(typed) === null ? fitSite(s) : null;
+    return { ...rule, key: SITE_PREFIX + typed, appId: fitted ? appId(SITE_PREFIX + fitted) : 0, label: fitted ?? truncateUtf8(s) };
+}
+
 /** Text cut to at most `max` UTF-8 bytes, never inside a character. */
 export function truncateUtf8(text: string, max = APP_RULE_LABEL_BYTES): string {
     const enc = new TextEncoder();
@@ -327,8 +416,12 @@ const fileMask = (v: unknown): number => (typeof v === "number" && Number.isFini
 export function appRulesFromSvil(value: unknown): AppRule[] | null {
     if (!Array.isArray(value)) return null;
     return value.slice(0, APP_RULES_MAX).filter((e) => e && typeof e === "object").map((e: Record<string, unknown>) => {
-        const key = typeof e.key === "string" && e.key.trim() ? e.key.trim() : undefined;
-        const id = key ? appId(key) : (typeof e.app_id === "number" ? e.app_id >>> 0 : 0);
+        const typed = typeof e.key === "string" && e.key.trim() ? e.key.trim() : undefined;
+        // A website rule's key is normalized, and its label is its site (Keybard Host reads it).
+        const site = typed && isSiteKey(typed) ? normalizeSite(typed) : null;
+        const fitted = site ? (siteProblem(site) === null ? fitSite(site) : null) : null;
+        const key = site !== null ? (fitted ? SITE_PREFIX + fitted : undefined) : typed;
+        const id = key ? appId(key) : (typeof e.app_id === "number" && site === null ? e.app_id >>> 0 : 0);
         return {
             appId: id,
             defaultLayer: fileLayer(e.default_layer),
@@ -336,7 +429,7 @@ export function appRulesFromSvil(value: unknown): AppRule[] | null {
             onMask: fileMask(e.on_mask),
             offMask: fileMask(e.off_mask),
             flags: typeof e.flags === "number" ? e.flags & 0xff : 0,
-            label: truncateUtf8(typeof e.label === "string" ? e.label : key ?? ""),
+            label: truncateUtf8(site !== null ? fitted ?? site : typeof e.label === "string" ? e.label : key ?? ""),
             ...(key ? { key } : {}),
         };
     });

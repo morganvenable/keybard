@@ -62,6 +62,7 @@ class _Windows:
         user.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
         user.GetWindow.restype = wintypes.HWND
         user.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+        user.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
         user.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
         user.GetWindowLongW.restype = wintypes.LONG
         self.EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
@@ -156,6 +157,20 @@ class _Windows:
     def foreground(self):
         hwnd = self.user.GetForegroundWindow()
         return self.app_of_window(hwnd) if hwnd else None
+
+    def title(self, hwnd):
+        length = self.user.GetWindowTextLengthW(hwnd)
+        if length <= 0: return ''
+        buffer = ctypes.create_unicode_buffer(min(length, 4096) + 1)
+        self.user.GetWindowTextW(hwnd, buffer, len(buffer))
+        return buffer.value
+
+    def foreground_window(self):
+        """(window handle, app, title) of the window in front: for site rules, which read a browser's
+        address bar and read it again when the title (the tab) changes."""
+        hwnd = self.user.GetForegroundWindow()
+        if not hwnd: return None, None, None
+        return hwnd, self.app_of_window(hwnd), self.title(hwnd)
 
     def cloaked(self, hwnd):
         if self.dwm is None: return False
@@ -399,6 +414,16 @@ def foreground_app(src=None):
     """(key, display name) of the app in front, or None."""
     try: return (src or source()).foreground()
     except (OSError, ValueError, TypeError, AttributeError): return None
+
+
+def foreground_window(src=None):
+    """(window, (key, display name) or None, title) of the window in front. The window and title
+    are None where only the app is known (macOS, Linux): site rules then use the program."""
+    src = src or source()
+    try:
+        if hasattr(src, 'foreground_window'): return src.foreground_window()
+        return None, src.foreground(), None
+    except (OSError, ValueError, TypeError, AttributeError): return None, None, None
 
 
 def running_apps(src=None):

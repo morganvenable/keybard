@@ -165,4 +165,46 @@ describe("AppRulesSection", () => {
         expect(state.keyboard!.app_rules).toHaveLength(1);
         expect(state.queue).not.toHaveBeenCalled();
     });
+    it("a Website rule: the site sets the ID and the label, with the hint, and a site that doesn't fit is flagged", () => {
+        state.keyboard = board([{ ...blank }]);
+        const view = renderSection();
+        expect(screen.queryByTestId("app-rule-site")).toBeNull();
+        fireEvent.change(screen.getByTestId("app-rule-kind"), { target: { value: "site" } });
+        view.rerender();
+        fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "https://cad.Onshape.com/documents" } });
+        view.rerender();
+        // cad.onshape.com is 15 characters: kept as onshape.com, which still matches it.
+        expect(state.keyboard!.app_rules![0]).toMatchObject({ key: "site:https://cad.Onshape.com/documents", appId: 0xB2AF5B45, label: "onshape.com" });
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/Kept as onshape.com .*which still matches cad.onshape.com/);
+        fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "onshape.com" } });
+        view.rerender();
+        expect(state.keyboard!.app_rules![0]).toMatchObject({ appId: 0xB2AF5B45, label: "onshape.com" });
+        expect((screen.getByLabelText("Rule 1 label") as HTMLInputElement).readOnly).toBe(true);
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/Matches onshape.com and every address under it/);
+        expect(screen.queryByTestId("app-rule-pick")).toBeNull();
+        fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "averyverylongname.com" } });
+        view.rerender();
+        expect(screen.getByRole("alert").textContent).toMatch(/at most 13 characters/);
+        expect(state.keyboard!.app_rules![0].appId).toBe(0);
+        fireEvent.change(screen.getByTestId("app-rule-kind"), { target: { value: "program" } });
+        view.rerender();
+        expect(state.keyboard!.app_rules![0]).toMatchObject({ key: "", appId: 0, label: "" });
+        expect(screen.getByLabelText("Rule 1 app")).toBeTruthy();
+    });
+
+    it("a website rule read from the board shows as one", () => {
+        state.keyboard = board([{ ...blank, appId: appId("site:onshape.com"), label: "onshape.com", key: "site:onshape.com" }]);
+        renderSection();
+        expect((screen.getByTestId("app-rule-kind") as HTMLSelectElement).value).toBe("site");
+        expect((screen.getByLabelText("Rule 1 website") as HTMLInputElement).value).toBe("onshape.com");
+    });
+
+    it("off Windows, a website rule says the browser counts as its program", async () => {
+        state.hostApps = { platform: "macos", foreground: null, apps: [] };
+        state.keyboard = board([{ ...blank, key: "site:onshape.com", appId: appId("site:onshape.com"), label: "onshape.com" }]);
+        const view = renderSection();
+        await act(async () => { await Promise.resolve(); });
+        view.rerender();
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/only on Windows for now: here the browser counts as its program/);
+    });
 });

@@ -12,7 +12,7 @@ import { isOverrideEnabled, overrideOptionsFromFile } from '@/utils/key-override
 import { importBalls, savedBalls } from "./pointing-look.service";
 import { NOT_LAYOUT_VALUES } from "../utils/touchpad-tuning";
 import { appRulesFromSvil, appRulesToSvil } from "./app-rules";
-import { appKeyFor } from "../utils/app-rule-keys";
+import { ruleKey } from "../utils/app-rule-keys";
 
 // Default template for KBINFO if needed (simplified from SVALBOARD)
 const DEFAULT_KB_INFO: any = {
@@ -810,7 +810,7 @@ export class FileService {
 
         // App rules: absent in files from boards without them, so nothing is imported then.
         const appRules = appRulesFromSvil(svil.app_rules);
-        if (appRules) kbinfo.app_rules = appRules.map((rule) => (rule.key ? rule : { ...rule, key: appKeyFor(rule.appId) }));
+        if (appRules) kbinfo.app_rules = appRules.map((rule) => (rule.key ? rule : { ...rule, key: ruleKey(rule) }));
 
         // Convert layout to keymap
         const km: number[][] = [];

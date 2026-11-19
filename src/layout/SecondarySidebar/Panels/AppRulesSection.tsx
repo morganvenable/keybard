@@ -9,8 +9,8 @@ import { isMacOS } from "@/lib/platform";
 import { pickableLayers } from "@/utils/automouse-layers";
 import { cn } from "@/lib/utils";
 import {
-    APP_MASK_LAYERS, APP_RULE_LABEL_BYTES, APP_RULES_MAX, appId, appIdHex, cycleMask, hasAppRules, maskState,
-    readAppForeground, truncateUtf8, writeAppRules,
+    APP_MASK_LAYERS, APP_RULE_LABEL_BYTES, APP_RULES_MAX, appId, appIdHex, cycleMask, hasAppRules, isSiteKey, maskState,
+    readAppForeground, SITE_PREFIX, siteNote, siteProblem, truncateUtf8, withSite, writeAppRules,
 } from "@/services/app-rules";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
@@ -25,6 +25,11 @@ const PLATFORM_HINTS: Record<HostPlatform, { name: string; what: string; example
     macos: { name: "macOS", what: "the bundle ID", example: "com.apple.Safari" },
     linux: { name: "Linux", what: "the app ID or WM_CLASS", example: "firefox" },
 };
+
+/** Website rules: Keybard Host reads the browser's address on Windows only, for now. */
+const SITE_EMPTY = `Type a site, like onshape.com: it matches every address under it too. At most ${APP_RULE_LABEL_BYTES} characters.`;
+const siteHint = (site: string) => `Matches ${site} and every address under it, in Chrome, Edge, Brave, Vivaldi and Firefox. Other tabs count as the browser.`;
+const SITE_ELSEWHERE = "Keybard Host reads browser addresses only on Windows for now: here the browser counts as its program.";
 
 function guessPlatform(): HostPlatform {
     if (isMacOS()) return "macos";
@@ -75,11 +80,20 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
 }) {
     const hint = PLATFORM_HINTS[platform];
     const key = rule.key ?? "";
+    // A website rule: its key is `site:` and the site as typed; its label is the site (site_rules.py reads it).
+    const website = isSiteKey(key);
+    const typedSite = website ? key.replace(/^[ \t]*site:/i, "") : "";
+    const problem = website ? siteProblem(typedSite) : null;
+    const note = website ? siteNote(typedSite) : null;
     const unknown = !key && rule.appId !== 0;
     const setKey = (next: string) => {
         const oldDefault = truncateUtf8(key.trim());
         const label = !rule.label || rule.label === oldDefault ? truncateUtf8(next.trim()) : rule.label;
         onChange({ ...rule, key: next, appId: appId(next), label });
+    };
+    const setKind = (kind: string) => {
+        if ((kind === "site") === website) return;
+        onChange(kind === "site" ? { ...rule, key: SITE_PREFIX, appId: 0, label: "" } : { ...rule, key: "", appId: 0, label: "" });
     };
     const layers = Math.min(keyboard.layers || APP_MASK_LAYERS, APP_MASK_LAYERS);
     const n = index + 1;
@@ -92,19 +106,47 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
             <div className="flex items-center gap-2">
                 <span className="w-5 shrink-0 text-center text-xs font-semibold text-muted-foreground" title="Rules are checked in order; the first that matches applies">{n}</span>
                 <div className="flex min-w-0 flex-1 items-center gap-1">
-                    <input
-                        type="text"
-                        aria-label={`Rule ${n} app`}
-                        data-testid="app-rule-key"
-                        spellCheck={false}
-                        autoComplete="off"
-                        className={cn(fieldClass, "w-full font-mono")}
-                        value={key}
-                        placeholder={unknown ? `${rule.label || "Unknown app"} (ID ${appIdHex(rule.appId)})` : hint.example}
-                        title={`${hint.name}: ${hint.what}, like ${hint.example}`}
-                        onChange={(e) => setKey(e.target.value)}
-                    />
-                    {hostApps && hostApps.apps.length > 0 && (
+                    <select
+                        aria-label={`Rule ${n}: a program or a website`}
+                        data-testid="app-rule-kind"
+                        title="A program, or a website in the browser"
+                        className={cn(fieldClass, "w-[5.5rem] shrink-0 cursor-pointer")}
+                        value={website ? "site" : "program"}
+                        onChange={(e) => setKind(e.target.value)}
+                    >
+                        <option value="program">Program</option>
+                        <option value="site">Website</option>
+                    </select>
+                    {website ? (
+                        <input
+                            type="text"
+                            aria-label={`Rule ${n} website`}
+                            aria-invalid={problem ? true : undefined}
+                            aria-describedby={`app-rule-${index}-site-hint`}
+                            data-testid="app-rule-site"
+                            spellCheck={false}
+                            autoComplete="off"
+                            className={cn(fieldClass, "w-full font-mono", problem && "border-kb-warn-ink")}
+                            value={typedSite}
+                            placeholder="onshape.com"
+                            title={SITE_EMPTY}
+                            onChange={(e) => onChange(withSite(rule, e.target.value))}
+                        />
+                    ) : (
+                        <input
+                            type="text"
+                            aria-label={`Rule ${n} app`}
+                            data-testid="app-rule-key"
+                            spellCheck={false}
+                            autoComplete="off"
+                            className={cn(fieldClass, "w-full font-mono")}
+                            value={key}
+                            placeholder={unknown ? `${rule.label || "Unknown app"} (ID ${appIdHex(rule.appId)})` : hint.example}
+                            title={`${hint.name}: ${hint.what}, like ${hint.example}`}
+                            onChange={(e) => setKey(e.target.value)}
+                        />
+                    )}
+                    {!website && hostApps && hostApps.apps.length > 0 && (
                         <select
                             aria-label={`Rule ${n}: pick a running app`}
                             data-testid="app-rule-pick"
@@ -137,6 +179,16 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                     </button>
                 </div>
             </div>
+            {website && (
+                <p
+                    id={`app-rule-${index}-site-hint`}
+                    data-testid="app-rule-site-hint"
+                    role={problem ? "alert" : undefined}
+                    className={cn("text-xs leading-snug", compact ? "pl-0" : "pl-7", problem ? "text-kb-warn-ink" : "text-muted-foreground")}
+                >
+                    {problem ?? (platform !== "windows" ? SITE_ELSEWHERE : !rule.appId ? SITE_EMPTY : `${note ? `${note} ` : ""}${siteHint(rule.label)}`)}
+                </p>
+            )}
             <div className={cn("flex items-end gap-2", compact ? "pl-0" : "pl-7")}>
                 <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-xs text-muted-foreground">
                     Label
@@ -144,10 +196,13 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                         type="text"
                         aria-label={`Rule ${n} label`}
                         data-testid="app-rule-label"
-                        className={fieldClass}
+                        className={cn(fieldClass, website && "cursor-not-allowed opacity-70")}
                         value={rule.label}
-                        title={`Shown when Keybard doesn't know the app; at most ${APP_RULE_LABEL_BYTES} bytes`}
-                        onChange={(e) => onChange({ ...rule, label: truncateUtf8(e.target.value) })}
+                        readOnly={website}
+                        title={website
+                            ? "A website rule's label is its site: the board keeps it so Keybard Host knows which site to look for"
+                            : `Shown when Keybard doesn't know the app; at most ${APP_RULE_LABEL_BYTES} bytes`}
+                        onChange={(e) => { if (!website) onChange({ ...rule, label: truncateUtf8(e.target.value) }); }}
                     />
                 </label>
                 <LayerSelect keyboard={keyboard} label="Default layer" testId="app-rule-default" value={rule.defaultLayer}
@@ -280,7 +335,8 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground max-w-prose">
                 Change layers while an app is in front. Keybard Host tells the board which app that is; the first rule that matches applies,
-                and leaving the app puts your layers back. Name the app by {hint.what} on {hint.name}, like <span className="font-mono">{hint.example}</span>.
+                and leaving the app puts your layers back. Name the app by {hint.what} on {hint.name}, like <span className="font-mono">{hint.example}</span>,
+                or pick Website for a site in the browser, like <span className="font-mono">onshape.com</span>.
             </p>
             {!rules ? (
                 <p role="alert" className="text-sm text-kb-warn-ink">Keybard couldn't read the app rules from the board. Reconnect to try again.</p>
