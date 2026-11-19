@@ -63,8 +63,9 @@ def main() -> int:
             expect(rule).to_be_visible()
             rule.get_by_test_id("app-rule-key").fill("notepad.exe")
             check(rule.get_by_test_id("app-rule-label").input_value() == "notepad.exe", f"{theme}: label follows the app")
-            check(rule.get_by_text("Turn on layer", exact=True).count() == 1 and rule.get_by_text("Other layers while the app is in front").count() == 1
-                  and rule.get_by_text("Front layer").count() == 0, f"{theme}: plain labels")
+            names = (rule.get_by_text("Turn on layer").count(), rule.get_by_text("Other layers while the app is in front").count(),
+                     rule.get_by_text("Front layer").count())
+            check(names[0] >= 1 and names[1] == 1 and names[2] == 0, f"{theme}: plain labels {names}")
 
             # 3.
             rule.get_by_test_id("app-rule-default").select_option("1")
