@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes } from "react";
+import { createPortal } from "react-dom";
+import {
+    DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
+    type Announcements, type DragEndEvent, type DragStartEvent, type Modifier, type UniqueIdentifier,
+} from "@dnd-kit/core";
+import {
+    SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { LayerPill } from "@/components/LayerPill";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useKeyboard } from "@/contexts/KeyboardContext";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { fetchHostApps, type HostApps, type HostPlatform } from "@/features/trainer/host-apps";
 import { isMacOS } from "@/lib/platform";
 import { pickableLayers } from "@/utils/automouse-layers";
@@ -82,10 +93,58 @@ function LayerSelect({ keyboard, label, value, onChange, testId }: {
     );
 }
 
-function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, compact, notice, onChange, onMove, onDelete }: {
-    keyboard: KeyboardInfo; rule: AppRule; index: number; count: number; active: boolean;
+/** Reordering by a rule's grip, with the mouse or the keyboard. */
+const REORDER_HELP = "Press Space to pick up a rule, the arrow keys to move it, Space to drop it, Escape to cancel.";
+/**
+ * What a screen reader hears. `picked` is the rule's number when it was picked up; the drop is
+ * announced after the list has taken the new order, so the rule's own index is where it landed.
+ */
+const announcements = (count: number, at: (id: UniqueIdentifier) => number, picked: () => number): Announcements => ({
+    onDragStart: ({ active }) => `Picked up rule ${at(active.id) + 1}.`,
+    onDragOver: ({ active, over }) => (over ? `Rule ${at(active.id) + 1} is at position ${at(over.id) + 1} of ${count}.` : undefined),
+    onDragEnd: ({ active }) => `Rule ${picked()} dropped at position ${at(active.id) + 1}.`,
+    onDragCancel: ({ active }) => `Move canceled. Rule ${at(active.id) + 1} stays in place.`,
+});
+/** The lifted copy moves along the list only. */
+const alongY: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+const alongX: Modifier = ({ transform }) => ({ ...transform, y: 0 });
+
+interface Handle {
+    attributes?: HTMLAttributes<HTMLElement>;
+    listeners?: Record<string, unknown>;
+    setRef?: (el: HTMLElement | null) => void;
+}
+
+type RuleCardProps = {
+    keyboard: KeyboardInfo; rule: AppRule; index: number; active: boolean;
     hostApps: HostApps | null; platform: HostPlatform; compact: boolean; notice: string | null;
-    onChange: (rule: AppRule) => void; onMove: (delta: number) => void; onDelete: () => void;
+    onChange: (rule: AppRule) => void; onDelete: () => void;
+};
+
+/** A rule in the list, dragged by its grip only. */
+function SortableRule({ id, reduced, ...props }: RuleCardProps & { id: number; reduced: boolean }) {
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+        useSortable({ id, transition: reduced ? null : undefined });
+    const style: CSSProperties = { transform: CSS.Translate.toString(transform), transition: reduced ? undefined : transition };
+    return (
+        <RuleCard
+            {...props}
+            liRef={setNodeRef}
+            style={style}
+            placeholder={isDragging}
+            handle={{ attributes: attributes as HTMLAttributes<HTMLElement>, listeners, setRef: setActivatorNodeRef }}
+        />
+    );
+}
+
+function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, notice, onChange, onDelete, liRef, style, placeholder, handle, overlay }: RuleCardProps & {
+    liRef?: (el: HTMLElement | null) => void;
+    style?: CSSProperties;
+    /** Where the dragged rule will land: an outlined, empty slot. */
+    placeholder?: boolean;
+    handle?: Handle;
+    /** The lifted copy under the pointer while dragging. */
+    overlay?: boolean;
 }) {
     const hint = PLATFORM_HINTS[platform];
     const key = rule.key ?? "";
@@ -103,20 +162,48 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
     };
     const layers = Math.min(keyboard.layers || APP_MASK_LAYERS, APP_MASK_LAYERS);
     const n = index + 1;
-    const indent = compact ? "pl-0" : "pl-7";
+    const indent = compact ? "pl-0" : "pl-10";
     const line = notice ?? (website
         ? problem ?? (unknown ? SITE_RETYPE : platform !== "windows" ? SITE_ELSEWHERE : !rule.appId || !matches ? SITE_EMPTY : matches)
         : null);
     return (
         <li
-            className={cn("flex flex-col gap-2 rounded-lg border border-kb-gray-border bg-kb-surface p-3", compact && "w-[360px] shrink-0 gap-1.5 p-2")}
-            data-app-rule={index}
+            ref={liRef}
+            style={style}
+            className={cn(
+                "flex flex-col gap-2 rounded-lg border border-kb-gray-border bg-kb-surface p-3 pl-1.5",
+                compact && "w-[360px] shrink-0 gap-1.5 p-2 pl-2",
+                placeholder && "border-dashed border-kb-primary bg-kb-primary/5 outline outline-1 outline-kb-primary [&>*]:invisible",
+                overlay && "pointer-events-none shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-kb-primary",
+            )}
+            data-app-rule={overlay ? undefined : index}
+            data-app-rule-lifted={overlay ? "" : undefined}
+            data-app-rule-slot={placeholder ? "" : undefined}
             data-rule-on={on}
-            aria-label={`Rule ${n}`}
+            aria-label={overlay ? undefined : `Rule ${n}`}
+            aria-hidden={overlay ? true : undefined}
         >
-            {/* What the rule is for: its number, a program or a website, and whether it's on. */}
+            {/* What the rule is for: its grip and number, a program or a website, and whether it's on. */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="w-5 shrink-0 text-center text-xs font-semibold text-muted-foreground" title="Rules are checked in order; the first that matches applies">{n}</span>
+                <button
+                    type="button"
+                    ref={handle?.setRef}
+                    {...handle?.attributes}
+                    {...handle?.listeners}
+                    aria-label={`Reorder rule ${n}`}
+                    title="Drag to reorder; the first match applies"
+                    data-testid="app-rule-grip"
+                    tabIndex={overlay ? -1 : 0}
+                    className={cn(
+                        "inline-flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center gap-0.5 rounded-md text-xs font-semibold text-muted-foreground",
+                        "cursor-grab hover:bg-kb-gray-border/40 hover:text-kb-ink active:cursor-grabbing disabled:cursor-default disabled:hover:bg-transparent",
+                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-kb-ink",
+                        overlay && "cursor-grabbing text-kb-ink",
+                    )}
+                >
+                    <GripVertical className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-[0.75rem] text-center">{n}</span>
+                </button>
                 <select
                     aria-label={`Rule ${n}: a program or a website`}
                     data-testid="app-rule-kind"
@@ -141,12 +228,6 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                         onToggle={(v) => onChange(withRuleOn(rule, v))}
                         className="mr-1"
                     />
-                    <button type="button" className={iconButton} aria-label={`Move rule ${n} up`} title="Move up (checked earlier)" disabled={index === 0} onClick={() => onMove(-1)}>
-                        <ArrowUp className="h-4 w-4" aria-hidden />
-                    </button>
-                    <button type="button" className={iconButton} aria-label={`Move rule ${n} down`} title="Move down (checked later)" disabled={index === count - 1} onClick={() => onMove(1)}>
-                        <ArrowDown className="h-4 w-4" aria-hidden />
-                    </button>
                     <button type="button" className={iconButton} aria-label={`Delete rule ${n}`} title="Delete this rule" onClick={onDelete}>
                         <Trash2 className="h-4 w-4" aria-hidden />
                     </button>
@@ -262,6 +343,15 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
     const [activeRule, setActiveRule] = useState<number | null>(null);
     const [notice, setNotice] = useState<{ index: number; text: string } | null>(null);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ids = useRef<number[]>([]);
+    const lastId = useRef(0);
+    const picked = useRef(0);
+    const [dragging, setDragging] = useState<UniqueIdentifier | null>(null);
+    const reduced = usePrefersReducedMotion();
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
     const latest = useRef<{ rules: AppRule[]; enabled: boolean } | null>(null);
     const queueRef = useRef(queue);
     queueRef.current = queue;
@@ -349,13 +439,30 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
     };
 
     const full = list.length >= APP_RULES_MAX;
-    const move = (i: number, delta: number) => {
-        const j = i + delta;
-        if (j < 0 || j >= list.length) return;
-        const next = [...list];
-        [next[i], next[j]] = [next[j], next[i]];
-        update(next);
+    // Each rule's drag ID follows it through moves, adds and deletes.
+    if (ids.current.length !== list.length) ids.current = list.map(() => ++lastId.current);
+    const at = (id: UniqueIdentifier) => ids.current.indexOf(Number(id));
+    const add = () => {
+        if (update([...list, blankRule()], list.length)) ids.current = [...ids.current, ++lastId.current];
     };
+    const remove = (i: number) => {
+        if (update(list.filter((_, k) => k !== i))) ids.current = ids.current.filter((_, k) => k !== i);
+    };
+    /** A drop writes the new order once. */
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+        setDragging(null);
+        const from = at(active.id), to = over ? at(over.id) : -1;
+        if (from < 0 || to < 0 || from === to) return;
+        ids.current = arrayMove(ids.current, from, to);
+        update(arrayMove(list, from, to));
+    };
+    const lifted = dragging === null ? -1 : at(dragging);
+    const card = (rule: AppRule, i: number): RuleCardProps => ({
+        keyboard, rule, index: i, active: enabled && activeRule === i, hostApps, platform, compact,
+        notice: notice?.index === i ? notice.text : null,
+        onChange: (r: AppRule) => update(list.map((x, k) => (k === i ? r : x)), i),
+        onDelete: () => remove(i),
+    });
 
     return (
         <section className="flex flex-col gap-3" data-app-rules data-app-layers-on={enabled} aria-labelledby="app-rules-title">
@@ -381,25 +488,30 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
                     </p>
                     <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
                     {list.length > 0 && (
-                        <ol className={cn("flex gap-2", compact ? "flex-row overflow-x-auto pb-1" : "flex-col", !enabled && "opacity-60")}>
-                            {list.map((rule, i) => (
-                                <RuleCard
-                                    key={i}
-                                    keyboard={keyboard}
-                                    rule={rule}
-                                    index={i}
-                                    count={list.length}
-                                    active={enabled && activeRule === i}
-                                    hostApps={hostApps}
-                                    platform={platform}
-                                    compact={compact}
-                                    notice={notice?.index === i ? notice.text : null}
-                                    onChange={(r) => update(list.map((x, k) => (k === i ? r : x)), i)}
-                                    onMove={(d) => move(i, d)}
-                                    onDelete={() => update(list.filter((_, k) => k !== i))}
-                                />
-                            ))}
-                        </ol>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            accessibility={{ announcements: announcements(list.length, at, () => picked.current), screenReaderInstructions: { draggable: REORDER_HELP } }}
+                            onDragStart={({ active }: DragStartEvent) => { picked.current = at(active.id) + 1; setDragging(active.id); }}
+                            onDragEnd={onDragEnd}
+                            onDragCancel={() => setDragging(null)}
+                        >
+                            <SortableContext items={ids.current} strategy={compact ? horizontalListSortingStrategy : verticalListSortingStrategy} disabled={readOnly}>
+                                <ol className={cn("flex gap-2", compact ? "flex-row overflow-x-auto pb-1" : "flex-col", !enabled && "opacity-60")}>
+                                    {list.map((rule, i) => (
+                                        <SortableRule key={ids.current[i]} id={ids.current[i]} reduced={reduced} {...card(rule, i)} />
+                                    ))}
+                                </ol>
+                            </SortableContext>
+                            {createPortal(
+                                <DragOverlay modifiers={[compact ? alongX : alongY]} dropAnimation={reduced ? null : undefined} zIndex={60}>
+                                    {lifted >= 0 && list[lifted] ? (
+                                        <ol className="m-0 list-none p-0"><RuleCard {...card(list[lifted], lifted)} overlay /></ol>
+                                    ) : null}
+                                </DragOverlay>,
+                                document.body,
+                            )}
+                        </DndContext>
                     )}
                     <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -407,7 +519,7 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
                             className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-kb-gray-border px-3 py-1 text-sm font-medium text-kb-ink hover:bg-kb-gray-border/40 disabled:pointer-events-none disabled:opacity-40"
                             disabled={full}
                             title={full ? `The board holds at most ${APP_RULES_MAX} rules` : "Add a rule at the end"}
-                            onClick={() => update([...list, blankRule()], list.length)}
+                            onClick={add}
                         >
                             <Plus className="h-4 w-4" aria-hidden /> Add rule
                         </button>

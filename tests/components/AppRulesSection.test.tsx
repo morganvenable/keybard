@@ -176,16 +176,110 @@ describe("AppRulesSection", () => {
         expect(pill().dataset.state).toBe("neutral");
     });
 
-    it("reorders and deletes; the first rule can't move up", () => {
+    it("each rule has a grip to reorder it, and no up or down buttons", () => {
         state.keyboard = board([{ ...blank, text: "A" }, { ...blank, text: "B" }]);
+        renderSection();
+        const grip = screen.getByRole("button", { name: "Reorder rule 1" });
+        expect(grip.getAttribute("aria-roledescription")).toBe("sortable");
+        expect(grip.getAttribute("tabindex")).toBe("0");
+        expect(screen.getByRole("button", { name: "Reorder rule 2" })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /Move rule/ })).toBeNull();
+        // The grip comes first in the rule, before its kind and the delete button.
+        const li = document.querySelector("[data-app-rule='0']")!;
+        expect(li.querySelector("button")).toBe(grip);
+        expect(document.body.textContent).toMatch(/Press Space to pick up a rule/);
+    });
+
+    describe("keyboard reorder", () => {
+        // jsdom lays nothing out: each rule is 90px tall, 100px apart, so dnd-kit can measure them.
+        let spy: ReturnType<typeof vi.spyOn>;
+        beforeEach(() => {
+            spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+                const li = this.closest("[data-app-rule]");
+                const i = li ? Number(li.getAttribute("data-app-rule")) : 0;
+                const top = i * 100;
+                return { x: 0, y: top, top, left: 0, right: 300, bottom: top + 90, width: 300, height: 90, toJSON: () => ({}) } as DOMRect;
+            });
+        });
+        afterEach(() => spy.mockRestore());
+
+        const key = async (el: Element, code: string) => {
+            await act(async () => {
+                fireEvent.keyDown(el, { code, key: code === "Space" ? " " : code });
+                vi.advanceTimersByTime(50);
+            });
+        };
+        const texts = () => state.keyboard!.app_rules!.map((r) => r.text);
+
+        it("Space picks up, arrows move, Space drops: the new order is written once", async () => {
+            state.keyboard = board([{ ...blank, text: "A" }, { ...blank, text: "B" }, { ...blank, text: "C" }]);
+            const view = renderSection();
+            const grip = screen.getByRole("button", { name: "Reorder rule 1" });
+            grip.focus();
+            await key(grip, "Space");
+            expect(document.body.textContent).toMatch(/Rule 1 is at position 1 of 3\./);
+            await key(grip, "ArrowDown");
+            await key(grip, "ArrowDown");
+            expect(document.body.textContent).toMatch(/Rule 1 is at position 3 of 3\./);
+            // Nothing changes while the rule is moving.
+            expect(texts()).toEqual(["A", "B", "C"]);
+            await key(grip, "Space");
+            view.rerender();
+            expect(texts()).toEqual(["B", "C", "A"]);
+            expect(document.body.textContent).toMatch(/Rule 1 dropped at position 3\./);
+            // The numbers follow the new order.
+            expect(document.querySelector("[data-app-rule='2'] [data-testid='app-rule-grip']")!.textContent).toBe("3");
+            expect(screen.getByRole("button", { name: "Reorder rule 3" })).toBeTruthy();
+            await act(async () => { vi.advanceTimersByTime(APP_RULES_WRITE_DELAY_MS); });
+            expect(state.queue).toHaveBeenCalledTimes(1);
+            await state.queue.mock.calls[0][1]();
+            expect(state.write).toHaveBeenCalledTimes(1);
+            expect(state.write).toHaveBeenCalledWith(expect.anything(), [
+                expect.objectContaining({ text: "B" }), expect.objectContaining({ text: "C" }), expect.objectContaining({ text: "A" }),
+            ], true);
+        });
+
+        it("Escape cancels: the order stays and nothing is written", async () => {
+            state.keyboard = board([{ ...blank, text: "A" }, { ...blank, text: "B" }]);
+            renderSection();
+            const grip = screen.getByRole("button", { name: "Reorder rule 2" });
+            grip.focus();
+            await key(grip, "Space");
+            await key(grip, "ArrowUp");
+            await key(grip, "Escape");
+            expect(texts()).toEqual(["A", "B"]);
+            expect(document.body.textContent).toMatch(/Move canceled/);
+            await act(async () => { vi.advanceTimersByTime(APP_RULES_WRITE_DELAY_MS); });
+            expect(state.queue).not.toHaveBeenCalled();
+        });
+
+        it("dropping a rule where it was writes nothing", async () => {
+            state.keyboard = board([{ ...blank, text: "A" }, { ...blank, text: "B" }]);
+            renderSection();
+            const grip = screen.getByRole("button", { name: "Reorder rule 1" });
+            grip.focus();
+            await key(grip, "Space");
+            await key(grip, "Space");
+            expect(texts()).toEqual(["A", "B"]);
+            await act(async () => { vi.advanceTimersByTime(APP_RULES_WRITE_DELAY_MS); });
+            expect(state.queue).not.toHaveBeenCalled();
+        });
+    });
+
+    it("deletes a rule; the others keep their order and numbers follow", () => {
+        state.keyboard = board([{ ...blank, text: "A" }, { ...blank, text: "B" }, { ...blank, text: "C" }]);
         const view = renderSection();
-        expect((screen.getByRole("button", { name: "Move rule 1 up" }) as HTMLButtonElement).disabled).toBe(true);
-        fireEvent.click(screen.getByRole("button", { name: "Move rule 1 down" }));
-        view.rerender();
-        expect(state.keyboard!.app_rules!.map((r) => r.text)).toEqual(["B", "A"]);
         fireEvent.click(screen.getByRole("button", { name: "Delete rule 1" }));
         view.rerender();
-        expect(state.keyboard!.app_rules!.map((r) => r.text)).toEqual(["A"]);
+        expect(state.keyboard!.app_rules!.map((r) => r.text)).toEqual(["B", "C"]);
+        expect(screen.getByRole("button", { name: "Reorder rule 2" })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Reorder rule 3" })).toBeNull();
+    });
+
+    it("older firmware: the grips are disabled", () => {
+        state.keyboard = { ...board([{ ...blank, text: "A" }, { ...blank, text: "B" }]), app_rules_format: 1 } as KeyboardInfo;
+        renderSection();
+        expect((screen.getByRole("button", { name: "Reorder rule 1" }) as HTMLButtonElement).matches(":disabled")).toBe(true);
     });
 
     it("can't add past 64", () => {

@@ -18,13 +18,18 @@ Run with `npm run test:e2e:app-rules`.
   4d. The App Layers switch: off sets header byte 2 bit 0 on the board and shows off; on clears it.
   4e. No text in the panel is cut off: every control's label fits (scrollWidth <= clientWidth, and a
      select's chosen option fits its box).
+  4f. Reorder by the grip (no up or down buttons): a mouse drag puts the website first, with the
+     rule lifted and a slot where it lands, and nothing written until the drop; then Space, arrow
+     down, Space puts it back, announced in the live region. Each drop is one BEGIN/WRITE/COMMIT.
   5. Reload (the board keeps its settings): the rules read back from the board, the second as
      Website with its whole site, without this browser remembering it.
   6. Bottom bar: the section shows there too.
+  6a. Bottom bar: a mouse drag along the row reorders the board, and back.
   6b. Bottom bar: More lists App Layers too.
   7. Older firmware (?fakeBoard=old): More lists Overrides and Alt-Repeat, no App Layers; no editor.
 
-With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar), website-<theme>.png and editor-bottombar-<theme>.png.
+With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar), website-<theme>.png, editor-bottombar-<theme>.png,
+drag-<theme>.png, keyboard-drag-<theme>.png and drag-bottombar-<theme>.png (mid-drag).
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. Exits 1 when a check fails.
 """
 import os
@@ -75,6 +80,62 @@ def rule_offsets(rec):
         out.append(o)
         o += 12 + rec[o + 11]
     return out
+
+
+APP_RULES_SETTLE_MS = 900  # the 500 ms write delay, and the write
+
+
+def first_ids(page):
+    """The IDs of the rules on the board, in order."""
+    rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(0, 200))")
+    return [rec[o] | (rec[o + 1] << 8) | (rec[o + 2] << 16) | (rec[o + 3] << 24) for o in rule_offsets(rec)]
+
+
+def wait_first(page, rule_id):
+    page.wait_for_function(
+        f"(() => {{ const r = {FW}.state.appRules; return ((r[4] | r[5] << 8 | r[6] << 16 | r[7] << 24) >>> 0) === {rule_id}; }})()",
+        timeout=5000)
+
+
+def panel_clip(page):
+    """The side panel (or the bottom bar) and a margin, for screenshots."""
+    panel = page.locator(".detail-panel").first
+    box = panel.bounding_box()
+    vw, vh = page.viewport_size["width"], page.viewport_size["height"]
+    if box["width"] > vw * 0.8:
+        return {"x": 0, "y": 0, "width": vw, "height": vh}
+    return {"x": 0, "y": 0, "width": min(vw, box["x"] + box["width"] + 8), "height": vh}
+
+
+def drag_rule(page, section, src, dst, shot, check, theme):
+    """Drags rule src by its grip onto rule dst with the mouse; the write is one BEGIN/COMMIT."""
+    ops = len(page.evaluate(f"{FW}.appRulesOps"))
+    grip = section.locator(f"[data-app-rule='{src}'] [data-testid='app-rule-grip']")
+    grip.scroll_into_view_if_needed()
+    g = grip.bounding_box()
+    t = section.locator(f"[data-app-rule='{dst}']").bounding_box()
+    x0, y0 = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2
+    s = section.locator(f"[data-app-rule='{src}']").bounding_box()
+    # Move the rule's corner onto the other rule's corner.
+    x1, y1 = x0 + t["x"] - s["x"], y0 + t["y"] - s["y"]
+    page.mouse.move(x0, y0)
+    page.mouse.down()
+    for k in range(1, 21):
+        page.mouse.move(x0 + (x1 - x0) * k / 20, y0 + (y1 - y0) * k / 20)
+        page.wait_for_timeout(16)
+        if k == 14:
+            # Most of the way: the lifted rule and the slot it will land in both show.
+            page.wait_for_timeout(250)
+            check(page.locator("[data-app-rule-lifted]").count() == 1, f"{theme}: the dragged rule is lifted")
+            check(page.locator("[data-app-rule-slot]").count() == 1, f"{theme}: a slot shows where it lands")
+            if shot:
+                page.screenshot(path=shot, clip=panel_clip(page))
+    page.wait_for_timeout(250)
+    check(len(page.evaluate(f"{FW}.appRulesOps")) == ops, f"{theme}: nothing is written while dragging")
+    page.mouse.up()
+    page.wait_for_timeout(APP_RULES_SETTLE_MS)
+    new_ops = page.evaluate(f"{FW}.appRulesOps")[ops:]
+    check(new_ops.count(3) == 1 and new_ops.count(4) == 1, f"{theme}: one write for the drop ({new_ops!r})")
 
 
 def main() -> int:
@@ -214,6 +275,33 @@ def main() -> int:
                 page.wait_for_timeout(200)
                 site_rule.screenshot(path=os.path.join(SHOTS, f"website-{theme}.png"))
 
+            # 4f. Reorder by the grip: a mouse drag, then the keyboard. Each drop writes once.
+            check(section.get_by_role("button", name="Move rule 1 down").count() == 0, f"{theme}: no up or down buttons")
+            drag_rule(page, section, 1, 0, os.path.join(SHOTS, f"drag-{theme}.png") if SHOTS else None, check, theme)
+            wait_first(page, CAD_ONSHAPE_ID)
+            check(first_ids(page) == [CAD_ONSHAPE_ID, NOTEPAD_ID], f"{theme}: a mouse drag puts the website first on the board")
+            check(section.locator("[data-app-rule='0'] [data-testid='app-rule-site']").count() == 1, f"{theme}: the website shows as rule 1")
+            grip = section.get_by_role("button", name="Reorder rule 1")
+            ops = len(page.evaluate(f"{FW}.appRulesOps"))
+            grip.focus()
+            page.keyboard.press("Space")
+            page.wait_for_timeout(100)
+            page.keyboard.press("ArrowDown")
+            if SHOTS:
+                page.wait_for_timeout(250)
+                page.screenshot(path=os.path.join(SHOTS, f"keyboard-drag-{theme}.png"), clip=panel_clip(page))
+            live = page.locator("[id^='DndLiveRegion']").inner_text()
+            check(live == "Rule 1 is at position 2 of 2.", f"{theme}: keyboard move announced ({live!r})")
+            page.keyboard.press("Space")
+            wait_first(page, NOTEPAD_ID)
+            check(first_ids(page) == [NOTEPAD_ID, CAD_ONSHAPE_ID], f"{theme}: Space, arrow down, Space puts it back on the board")
+            page.wait_for_timeout(APP_RULES_SETTLE_MS)
+            new_ops = page.evaluate(f"{FW}.appRulesOps")[ops:]
+            check(new_ops.count(3) == 1 and new_ops.count(4) == 1, f"{theme}: one write for the keyboard drop ({new_ops!r})")
+            live = page.locator("[id^='DndLiveRegion']").inner_text()
+            check(live == "Rule 1 dropped at position 2.", f"{theme}: drop announced ({live!r})")
+            check(section.get_by_role("button", name="Reorder rule 2").is_visible(), f"{theme}: numbers follow the order")
+
             # 5.
             page.reload()
             wait_connected(page)
@@ -247,6 +335,13 @@ def main() -> int:
                 section.scroll_into_view_if_needed()
                 page.wait_for_timeout(200)
                 page.screenshot(path=os.path.join(SHOTS, f"editor-bottombar-{theme}.png"))
+            # 6a. Bottom bar: the rules sit side by side; a drag moves along the row.
+            drag_rule(page, section, 1, 0, os.path.join(SHOTS, f"drag-bottombar-{theme}.png") if SHOTS else None, check, f"{theme} bottom bar")
+            wait_first(page, CAD_ONSHAPE_ID)
+            check(first_ids(page) == [CAD_ONSHAPE_ID, NOTEPAD_ID], f"{theme}: bottom bar drag reorders the board")
+            drag_rule(page, section, 1, 0, None, check, f"{theme} bottom bar")
+            wait_first(page, NOTEPAD_ID)
+            check(first_ids(page) == [NOTEPAD_ID, CAD_ONSHAPE_ID], f"{theme}: bottom bar drag back")
             # 6b.
             page.get_by_role("button", name="More", exact=True).click()
             expect(page.locator("[data-more-tool='app-layers']")).to_be_visible()
