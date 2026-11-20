@@ -112,6 +112,30 @@ class LabelTests(unittest.TestCase):
         self.assertEqual(site_rules([(practice, '…')]), [])
 
 
+class FlagTests(unittest.TestCase):
+    PRACTICE = site_id('practice.svalboard.com')
+
+    def test_a_rule_that_is_off_never_matches(self):
+        self.assertEqual(site_rules([(ONSHAPE, 'onshape.com', 3), (site_id('github.com'), 'github.com', 2)]),
+                         [('github.com', site_id('github.com'))])
+        self.assertEqual(site_rules([(self.PRACTICE, 'practice.svalboard.com', 1)]), [])
+
+    def test_the_whole_site_is_the_text(self):
+        sites = site_rules([(self.PRACTICE, 'practice.svalboard.com', 2)])
+        self.assertEqual(sites, [('practice.svalboard.com', self.PRACTICE)])
+        self.assertEqual(match_site('a.practice.svalboard.com', sites), self.PRACTICE)
+
+    def test_an_upgraded_label_still_matches_by_its_id(self):
+        # Format 1 kept only the end of a long site; the board upgrades it with the website flag.
+        sites = site_rules([(self.PRACTICE, '…lboard.com', 2)])
+        self.assertEqual(sites, [('…lboard.com', self.PRACTICE)])
+        self.assertEqual(match_site('practice.svalboard.com', sites), self.PRACTICE)
+        self.assertIsNone(match_site('svalboard.com', sites))
+
+    def test_a_program_rule_whose_text_looks_like_a_site_is_not_one(self):
+        self.assertEqual(site_rules([(app_id('chrome.exe'), 'onshape.com', 0)]), [])
+
+
 class LongSiteTests(unittest.TestCase):
     """A rule for practice.svalboard.com matches it and the hosts under it, never the rest of svalboard.com."""
     PRACTICE = site_id('practice.svalboard.com')
@@ -295,17 +319,32 @@ class TimedReaderTests(unittest.TestCase):
 
 # ---------------------------------------------------------------- reading the rules from the board
 
-class RulesDevice(AppDevice):
-    """AppDevice that also answers APP_RULES INFO and READ from a record."""
+def record_v2(rules, off=False):
+    """A format 2 record: rules are (app ID, text, flags)."""
+    record = bytearray((2, len(rules), 1 if off else 0, 0))
+    for rule_id, text, flags in rules:
+        data = text.encode()
+        record += rule_id.to_bytes(4, 'little') + bytes((0xFF, 0xFF, 0, 0, 0, 0, flags, len(data))) + data
+    return bytes(record) if rules or off else bytes(4)
 
-    def __init__(self, rules=(), **kw):
+
+def record_v1(rules):
+    record = bytearray(4 + 24 * len(rules)); record[0], record[1] = (1, len(rules)) if rules else (0, 0)
+    for i, (rule_id, label) in enumerate(rules):
+        o = 4 + 24 * i
+        record[o:o + 4] = rule_id.to_bytes(4, 'little'); record[o + 4] = record[o + 5] = 0xFF
+        record[o + 11:o + 11 + len(label.encode())] = label.encode()
+    return bytes(record)
+
+
+class RulesDevice(AppDevice):
+    """AppDevice that also answers APP_RULES INFO and READ from a record (format 2 unless v1)."""
+
+    def __init__(self, rules=(), off=False, v1=False, **kw):
         super().__init__(**kw)
-        record = bytearray(4 + 24 * len(rules)); record[0], record[1] = (1, len(rules)) if rules else (0, 0)
-        for i, (rule_id, label) in enumerate(rules):
-            o = 4 + 24 * i
-            record[o:o + 4] = rule_id.to_bytes(4, 'little'); record[o + 4] = record[o + 5] = 0xFF
-            record[o + 11:o + 11 + len(label.encode())] = label.encode()
-        self.record, self.rules_ops = bytes(record), []
+        self.v1 = v1
+        self.record = record_v1(rules) if v1 else record_v2(rules, off)
+        self.rules_ops = []
 
     def write(self, packet):
         request = bytes(packet[1:])
@@ -313,7 +352,11 @@ class RulesDevice(AppDevice):
             op = request[7]; self.rules_ops.append(op); self.writes.append(packet)
             if op == 0:
                 count = self.record[1]
-                data = bytes((0, 0, 1, 64, 24, count)) + (1540).to_bytes(2, 'little') + bytes((48, 16))
+                if self.v1:
+                    data = bytes((0, 0, 1, 64, 24, count)) + (1540).to_bytes(2, 'little') + bytes((48, 16))
+                else:
+                    data = (bytes((0, 0, 2, 64, 12, count)) + (1792).to_bytes(2, 'little') + bytes((48, 16))
+                            + len(self.record).to_bytes(2, 'little') + bytes((64, self.record[2])))
             else:
                 offset, length = int.from_bytes(request[8:10], 'little'), request[10]
                 data = bytes((1, 0)) + request[8:11] + self.record[offset:offset + length].ljust(length, b'\0')
@@ -322,20 +365,42 @@ class RulesDevice(AppDevice):
         return super().write(packet)
 
 
-class ProtocolTests(unittest.TestCase):
-    RULES = [(app_id('notepad.exe'), 'Notepad'), (ONSHAPE, 'onshape.com'), (site_id('github.com'), 'github.com')]
+PRACTICE = site_id('practice.svalboard.com')
 
-    def test_reads_the_labels_in_chunks_that_fit_the_report(self):
+
+class ProtocolTests(unittest.TestCase):
+    RULES = [(app_id('notepad.exe'), 'notepad.exe', 0), (ONSHAPE, 'onshape.com', 2), (site_id('github.com'), 'github.com', 2)]
+
+    def test_reads_the_rules_in_chunks_that_fit_the_report(self):
         for size in (32, 64):
             device = RulesDevice(self.RULES); device.size = size
             reader = SvalReader(device); reader.info()
-            self.assertEqual(reader.app_rules_read(), self.RULES, size)
+            self.assertEqual(reader.app_rules_read(), (True, self.RULES), size)
             self.assertEqual(set(device.rules_ops), {0, 1}, size)   # INFO and READ only: never a write
-            self.assertEqual(site_rules(reader.app_rules_read()), [('onshape.com', ONSHAPE), ('github.com', site_id('github.com'))])
+            self.assertEqual(site_rules(reader.app_rules_read().rules), [('onshape.com', ONSHAPE), ('github.com', site_id('github.com'))])
+
+    def test_a_long_site_comes_back_whole(self):
+        long_site = 'a' * 60 + '.com'
+        rules = [(PRACTICE, 'practice.svalboard.com', 2)] * 3 + [(site_id(long_site), long_site, 2)]
+        device = RulesDevice(rules); device.size = 32
+        reader = SvalReader(device); reader.info()
+        self.assertEqual(reader.app_rules_read().rules, rules)
+        self.assertEqual(site_rules(reader.app_rules_read().rules)[0], ('practice.svalboard.com', PRACTICE))
+
+    def test_app_layers_off_comes_back_with_the_rules(self):
+        device = RulesDevice(self.RULES, off=True); reader = SvalReader(device); reader.info()
+        self.assertEqual(reader.app_rules_read(), (False, self.RULES))
 
     def test_a_board_with_no_rules(self):
         device = RulesDevice(); reader = SvalReader(device); reader.info()
-        self.assertEqual(reader.app_rules_read(), [])
+        self.assertEqual(reader.app_rules_read(), (True, []))
+
+    def test_format_1_firmware_reads_as_on(self):
+        device = RulesDevice([(ONSHAPE, 'onshape.com'), (PRACTICE, '…lboard.com')], v1=True)
+        reader = SvalReader(device); reader.info()
+        record = reader.app_rules_read()
+        self.assertEqual(record, (True, [(ONSHAPE, 'onshape.com', 0), (PRACTICE, '…lboard.com', 0)]))
+        self.assertEqual(site_rules(record.rules), [('onshape.com', ONSHAPE), ('…lboard.com', PRACTICE)])
 
     def test_nothing_sent_without_the_feature_bit(self):
         device = RulesDevice(self.RULES, flags5=0); reader = SvalReader(device); reader.info()
@@ -383,6 +448,18 @@ class HostChoiceTests(unittest.TestCase):
         self.worker.sites = []
         self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read without site rules'))
         self.assertEqual(self.poll(1, 'chrome.exe'), app_id('chrome.exe'))
+
+    def test_app_layers_off_reads_and_sends_nothing(self):
+        self.worker.app_layers_on = False
+        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read while App Layers is off'))
+        original = self.main.foreground_window
+        self.main.foreground_window = lambda: self.fail('looked at the window while App Layers is off')
+        try: self.main.Host.poll_foreground(self.host)
+        finally: self.main.foreground_window = original
+        self.assertEqual(self.worker.sent, [])
+        self.worker.app_layers_on = True                           # back on: reading and sending resume
+        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: 'cad.onshape.com')
+        self.assertEqual(self.poll(1, 'chrome.exe'), ONSHAPE)
 
     def test_the_log_names_the_rule_never_the_address(self):
         import io, contextlib

@@ -43,6 +43,9 @@ class DeviceWorker(QThread):
         # Site rules: [(site, app ID)] among the board's rules (site_rules.py), read at connect,
         # after a layout refresh (Keybard saved something) and every RULES_INTERVAL seconds.
         self.sites = []
+        # App Layers on the board (its master switch, read with the rules). While off the board
+        # applies no rule: the Host reads no addresses and sends no foreground app.
+        self.app_layers_on = True
         # The read loop's clock and sleep; tests drive them with a fake clock.
         self.clock = time.monotonic
         self.wait_for_wake = self.wake_event.wait
@@ -101,8 +104,9 @@ class DeviceWorker(QThread):
 
     def read_sites(self, reader):
         """Read the board's rules for their sites. A failed read keeps the last ones."""
-        try: self.sites = site_rules(reader.app_rules_read())
-        except (UnsupportedCommand, ProtocolError): pass
+        try: record = reader.app_rules_read()
+        except (UnsupportedCommand, ProtocolError): return
+        self.app_layers_on, self.sites = bool(record.enabled), site_rules(record.rules)
 
     def clear_foreground(self, reader):
         """The Host is leaving this board: say no app is in front, so its rules let go now
@@ -155,6 +159,7 @@ class DeviceWorker(QThread):
                 pointing_next, pointing_supported = 0.0, True
                 settle_next = 0.0
                 rules_next = 0.0
+                sending = True  # App Layers was on at the last foreground send
                 schedule = PollScheduler(self.clock())
                 retry = .5
                 while not self.stop_event.is_set():
@@ -234,11 +239,14 @@ class DeviceWorker(QThread):
                     if self.app_rules and self.clock() >= rules_next:
                         rules_next = self.clock() + self.RULES_INTERVAL
                         self.read_sites(reader)
-                    if self.app_rules:
+                    if self.app_rules and self.app_layers_on:
+                        if not sending: sender.tried_id = None  # back on: say the app in front at once
                         self.app_rules = self.send_foreground(reader, sender, self.clock())
+                    sending = self.app_layers_on
                     # Sleep until the next read is due, or a new plan, reload, refresh or stop.
                     wake_at = schedule.next_at
-                    if self.app_rules: wake_at = min(wake_at, sender.next_at, rules_next)
+                    if self.app_rules: wake_at = min(wake_at, rules_next)
+                    if self.app_rules and self.app_layers_on: wake_at = min(wake_at, sender.next_at)
                     if (self.pointing_enabled or watching) and pointing_supported: wake_at = min(wake_at, pointing_next)
                     if reader.pointing_watching() and not self.refresh_event.is_set(): wake_at = min(wake_at, settle_next)
                     if self.refresh_event.is_set(): wake_at = min(wake_at, refresh_after)
@@ -253,6 +261,7 @@ class DeviceWorker(QThread):
                     self.clear_foreground(reader)
                 self.app_rules = False
                 self.sites = []
+                self.app_layers_on = True
                 if device is not None:
                     try:
                         device.close()

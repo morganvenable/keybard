@@ -869,7 +869,9 @@ class Host(QObject):
                 self.follow()
 
     def poll_foreground(self):
-        workers = [b.worker for b in self.boards.values() if b.worker is not None and b.worker.app_rules]
+        # A board with App Layers off applies no rule: nothing is read or sent for it.
+        workers = [b.worker for b in self.boards.values()
+                   if b.worker is not None and b.worker.app_rules and getattr(b.worker, 'app_layers_on', True)]
         if not workers:
             self.foreground_id = None
             return

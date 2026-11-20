@@ -5,16 +5,18 @@ board stores its hash as the rule's app ID like any other. The site matches its 
 every host under it: `onshape.com` matches `onshape.com`, `cad.onshape.com` and `www.onshape.com`,
 never `notonshape.com`. Where several match, the most specific (longest) wins.
 
-Matching is by hash, never by the label: for the tab's host name the Host hashes `site:` + the
+Matching is by hash, never by the text: for the tab's host name the Host hashes `site:` + the
 host and + each name above it (`site:a.practice.svalboard.com`, `site:practice.svalboard.com`,
-`site:svalboard.com`, `site:com`) and looks for those IDs among the site rules. So a site longer
-than the label's 13 bytes matches exactly what was typed, never a shorter end of it.
+`site:svalboard.com`, `site:com`) and looks for those IDs among the site rules. So a site matches
+exactly what was typed, never a shorter end of it.
 
-The label only tells the Host which rules are site rules (so it reads addresses only when some
-rule needs them): a site that fits is the label itself, and its ID must be the hash of `site:` +
-the label (a program rule whose label happens to look like a site never counts); a longer site's
-label is LONG_MARK and the end of the site. Keybard's src/services/app-rules.ts normalizes and
-labels sites the same way.
+The rule's text tells the Host which rules are site rules (so it reads addresses only when some
+rule needs them). On the board (record format 2) a website rule has flag bit 1 and its whole site
+as its text, and a rule with flag bit 0 is off and never matches. A site rule counts when its ID is
+the hash of `site:` + its text (a program rule whose text happens to look like a site never
+counts). A website rule whose text isn't its site (a 13-byte label from format 1 firmware,
+LONG_MARK and the site's end) still matches by its ID. Keybard's src/services/app-rules.ts
+normalizes sites the same way.
 """
 import hashlib
 import re
@@ -57,15 +59,23 @@ def site_id(site):
     return app_id(key) if key else 0
 
 
+RULE_OFF, RULE_SITE = 0x01, 0x02  # a rule's flags on the board
+
+
 def site_rules(rules):
-    """[(what to call it, app ID)] of the site rules among [(app ID, label)], in board order: the site
-    for one whose label is its site, the label for a longer one (LONG_MARK and the site's end)."""
+    """[(what to call it, app ID)] of the site rules among the board's rules, in board order. A rule
+    is (app ID, text, flags), or (app ID, label) from format 1 firmware. Rules that are off are left
+    out. The site for one whose text is its site; the text for a website rule whose text is only the
+    end of its site (LONG_MARK and the end, from format 1 firmware)."""
     out = []
-    for rule_id, label in rules:
-        label = (label or '').strip(' \t')
-        site = normalize_site(label)
-        if site and rule_id and site_id(site) == rule_id: entry = (site, rule_id)
-        elif rule_id and label.startswith(LONG_MARK) and len(label) > 1: entry = (label, rule_id)
+    for rule in rules:
+        rule_id, text, flags = (tuple(rule) + (0,))[:3]
+        if flags & RULE_OFF or not rule_id: continue
+        text = (text or '').strip(' 	')
+        site = normalize_site(text)
+        if site and site_id(site) == rule_id: entry = (site, rule_id)
+        elif text.startswith(LONG_MARK) and len(text) > 1: entry = (text, rule_id)
+        elif flags & RULE_SITE: entry = (text or f'{rule_id:08X}', rule_id)
         else: continue
         if entry not in out: out.append(entry)
     return out

@@ -14,7 +14,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from keybard_host import foreground
 from keybard_host.foreground import app_id, app_key, apps_snapshot, running_apps
 from keybard_host.device.app_sender import AppSender, RESEND
-from keybard_host.device.protocol import SvalReader, UnsupportedCommand, APP_RULES_FLAG5, READ_COMMANDS
+from keybard_host.device.protocol import AppRules, SvalReader, UnsupportedCommand, APP_RULES_FLAG5, READ_COMMANDS
 from keybard_host.server import make_server
 from keybard_host.state import HostState
 import test_poll_schedule as poll
@@ -154,10 +154,10 @@ class AppReader(poll.FakeReader):
     def app_clear(self):
         self.log.append(('clear', poll.CLOCK.t)); return 0
 
-    board_rules = []
+    board_rules, board_on = [], True
 
     def app_rules_read(self):
-        self.took('rules', poll.FakeReader.RTT); return list(self.board_rules)
+        self.took('rules', poll.FakeReader.RTT); return AppRules(self.board_on, list(self.board_rules))
 
 
 @unittest.skipUnless(poll.QT, 'Requires the native Qt runtime')
@@ -218,7 +218,7 @@ class SenderLoopTests(unittest.TestCase):
 
     def test_site_rules_are_read_at_connect_and_every_five_seconds(self):
         onshape = app_id('site:onshape.com')
-        AppReader.board_rules = [(app_id('notepad.exe'), 'Notepad'), (onshape, 'onshape.com')]
+        AppReader.board_rules = [(app_id('notepad.exe'), 'notepad.exe', 0), (onshape, 'onshape.com', 2)]
         self.addCleanup(setattr, AppReader, 'board_rules', [])
         seen = []
         self.worker.set_foreground(self.A)
@@ -226,6 +226,27 @@ class SenderLoopTests(unittest.TestCase):
         self.assertEqual(seen, [[('onshape.com', onshape)]])
         self.assertEqual(len([k for k, _ in log if k == 'rules']), 3)  # at 0, 5 and 10 s
         self.assertEqual(self.worker.sites, [])                         # forgotten once disconnected
+
+    def test_app_layers_off_sends_nothing_and_on_again_sends_at_once(self):
+        self.addCleanup(setattr, AppReader, 'board_on', True)
+        AppReader.board_on = False
+        self.worker.set_foreground(self.A)
+
+        def on(): AppReader.board_on = True
+        log = self.run_loop(14.0, [(7.0, on)])
+        sets = self.sets(log)
+        rules = [round(t - 100.0, 2) for k, t in log if k == 'rules']
+        self.assertTrue(sets and all(t >= 10.0 for _, t in sets), sets)  # nothing while off
+        self.assertLess(sets[0][1] - rules[2], .05)                      # the read at 10 s sees it on: sent at once
+        self.assertEqual(len(rules), 3)
+
+    def test_off_with_nothing_sent_does_not_spin(self):
+        self.addCleanup(setattr, AppReader, 'board_on', True)
+        AppReader.board_on = False
+        self.worker.set_foreground(self.A)
+        log = self.run_loop(11.0)
+        self.assertEqual(self.sets(log), [])
+        self.assertLess(len(log), 200, log[:20])
 
     def test_clear_is_sent_even_though_the_worker_is_stopping(self):
         self.worker.set_foreground(self.A)

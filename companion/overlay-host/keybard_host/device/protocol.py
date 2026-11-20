@@ -5,6 +5,7 @@ CLEAR), to a board that advertises app rules. From APP_RULES (0x41) it sends onl
 READ, to learn the rules' sites (site rules); it never writes rules. That is runtime state the board forgets
 after 15 s; it changes nothing stored on the board (see app_foreground below)."""
 from dataclasses import dataclass, replace
+from collections import namedtuple
 import secrets
 import sys
 import time
@@ -56,8 +57,17 @@ APP_STATUS_NOT_USB_HALF = 2
 # APP_RULES: only INFO and READ are ever sent from here.
 APP_RULES = 0x41
 APP_RULES_INFO, APP_RULES_READ = 0x00, 0x01
-APP_RULES_FORMAT, APP_RULE_BYTES, APP_RULES_HEADER, APP_RULES_MAX, APP_RULES_CHUNK = 1, 24, 4, 64, 48
+APP_RULES_HEADER, APP_RULES_MAX, APP_RULES_CHUNK = 4, 64, 48
+# Format 2 (packed): header [2][count][flags][0], then per rule 12 bytes and its text:
+# id u32, default, front, on u16, off u16, flags, text length, text (UTF-8).
+APP_RULES_FORMAT, APP_RULE_HEAD, APP_RULES_RECORD = 2, 12, 1792
+APP_RULES_OFF = 0x01       # header flags: App Layers off (no rule applies; the Host reads no addresses)
+APP_RULE_OFF = 0x01        # rule flags: this rule is off
+APP_RULE_SITE = 0x02       # rule flags: a website rule; its text is the site
+# Format 1 (older test firmware): 24-byte rules with a 13-byte label at 11.
+APP_RULES_FORMAT1, APP_RULE_BYTES1 = 1, 24
 APP_RULE_LABEL = slice(11, 24)
+AppRules = namedtuple("AppRules", "enabled rules")  # rules: [(app ID, text, flags)]
 # Protocol -> command -> exact request argument length. No setter is expressible: the
 # one request that isn't a read, APP_FOREGROUND, has its own fixed-shape methods.
 READ_COMMANDS = {
@@ -523,19 +533,45 @@ class SvalReader:
         return self._transact(APP_FOREGROUND, bytes((APP_CLEAR,)), 0xDF)[1]
 
     def app_rules_read(self):
-        """The rules in use as [(app ID, label)], from APP_RULES INFO and READ (never a write).
-        Raises ProtocolError on a reply that doesn't fit; [] for a board with no rules."""
+        """The rules in use, from APP_RULES INFO and READ (never a write): AppRules(enabled,
+        [(app ID, text, flags)]). enabled is False while App Layers is off on the board. Raises
+        ProtocolError on a reply that doesn't fit; no rules for a board that stored none."""
         if not self.app_rules():
             raise UnsupportedCommand("Board does not advertise app rules")
         info = self._transact(APP_RULES, bytes((APP_RULES_INFO,)), 0xDF)
         if info is None or len(info) < 10 or info[1] != 0:
             raise ProtocolError("App rules INFO failed")
-        if info[2] != APP_RULES_FORMAT or info[4] != APP_RULE_BYTES:
-            raise ProtocolError(f"Unknown app rules format {info[2]}")
         count = min(info[5], APP_RULES_MAX)
-        total = APP_RULES_HEADER + count * APP_RULE_BYTES
+        if info[2] == APP_RULES_FORMAT and info[4] == APP_RULE_HEAD and len(info) >= 13:
+            total = min(int.from_bytes(info[10:12], "little"), APP_RULES_RECORD)
+        elif info[2] == APP_RULES_FORMAT1 and info[4] == APP_RULE_BYTES1:
+            total = APP_RULES_HEADER + count * APP_RULE_BYTES1
+        else:
+            raise ProtocolError(f"Unknown app rules format {info[2]}")
+        record = self._app_rules_bytes(max(total, APP_RULES_HEADER), info[8])
+        if record[0] == 0 and record[1] == 0: return AppRules(True, [])
+        if record[0] == APP_RULES_FORMAT1:
+            out = []
+            for i in range(min(record[1], count)):
+                rule = record[APP_RULES_HEADER + i * APP_RULE_BYTES1:APP_RULES_HEADER + (i + 1) * APP_RULE_BYTES1]
+                label = bytes(rule[APP_RULE_LABEL]).split(b"\0", 1)[0].decode("utf-8", "replace")
+                out.append((int.from_bytes(rule[:4], "little"), label, 0))
+            return AppRules(True, out)
+        if record[0] != APP_RULES_FORMAT: raise ProtocolError(f"Unknown app rules record format {record[0]}")
+        out, at = [], APP_RULES_HEADER
+        for _ in range(min(record[1], APP_RULES_MAX)):
+            if at + APP_RULE_HEAD > len(record): raise ProtocolError("App rules record ends inside a rule")
+            n = record[at + 11]
+            if at + APP_RULE_HEAD + n > len(record): raise ProtocolError("App rules record ends inside a rule's text")
+            text = bytes(record[at + APP_RULE_HEAD:at + APP_RULE_HEAD + n]).decode("utf-8", "replace")
+            out.append((int.from_bytes(record[at:at + 4], "little"), text, record[at + 10]))
+            at += APP_RULE_HEAD + n
+        return AppRules(not record[2] & APP_RULES_OFF, out)
+
+    def _app_rules_bytes(self, total, board_chunk):
+        """READ the first total bytes of the record, in chunks that fit the report."""
         # Reply data: [op][status][offset:2][len][bytes], after the 7-byte wrapper and command.
-        chunk = max(1, min(info[8] or APP_RULES_CHUNK, APP_RULES_CHUNK, (self.report_size or 32) - 12))
+        chunk = max(1, min(board_chunk or APP_RULES_CHUNK, APP_RULES_CHUNK, (self.report_size or 32) - 12))
         record = bytearray()
         for offset in range(0, total, chunk):
             length = min(chunk, total - offset)
@@ -544,14 +580,7 @@ class SvalReader:
                     or int.from_bytes(data[2:4], "little") != offset or data[4] != length):
                 raise ProtocolError("App rules READ failed")
             record += data[5:5 + length]
-        if record[0] == 0 and record[1] == 0: return []
-        if record[0] != APP_RULES_FORMAT: raise ProtocolError(f"Unknown app rules record format {record[0]}")
-        out = []
-        for i in range(min(record[1], count)):
-            rule = record[APP_RULES_HEADER + i * APP_RULE_BYTES:APP_RULES_HEADER + (i + 1) * APP_RULE_BYTES]
-            label = bytes(rule[APP_RULE_LABEL]).split(b"\0", 1)[0].decode("utf-8", "replace")
-            out.append((int.from_bytes(rule[:4], "little"), label))
-        return out
+        return record
 
     def app_layers(self):
         """With app rules, the layers keys use now and the default layer state, from
