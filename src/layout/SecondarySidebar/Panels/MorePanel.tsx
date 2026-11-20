@@ -22,19 +22,19 @@ const MORE_TOOLS: MoreTool[] = [
     {
         panel: OVERRIDES_PANEL,
         title: "Overrides",
-        description: "A key sends something else while a modifier is held: Shift+Backspace sends Delete.",
+        description: "Change what a key sends while a modifier is held.",
         Icon: OverridesIcon,
     },
     {
         panel: ALT_REPEAT_PANEL,
         title: "Alt-Repeat",
-        description: "A key that types the opposite of your last key: after Ctrl+Z, it sends Ctrl+Y.",
+        description: "Type the opposite of your last key.",
         Icon: AltRepeatArrowsIcon,
     },
     {
         panel: APP_LAYERS_PANEL,
         title: "App Layers",
-        description: "Layers that change while an app or a website is in front on your computer.",
+        description: "Layers that follow the app in front.",
         Icon: AppWindow,
     },
 ];
