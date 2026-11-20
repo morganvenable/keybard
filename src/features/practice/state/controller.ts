@@ -12,6 +12,10 @@
 //   English content, and the active profile's results;
 // - the session (state/session.ts): rebuilt when the keymap fingerprint, the
 //   profile or a lesson-shaping setting changes (sliders debounced 300 ms). A
+//   keymap change counts only once it holds for 500 ms while the page is in
+//   front, so a read that flickers (a stale board reply, the window losing focus
+//   to a screenshot tool) never restarts the lesson; a real one waits for the
+//   lesson in progress to end (Restart lesson applies it at once). A
 //   rebuild on the same keymap and history starts from the current key stats; a
 //   long replay runs in chunks that yield, the old session staying (paused) until
 //   it is done; a rebuild asked for while a lesson is being saved waits for it;
@@ -41,6 +45,23 @@ import { LAYOUTS } from '@/components/Keyboards/layouts';
 
 export type KeymapSourceKind = 'connected' | 'file' | 'example';
 
+type ResolvedKeymap = { resolution: Awaited<ReturnType<typeof resolvePracticeKeymap>>['resolution']; fingerprint: string; keymap: PracticeKeymap };
+type Resolution = ResolvedKeymap['resolution'];
+
+/** One character's paths as the fingerprint writes them (keymap/fingerprint.ts). */
+function pathsText(resolution: Resolution, codePoint: number): string {
+    return (resolution.paths.get(codePoint) ?? [])
+        .map((p) => `${p.key}<${p.prereqs.map((q) => `${q.kind[0]}${q.index}`).join('+')}`).join(',');
+}
+
+/** Whether `next` types any character of the lesson text differently from `current` (§9.4 paths). */
+export function keymapChangeAffects(text: Iterable<number>, current: Resolution, next: Resolution): boolean {
+    for (const codePoint of new Set(text)) {
+        if (pathsText(current, codePoint) !== pathsText(next, codePoint)) return true;
+    }
+    return false;
+}
+
 /** The keymap Practice follows, as the editor's contexts describe it (§5.4). */
 export interface KeymapInput {
     /** The practiced keymap: what the board runs (originalKeyboard) when connected, else the loaded draft. */
@@ -67,7 +88,7 @@ export const SOURCE_NAMES: Record<KeymapSourceKind, string> = {
 /** Status slot items, highest priority first (§5.2). OS layout mismatch and Layer locked on are live only. */
 export const SPEC_STATUS_PRIORITY = [
     'storage-off', 'newer-schema', 'os-mismatch', 'caps-lock', 'layer-locked', 'keymap-changed',
-    'unsent-changes', 'board-connected', 'new-key', 'daily-goal', 'top-speed',
+    'keymap-pending', 'unsent-changes', 'board-connected', 'new-key', 'daily-goal', 'top-speed',
 ] as const;
 export type StatusId = (typeof SPEC_STATUS_PRIORITY)[number];
 
@@ -93,6 +114,7 @@ export const NOTICE_TEXT = {
     'newer-schema': 'Progress was saved by a newer Keybard',
     'caps-lock': 'Caps Lock is on',
     'keymap-changed': 'Keymap changed · lesson restarted',
+    'keymap-pending': 'Keymap changed · the next lesson uses it',
     'unsent-changes': "Practicing the board's keymap · unsent edits excluded",
     'board-connected': 'Board connected · lesson restarted',
 } as const;
@@ -107,6 +129,12 @@ export function osLayoutName(layoutId: string): string {
 export function osMismatchText(layoutId: string): string {
     return `Typed characters don't match ${osLayoutName(layoutId)} layout`;
 }
+
+/**
+ * How long a new keymap must hold, with the page visible and its window focused, before Practice
+ * acts on it. The board's layer state is read every 120 ms, so a misread is gone well within it.
+ */
+export const KEYMAP_CONFIRM_MS = 500;
 
 /** How long the Keymap changed and Board connected notices stay (§5.3). */
 export const TRANSIENT_NOTICE_MS = 4000;
@@ -182,8 +210,16 @@ export class PracticeController {
     readonly #listeners = new Set<() => void>();
     #profileData: ProfileData | null = null;
     #snapshot: SnapshotRecord | undefined;
-    #resolved: { resolution: Awaited<ReturnType<typeof resolvePracticeKeymap>>['resolution']; fingerprint: string; keymap: PracticeKeymap } | null = null;
+    #resolved: ResolvedKeymap | null = null;
     #keymapSeq = 0;
+    /** A changed keymap not yet confirmed: it must hold KEYMAP_CONFIRM_MS while the page is in front. */
+    #candidate: ResolvedKeymap | null = null;
+    #confirmTimer: ReturnType<typeof setTimeout> | null = null;
+    /** A confirmed keymap waiting for the lesson in progress to end; #resolved still drives that lesson. */
+    #deferred: ResolvedKeymap | null = null;
+    /** The deferred keymap changes a character of the lesson in progress (the Keymap changed notice). */
+    #deferredAffectsLesson = false;
+    #windowFocused = true;
     #profileSeq = 0;
     #active = false;
     #focused = false;
@@ -254,6 +290,7 @@ export class PracticeController {
         this.#timers.clear();
         if (this.#idleTimer) clearTimeout(this.#idleTimer);
         if (this.#rebuildTimer) clearTimeout(this.#rebuildTimer);
+        this.#clearConfirm();
         if (this.run?.started && !this.run.textInput.completed) pageSession.hadLesson = true;
         this.attachLive(null);
     }
@@ -411,17 +448,102 @@ export class PracticeController {
         }
         const seq = ++this.#keymapSeq;
         const keymap: PracticeKeymap = { board: input.board, layoutId: input.layoutId, defaultLayer: input.defaultLayer };
+        const layoutChanged = !!previous && previous.layoutId !== input.layoutId;
         void resolvePracticeKeymap(keymap).then(({ resolution, fingerprint }) => {
             if (seq !== this.#keymapSeq || this.#disposed) return;
-            const changed = this.#resolved && this.#resolved.fingerprint !== fingerprint;
-            const first = !this.#resolved;
-            this.#resolved = { resolution, fingerprint, keymap };
-            this.#liveKeymap();
-            // Same paths (a layer color or a layer name changed, say): keep the lesson, redraw.
-            if (!first && !changed) { this.#emit(); return; }
-            if (changed && this.session) this.#notify('keymap-changed');
-            this.#rebuild();
+            const next: ResolvedKeymap = { resolution, fingerprint, keymap };
+            const current = this.#resolved;
+            if (!current) {
+                this.#resolved = next;
+                this.#liveKeymap();
+                this.#rebuild();
+                return;
+            }
+            if (fingerprint === current.fingerprint) {
+                // Same paths (a layer color or a layer name changed, or a misread that came back):
+                // keep the lesson, drop anything waiting, redraw.
+                this.#clearConfirm();
+                this.#candidate = null;
+                this.#deferred = null;
+                this.#deferredAffectsLesson = false;
+                this.#resolved = next;
+                this.#liveKeymap();
+                this.#emit();
+                return;
+            }
+            if (this.#deferred && fingerprint === this.#deferred.fingerprint) {
+                this.#deferred = next;
+                this.#emit();
+                return;
+            }
+            this.#deferred = null;
+            this.#deferredAffectsLesson = false;
+            // Choosing an OS layout (the mismatch notice's select, Settings) is the person's own
+            // request: act on it now. A keymap read from the board or the editor must hold first.
+            if (layoutChanged) {
+                this.#clearConfirm();
+                this.#candidate = null;
+                this.#adopt(next, false);
+                return;
+            }
+            this.#candidate = next;
+            this.#scheduleConfirm();
+            this.#emit();
         });
+    }
+
+    /** The board of the keymap being practiced: the session's, until a change is confirmed and applied. */
+    get practicedBoard(): KeyboardInfo | null {
+        return this.#resolved?.keymap.board ?? null;
+    }
+
+    #clearConfirm() {
+        if (this.#confirmTimer) clearTimeout(this.#confirmTimer);
+        this.#confirmTimer = null;
+    }
+
+    /** Confirms the candidate once it has held KEYMAP_CONFIRM_MS with the page visible and in front. */
+    #scheduleConfirm() {
+        this.#clearConfirm();
+        if (!this.#candidate || !this.#visible || !this.#windowFocused || this.#disposed) return;
+        this.#confirmTimer = setTimeout(() => {
+            this.#confirmTimer = null;
+            const next = this.#candidate;
+            this.#candidate = null;
+            if (next && !this.#disposed) this.#adopt(next, true);
+        }, KEYMAP_CONFIRM_MS);
+    }
+
+    /**
+     * A real keymap change. A lesson in progress keeps going on the keymap it started with, and the
+     * change applies when it ends (or on Restart lesson); a notice says so when the lesson's characters
+     * are typed differently now. Otherwise the session rebuilds at once.
+     */
+    #adopt(next: ResolvedKeymap, deferInProgress: boolean) {
+        const run = this.run;
+        const current = this.#resolved;
+        if (deferInProgress && current && this.session && run?.started && run.phase !== 'complete') {
+            this.#deferred = next;
+            const text = Array.from({ length: run.textInput.length }, (_, i) => run.textInput.at(i).codePoint);
+            this.#deferredAffectsLesson = keymapChangeAffects(text, current.resolution, next.resolution);
+            this.#emit();
+            return;
+        }
+        this.#resolved = next;
+        this.#liveKeymap();
+        if (this.session) this.#notify('keymap-changed');
+        this.#rebuild();
+    }
+
+    /** Applies a deferred keymap: the lesson it waited for is over. */
+    #takeDeferred() {
+        const next = this.#deferred;
+        if (!next) return;
+        this.#deferred = null;
+        this.#deferredAffectsLesson = false;
+        this.#resolved = next;
+        this.#liveKeymap();
+        if (this.session) this.#notify('keymap-changed');
     }
 
     get sourceName(): string {
@@ -452,6 +574,7 @@ export class PracticeController {
             this.#emit();
             return;
         }
+        this.#takeDeferred();
         const resolved = this.#resolved;
         const data = this.#profileData;
         if (this.loadState !== 'ready' || !this.store || !this.content || !data || !resolved) {
@@ -495,6 +618,11 @@ export class PracticeController {
     }
 
     #newRun() {
+        // A new lesson uses the keymap that waited for the last one to end.
+        if (this.#deferred && !this.#completing) {
+            this.#rebuild();
+            return;
+        }
         const session = this.session;
         this.#clearIdle();
         this.#pausedSince = null;
@@ -745,7 +873,19 @@ export class PracticeController {
         if (visible === this.#visible) return;
         this.#visible = visible;
         if (!visible) this.pause();
+        // A keymap change seen while hidden waits, and must hold again once the page is back.
+        this.#scheduleConfirm();
         this.#emit();
+    }
+
+    /**
+     * The browser window gained or lost focus (a screenshot tool or another app took it). A keymap
+     * change seen meanwhile is confirmed only after the window is back in front.
+     */
+    setWindowFocused(focused: boolean) {
+        if (focused === this.#windowFocused) return;
+        this.#windowFocused = focused;
+        this.#scheduleConfirm();
     }
 
     get active() {
@@ -876,7 +1016,7 @@ export class PracticeController {
         }
         // A rebuild asked for during the save, or a replay that began before this lesson
         // joined the history, builds again from the history as it is now.
-        if (this.#rebuildAfterComplete || this.#building) {
+        if (this.#rebuildAfterComplete || this.#building || this.#deferred) {
             this.#rebuildAfterComplete = false;
             this.#rebuild();
         } else if (this.session === session) {
@@ -933,6 +1073,9 @@ export class PracticeController {
                 case 'keymap-changed':
                 case 'board-connected':
                     if (live(id)) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
+                    break;
+                case 'keymap-pending':
+                    if (this.#deferred && this.#deferredAffectsLesson) return { id, kind: 'notice', text: NOTICE_TEXT[id] };
                     break;
                 case 'unsent-changes':
                     if (this.keymap?.unsentChanges) return { id, kind: 'notice', text: NOTICE_TEXT[id] };

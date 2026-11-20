@@ -194,3 +194,20 @@ describe('Keymap source rules (§5.4)', () => {
         expect(d.status).toMatchObject({ id: 'board-connected', text: NOTICE_TEXT['board-connected'] });
     });
 });
+
+describe('Window focus holds back keymap changes (screenshot tools)', () => {
+    it('a change seen while the window is blurred applies only after focus returns and it holds', async () => {
+        const { store, rerender } = renderHost();
+        const c = await ready(store);
+        const session = c.session!;
+        const index = session.resolution.primary(cp('a'))!.index;
+        act(() => { window.dispatchEvent(new Event('blur')); });
+        ctx.keyboard.keyboard = moved(ctx.keyboard.keyboard!, 'a', index);
+        rerender();
+        await new Promise((r) => setTimeout(r, 900));
+        expect(c.session).toBe(session);
+        act(() => { window.dispatchEvent(new Event('focus')); });
+        await vi.waitFor(() => expect(c.session).not.toBe(session), { timeout: 2000 });
+        expect(c.status?.id).toBe('keymap-changed');
+    });
+});

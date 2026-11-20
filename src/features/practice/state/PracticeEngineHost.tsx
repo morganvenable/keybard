@@ -87,5 +87,19 @@ export default function PracticeEngineHost({ store }: { store: WorkspaceStore<Pr
         return () => document.removeEventListener("visibilitychange", onVisibility);
     }, [controller]);
 
+    // The window losing focus (a screenshot tool, another app) holds back a keymap change until it
+    // is back in front: reads made meanwhile aren't trusted on their own (§5.4).
+    useEffect(() => {
+        if (!controller) return;
+        const onFocus = () => controller.setWindowFocused(true);
+        const onBlur = () => controller.setWindowFocused(false);
+        window.addEventListener("focus", onFocus);
+        window.addEventListener("blur", onBlur);
+        return () => {
+            window.removeEventListener("focus", onFocus);
+            window.removeEventListener("blur", onBlur);
+        };
+    }, [controller]);
+
     return null;
 }

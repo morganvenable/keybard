@@ -780,6 +780,10 @@ export class SvilUSB {
             reject(new ClientIdRejectedError(u8[6]));
             return;
           }
+          // A reply for another protocol is not ours: a late reply to a command that
+          // timed out would otherwise be taken as this one's answer (a matrix poll's
+          // reply read as the layer state, say).
+          if (u8[5] !== VIA_PREFIX) return;
 
           // Additional validation if provided
           if (options.validateInput) {
@@ -862,6 +866,8 @@ export class SvilUSB {
             reject(new Error(`Svil protocol error: code ${errorCode}`));
             return;
           }
+          // A VIA reply (a late answer to a command that timed out) is not ours.
+          if (u8[5] !== SVIL_PREFIX) return;
 
           // Additional validation if provided
           if (options.validateInput) {

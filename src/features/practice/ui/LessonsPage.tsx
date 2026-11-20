@@ -167,8 +167,9 @@ export default function LessonsPage({ active = true }: { active?: boolean }) {
     const included = useMemo(() => new Set(lessonKeys?.findIncludedKeys().map((k) => k.letter.codePoint) ?? []), [lessonKeys]);
     const locked = useMemo(() => new Set(lessonKeys?.findExcludedKeys().map((k) => k.letter.codePoint) ?? []), [lessonKeys]);
 
-    // The latest keymap object: its paths match the session's (same fingerprint), its colors may be newer.
-    const board = controller?.keymap?.board ?? session?.keymap.board ?? keyboard;
+    // The practiced keymap's latest object: its paths match the session's (same fingerprint), its colors
+    // may be newer. A change not yet confirmed, or waiting for this lesson to end, isn't drawn.
+    const board = controller?.practicedBoard ?? session?.keymap.board ?? keyboard;
     const units = board ? boardSize(board).width : 25;
     const fit = fitBoard(width, units, { height: availableHeight, boardHeight: board ? boardSize(board).height : 7.5 });
     const defaultLayer = session?.keymap.defaultLayer ?? 0;

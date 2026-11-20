@@ -518,7 +518,10 @@ export class KeyboardService {
      * advertises SVIL_FLAG_DEFAULT_LAYER_STATE (it follows the active mask in the reply).
      */
     async getLayerStateMasks(kbinfo: KeyboardInfo): Promise<{ active: number; default: number | null }> {
-        const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_GET, [], { uint8: true }) as Uint8Array;
+        // Only a reply that echoes 0x16: another Sval command's late reply must not read as a layer change.
+        const reply = await this.usb.sendSvil(SvilUSB.CMD_SVIL_LAYER_STATE_GET, [], {
+            uint8: true, validateInput: (u) => u[0] === SvilUSB.CMD_SVIL_LAYER_STATE_GET,
+        }) as Uint8Array;
         const view = new DataView(reply.buffer, reply.byteOffset, reply.byteLength);
         const hasDefault = ((kbinfo.feature_flags ?? 0) & SVIL_FLAG_DEFAULT_LAYER_STATE) !== 0;
         return { active: view.getUint32(1, true), default: hasDefault ? view.getUint32(5, true) : null };
