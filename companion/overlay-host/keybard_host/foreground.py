@@ -236,6 +236,17 @@ class _MacOS:
     def foreground(self):
         return self.pooled(lambda: self.app(self.send(self.workspace(), 'frontmostApplication')))
 
+    def foreground_window(self):
+        """(process ID, app, None): the app's process stands for its window, so site rules can ask
+        the browser for its front tab (address_bar.MacAddressBar). macOS gives no window title
+        without the Accessibility permission, so site rules read again every second instead."""
+        def work():
+            running = self.send(self.workspace(), 'frontmostApplication')
+            if not running: return None, None, None
+            pid = self.send(running, 'processIdentifier', ctypes.c_int)
+            return (pid if pid and pid > 0 else None), self.app(running), None
+        return self.pooled(work)
+
     def running(self):
         def work():
             apps = self.send(self.workspace(), 'runningApplications')
@@ -299,6 +310,25 @@ class _Hyprland:
     def running(self):
         value = _run_json(['hyprctl', 'clients', '-j'], self.run)
         return [(c['class'], c['class']) for c in value or [] if isinstance(c, dict) and c.get('class')]
+
+
+class _Kde:
+    """KDE Plasma on Wayland, through kdotool (it asks KWin with a short script): the active
+    window's resource class, which is the Wayland app_id (or the X11 class under XWayland).
+    Untested on a real Plasma desktop."""
+    def __init__(self, run=None):
+        self.run = run or (lambda c: subprocess.run(c, capture_output=True, text=True, timeout=1).stdout)
+
+    def foreground(self):
+        try: out = (self.run(['kdotool', 'getactivewindow', 'getwindowclassname']) or '').strip()
+        except (OSError, subprocess.SubprocessError): return None
+        key = out.splitlines()[0].strip() if out else ''
+        return (key, key) if key else None
+
+    def running(self):
+        # kdotool lists windows only by search: the app in front is offered alone.
+        front = self.foreground()
+        return [front] if front else []
 
 
 class _X11:
@@ -374,12 +404,14 @@ class _Nothing:
 
 
 def linux_source(environ=None, which=shutil.which):
-    """Wayland: the compositor's own tool where there is one (sway, Hyprland); others (GNOME, KDE)
-    don't tell other apps which window is in front, so nothing. X11: libX11."""
+    """Wayland: the compositor's own tool where there is one (sway, Hyprland, KDE Plasma with
+    kdotool); others (GNOME) don't tell other apps which window is in front, so nothing. X11: libX11."""
     environ = os.environ if environ is None else environ
     if environ.get('SWAYSOCK') and which('swaymsg'): return _Sway()
     if environ.get('HYPRLAND_INSTANCE_SIGNATURE') and which('hyprctl'): return _Hyprland()
     if environ.get('WAYLAND_DISPLAY') or environ.get('XDG_SESSION_TYPE') == 'wayland':
+        desktops = (environ.get('XDG_CURRENT_DESKTOP') or '').split(':')
+        if any(d.upper() == 'KDE' for d in desktops) and which('kdotool'): return _Kde()
         # XWayland's _NET_ACTIVE_WINDOW goes stale while a Wayland window is in front: never use it.
         return _Nothing()
     if environ.get('DISPLAY'):

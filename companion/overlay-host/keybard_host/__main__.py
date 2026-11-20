@@ -431,7 +431,9 @@ class Host(QObject):
         # Site rules: a browser's address bar is read only while a connected board has a site
         # rule, off this thread; the host name is matched and dropped (site_rules.py).
         self.log_app_rules, self.logged_app = log_app_rules, None
-        self.site_watcher = SiteWatcher(lambda done: TimedReader(done=done), notify=self.site_read.emit)
+        # macOS asks the browser through Apple Events: slower, and no tab title to notice a tab change.
+        timing = dict(timeout=0.6, reread=1.0) if sys.platform == 'darwin' else {}
+        self.site_watcher = SiteWatcher(lambda done: TimedReader(done=done), notify=self.site_read.emit, **timing)
         self.site_read.connect(self.poll_foreground)
         self.foreground_hook = ForegroundHook(lambda: self.poll_foreground())
         self.foreground_timer = QTimer(self); self.foreground_timer.timeout.connect(self.poll_foreground); self.foreground_timer.start(250)

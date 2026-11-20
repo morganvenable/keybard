@@ -2,7 +2,9 @@
 
 Windows: the browser's address bar through UI Automation (the accessibility interface screen
 readers use), so no browser extension is needed. Chrome, Edge, Brave, Vivaldi and Firefox.
-macOS and Linux: not yet; a site rule's browser then counts as the program (see NoAddressBar).
+macOS: Safari and the Chromium-based browsers are asked for their front tab through Apple Events
+(osascript), once the person allows it, per browser (MacAddressBar).
+Linux: browsers offer no way without an extension; a site rule's browser counts as the program.
 
 Privacy: only the host name ("cad.onshape.com") leaves this module, never the address, and
 nothing here logs or keeps it. The caller keeps only the site rule it matched.
@@ -12,6 +14,7 @@ they run on one thread of their own and the caller never waits (see TimedReader)
 """
 import ctypes
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -20,7 +23,14 @@ import time
 # name the address bar's edit box first in their tree; Firefox's has the automation ID urlbar-input.
 CHROMIUM = frozenset(('chrome.exe', 'msedge.exe', 'brave.exe', 'vivaldi.exe', 'chromium.exe'))
 FIREFOX = frozenset(('firefox.exe',))
-BROWSERS = CHROMIUM | FIREFOX
+# macOS, by bundle ID (lowered): Safari has its own words for the front tab; the rest are Chromium.
+MAC_SAFARI = frozenset(('com.apple.safari', 'com.apple.safaritechnologypreview'))
+MAC_CHROMIUM = frozenset((
+    'com.google.chrome', 'com.google.chrome.beta', 'com.google.chrome.dev', 'com.google.chrome.canary',
+    'com.microsoft.edgemac', 'com.microsoft.edgemac.beta', 'com.microsoft.edgemac.dev',
+    'com.brave.browser', 'com.brave.browser.beta', 'company.thebrowser.browser', 'com.vivaldi.vivaldi',
+    'org.chromium.chromium'))
+BROWSERS = CHROMIUM | FIREFOX | MAC_SAFARI | MAC_CHROMIUM
 
 KEEP = 'keep'  # the address bar has the keyboard: the person is typing, so keep the last host
 
@@ -196,11 +206,52 @@ class WindowsAddressBar:
         if self.uia: self._release(self.uia); self.uia = ctypes.c_void_p()
 
 
+# ---------------------------------------------------------------- macOS: Apple Events
+
+_BUNDLE_ID = re.compile(r'^[A-Za-z0-9.-]+$')
+NOT_PERMITTED = '-1743'  # errAEEventNotPermitted: the person said no
+
+
+def front_tab_script(bundle_id):
+    """The AppleScript that asks a browser (by bundle ID, already in front) for its front tab's address."""
+    if not bundle_id or not _BUNDLE_ID.match(bundle_id): return None
+    lowered = ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in bundle_id)
+    tab = 'current tab' if lowered in MAC_SAFARI else 'active tab'
+    return f'tell application id "{bundle_id}" to return URL of {tab} of front window'
+
+
+class MacAddressBar:
+    """Asks the browser in front for its front tab's address through osascript. A browser the person
+    said no to counts as its program until the Host restarts (macOS won't ask again anyway).
+    Untested on a Mac."""
+    TIMEOUT = 1.5
+
+    def __init__(self, run=None):
+        self.run = run or (lambda c: subprocess.run(c, capture_output=True, text=True, timeout=self.TIMEOUT))
+        self.denied = set()
+
+    def host(self, window, browser):
+        key = (browser or '').lower()
+        if key in self.denied: return None
+        script = front_tab_script(browser)
+        if not script: return None
+        try: done = self.run(['/usr/bin/osascript', '-e', script])
+        except (OSError, subprocess.SubprocessError): return None
+        if done.returncode != 0:
+            if NOT_PERMITTED in (done.stderr or ''): self.denied.add(key)
+            return None
+        return host_of_address(done.stdout)
+
+    def forget(self, window): pass
+    def close(self): pass
+
+
 def make_address_bar(platform=None):
     platform = platform or sys.platform
     if platform == 'win32':
         try: return WindowsAddressBar()
         except (OSError, AttributeError, ValueError): return NoAddressBar()
+    if platform == 'darwin': return MacAddressBar()
     return NoAddressBar()
 
 

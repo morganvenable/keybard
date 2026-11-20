@@ -352,11 +352,22 @@ class LinuxLookupTests(unittest.TestCase):
         self.assertIsNone(foreground._Hyprland(run=fail).foreground())
         self.assertEqual(foreground._Sway(run=lambda c: 'not json').running(), [])
 
+    def test_kde_through_kdotool(self):
+        kde = foreground._Kde(run=lambda command: 'org.kde.dolphin\n')
+        self.assertEqual(kde.foreground(), ('org.kde.dolphin', 'org.kde.dolphin'))
+        self.assertEqual(kde.running(), [('org.kde.dolphin', 'org.kde.dolphin')])
+        def fail(command): raise OSError('not found')
+        self.assertIsNone(foreground._Kde(run=fail).foreground())
+        self.assertIsNone(foreground._Kde(run=lambda c: '').foreground())
+
     def test_source_choice(self):
         has = lambda name: f'/usr/bin/{name}'
         self.assertIsInstance(foreground.linux_source(dict(SWAYSOCK='/s', WAYLAND_DISPLAY='wayland-1'), has), foreground._Sway)
         self.assertIsInstance(foreground.linux_source(dict(HYPRLAND_INSTANCE_SIGNATURE='x', WAYLAND_DISPLAY='w'), has), foreground._Hyprland)
-        # GNOME or KDE on Wayland: never XWayland's stale active window.
+        kde = dict(WAYLAND_DISPLAY='wayland-0', DISPLAY=':0', XDG_CURRENT_DESKTOP='KDE')
+        self.assertIsInstance(foreground.linux_source(kde, has), foreground._Kde)
+        self.assertIsInstance(foreground.linux_source(kde, lambda n: None), foreground._Nothing)
+        # GNOME (or KDE without kdotool) on Wayland: never XWayland's stale active window.
         self.assertIsInstance(foreground.linux_source(dict(WAYLAND_DISPLAY='wayland-0', DISPLAY=':0'), has), foreground._Nothing)
         self.assertIsInstance(foreground.linux_source(dict(SWAYSOCK='/s', WAYLAND_DISPLAY='w'), lambda n: None), foreground._Nothing)
         self.assertIsInstance(foreground.linux_source({}, has), foreground._Nothing)

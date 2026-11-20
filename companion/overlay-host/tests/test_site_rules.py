@@ -312,8 +312,7 @@ class TimedReaderTests(unittest.TestCase):
         timed.request(1, 1, 'chrome.exe')
         self.assertTrue(finished.wait(2)); self.assertEqual(results, [None])
 
-    def test_other_systems_read_nothing(self):
-        self.assertIsInstance(address_bar.make_address_bar('darwin'), NoAddressBar)
+    def test_linux_reads_nothing(self):
         self.assertIsInstance(address_bar.make_address_bar('linux'), NoAddressBar)
 
 
@@ -473,3 +472,42 @@ class HostChoiceTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MacAddressBarTests(unittest.TestCase):
+    """macOS website rules through Apple Events, with osascript stubbed (no Mac here)."""
+
+    def done(self, code=0, out='', err=''):
+        return types.SimpleNamespace(returncode=code, stdout=out, stderr=err)
+
+    def test_scripts_name_the_browser_by_bundle_id(self):
+        self.assertEqual(address_bar.front_tab_script('com.apple.Safari'),
+                         'tell application id "com.apple.Safari" to return URL of current tab of front window')
+        self.assertIn('active tab of front window', address_bar.front_tab_script('com.google.Chrome'))
+        self.assertIsNone(address_bar.front_tab_script('x" & do shell script "y'))
+        for browser in ('com.apple.Safari', 'com.google.Chrome', 'com.microsoft.edgemac', 'com.brave.Browser',
+                        'company.thebrowser.Browser'):
+            self.assertIn(browser.lower(), address_bar.BROWSERS)
+
+    def test_the_host_only_and_a_refusal_is_remembered(self):
+        calls = []
+        replies = [self.done(out='https://cad.onshape.com/documents/abc?x=1\n'),
+                   self.done(1, err='execution error: Not authorized to send Apple events to Google Chrome. (-1743)')]
+        bar = address_bar.MacAddressBar(run=lambda c: calls.append(c) or replies.pop(0))
+        self.assertEqual(bar.host(42, 'com.apple.Safari'), 'cad.onshape.com')
+        self.assertEqual(bar.host(43, 'com.google.Chrome'), None)
+        self.assertEqual(bar.host(43, 'com.google.Chrome'), None)
+        self.assertEqual(len(calls), 2, 'never asks again after a refusal')
+        self.assertEqual(calls[0][:2], ['/usr/bin/osascript', '-e'])
+
+    def test_other_failures_are_the_program_and_ask_again(self):
+        bar = address_bar.MacAddressBar(run=lambda c: self.done(1, err='(-1728) no window'))
+        self.assertIsNone(bar.host(1, 'com.apple.Safari'))
+        self.assertNotIn('com.apple.safari', bar.denied)
+
+        def slow(c): raise address_bar.subprocess.TimeoutExpired(c, 1.5)
+        self.assertIsNone(address_bar.MacAddressBar(run=slow).host(1, 'com.apple.Safari'))
+
+    def test_made_on_macos(self):
+        self.assertIsInstance(address_bar.make_address_bar('darwin'), address_bar.MacAddressBar)
+        self.assertIsInstance(address_bar.make_address_bar('linux'), NoAddressBar)
