@@ -108,7 +108,13 @@ class SiteWatcher:
             if entry is None: return
             entry['token'], entry['read_at'] = None, self.clock()
             if entry['asked_title'] != entry['title']: return  # another tab came up meanwhile: read again
-            if host != KEEP: entry['host'] = host  # KEEP: the person is typing an address; keep the last host
+            if host != KEEP:
+                entry['host'], entry['host_title'] = host, entry['title']
+            elif entry.get('host_title') != entry['title']:
+                # KEEP is the person typing an address: the last host stands only for the tab it was read
+                # on. Another tab (a new tab, a tab whose address bar has the keyboard) has no host yet,
+                # so the program applies until its address is read: never the last tab's site rule.
+                entry['host'], entry['host_title'] = None, entry['title']
             entry['known'] = True
         if self.notify: self.notify()
 
@@ -121,7 +127,7 @@ class SiteWatcher:
             entry = self.windows.get(window)
             if entry is None:
                 if len(self.windows) >= 32: self.windows.pop(next(iter(self.windows)))
-                entry = self.windows[window] = dict(title=title, host=None, known=False, read_at=None, asked_at=None, asked_title=None, token=None)
+                entry = self.windows[window] = dict(title=title, host=None, host_title=None, known=False, read_at=None, asked_at=None, asked_title=None, token=None)
             changed = entry['title'] != title
             if changed:
                 entry['title'], entry['known'] = title, False

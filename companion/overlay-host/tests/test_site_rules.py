@@ -188,6 +188,22 @@ class WatcherTests(unittest.TestCase):
         self.clock.t += 6; self.watcher.host_for(1, 'chrome.exe', 'A'); self.reader.answer(KEEP)
         self.assertEqual(self.watcher.host_for(1, 'chrome.exe', 'A'), 'cad.onshape.com')
 
+    def test_a_new_tab_with_the_address_bar_focused_is_the_program_not_the_last_site(self):
+        # Leaving practice.svalboard.com for a new tab (Ctrl+T): the new tab's address bar has the
+        # keyboard, so the read is KEEP. The practice tab's host must not carry over to it.
+        self.watcher.host_for(1, 'brave.exe', 'Practice'); self.reader.answer('practice.svalboard.com')
+        self.assertIs(self.watcher.host_for(1, 'brave.exe', 'New Tab'), PENDING)
+        self.reader.answer(KEEP)
+        self.assertIsNone(self.watcher.host_for(1, 'brave.exe', 'New Tab'))
+        self.clock.t += 6; self.watcher.host_for(1, 'brave.exe', 'New Tab'); self.reader.answer(KEEP)
+        self.assertIsNone(self.watcher.host_for(1, 'brave.exe', 'New Tab'))  # still typing: still none
+
+    def test_back_to_a_tab_typing_in_its_address_bar_is_unknown_until_read(self):
+        self.watcher.host_for(1, 'chrome.exe', 'Onshape'); self.reader.answer('cad.onshape.com')
+        self.watcher.host_for(1, 'chrome.exe', 'Gmail'); self.reader.answer('mail.google.com')
+        self.watcher.host_for(1, 'chrome.exe', 'Onshape'); self.reader.answer(KEEP)
+        self.assertIsNone(self.watcher.host_for(1, 'chrome.exe', 'Onshape'))  # never Gmail's host
+
     def test_windows_are_kept_apart(self):
         self.watcher.host_for(1, 'chrome.exe', 'A'); self.reader.answer('a.com')
         self.watcher.host_for(2, 'msedge.exe', 'A'); self.reader.answer('b.com')
