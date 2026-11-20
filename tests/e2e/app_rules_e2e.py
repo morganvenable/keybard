@@ -3,16 +3,23 @@ Browser flow of the App Layers panel (app rules) against the simulated Svalboard
 with GET_INFO byte 22 bit 0 and the 0x40/0x41 commands). Headless, 1440 x 900, light and dark.
 Run with `npm run test:e2e:app-rules`.
 
-  1. ?panel=app-layers opens the App Layers panel, "0 of 64 max", with More marked on the rail
-     (App Layers has no rail item of its own). More lists Overrides, Alt-Repeat and App Layers, and
-     its App Layers entry opens the panel again; ?panel=app-rules (the older name) opens it too.
-  2. Add a rule, type notepad.exe: the label follows the app.
+  1. ?panel=app-layers opens the App Layers panel, "0 of 64 rules", the App Layers switch on, with
+     More marked on the rail (App Layers has no rail item of its own). More lists Overrides,
+     Alt-Repeat and App Layers, and its App Layers entry opens the panel again; ?panel=app-rules
+     (the older name) opens it too.
+  2. Add a rule: empty, on, with a sample placeholder; type notepad.exe.
   3. Pick a default layer and a front layer; set one pill on and one off.
-  4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule.
+  4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule (format 2, packed,
+     the text stored whole).
   4b. Website: a second rule for https://cad.onshape.com/documents keeps the whole site (never
-     onshape.com): the hint says exactly what it matches; the board holds site:cad.onshape.com's ID
-     and, as the site is past 13 bytes, its end as the label.
-  5. Reload (the board keeps its settings): the rules read back from the board, the second as Website.
+     onshape.com): the hint says what it matches; the board holds site:cad.onshape.com's ID, the
+     website flag and the whole site.
+  4c. The rule's own switch: off sets its flag on the board; on clears it.
+  4d. The App Layers switch: off sets header byte 2 bit 0 on the board and shows off; on clears it.
+  4e. No text in the panel is cut off: every control's label fits (scrollWidth <= clientWidth, and a
+     select's chosen option fits its box).
+  5. Reload (the board keeps its settings): the rules read back from the board, the second as
+     Website with its whole site, without this browser remembering it.
   6. Bottom bar: the section shows there too.
   6b. Bottom bar: More lists App Layers too.
   7. Older firmware (?fakeBoard=old): More lists Overrides and Alt-Repeat, no App Layers; no editor.
@@ -31,6 +38,43 @@ SHOTS = os.environ.get("E2E_SHOTS")
 FW = "window.keybardFakeBoard.device.firmware"
 NOTEPAD_ID = 0xB884A32C
 CAD_ONSHAPE_ID = 0x7E364D67  # site:cad.onshape.com
+
+# Every control and label in the App Layers panel whose text is cut off: [description, ...].
+# Selects show their chosen option, which scrollWidth doesn't measure: its text is measured instead.
+CLIPPED_JS = """
+(root) => {
+  const out = [];
+  const canvas = document.createElement('canvas').getContext('2d');
+  for (const el of root.querySelectorAll('select, button, label, span, p, input[type=text], h3')) {
+    const r = el.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1) continue; // hidden, or for screen readers only
+    if (el.tagName === 'SELECT') {
+      const cs = getComputedStyle(el);
+      canvas.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const text = el.options[el.selectedIndex]?.text ?? '';
+      const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      if (canvas.measureText(text).width > room + 0.5) out.push(`select ${el.getAttribute('aria-label')}: "${text}" in ${room.toFixed(0)}px`);
+      continue;
+    }
+    if (el.tagName === 'INPUT') {
+      if (el.scrollWidth > el.clientWidth + 1 && el.value) out.push(`input ${el.getAttribute('aria-label')}: "${el.value}"`);
+      continue;
+    }
+    if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible') out.push(`${el.tagName.toLowerCase()} "${el.textContent.trim().slice(0, 40)}"`);
+    if (getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth) out.push(`ellipsis "${el.textContent.trim().slice(0, 40)}"`);
+  }
+  return out;
+}
+"""
+
+
+def rule_offsets(rec):
+    """The offsets of a format 2 record's rules."""
+    out, o = [], 4
+    for _ in range(rec[1]):
+        out.append(o)
+        o += 12 + rec[o + 11]
+    return out
 
 
 def main() -> int:
@@ -58,7 +102,10 @@ def main() -> int:
             expect(section).to_be_visible(timeout=20000)
 
             # 1.
-            check(page.get_by_test_id("app-rules-count").inner_text() == "0 of 64 max", f"{theme}: empty list, 64 max")
+            check(page.get_by_test_id("app-rules-count").inner_text() == "0 of 64 rules", f"{theme}: empty list, 64 max")
+            check(page.get_by_test_id("app-rules-bytes").inner_text() == "4 of 1792 bytes used", f"{theme}: bytes used")
+            switch = page.get_by_role("group", name="App Layers", exact=True)
+            check(switch.locator("button[aria-pressed='true']").inner_text() == "ON", f"{theme}: App Layers on")
             check(page.locator("[data-app-layers-panel]").count() == 1, f"{theme}: in the App Layers panel")
             more = page.get_by_role("button", name="More", exact=True)
             check(page.get_by_role("button", name="App Layers", exact=True).count() == 0, f"{theme}: no App Layers rail item")
@@ -83,8 +130,11 @@ def main() -> int:
             section.get_by_role("button", name="Add rule").click()
             rule = section.locator("[data-app-rule='0']")
             expect(rule).to_be_visible()
-            rule.get_by_test_id("app-rule-key").fill("notepad.exe")
-            check(rule.get_by_test_id("app-rule-label").input_value() == "notepad.exe", f"{theme}: label follows the app")
+            key = rule.get_by_test_id("app-rule-key")
+            check(key.input_value() == "" and key.get_attribute("placeholder") in ("program.exe", "com.example.app", "program"),
+                  f"{theme}: a new rule is empty, with a sample placeholder ({key.get_attribute('placeholder')!r})")
+            check(rule.get_by_role("group", name="Rule 1").locator("button[aria-pressed='true']").inner_text() == "ON", f"{theme}: a new rule is on")
+            key.fill("notepad.exe")
             names = (rule.get_by_text("Turn on layer").count(), rule.get_by_text("Other layers while the app is in front").count(),
                      rule.get_by_text("Front layer").count())
             check(names[0] >= 1 and names[1] == 1 and names[2] == 0, f"{theme}: plain labels {names}")
@@ -105,11 +155,13 @@ def main() -> int:
             page.wait_for_function(f"{FW}.state.appRules[1] === 1 && {FW}.appRulesOps.includes(4)", timeout=5000)
             ops = page.evaluate(f"{FW}.appRulesOps")
             check(ops.count(3) == 1 and ops.count(4) == 1, f"{theme}: one BEGIN and one COMMIT for the burst ({ops!r})")
-            rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(0, 28))")
+            rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(0, 64))")
             app = rec[4] | (rec[5] << 8) | (rec[6] << 16) | (rec[7] << 24)
+            check(rec[0] == 2, f"{theme}: format 2 record")
             check(app == NOTEPAD_ID, f"{theme}: the board holds notepad.exe's ID ({app:#x})")
             check(rec[8] == 1 and rec[9] == 2, f"{theme}: default layer 1, front layer 2 ({rec[8]}, {rec[9]})")
             check((rec[10] | rec[11] << 8) == 1 << 3 and (rec[12] | rec[13] << 8) == 1 << 4, f"{theme}: on mask layer 3, off mask layer 4")
+            check(rec[14] == 0 and bytes(rec[16:16 + rec[15]]).decode() == "notepad.exe", f"{theme}: on, text notepad.exe")
             page.mouse.move(0, 0)
             if SHOTS:
                 section.scroll_into_view_if_needed()
@@ -123,17 +175,39 @@ def main() -> int:
             expect(site_rule).to_be_visible()
             site_rule.get_by_test_id("app-rule-kind").select_option("site")
             check(site_rule.get_by_test_id("app-rule-pick").count() == 0, f"{theme}: no running-app picker for a website")
+            check(site_rule.get_by_test_id("app-rule-site").get_attribute("placeholder") == "example.com", f"{theme}: website sample placeholder")
             site_rule.get_by_test_id("app-rule-site").fill("https://cad.onshape.com/documents")
-            check(site_rule.get_by_test_id("app-rule-label").input_value() == "…nshape.com", f"{theme}: a long website's label is its end")
-            check(site_rule.get_by_test_id("app-rule-label").get_attribute("readonly") is not None, f"{theme}: website label is read-only")
             hint = site_rule.get_by_test_id("app-rule-site-hint").inner_text()
-            check("Matches cad.onshape.com and every address under it (*.cad.onshape.com), not the rest of onshape.com" in hint, f"{theme}: website hint ({hint!r})")
+            check(hint == "Matches cad.onshape.com and every address under it.", f"{theme}: website hint ({hint!r})")
             site_rule.get_by_test_id("app-rule-front").select_option("3")
-            page.wait_for_function(f"{FW}.state.appRules[1] === 2 && {FW}.state.appRules[33] === 3", timeout=5000)
-            rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(28, 52))")
-            sid = rec[0] | (rec[1] << 8) | (rec[2] << 16) | (rec[3] << 24)
-            label = bytes(rec[11:24]).split(b"\0", 1)[0].decode()
-            check(sid == CAD_ONSHAPE_ID and label == "…nshape.com", f"{theme}: the board holds site:cad.onshape.com ({sid:#x}, {label!r})")
+            page.wait_for_function(f"{FW}.state.appRules[1] === 2 && {FW}.state.appRules[27 + 5] === 3", timeout=5000)
+            rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(0, 80))")
+            o = rule_offsets(rec)[1]
+            sid = rec[o] | (rec[o + 1] << 8) | (rec[o + 2] << 16) | (rec[o + 3] << 24)
+            text = bytes(rec[o + 12:o + 12 + rec[o + 11]]).decode()
+            check(sid == CAD_ONSHAPE_ID and text == "cad.onshape.com" and rec[o + 10] == 2,
+                  f"{theme}: the board holds site:cad.onshape.com whole ({sid:#x}, {text!r}, flags {rec[o + 10]})")
+
+            # 4c.
+            site_rule.get_by_role("group", name="Rule 2").get_by_role("button", name="OFF").click()
+            page.wait_for_function(f"({FW}.state.appRules[27 + 10] & 1) === 1", timeout=5000)
+            check(site_rule.get_attribute("data-rule-on") == "false", f"{theme}: rule 2 off on the board")
+            site_rule.get_by_role("group", name="Rule 2").get_by_role("button", name="ON").click()
+            page.wait_for_function(f"({FW}.state.appRules[27 + 10] & 1) === 0", timeout=5000)
+            check(site_rule.get_attribute("data-rule-on") == "true", f"{theme}: rule 2 on again")
+
+            # 4d.
+            switch.get_by_role("button", name="OFF").click()
+            page.wait_for_function(f"({FW}.state.appRules[2] & 1) === 1", timeout=5000)
+            page.wait_for_timeout(300)
+            check(switch.locator("button[aria-pressed='true']").inner_text() == "OFF", f"{theme}: App Layers off on the board, and shown off")
+            switch.get_by_role("button", name="ON").click()
+            page.wait_for_function(f"({FW}.state.appRules[2] & 1) === 0", timeout=5000)
+            check(switch.locator("button[aria-pressed='true']").inner_text() == "ON", f"{theme}: App Layers on again")
+
+            # 4e.
+            clipped = section.evaluate(CLIPPED_JS)
+            check(not clipped, f"{theme}: nothing in the panel is cut off {clipped}")
             page.mouse.move(0, 0)
             if SHOTS:
                 site_rule.scroll_into_view_if_needed()
@@ -154,7 +228,12 @@ def main() -> int:
                   f"{theme}: pills read back ({states!r})")
             site_rule = section.locator("[data-app-rule='1']")
             check(site_rule.get_by_test_id("app-rule-kind").input_value() == "site", f"{theme}: website rule read back as Website")
-            check(site_rule.get_by_test_id("app-rule-site").input_value() == "cad.onshape.com", f"{theme}: site read back (remembered by this browser)")
+            page.evaluate("localStorage.removeItem('keybard-app-rule-keys')")
+            page.reload()
+            wait_connected(page)
+            expect(section).to_be_visible(timeout=20000)
+            site_rule = section.locator("[data-app-rule='1']")
+            check(site_rule.get_by_test_id("app-rule-site").input_value() == "cad.onshape.com", f"{theme}: whole site read back from the board alone")
 
             # 6.
             page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-layers&panelPosition=bottombar")
@@ -162,6 +241,8 @@ def main() -> int:
             expect(section).to_be_visible(timeout=20000)
             check(section.locator("[data-app-rule='0']").count() == 1, f"{theme}: bottom bar shows the rule")
             check(section.locator("[data-app-rule='1'] [data-testid='app-rule-site']").count() == 1, f"{theme}: bottom bar shows the website rule")
+            clipped = section.evaluate(CLIPPED_JS)
+            check(not clipped, f"{theme}: bottom bar: nothing cut off {clipped}")
             if SHOTS:
                 section.scroll_into_view_if_needed()
                 page.wait_for_timeout(200)

@@ -360,7 +360,7 @@ function AppRulesEditor({ compact, inPanel }: { compact: boolean; inPanel: boole
     return (
         <section className="flex flex-col gap-3" data-app-rules data-app-layers-on={enabled} aria-labelledby="app-rules-title">
             <h3 id="app-rules-title" className={cn("font-semibold text-kb-ink", compact ? "text-base" : "text-lg", inPanel && "sr-only")}>App Layers</h3>
-            <div data-testid="app-layers-switch">
+            <div data-testid="app-layers-switch" className="max-w-[560px]">
                 <ToggleRow
                     label="App Layers"
                     hint="Change layers while an app is in front."
