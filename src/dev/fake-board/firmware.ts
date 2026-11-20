@@ -168,6 +168,8 @@ export interface FakeFirmwareOptions {
     autoMouseLayers?: boolean;
     /** Firmware with app rules (0x40, 0x41, GET_INFO byte 22 bit 0). Default true. */
     appRules?: boolean;
+    /** The app rules record format the firmware runs: 2 (default), or 1 (the first app rules firmware: 24-byte rules, read as they are). */
+    appRulesFormat?: 1 | 2;
     /** A PMW3389 trackball on the left half and the touchpad on the right (with touchpad). Default false. */
     leftTrackball?: boolean;
     /** An Azoteq touchpad on each half (0x2C, 0x18), instead of no pointing module. Default false. */
@@ -261,6 +263,7 @@ export class FakeSvalFirmware {
     readonly scrollSpeed: boolean;
     readonly autoMouseLayers: boolean;
     readonly appRules: boolean;
+    readonly appRulesFormat: 1 | 2;
     /** App rules: the edit copy BEGIN fills and WRITE changes; COMMIT puts it in use. */
     private appRulesStaging = new Uint8Array(APP_RULES_RECORD_BYTES);
     /** Every app rules request op (0x41), in order, for tests. */
@@ -365,6 +368,7 @@ export class FakeSvalFirmware {
         this.scrollSpeed = options.scrollSpeed ?? true;
         this.autoMouseLayers = options.autoMouseLayers ?? true;
         this.appRules = options.appRules ?? true;
+        this.appRulesFormat = options.appRulesFormat ?? 2;
         const padBoard = options.touchpad ?? false;
         this.modules = options.modules
             ?? (padBoard ? { left: options.leftTrackball ? "pmw3389" : "azoteq", right: "azoteq" } : { left: "none", right: "none" });
@@ -1413,16 +1417,68 @@ export class FakeSvalFirmware {
 
     // ---- keyboards/svalboard/app_rules_kb.c ------------------------------------
 
-    private appRuleCount(record: Uint8Array): number {
-        return record[0] === 1 ? Math.min(record[1], 64) : 0;
+    /** The rules' offsets in a valid format 2 record (app_rules.c), upgrading a format 1 record first. */
+    private appRuleOffsets(record: Uint8Array): number[] {
+        if (record[0] === 1 && this.appRulesFormat === 1) return Array.from({ length: Math.min(record[1], 64) }, (_, i) => 4 + i * 24);
+        if (record[0] === 1) this.upgradeAppRules(record);
+        if (record[0] !== 2 || record[1] > 64) return [];
+        const out: number[] = [];
+        let o = 4;
+        for (let i = 0; i < record[1]; i++) {
+            if (o + 12 > record.length || record[o + 11] > 64 || o + 12 + record[o + 11] > record.length) return [];
+            out.push(o);
+            o += 12 + record[o + 11];
+        }
+        return out;
     }
 
-    /** The first rule with the app's ID, or -1. */
+    private appRulesUsed(record: Uint8Array): number {
+        const offs = this.appRuleOffsets(record);
+        if (!offs.length) return record[0] === 2 ? 4 : 0;
+        const last = offs[offs.length - 1];
+        return last + 12 + record[last + 11];
+    }
+
+    /** sval_app_rules_upgrade: a format 1 record (24-byte rules, 13-byte labels) as format 2, App Layers on. */
+    private upgradeAppRules(record: Uint8Array): void {
+        const old = record.slice();
+        const count = Math.min(old[1], 64);
+        const out = new Uint8Array(record.length);
+        out[0] = 2; out[1] = count;
+        let o = 4;
+        const fnv = (bytes: Uint8Array) => {
+            let h = 0x811c9dc5;
+            for (const b of bytes) h = Math.imul(h ^ (b >= 65 && b <= 90 ? b + 32 : b), 0x01000193) >>> 0;
+            return h || 1;
+        };
+        for (let i = 0; i < count; i++) {
+            const s = 4 + i * 24;
+            const raw = old.subarray(s + 11, s + 24);
+            const end = raw.indexOf(0);
+            const label = end < 0 ? raw : raw.subarray(0, end);
+            const site = new Uint8Array([...new TextEncoder().encode("site:"), ...label]);
+            const long = label[0] === 0xe2 && label[1] === 0x80 && label[2] === 0xa6; // "…"
+            out.set(old.subarray(s, s + 10), o);
+            out[o + 10] = (old[s + 10] & 1) | (label.length && (fnv(site) === le32(old, s) || long) ? 2 : 0);
+            out[o + 11] = label.length;
+            out.set(label, o + 12);
+            o += 12 + label.length;
+        }
+        record.set(out);
+    }
+
+    /** The first rule that is on with the app's ID, or -1; none while App Layers is off. */
     appRuleFor(id: number): number {
         if (!id) return -1;
         const r = this.state.appRules;
-        for (let i = 0; i < this.appRuleCount(r); i++) if (le32(r, 4 + i * 24) === id >>> 0) return i;
+        if (r[2] & 1) return -1;
+        const offs = this.appRuleOffsets(r);
+        for (let i = 0; i < offs.length; i++) if (!(r[offs[i] + 10] & 1) && le32(r, offs[i]) === id >>> 0) return i;
         return -1;
+    }
+
+    private appFlagsOff(): number {
+        return this.state.appRules[0] === 2 && (this.state.appRules[2] & 1) ? 8 : 0;
     }
 
     private appForegroundLive(): number {
@@ -1441,7 +1497,7 @@ export class FakeSvalFirmware {
             d.fill(0, 1, length);
             const rule = this.appRuleFor(id);
             d[2] = rule < 0 ? 0xff : rule;
-            d[3] = rule < 0 ? 0 : 1;
+            d[3] = (rule < 0 ? 0 : 1) | this.appFlagsOff();
             return;
         }
         if (op === 2) { // CLEAR
@@ -1454,8 +1510,8 @@ export class FakeSvalFirmware {
             d.fill(0, 1, length);
             const id = this.appForegroundLive();
             const rule = this.appRuleFor(id);
-            const o = 4 + rule * 24;
             const r = this.state.appRules;
+            const o = rule < 0 ? 0 : this.appRuleOffsets(r)[rule];
             put32(d, 2, id);
             put16(d, 6, id ? Math.min(0xffff, this.appForegroundUntil - this.timer()) : 0);
             d[8] = rule < 0 ? 0xff : rule;
@@ -1474,7 +1530,7 @@ export class FakeSvalFirmware {
             put32(d, 18, ruleDefault);
             put32(d, 22, this.layerState);
             put32(d, 26, ((((this.layerState | on) & ~off) | (front === 0xff ? 0 : 1 << front)) >>> 0));
-            d[30] = rule < 0 ? 0 : 1 | (ruleDefault !== own ? 2 : 0);
+            d[30] = (rule < 0 ? 0 : 1 | (ruleDefault !== own ? 2 : 0)) | this.appFlagsOff();
             return;
         }
         d.fill(0, 1, length);
@@ -1488,13 +1544,26 @@ export class FakeSvalFirmware {
         const rules = this.state.appRules;
         switch (op) {
             case 0: // INFO
-                if (length < 10) { d[1] = 3; return; }
+                if (this.appRulesFormat === 1) { // the first app rules firmware's INFO
+                    if (length < 10) { d[1] = 3; return; }
+                    d.fill(0, 1, length);
+                    d[2] = 1; d[3] = 64; d[4] = 24;
+                    d[5] = rules[0] === 1 ? Math.min(rules[1], 64) : 0;
+                    put16(d, 6, 1540);
+                    d[8] = 48;
+                    d[9] = LAYERS;
+                    return;
+                }
+                if (length < 14) { d[1] = 3; return; }
                 d.fill(0, 1, length);
-                d[2] = 1; d[3] = 64; d[4] = 24;
-                d[5] = this.appRuleCount(rules);
+                d[2] = 2; d[3] = 64; d[4] = 12;
+                d[5] = this.appRuleOffsets(rules).length;
                 put16(d, 6, APP_RULES_RECORD_BYTES);
                 d[8] = 48;
                 d[9] = LAYERS;
+                put16(d, 10, this.appRulesUsed(rules));
+                d[12] = 64;
+                d[13] = rules[0] === 2 ? rules[2] & 1 : 0;
                 return;
             case 1: // READ [offset:2][len]
             case 2: { // WRITE [offset:2][len][bytes]
@@ -1517,14 +1586,17 @@ export class FakeSvalFirmware {
                 return;
             }
             case 3: // BEGIN
+                this.appRuleOffsets(rules); // a format 1 record is upgraded first
                 this.appRulesStaging.set(rules);
                 d[1] = 0;
                 return;
             case 4: { // COMMIT
                 if (length < 3) { d[1] = 3; return; }
                 const s = this.appRulesStaging;
-                if (s[0] !== 1 || s[1] > 64) { d[1] = 4; return; }
-                s.fill(0, 4 + s[1] * 24); // sval_app_rules_tidy: bytes past the count
+                const blank = s[0] === 0 && s[1] === 0;
+                if (!blank && (s[0] !== 2 || s[1] > 64 || this.appRuleOffsets(s).length !== s[1])) { d[1] = 4; return; }
+                // sval_app_rules_tidy: the header's spare bits and the bytes past the rules
+                if (blank) s.fill(0); else { s[2] &= 1; s[3] = 0; s.fill(0, this.appRulesUsed(s)); }
                 rules.set(s);
                 this.changed();
                 d[1] = 0;

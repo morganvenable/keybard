@@ -71,7 +71,8 @@ export interface FakeBoardState {
     appRules: Uint8Array;
 }
 
-export const APP_RULES_RECORD_BYTES = 4 + 64 * 24;
+/** The app rules record (format 2, packed): header, rules and their text share it. */
+export const APP_RULES_RECORD_BYTES = 1792;
 
 export const STORAGE_KEY = "keybard.fakeBoard.v1";
 

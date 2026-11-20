@@ -218,10 +218,14 @@ export class KeyboardService {
         // App rules (GET_INFO byte 22 bit 0). A failed read leaves them unread (absent), never "none".
         if (hasAppRules(kbinfo.feature_flags5)) {
             try {
-                const { rules } = await readAppRules(this.usb);
+                const { rules, enabled, info } = await readAppRules(this.usb);
                 kbinfo.app_rules = rules.map((rule) => ({ ...rule, key: ruleKey(rule) }));
+                kbinfo.app_layers_enabled = enabled;
+                kbinfo.app_rules_format = info.format;
             } catch (e) {
                 delete kbinfo.app_rules;
+                delete kbinfo.app_layers_enabled;
+                delete kbinfo.app_rules_format;
                 console.warn("App rules not available:", e);
             }
         }

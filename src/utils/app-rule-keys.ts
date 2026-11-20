@@ -1,7 +1,6 @@
-// The board stores only an app rule's 4-byte ID, never the app key it was made from.
-// Keybard remembers each key it hashed, in this browser only, so a rule read back
-// from the board shows "notepad.exe" rather than a number. Shared by every board.
-// A website rule needs none of this: its label is its site (siteOfRule).
+// The board stores each rule's ID and text (the app key as typed, or the site). A rule whose
+// text gives its ID needs nothing more; for one that doesn't (text cut short or empty), Keybard
+// remembers each key it hashed, in this browser only. Shared by every board.
 import { appId, canonicalAppKey, isSiteKey, siteKey, siteOfRule, SITE_PREFIX } from "@/services/app-rules";
 import type { AppRule } from "@/types/keyboard.types";
 import { appStorage } from "@/utils/app-storage";
@@ -46,10 +45,13 @@ export function rememberAppKeys(keys: Iterable<string>): void {
 
 export const rememberAppKey = (key: string): void => rememberAppKeys([key]);
 
-/** The app key of a rule read from the board: a website rule's from its label, else the one remembered. */
-export function ruleKey(rule: Pick<AppRule, "appId" | "label">): string | undefined {
+/** The app key of a rule read from the board: its text when that gives its ID (a site's with `site:`), else the one remembered. */
+export function ruleKey(rule: Pick<AppRule, "appId" | "text">): string | undefined {
     const site = siteOfRule(rule);
-    return site ? SITE_PREFIX + site : appKeyFor(rule.appId);
+    if (site) return SITE_PREFIX + site;
+    const text = (rule.text ?? "").trim();
+    if (text && appId(text) === rule.appId >>> 0) return text;
+    return appKeyFor(rule.appId);
 }
 
 /** The app key remembered for an ID, if any. */

@@ -165,7 +165,10 @@ export function prepareImport(file: KeyboardInfo, current?: KeyboardInfo): Impor
     restoreFragments(file, current, next, warnings);
     // App rules replace the board's whole list, on a board that has them and whose rules were read.
     if (file.app_rules) {
-        if (hasAppRules(current.feature_flags5) && current.app_rules) next.app_rules = structuredClone(file.app_rules.slice(0, APP_RULES_MAX));
+        if (hasAppRules(current.feature_flags5) && current.app_rules) {
+            next.app_rules = structuredClone(file.app_rules.slice(0, APP_RULES_MAX));
+            next.app_layers_enabled = file.app_layers_enabled !== false;
+        }
         else if (file.app_rules.length) unavailable.push('App rules');
     }
     next.settings = { ...current.settings };

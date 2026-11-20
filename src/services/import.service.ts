@@ -221,11 +221,13 @@ export class ImportService {
         }
 
         // App rules: one write of the whole list, to a board that has them and whose rules were read.
-        if (newKb.app_rules && currentKb.app_rules && hasAppRules(currentKb.feature_flags5) && !sameRules(newKb.app_rules, currentKb.app_rules)) {
+        const appLayersOn = newKb.app_layers_enabled !== false;
+        if (newKb.app_rules && currentKb.app_rules && hasAppRules(currentKb.feature_flags5)
+            && (!sameRules(newKb.app_rules, currentKb.app_rules) || appLayersOn !== (currentKb.app_layers_enabled !== false))) {
             const rules = newKb.app_rules;
             rememberAppKeys(rules.map((rule) => rule.key ?? ""));
             await queue("Update app rules", async () => {
-                await writeAppRules(services.appRulesLink ?? usbInstance, rules);
+                await writeAppRules(services.appRulesLink ?? usbInstance, rules, appLayersOn);
             }, { type: "setting", writeKey: "app-rules" });
         }
 
