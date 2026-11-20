@@ -9,8 +9,9 @@ Run with `npm run test:e2e:app-rules`.
   2. Add a rule, type notepad.exe: the label follows the app.
   3. Pick a default layer and a front layer; set one pill on and one off.
   4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule.
-  4b. Website: a second rule for https://cad.onshape.com/documents is kept as onshape.com (13-byte
-     label), with the note and hint; the board holds site:onshape.com's ID and the site as label.
+  4b. Website: a second rule for https://cad.onshape.com/documents keeps the whole site (never
+     onshape.com): the hint says exactly what it matches; the board holds site:cad.onshape.com's ID
+     and, as the site is past 13 bytes, its end as the label.
   5. Reload (the board keeps its settings): the rules read back from the board, the second as Website.
   6. Bottom bar: the section shows there too.
   6b. Bottom bar: More lists App Layers too.
@@ -29,7 +30,7 @@ from playwright.sync_api import expect, sync_playwright  # noqa: E402
 SHOTS = os.environ.get("E2E_SHOTS")
 FW = "window.keybardFakeBoard.device.firmware"
 NOTEPAD_ID = 0xB884A32C
-ONSHAPE_ID = 0xB2AF5B45  # site:onshape.com
+CAD_ONSHAPE_ID = 0x7E364D67  # site:cad.onshape.com
 
 
 def main() -> int:
@@ -123,16 +124,16 @@ def main() -> int:
             site_rule.get_by_test_id("app-rule-kind").select_option("site")
             check(site_rule.get_by_test_id("app-rule-pick").count() == 0, f"{theme}: no running-app picker for a website")
             site_rule.get_by_test_id("app-rule-site").fill("https://cad.onshape.com/documents")
-            check(site_rule.get_by_test_id("app-rule-label").input_value() == "onshape.com", f"{theme}: website label is the site, shortened to fit")
+            check(site_rule.get_by_test_id("app-rule-label").input_value() == "…nshape.com", f"{theme}: a long website's label is its end")
             check(site_rule.get_by_test_id("app-rule-label").get_attribute("readonly") is not None, f"{theme}: website label is read-only")
             hint = site_rule.get_by_test_id("app-rule-site-hint").inner_text()
-            check("Kept as onshape.com" in hint and "Matches onshape.com and every address under it" in hint, f"{theme}: website note and hint ({hint!r})")
+            check("Matches cad.onshape.com and every address under it (*.cad.onshape.com), not the rest of onshape.com" in hint, f"{theme}: website hint ({hint!r})")
             site_rule.get_by_test_id("app-rule-front").select_option("3")
             page.wait_for_function(f"{FW}.state.appRules[1] === 2 && {FW}.state.appRules[33] === 3", timeout=5000)
             rec = page.evaluate(f"Array.from({FW}.state.appRules.slice(28, 52))")
             sid = rec[0] | (rec[1] << 8) | (rec[2] << 16) | (rec[3] << 24)
             label = bytes(rec[11:24]).split(b"\0", 1)[0].decode()
-            check(sid == ONSHAPE_ID and label == "onshape.com", f"{theme}: the board holds site:onshape.com ({sid:#x}, {label!r})")
+            check(sid == CAD_ONSHAPE_ID and label == "…nshape.com", f"{theme}: the board holds site:cad.onshape.com ({sid:#x}, {label!r})")
             page.mouse.move(0, 0)
             if SHOTS:
                 site_rule.scroll_into_view_if_needed()
@@ -153,7 +154,7 @@ def main() -> int:
                   f"{theme}: pills read back ({states!r})")
             site_rule = section.locator("[data-app-rule='1']")
             check(site_rule.get_by_test_id("app-rule-kind").input_value() == "site", f"{theme}: website rule read back as Website")
-            check(site_rule.get_by_test_id("app-rule-site").input_value() == "onshape.com", f"{theme}: site read back from the label")
+            check(site_rule.get_by_test_id("app-rule-site").input_value() == "cad.onshape.com", f"{theme}: site read back (remembered by this browser)")
 
             # 6.
             page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-layers&panelPosition=bottombar")

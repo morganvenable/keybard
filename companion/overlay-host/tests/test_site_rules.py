@@ -103,10 +103,41 @@ class LabelTests(unittest.TestCase):
         # A program rule labeled "onshape.com" keeps its program's ID: not a site rule.
         self.assertEqual(site_rules([(app_id('chrome.exe'), 'onshape.com'), (0, ''), (ONSHAPE, '')]), [])
 
-    def test_thirteen_bytes_hold_the_site(self):
-        self.assertLessEqual(len('onshape.com'.encode()), 13)
-        label = 'docs.onshape.com'.encode()[:13].decode()  # longer sites don't fit: Keybard refuses them
+    def test_a_site_longer_than_the_label_is_kept_whole_by_its_id(self):
+        # practice.svalboard.com is 22 bytes: the label is its end after LONG_MARK, display only.
+        practice = site_id('practice.svalboard.com')
+        self.assertEqual(site_rules([(practice, '…lboard.com')]), [('…lboard.com', practice)])
+        label = 'docs.onshape.com'.encode()[:13].decode()  # cut without the mark: not a site rule
         self.assertEqual(site_rules([(site_id('docs.onshape.com'), label)]), [])
+        self.assertEqual(site_rules([(practice, '…')]), [])
+
+
+class LongSiteTests(unittest.TestCase):
+    """A rule for practice.svalboard.com matches it and the hosts under it, never the rest of svalboard.com."""
+    PRACTICE = site_id('practice.svalboard.com')
+    SITES = [('onshape.com', ONSHAPE), ('…lboard.com', PRACTICE)]
+
+    def test_the_whole_site_and_hosts_under_it(self):
+        self.assertEqual(match_site('practice.svalboard.com', self.SITES), self.PRACTICE)
+        self.assertEqual(match_site('www.practice.svalboard.com', self.SITES), self.PRACTICE)
+        self.assertEqual(match_site('a.practice.svalboard.com', self.SITES), self.PRACTICE)
+
+    def test_never_its_neighbors(self):
+        for host in ('svalboard.com', 'next.keybard.svalboard.com', 'docs.svalboard.com', 'lboard.com',
+                     'notpractice.svalboard.com', 'practice.svalboard.com.evil.net'):
+            self.assertIsNone(match_site(host, self.SITES), host)
+            self.assertEqual(choose_id('brave.exe', host, self.SITES), app_id('brave.exe'), host)
+
+    def test_the_most_specific_rule_wins_whatever_the_order(self):
+        broad = site_id('svalboard.com')
+        for sites in ([('svalboard.com', broad), ('…lboard.com', self.PRACTICE)],
+                      [('…lboard.com', self.PRACTICE), ('svalboard.com', broad)]):
+            self.assertEqual(match_site('practice.svalboard.com', sites), self.PRACTICE)
+            self.assertEqual(match_site('docs.svalboard.com', sites), broad)
+
+    def test_a_site_that_fits_matches_as_before(self):
+        self.assertEqual(match_site('cad.onshape.com', self.SITES), ONSHAPE)
+        self.assertEqual(match_site('localhost', [('localhost', site_id('localhost'))]), site_id('localhost'))
 
 
 # ---------------------------------------------------------------- the reads, off the Host's thread

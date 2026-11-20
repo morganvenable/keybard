@@ -10,7 +10,7 @@ import { pickableLayers } from "@/utils/automouse-layers";
 import { cn } from "@/lib/utils";
 import {
     APP_MASK_LAYERS, APP_RULE_LABEL_BYTES, APP_RULES_MAX, appId, appIdHex, cycleMask, hasAppRules, isSiteKey, maskState,
-    readAppForeground, SITE_PREFIX, siteNote, siteProblem, truncateUtf8, withSite, writeAppRules,
+    readAppForeground, SITE_PREFIX, siteMatches, siteProblem, truncateUtf8, withSite, writeAppRules,
 } from "@/services/app-rules";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
@@ -27,8 +27,8 @@ const PLATFORM_HINTS: Record<HostPlatform, { name: string; what: string; example
 };
 
 /** Website rules: Keybard Host reads the browser's address on Windows only, for now. */
-const SITE_EMPTY = `Type a site, like onshape.com: it matches every address under it too. At most ${APP_RULE_LABEL_BYTES} characters.`;
-const siteHint = (site: string) => `Matches ${site} and every address under it, in Chrome, Edge, Brave, Vivaldi and Firefox. Other tabs count as the browser.`;
+const SITE_EMPTY = "Type a site, like onshape.com: it matches every address under it too.";
+const siteHint = (matches: string) => `${matches}, in Chrome, Edge, Brave, Vivaldi and Firefox. Other tabs count as the browser.`;
 const SITE_ELSEWHERE = "Keybard Host reads browser addresses only on Windows for now: here the browser counts as its program.";
 
 function guessPlatform(): HostPlatform {
@@ -84,7 +84,7 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
     const website = isSiteKey(key);
     const typedSite = website ? key.replace(/^[ \t]*site:/i, "") : "";
     const problem = website ? siteProblem(typedSite) : null;
-    const note = website ? siteNote(typedSite) : null;
+    const matches = website ? siteMatches(typedSite) : null;
     const unknown = !key && rule.appId !== 0;
     const setKey = (next: string) => {
         const oldDefault = truncateUtf8(key.trim());
@@ -186,7 +186,7 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                     role={problem ? "alert" : undefined}
                     className={cn("text-xs leading-snug", compact ? "pl-0" : "pl-7", problem ? "text-kb-warn-ink" : "text-muted-foreground")}
                 >
-                    {problem ?? (platform !== "windows" ? SITE_ELSEWHERE : !rule.appId ? SITE_EMPTY : `${note ? `${note} ` : ""}${siteHint(rule.label)}`)}
+                    {problem ?? (platform !== "windows" ? SITE_ELSEWHERE : !rule.appId || !matches ? SITE_EMPTY : siteHint(matches))}
                 </p>
             )}
             <div className={cn("flex items-end gap-2", compact ? "pl-0" : "pl-7")}>
@@ -200,7 +200,7 @@ function RuleCard({ keyboard, rule, index, count, active, hostApps, platform, co
                         value={rule.label}
                         readOnly={website}
                         title={website
-                            ? "A website rule's label is its site: the board keeps it so Keybard Host knows which site to look for"
+                            ? "A website rule's label is its site (a long one's end): the board keeps it so Keybard Host knows the rule is for a website"
                             : `Shown when Keybard doesn't know the app; at most ${APP_RULE_LABEL_BYTES} bytes`}
                         onChange={(e) => { if (!website) onChange({ ...rule, label: truncateUtf8(e.target.value) }); }}
                     />

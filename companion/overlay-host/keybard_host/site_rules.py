@@ -1,13 +1,20 @@
 """Site rules: app rules for a website, so a rule can follow Onshape in Chrome rather than Chrome.
 
-A site rule's app key is `site:<site>` (`site:onshape.com`): the board stores its hash as the
-rule's app ID like any other, and the site itself as the rule's label (13 bytes), so the Host
-reads the sites back from the board. A rule counts as a site rule only when its ID is the hash of
-`site:` + its label, so a program rule whose label happens to look like a site never does.
+A site rule's app key is `site:<site>` (`site:onshape.com`, `site:practice.svalboard.com`): the
+board stores its hash as the rule's app ID like any other. The site matches its host name and
+every host under it: `onshape.com` matches `onshape.com`, `cad.onshape.com` and `www.onshape.com`,
+never `notonshape.com`. Where several match, the most specific (longest) wins.
 
-The site matches its host name and every host under it: `onshape.com` matches `onshape.com`,
-`cad.onshape.com` and `www.onshape.com`, never `notonshape.com`. Where several match, the most
-specific (longest) wins. Keybard's src/services/app-rules.ts normalizes sites the same way.
+Matching is by hash, never by the label: for the tab's host name the Host hashes `site:` + the
+host and + each name above it (`site:a.practice.svalboard.com`, `site:practice.svalboard.com`,
+`site:svalboard.com`, `site:com`) and looks for those IDs among the site rules. So a site longer
+than the label's 13 bytes matches exactly what was typed, never a shorter end of it.
+
+The label only tells the Host which rules are site rules (so it reads addresses only when some
+rule needs them): a site that fits is the label itself, and its ID must be the hash of `site:` +
+the label (a program rule whose label happens to look like a site never counts); a longer site's
+label is LONG_MARK and the end of the site. Keybard's src/services/app-rules.ts normalizes and
+labels sites the same way.
 """
 import hashlib
 import re
@@ -19,6 +26,7 @@ from .foreground import app_id, app_key
 
 SITE_PREFIX = 'site:'
 LABEL_BYTES = 13
+LONG_MARK = '…'  # a label that starts with it is a site too long for the label: its end
 _SCHEME = re.compile(r'^[a-z][a-z0-9+.-]*://', re.I)
 
 
@@ -50,11 +58,16 @@ def site_id(site):
 
 
 def site_rules(rules):
-    """[(site, app ID)] of the site rules among [(app ID, label)], in board order."""
+    """[(what to call it, app ID)] of the site rules among [(app ID, label)], in board order: the site
+    for one whose label is its site, the label for a longer one (LONG_MARK and the site's end)."""
     out = []
     for rule_id, label in rules:
+        label = (label or '').strip(' \t')
         site = normalize_site(label)
-        if site and rule_id and site_id(site) == rule_id and (site, rule_id) not in out: out.append((site, rule_id))
+        if site and rule_id and site_id(site) == rule_id: entry = (site, rule_id)
+        elif rule_id and label.startswith(LONG_MARK) and len(label) > 1: entry = (label, rule_id)
+        else: continue
+        if entry not in out: out.append(entry)
     return out
 
 
@@ -62,12 +75,19 @@ def host_matches(host, site):
     return bool(host and site) and (host == site or host.endswith('.' + site))
 
 
+def host_sites(host):
+    """The host name and every name above it, most specific first: a.b.com, b.com, com."""
+    parts = [p for p in (host or '').split('.') if p]
+    return ['.'.join(parts[i:]) for i in range(len(parts))]
+
+
 def match_site(host, sites):
     """The app ID of the most specific site rule that matches the host name, or None."""
-    best = None
-    for site, rule_id in sites:
-        if host_matches(host, site) and (best is None or len(site) > len(best[0])): best = (site, rule_id)
-    return best[1] if best else None
+    ids = {rule_id for _, rule_id in sites}
+    for name in host_sites(host):
+        found = site_id(name)
+        if found in ids: return found
+    return None
 
 
 def choose_id(program, host, sites):

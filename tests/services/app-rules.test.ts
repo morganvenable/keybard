@@ -287,7 +287,7 @@ describe("layout files and import", () => {
 // ---- website rules ------------------------------------------------------------------
 // Keybard Host normalizes and matches sites the same way (companion/overlay-host/tests/test_site_rules.py
 // has the same vectors).
-import { fitSite, normalizeSite, siteKey, siteNote, siteOfRule, siteProblem, withSite } from "@/services/app-rules";
+import { normalizeSite, siteKey, siteLabel, siteMatches, siteOfRule, siteProblem, withSite } from "@/services/app-rules";
 import { ruleKey } from "@/utils/app-rule-keys";
 
 describe("website rules", () => {
@@ -316,26 +316,34 @@ describe("website rules", () => {
         expect(appId(siteKey("bücher.de"))).not.toBe(appId(siteKey("xn--bcher-kva.de")));
     });
 
-    it("fits the 13-byte label, shortening from the front where that still names a site", () => {
-        expect(fitSite("onshape.com")).toBe("onshape.com");
-        expect(fitSite("cad.onshape.com")).toBe("onshape.com");          // still matches cad.onshape.com
-        expect(fitSite("a.b.docs.github.com")).toBe("github.com");
-        expect(fitSite("averyverylongname.com")).toBeNull();              // even its end is too long
-        expect(fitSite("shop.bbc.co.uk")).toBe("bbc.co.uk");
-        expect(fitSite("someshop.co.uk")).toBeNull();                     // never just "co.uk"
+    it("keeps the whole site, never a shorter end of it; a long one's label is its end", () => {
+        expect(siteLabel("onshape.com")).toBe("onshape.com");
+        expect(siteLabel("svalboard.com")).toBe("svalboard.com");                  // 13 bytes: fits
+        expect(siteLabel("practice.svalboard.com")).toBe("…lboard.com");
+        expect(siteLabel("a.b.docs.github.com")).toBe("…github.com");
+        expect(new TextEncoder().encode(siteLabel("bücher-und-mehr.example.de")).length).toBeLessThanOrEqual(13);
         expect(siteProblem("onshape.com")).toBeNull();
-        expect(siteProblem("cad.onshape.com")).toBeNull();
-        expect(siteNote("cad.onshape.com")).toMatch(/Kept as onshape.com \(13 characters at most\), which still matches cad.onshape.com/);
-        expect(siteNote("onshape.com")).toBeNull();
+        expect(siteProblem("practice.svalboard.com")).toBeNull();
+        expect(siteProblem("averyverylongname.com")).toBeNull();
         expect(siteProblem("")).toBeNull();
-        expect(siteProblem("averyverylongname.com")).toMatch(/at most 13 characters/);
         expect(siteProblem("on shape.com")).toMatch(/without spaces/);
     });
 
-    it("sets the ID and the label from what is typed; a site that doesn't fit has no ID yet", () => {
+    it("says exactly which addresses it matches", () => {
+        expect(siteMatches("https://practice.svalboard.com/lesson")).toBe(
+            "Matches practice.svalboard.com and every address under it (*.practice.svalboard.com), not the rest of svalboard.com");
+        expect(siteMatches("onshape.com")).toBe("Matches onshape.com and every address under it (*.onshape.com)");
+        expect(siteMatches("")).toBeNull();
+        expect(siteMatches("on shape.com")).toBeNull();
+    });
+
+    it("sets the ID from the whole site as typed, and the label", () => {
         expect(withSite(rule, "https://www.Onshape.com/x")).toMatchObject({ key: "site:https://www.Onshape.com/x", appId: 0xB2AF5B45, label: "onshape.com" });
-        expect(withSite(rule, "https://cad.onshape.com/documents")).toMatchObject({ appId: 0xB2AF5B45, label: "onshape.com" });
-        expect(withSite(rule, "averyverylongname.com")).toMatchObject({ appId: 0, label: "averyverylong" });
+        // cad.onshape.com stays cad.onshape.com: never widened to onshape.com.
+        expect(withSite(rule, "https://cad.onshape.com/documents")).toMatchObject({ appId: 0x7E364D67, label: "…nshape.com" });
+        expect(withSite(rule, "practice.svalboard.com")).toMatchObject({ appId: appId("site:practice.svalboard.com"), label: "…lboard.com" });
+        expect(withSite(rule, "practice.svalboard.com").appId).not.toBe(appId("site:svalboard.com"));
+        expect(withSite(rule, "on shape.com")).toMatchObject({ appId: 0 });
         expect(withSite(rule, "")).toMatchObject({ key: "site:", appId: 0, label: "" });
     });
 
@@ -351,8 +359,19 @@ describe("website rules", () => {
     it("comes from a layout file normalized, with its site as the label", () => {
         const [fromFile] = appRulesFromSvil([{ app_id: 1, key: "site:https://www.onshape.com/", label: "Onshape", default_layer: null, front_layer: 2, on_mask: 0, off_mask: 0 }])!;
         expect(fromFile).toMatchObject({ key: "site:onshape.com", appId: 0xB2AF5B45, label: "onshape.com", frontLayer: 2 });
-        const [tooLong] = appRulesFromSvil([{ app_id: 5, key: "site:averyverylongname.com", label: "x" }])!;
-        expect(tooLong.appId).toBe(0);
+        const [long] = appRulesFromSvil([{ app_id: 5, key: "site:practice.svalboard.com", label: "x" }])!;
+        expect(long).toMatchObject({ key: "site:practice.svalboard.com", appId: appId("site:practice.svalboard.com"), label: "…lboard.com" });
+    });
+
+    it("a long site comes back from the board as the site Keybard remembered, else as its label", () => {
+        localStorage.clear();
+        const written = withSite(rule, "practice.svalboard.com");
+        const [back] = parseRecord(serializeRecord([written]));
+        expect(back.label).toBe("…lboard.com");
+        expect(siteOfRule(back)).toBeNull();          // the label alone never names a site
+        expect(ruleKey(back)).toBeUndefined();
+        rememberAppKey(written.key!);
+        expect(ruleKey(back)).toBe("site:practice.svalboard.com");
     });
 
     it("remembers a website rule's key in its normalized form", () => {

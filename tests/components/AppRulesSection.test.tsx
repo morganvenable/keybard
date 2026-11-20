@@ -175,18 +175,18 @@ describe("AppRulesSection", () => {
         view.rerender();
         fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "https://cad.Onshape.com/documents" } });
         view.rerender();
-        // cad.onshape.com is 15 characters: kept as onshape.com, which still matches it.
-        expect(state.keyboard!.app_rules![0]).toMatchObject({ key: "site:https://cad.Onshape.com/documents", appId: 0xB2AF5B45, label: "onshape.com" });
-        expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/Kept as onshape.com .*which still matches cad.onshape.com/);
+        // cad.onshape.com is 15 bytes: its ID is the whole site's, and its label is its end.
+        expect(state.keyboard!.app_rules![0]).toMatchObject({ key: "site:https://cad.Onshape.com/documents", appId: 0x7E364D67, label: "…nshape.com" });
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/Matches cad.onshape.com and every address under it \(\*\.cad\.onshape\.com\), not the rest of onshape.com/);
         fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "onshape.com" } });
         view.rerender();
         expect(state.keyboard!.app_rules![0]).toMatchObject({ appId: 0xB2AF5B45, label: "onshape.com" });
         expect((screen.getByLabelText("Rule 1 label") as HTMLInputElement).readOnly).toBe(true);
         expect(screen.getByTestId("app-rule-site-hint").textContent).toMatch(/Matches onshape.com and every address under it/);
         expect(screen.queryByTestId("app-rule-pick")).toBeNull();
-        fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "averyverylongname.com" } });
+        fireEvent.change(screen.getByLabelText("Rule 1 website"), { target: { value: "on shape.com" } });
         view.rerender();
-        expect(screen.getByRole("alert").textContent).toMatch(/at most 13 characters/);
+        expect(screen.getByRole("alert").textContent).toMatch(/without spaces/);
         expect(state.keyboard!.app_rules![0].appId).toBe(0);
         fireEvent.change(screen.getByTestId("app-rule-kind"), { target: { value: "program" } });
         view.rerender();
