@@ -3,8 +3,9 @@ Browser flow of the App Layers panel (app rules) against the simulated Svalboard
 with GET_INFO byte 22 bit 0 and the 0x40/0x41 commands). Headless, 1440 x 900, light and dark.
 Run with `npm run test:e2e:app-rules`.
 
-  1. ?panel=app-layers opens the App Layers panel, "0 of 64 max"; the rail has App Layers and
-     Layer Keys no longer holds the editor.
+  1. ?panel=app-layers opens the App Layers panel, "0 of 64 max", with More marked on the rail
+     (App Layers has no rail item of its own). More lists Overrides, Alt-Repeat and App Layers, and
+     its App Layers entry opens the panel again; ?panel=app-rules (the older name) opens it too.
   2. Add a rule, type notepad.exe: the label follows the app.
   3. Pick a default layer and a front layer; set one pill on and one off.
   4. After the debounce, one BEGIN/WRITE/COMMIT lands on the board with that rule.
@@ -12,7 +13,8 @@ Run with `npm run test:e2e:app-rules`.
      label), with the note and hint; the board holds site:onshape.com's ID and the site as label.
   5. Reload (the board keeps its settings): the rules read back from the board, the second as Website.
   6. Bottom bar: the section shows there too.
-  7. Older firmware (?fakeBoard=old): no App Layers rail item, panel or editor.
+  6b. Bottom bar: More lists App Layers too.
+  7. Older firmware (?fakeBoard=old): More lists Overrides and Alt-Repeat, no App Layers; no editor.
 
 With E2E_SHOTS=<dir>, saves editor-<theme>.png (sidebar), website-<theme>.png and editor-bottombar-<theme>.png.
 E2E_URL and E2E_SKIP_BUILD work as in fake_board_e2e.py. Exits 1 when a check fails.
@@ -57,8 +59,24 @@ def main() -> int:
             # 1.
             check(page.get_by_test_id("app-rules-count").inner_text() == "0 of 64 max", f"{theme}: empty list, 64 max")
             check(page.locator("[data-app-layers-panel]").count() == 1, f"{theme}: in the App Layers panel")
-            check(page.get_by_role("link", name="App Layers").or_(page.get_by_role("button", name="App Layers")).count() >= 1,
-                  f"{theme}: App Layers in the rail")
+            more = page.get_by_role("button", name="More", exact=True)
+            check(page.get_by_role("button", name="App Layers", exact=True).count() == 0, f"{theme}: no App Layers rail item")
+            check(more.get_attribute("aria-pressed") == "true", f"{theme}: More marked on the rail")
+            more.click()
+            tools = page.locator("[data-more-tool]")
+            expect(tools.first).to_be_visible()
+            names = tools.evaluate_all("es => es.map(e => e.dataset.moreTool)")
+            check(names == ["overrides", "altrepeat", "app-layers"], f"{theme}: More lists {names}")
+            if SHOTS:
+                page.screenshot(path=os.path.join(SHOTS, f"more-{theme}.png"), clip={"x": 0, "y": 0, "width": 760, "height": 900})
+            page.locator("[data-more-tool='app-layers']").click()
+            expect(section).to_be_visible()
+            check(page.locator("[data-app-layers-panel]").count() == 1 and more.get_attribute("aria-pressed") == "true",
+                  f"{theme}: More's App Layers opens the panel, More still marked")
+            page.goto(f"{url}?fakeBoard&theme={theme}&panel=app-rules")
+            wait_connected(page)
+            expect(section).to_be_visible(timeout=20000)
+            check(page.locator("[data-app-layers-panel]").count() == 1, f"{theme}: ?panel=app-rules opens App Layers")
 
             # 2.
             section.get_by_role("button", name="Add rule").click()
@@ -147,6 +165,13 @@ def main() -> int:
                 section.scroll_into_view_if_needed()
                 page.wait_for_timeout(200)
                 page.screenshot(path=os.path.join(SHOTS, f"editor-bottombar-{theme}.png"))
+            # 6b.
+            page.get_by_role("button", name="More", exact=True).click()
+            expect(page.locator("[data-more-tool='app-layers']")).to_be_visible()
+            check(page.locator("[data-more-tool]").count() == 3, f"{theme}: bottom bar More lists the three editors")
+            if SHOTS:
+                page.wait_for_timeout(200)
+                page.screenshot(path=os.path.join(SHOTS, f"more-bottombar-{theme}.png"))
             check(not errors, f"{theme}: no page errors {errors}")
             context.close()
 
@@ -157,7 +182,11 @@ def main() -> int:
         wait_connected(page)
         page.wait_for_timeout(2500)
         check(page.locator("[data-app-rules]").count() == 0, "older firmware: no App Layers editor in Layer Keys")
-        check(page.get_by_text("App Layers", exact=True).count() == 0, "older firmware: no App Layers rail item")
+        check(page.get_by_role("button", name="App Layers", exact=True).count() == 0, "older firmware: no App Layers rail item")
+        page.get_by_role("button", name="More", exact=True).click()
+        expect(page.locator("[data-more-tool]").first).to_be_visible()
+        names = page.locator("[data-more-tool]").evaluate_all("es => es.map(e => e.dataset.moreTool)")
+        check(names == ["overrides", "altrepeat"], f"older firmware: More lists {names}, no App Layers")
         context.close()
         browser.close()
 
