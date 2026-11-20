@@ -44,11 +44,15 @@ const SITE_EXAMPLE = "example.com";
 
 /** One short line each. */
 const SITE_EMPTY = "Matches the site and addresses under it.";
-const SITE_ELSEWHERE = "Websites work on Windows for now.";
+const SITE_ELSEWHERE = "Websites work on Windows and Mac for now.";
 const SITE_RETYPE = "Retype this site to edit it.";
 const TOO_LONG = `Names can be at most ${APP_RULE_TEXT_MAX} bytes.`;
 const NO_ROOM = "Not enough room left on the board.";
-const BROWSERS = "In Chrome, Edge, Brave, Vivaldi and Firefox; other tabs count as the browser.";
+const BROWSERS: Record<HostPlatform, string> = {
+    windows: "In Chrome, Edge, Brave, Vivaldi and Firefox; other tabs count as the browser.",
+    macos: "In Safari, Chrome, Edge, Brave, Arc and Vivaldi; other tabs count as the browser.",
+    linux: "",
+};
 
 function guessPlatform(): HostPlatform {
     if (isMacOS()) return "macos";
@@ -164,7 +168,7 @@ function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, 
     const n = index + 1;
     const indent = compact ? "pl-0" : "pl-10";
     const line = notice ?? (website
-        ? problem ?? (unknown ? SITE_RETYPE : platform !== "windows" ? SITE_ELSEWHERE : !rule.appId || !matches ? SITE_EMPTY : matches)
+        ? problem ?? (unknown ? SITE_RETYPE : platform === "linux" ? SITE_ELSEWHERE : !rule.appId || !matches ? SITE_EMPTY : matches)
         : null);
     return (
         <li
@@ -247,7 +251,7 @@ function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, 
                             className={cn(fieldClass, "w-full flex-1 font-mono", problem && "border-kb-warn-ink")}
                             value={typedSite}
                             placeholder={unknown && rule.text ? rule.text : SITE_EXAMPLE}
-                            title={matches ? `${matches}. ${BROWSERS}` : SITE_EMPTY}
+                            title={matches ? `${matches} ${BROWSERS[platform]}`.trim() : SITE_EMPTY}
                             onChange={(e) => onChange(withSite(rule, e.target.value))}
                         />
                     ) : (

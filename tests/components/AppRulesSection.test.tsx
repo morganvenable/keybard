@@ -366,12 +366,19 @@ describe("AppRulesSection", () => {
         expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Retype this site to edit it.");
     });
 
-    it("off Windows, a website rule says websites work on Windows for now", async () => {
-        state.hostApps = { platform: "macos", foreground: null, apps: [] };
+    it("on Linux, a website rule says websites work on Windows and Mac for now; on macOS it matches", async () => {
+        state.hostApps = { platform: "linux", foreground: null, apps: [] };
         state.keyboard = board([{ ...blank, key: "site:onshape.com", appId: appId("site:onshape.com"), text: "onshape.com", flags: 2 }]);
         const view = renderSection();
         await act(async () => { await Promise.resolve(); });
         view.rerender();
-        expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Websites work on Windows for now.");
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Websites work on Windows and Mac for now.");
+        view.unmount();
+        state.hostApps = { platform: "macos", foreground: null, apps: [] };
+        const mac = renderSection();
+        await act(async () => { await Promise.resolve(); });
+        mac.rerender();
+        expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Matches onshape.com and every address under it.");
+        expect(screen.getByLabelText("Rule 1 website").getAttribute("title")).toMatch(/Safari, Chrome, Edge, Brave, Arc and Vivaldi/);
     });
 });
