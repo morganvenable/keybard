@@ -254,6 +254,8 @@ export class FakeSvalFirmware {
     readonly statusReport: boolean;
     /** The computer's OS as the board detected it (QMK os_variant_t: 2 Windows, 3 macOS). */
     hostOs = 2;
+    /** Set to make STATUS_REPORT answer with an error, as a board that stops answering would (tests the failure line). */
+    statusFails = false;
     /** STATUS_REPORT requests, [page, arg], oldest first. */
     readonly statusRequests: [number, number][] = [];
     /** QMK's debug_enable: RAM only, off whenever the board starts (keyboard_post_init_kb). */
@@ -1414,7 +1416,7 @@ export class FakeSvalFirmware {
                 if (length > 3) this.flickerCommand(data.subarray(2), length - 2);
                 break;
             case 0x3f: // STATUS_REPORT (svalboard.c sval_status_report_kb): [page][arg] -> [page][format][...]
-                if (!this.statusReport) {
+                if (!this.statusReport || this.statusFails) {
                     data[1] = SVAL_CMD_ERROR;
                     break;
                 }

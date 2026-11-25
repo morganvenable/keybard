@@ -121,14 +121,14 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         defaultOpen: false,
         rows: [
             { block: "about" },
-            // Only on firmware with the status report command (BoardStatusSection).
+            // Only on firmware with the status report command: opens StatusReportDialog.
             { block: "status" },
             // Only on firmware with the debug console command (DebugConsoleRow).
             { block: "debug" },
             { setting: "scan-lab", label: "Scan Lab", description: "Measure key scanning and sensor timing." },
             { setting: "key-proof-sheet", label: "Key proof sheet", description: "Every key rendering at every size, for visual checks." },
         ],
-        summary: "Version, board status, manual, community and developer tools",
+        summary: "Version, status report, manual, community and developer tools",
     },
 ];
 

@@ -134,7 +134,7 @@ describe("the rows and the copied text", () => {
         expect(row("Turned on by")).toBe("Both pointers");
         expect(row("Scan period")).toBe("Unpaced");
         expect(row("Light idle")).toBe("Never");
-        expect(row("Measured frame")).toBe("2656 us");
+        expect(row("Measured frame")).toBe("2656 µs");
         expect(row("Power saving")).toBe("None");
         expect(row("State now")).toBe("Active");
         expect(row("Clock now")).toBe("125 MHz");
@@ -155,7 +155,7 @@ describe("the rows and the copied text", () => {
 
     it("copies as plain text: a heading per group, a line per row", () => {
         const text = statusText(status());
-        expect(text.split("\n").slice(0, 4)).toEqual(["Svalboard status", "", "Firmware", "Build: svalboard/either:sval @ x4.6.7"]);
+        expect(text.split("\n").slice(0, 4)).toEqual(["Svalboard status report", "", "Firmware", "Build: svalboard/either:sval @ x4.6.7"]);
         expect(text).toContain("Pointing\nLeft CPI: 800\nLeft Scroll Mode: On\n");
         expect(text).not.toMatch(/[<>*_`]/); // no markup to garble in Discord
     });

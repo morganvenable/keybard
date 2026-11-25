@@ -188,12 +188,12 @@ export function statusGroups(s: BoardStatus): StatusGroup[] {
             title: "Scanning",
             rows: [
                 { label: "Hardware revision", value: s.hwRevB ? "B (FlipFET)" : "A" },
-                { label: "Wait before read", value: `${s.prewaitUs} us` },
-                { label: "Wait after read", value: `${s.postwaitUs} us` },
+                { label: "Wait before read", value: `${s.prewaitUs} µs` },
+                { label: "Wait after read", value: `${s.postwaitUs} µs` },
                 { label: "Optical debounce", value: onOff(s.opticalDebounce) },
-                { label: "Scan period", value: s.periodUs ? `${s.periodUs} us` : "Unpaced" },
-                { label: "Measured frame", value: `${s.frameUs} us` },
-                { label: "LED on time", value: `${s.ledUs} us` },
+                { label: "Scan period", value: s.periodUs ? `${s.periodUs} µs` : "Unpaced" },
+                { label: "Measured frame", value: `${s.frameUs} µs` },
+                { label: "LED on time", value: `${s.ledUs} µs` },
             ],
         },
         {
@@ -212,9 +212,12 @@ export function statusGroups(s: BoardStatus): StatusGroup[] {
     ];
 }
 
+/** What Keybard and support call it: the row, the dialog's title and the copied text's first line. */
+export const STATUS_REPORT_NAME = "Status report";
+
 /** Plain text for pasting into Discord: one line per row, a heading per group. */
 export function statusText(s: BoardStatus): string {
-    const lines = ["Svalboard status"];
+    const lines = [`Svalboard ${STATUS_REPORT_NAME.toLowerCase()}`];
     for (const g of statusGroups(s)) {
         lines.push("", g.title);
         for (const r of g.rows) lines.push(`${r.label}: ${r.value}`);
