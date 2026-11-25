@@ -37,9 +37,17 @@ const BoardStatusSection: React.FC<{ highlight?: (text: string) => React.ReactNo
         setFailed(next === null);
     }, []);
 
+    // Another board (or none): drop the old report. The same board with a
+    // setting changed (a new keyboard object): read again, keeping the rows
+    // shown until the new ones arrive, so the card doesn't collapse.
+    const shownFor = useRef<string | null>(null);
     useEffect(() => {
-        setStatus(null);
-        setCopied(null);
+        const board = supported ? keyboard?.kbid ?? "" : null;
+        if (board !== shownFor.current) {
+            shownFor.current = board;
+            setStatus(null);
+            setCopied(null);
+        }
         if (supported) read();
         return () => { generation.current++; };
     }, [supported, keyboard, read]);

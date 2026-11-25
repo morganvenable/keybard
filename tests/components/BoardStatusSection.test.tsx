@@ -63,6 +63,28 @@ describe("BoardStatusSection", () => {
         expect(mocks.reads).toBe(2);
     });
 
+    it("reads again after a setting changes, keeping the rows until the new ones arrive", async () => {
+        mocks.keyboard = { feature_flags5: 0x02, kbid: "a" } as typeof mocks.keyboard;
+        const { rerender } = render(<BoardStatusSection />);
+        await screen.findByText("1200");
+        // A setting change gives a new keyboard object for the same board.
+        mocks.keyboard = { feature_flags5: 0x02, kbid: "a" } as typeof mocks.keyboard;
+        rerender(<BoardStatusSection />);
+        expect(screen.getByText("1200")).toBeTruthy();
+        expect(await screen.findByText("1600")).toBeTruthy();
+        expect(mocks.reads).toBe(2);
+    });
+
+    it("drops the old report for another board", async () => {
+        mocks.keyboard = { feature_flags5: 0x02, kbid: "a" } as typeof mocks.keyboard;
+        const { rerender } = render(<BoardStatusSection />);
+        await screen.findByText("1200");
+        mocks.keyboard = { feature_flags5: 0x02, kbid: "b" } as typeof mocks.keyboard;
+        rerender(<BoardStatusSection />);
+        expect(screen.queryByText("1200")).toBeNull();
+        expect(await screen.findByText("1600")).toBeTruthy();
+    });
+
     it("copies the report as plain text", async () => {
         const writeText = vi.fn(async () => {});
         Object.assign(navigator, { clipboard: { writeText } });
