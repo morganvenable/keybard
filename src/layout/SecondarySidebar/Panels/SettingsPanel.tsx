@@ -19,11 +19,13 @@ import TypingBehaviorPanel from "./TypingBehaviorPanel";
 import DeveloperTuningSection, { developerTuningMenuIndex } from "./DeveloperTuningSection";
 import AboutSection from "./settings/AboutSection";
 import DebugConsoleRow from "./settings/DebugConsoleRow";
+import BoardStatusSection from "./settings/BoardStatusSection";
 import FirmwareRow from "./settings/FirmwareRow";
 import SettingRow from "./settings/SettingRow";
 import { onSettingsSectionRequest, takeSettingsSectionRequest } from "./settings/anchor";
 import { SETTINGS_PAGE, shownPage, type SettingsBlock, type SettingsRow, type SettingsSection } from "./settings/layout";
 import { hasDebugConsole } from "@/services/debug-console";
+import { hasStatusReport } from "@/services/status-report";
 import { useStickySections } from "./settings/useStickySections";
 import { highlightParts, rowKey, searchSettings } from "./settings/search";
 
@@ -89,10 +91,12 @@ const SettingsPanel = () => {
     const [query, setQuery] = useState("");
     // The Debug console row shows only on firmware with the command.
     const debugShown = isConnected && hasDebugConsole(keyboard?.feature_flags4);
+    // Board status shows only on firmware with the status report command.
+    const statusShown = isConnected && hasStatusReport(keyboard?.feature_flags5);
     const { internationalLayout, keyLegendsChoice = internationalLayout, keyLegendsStatus, setInternationalLayout } = useLayoutSettings();
     const altgrShown = hasAltGr(internationalLayout);
     const powerShown = isConnected && developerTuningMenuIndex(keyboard?.menus) >= 0;
-    const pageSections = useMemo(() => shownPage({ debugConsole: debugShown, altgr: altgrShown, power: powerShown }), [debugShown, altgrShown, powerShown]);
+    const pageSections = useMemo(() => shownPage({ debugConsole: debugShown, statusReport: statusShown, altgr: altgrShown, power: powerShown }), [debugShown, statusShown, altgrShown, powerShown]);
     const matches = useMemo(() => searchSettings(pageSections, query, getSettingDefinition), [pageSections, query, getSettingDefinition]);
     const searching = matches !== null;
 
@@ -178,6 +182,8 @@ const SettingsPanel = () => {
                 return <DeveloperTuningSection bare />;
             case "about":
                 return <AboutSection />;
+            case "status":
+                return <BoardStatusSection highlight={highlight} />;
             case "debug":
                 return <DebugConsoleRow highlight={highlight} />;
         }
