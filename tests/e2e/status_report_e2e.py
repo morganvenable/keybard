@@ -152,7 +152,7 @@ def flow_failure(browser, url):
     assert page.locator(ROWS).count() == 0
     expect(page.get_by_test_id("status-report-copy")).to_be_disabled()
     page.evaluate(FAILS_JS, False)
-    err.get_by_role("button", name="Try again").click()
+    page.get_by_test_id("status-report-read").click()
     expect(page.locator(ROWS)).to_be_visible(timeout=5000)
     expect(err).to_have_count(0)
     assert not errors, errors

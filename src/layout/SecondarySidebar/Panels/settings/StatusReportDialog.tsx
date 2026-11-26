@@ -14,7 +14,7 @@ export const STATUS_REPORT_ROW: SettingDefinition = {
     type: "action",
     action: "open-status-report",
 };
-export const STATUS_REPORT_DESCRIPTION = "What your keyboard runs now. Copy it into your support ticket.";
+export const STATUS_REPORT_DESCRIPTION = "What your keyboard runs now.";
 export const STATUS_REPORT_READING = "Reading your keyboard…";
 export const STATUS_REPORT_READ_FAILED = "Couldn't read your keyboard.";
 export const STATUS_REPORT_DISCONNECTED = "Your keyboard isn't connected.";
@@ -116,9 +116,6 @@ const StatusReportDialog: React.FC<{ open: boolean; onOpenChange: (open: boolean
                     {problem && (
                         <p role="alert" className="flex flex-row flex-wrap items-baseline gap-x-2 pb-2 text-sm text-kb-warn-ink" data-testid="status-report-error">
                             <span>{problem}</span>
-                            {board !== null && (
-                                <button type="button" onClick={read} disabled={reading} className="font-medium text-kb-primary underline underline-offset-4 disabled:opacity-50">Try again</button>
-                            )}
                         </p>
                     )}
                     {status && (
@@ -144,7 +141,7 @@ const StatusReportDialog: React.FC<{ open: boolean; onOpenChange: (open: boolean
                 {copied === "failed" && <p role="alert" className="-mt-2 text-sm text-kb-warn-ink">{STATUS_REPORT_COPY_FAILED}</p>}
                 <DialogFooter className="shrink-0">
                     <Button variant="outline" disabled={reading || board === null} onClick={read} data-testid="status-report-read">
-                        {reading && status ? "Reading…" : "Read again"}
+                        {reading ? "Reading…" : problem ? "Try again" : "Read again"}
                     </Button>
                     <Button disabled={!status} onClick={copy} data-testid="status-report-copy" aria-live="polite">
                         {copied === "done" ? <><Check aria-hidden="true" />Copied</> : <><Copy aria-hidden="true" />Copy</>}
