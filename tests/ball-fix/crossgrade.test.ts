@@ -37,6 +37,9 @@ describe("crossgrade", () => {
         [["x4.6.4-balldiag", 31], ["x4.6.4", 31]],
         [["x4.6.7", 34], ["x4.6.7-macscroll", 34]],
         [["x4.6.7-macscroll", 34], ["x4.6.7", 34]],
+        [["x4.6.7-macscroll", 34], ["x4.6.7-macscrl2", 34]],
+        [["x4.6.7", 34], ["x4.6.7-macscrl2", 34]],
+        [["x4.6.7-macscrl2", 34], ["x4.6.7", 34]],
     ] as [string, number][][]) {
         it(`${from[0]} -> ${to[0]}`, async () => {
             const { plan, state } = await crossgrade(from as [string, number], to as [string, number]);
