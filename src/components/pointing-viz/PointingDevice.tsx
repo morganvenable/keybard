@@ -30,10 +30,14 @@ export interface PointingDeviceProps {
     lightness?: number;
     theme: Theme;
     feed: PointingFeed | null;
-    /** Sniper and boost in force (the pills show at this hand only when `showModes`). */
+    /**
+     * Sniper and boost in force. They are the board's, not a hand's: their pills
+     * (and the sniper reticle) show steadily at every device while they are on.
+     */
     sniper: boolean;
     boost: boolean;
-    showModes: boolean;
+    /** This hand carries Velocity Scroll when no pad finger picks the hand (see velocityHere). */
+    velocityHand: boolean;
     labels: { sniper: string; boost: string };
     pillColors: PillColors;
     /** Velocity Scroll's colors (from --kb-pointing-velocity and the pill tokens). */
@@ -49,7 +53,7 @@ export interface PointingDeviceProps {
     originPx?: { x: number; y: number };
     /** Right-click or long press on a trackball. There is no keyboard shortcut. */
     onMenu?: (x: number, y: number) => void;
-    /** This hand moved (so it carries the pills). */
+    /** This hand moved (so it carries Velocity Scroll). */
     onMoved?: (side: "left" | "right") => void;
 }
 
@@ -106,8 +110,8 @@ export function PointingDevice(props: PointingDeviceProps) {
             const dt = s.lastT ? Math.min(0.05, (now - s.lastT) / 1000) : 0;
             s.lastT = now;
             let busy = false;
-            // modes ease in and out at the moving hand
-            const ts = p.showModes && p.sniper ? 1 : 0, tb = p.showModes && p.boost ? 1 : 0;
+            // Sniper and boost ease in and out at every device; Velocity Scroll at its hand.
+            const ts = p.sniper ? 1 : 0, tb = p.boost ? 1 : 0;
             const step = (target: number, cur: number) => s.reduce ? target
                 : cur + Math.sign(target - cur) * Math.min(Math.abs(target - cur), dt / (target > cur ? 0.18 : 0.15));
             const tv = s.vsHeld && velocityHere(p, s.vs) ? 1 : 0;
@@ -200,7 +204,7 @@ export function PointingDevice(props: PointingDeviceProps) {
     // Anything that changes the look redraws once.
     useEffect(() => {
         sim.current.dirty = true; sim.current.ovDirty = true; wake.current();
-    }, [props.ball, props.gloss, props.sparkle, props.lightness, props.theme, sizeCss, props.sniper, props.boost, props.showModes, props.labels.sniper, props.labels.boost, ghost, props.pillColors.bg, props.pillColors.fg, props.velocityColors?.accent, props.velocityPill, props.otherKind]);
+    }, [props.ball, props.gloss, props.sparkle, props.lightness, props.theme, sizeCss, props.sniper, props.boost, props.velocityHand, props.labels.sniper, props.labels.boost, ghost, props.pillColors.bg, props.pillColors.fg, props.velocityColors?.accent, props.velocityPill, props.otherKind]);
 
     // Motion from the feed rolls the ball or moves the fingertip.
     useEffect(() => {
@@ -261,6 +265,8 @@ export function PointingDevice(props: PointingDeviceProps) {
     const ballName = BALLS[props.ball].name;
     const label = `${side === "left" ? "Left" : "Right"} ${pl.kind === "ball" ? `trackball, ${ballName}` : "touchpad"}`;
 
+    // The mode pills this device shows, as drawn (for review and browser tests).
+    const pills = [props.sniper ? `SNIPER ${props.labels.sniper}`.trim() : "", props.boost ? `BOOST ${props.labels.boost}`.trim() : ""].filter(Boolean).join(" | ");
     const box = (size: number): CSSProperties => ({ position: "absolute", left: cxPx - size / 2, top: cyPx - size / 2, width: size, height: size });
     return (
         <>
@@ -272,8 +278,7 @@ export function PointingDevice(props: PointingDeviceProps) {
                     data-pointing-device={side}
                     data-pointing-kind={pl.kind}
                     data-ball={pl.kind === "ball" ? props.ball : undefined}
-                    // The mode pills this device shows, as drawn (for review and browser tests).
-                    data-pills={[props.showModes && props.sniper ? `SNIPER ${props.labels.sniper}`.trim() : "", props.showModes && props.boost ? `BOOST ${props.labels.boost}`.trim() : ""].filter(Boolean).join(" | ")}
+                    data-pills={pills}
                     className={menuable ? "pointer-events-auto" : "pointer-events-none"}
                     style={{
                         ...box(sizeCss),
@@ -293,7 +298,7 @@ export function PointingDevice(props: PointingDeviceProps) {
                     onPointerCancel={menuable ? () => { if (press.current) { clearTimeout(press.current.t); press.current = null; } } : undefined}
                 />
             )}
-            <canvas ref={overlayRef} aria-hidden="true" data-pointing-overlay={side} className="pointer-events-none" style={box(ovCss)} />
+            <canvas ref={overlayRef} aria-hidden="true" data-pointing-overlay={side} data-pills={pills} className="pointer-events-none" style={box(ovCss)} />
         </>
     );
 }

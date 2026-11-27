@@ -222,7 +222,7 @@ def main() -> int:
         cases = [
             ("no factors reported", "&sniper=1&boost=1&motion=0", "SNIPER | BOOST", "SNIPER | BOOST"),
             ("factors reported", "&sniper=1&boost=1&motion=0&sniperDiv=3&boostX=5", "SNIPER ×0.33 | BOOST ×5", "SNIPER ×0.33 | BOOST ×5"),
-            ("after the left hand moves", "&sniper=1&hand=left", "SNIPER", ""),
+            ("after the left hand moves (both keep it)", "&sniper=1&hand=left", "SNIPER", "SNIPER"),
         ]
         for theme in ("light", "dark"):
             for name, query, left, right in cases:
