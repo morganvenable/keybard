@@ -103,9 +103,18 @@ def hid_lines():
         yield f'udev rule {UDEV_RULE}: {"present" if UDEV_RULE.exists() else "MISSING"}'
 
 
+def sites_lines():
+    """Linux: whether App Layers website rules can read browser addresses (AT-SPI)."""
+    if not sys.platform.startswith('linux'): return
+    from .foreground import linux_sites, source
+    state, reason = linux_sites()
+    yield f'window source: {type(source()).__name__.strip("_")}'
+    yield f'AT-SPI: {state}' + (f' ({reason})' if reason else '')
+
+
 def report():
     lines = ['== System'] + list(system_lines())
-    for title, section in (('Qt', qt_lines), ('Boards', hid_lines)):
+    for title, section in (('Qt', qt_lines), ('Boards', hid_lines), ('Website rules', sites_lines)):
         lines.append(f'== {title}')
         try:
             lines.extend(section())

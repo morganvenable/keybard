@@ -5,7 +5,9 @@ import { hostBaseInUse } from './host';
 
 export type HostPlatform = 'windows' | 'macos' | 'linux';
 export interface HostApp { key: string; name: string }
-export interface HostApps { platform: HostPlatform; foreground: HostApp | null; apps: HostApp[] }
+/** Linux only: whether website rules can read the browser's address (AT-SPI answers), from Hosts that say. */
+export type HostSites = 'ready' | 'off';
+export interface HostApps { platform: HostPlatform; foreground: HostApp | null; apps: HostApp[]; sites?: HostSites }
 
 let token = '';
 
@@ -26,7 +28,9 @@ export function parseHostApps(data: unknown): HostApps | null {
         apps.push({ key: a.key, name: a.name || a.key });
     }
     apps.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-    return { platform: d.platform, foreground: isApp(d.foreground) ? { key: d.foreground.key, name: d.foreground.name } : null, apps };
+    const out: HostApps = { platform: d.platform, foreground: isApp(d.foreground) ? { key: d.foreground.key, name: d.foreground.name } : null, apps };
+    if (d.sites === 'ready' || d.sites === 'off') out.sites = d.sites;
+    return out;
 }
 
 async function bootstrap(base: string): Promise<boolean> {

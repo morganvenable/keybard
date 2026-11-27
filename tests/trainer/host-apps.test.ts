@@ -16,6 +16,13 @@ describe("Keybard Host running apps", () => {
         expect(parseHostApps(null)).toBeNull();
     });
 
+    it("keeps whether Linux website rules can work, when the Host says", () => {
+        expect(parseHostApps({ platform: "linux", foreground: null, apps: [], sites: "ready" })?.sites).toBe("ready");
+        expect(parseHostApps({ platform: "linux", foreground: null, apps: [], sites: "off" })?.sites).toBe("off");
+        expect(parseHostApps({ platform: "linux", foreground: null, apps: [], sites: "maybe" })).not.toHaveProperty("sites");
+        expect(parseHostApps({ platform: "linux", foreground: null, apps: [] })).not.toHaveProperty("sites");
+    });
+
     it("asks with the Host's token, and an older Host (404) gives no list", async () => {
         const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
             if (url.endsWith("/api/host/bootstrap")) return json(200, { apiVersion: 1, token: "t1" });

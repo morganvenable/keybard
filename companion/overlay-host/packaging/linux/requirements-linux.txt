@@ -1,5 +1,7 @@
 # The Linux package's wheels, pinned by hash (same versions as ../../requirements.txt).
+# jeepney: pure-Python D-Bus (MIT, ~50 KB) for reading browser addresses through AT-SPI.
 PySide6-Essentials==6.11.2 --hash=sha256:aaf9f25f0f324874085fa5b26a610318db8a8e243cf85bb3e5400595191c7778
 PySide6-Addons==6.11.2 --hash=sha256:a8b00956925fbdeffc7052cf933506391289f35ac4f3f71a0a167ec195cd47b4
 shiboken6==6.11.2 --hash=sha256:7a7a0a72a9ed26c9bf77d42246b1c736486befb8f31aa2fb29957ea4cdd1c1c2
 hidapi==0.15.0 --hash=sha256:208c7fc89f78c3448d55957c3e12893778aa91218ed7dc22697e554f091fe4fe
+jeepney==0.9.0 --hash=sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683

@@ -112,7 +112,7 @@ export const appIdHex = (id: number): string => (id >>> 0).toString(16).toUpperC
 // A rule for a website rather than a program: its app key is `site:<site>` (`site:onshape.com`),
 // hashed like any other. The board stores the whole site as the rule's text, with the website
 // flag, so Keybard Host knows the board has website rules. It matches the browser's address by hashing
-// the host name and each name above it against the rules' IDs (only on Windows for now).
+// the host name and each name above it against the rules' IDs (Windows, macOS, and Linux through AT-SPI).
 // A site matches its host name and every host under it. Keybard Host normalizes and matches
 // the same way (companion/overlay-host/keybard_host/site_rules.py): keep the two in step.
 

@@ -103,6 +103,23 @@ Then check each item, and add a note for anything that doesn't work:
 | 13 | On Wayland: `--wayland` (native) — note which of 6, 7, 8 and 9 work | | |
 | 14 | If you can, log into the other session type (X11 or Wayland) and repeat | | |
 
+### App Layers website rules
+
+Only if your board's firmware has App Layers. In Keybard, add a rule for a website you use (for example `wikipedia.org`) that turns on a layer, and a program rule for your browser that doesn't. Start Keybard Overlay from a terminal with `--log-app-rules`: each time the rule sent to the board changes, it prints one line naming the site rule or program (never the address or a page title).
+
+Keybard Overlay reads the browser's address bar through AT-SPI, the desktop's accessibility service. While a board has a website rule it turns the desktop's accessibility on, and off again when you quit. **Restart Chrome, Chromium, Brave or Edge once** after adding your first website rule: they only look for accessibility when they start. Firefox needs no restart.
+
+`./keybard-overlay --probe-sites` checks this without a board: bring a browser to the front within 5 seconds, and it prints the host name it read and how long it took.
+
+| # | Check | Works? | Notes |
+|---|---|---|---|
+| 15 | `--probe-sites` with Firefox in front prints the site's host name | | |
+| 16 | `--probe-sites` with Chrome or Chromium in front (restarted once) prints the host name | | |
+| 17 | Firefox: the website's tab turns the rule's layer on; another tab or another program turns it off | | |
+| 18 | Chrome or Chromium: the same | | |
+| 19 | A new tab (Ctrl+T) and typing in the address bar never keep the website's layer on | | |
+| 20 | After Quit, the desktop's accessibility setting is back as it was (GNOME: Settings, Accessibility) | | |
+
 ## 5. Send back one report
 
 After testing, with the board plugged in, run:
@@ -121,6 +138,7 @@ Every run is also logged to `~/.local/state/keybard-overlay/overlay.log`.
 - **No tray icon on GNOME:** plain GNOME has no tray. Ubuntu's desktop includes one; on Fedora and others, install the "AppIndicator and KStatusNotifierItem Support" GNOME extension. The overlay still works without the tray; **Open Keybard** is then reached from Keybard itself, and Ctrl+C in the terminal quits.
 - **A missing library error** (for example `libnss3` or `libasound`): install your distribution's `nss` and `alsa-lib` (or `libnss3` and `libasound2`) packages, and send the report.
 - **Black box behind the keys on X11:** the overlay needs a compositor to be see-through. GNOME, KDE Plasma and Cinnamon always have one; on Xfce turn on Settings > Window Manager Tweaks > Compositor; with i3 and other plain window managers, run a compositor such as picom.
+- **Website rules never match:** run `--probe-sites`. "AT-SPI: off" says why (install your distribution's `at-spi2-core` package; GNOME on Wayland can't say which window is in front). "none (not-found)" with a Chrome-based browser means it was started before accessibility was on: restart it. Flatpak and Snap browsers are untested.
 - **Port in use:** if something else uses port 5178, start with `--port 5179`.
 
 ## Removing it

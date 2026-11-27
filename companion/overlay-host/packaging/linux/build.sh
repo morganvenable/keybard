@@ -39,6 +39,7 @@ SITE=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
 
 echo "== Trim Qt modules the overlay doesn't load"
 "$PY" "$HERE/prune.py" "$SITE/PySide6" > "$WORK/qt-libs-kept.txt"
+rm -rf "$SITE/jeepney/tests" "$SITE/jeepney/io/tests"
 rm -rf "$APP"/runtime/lib/python3*/test "$APP"/runtime/lib/python3*/idlelib \
   "$APP"/runtime/lib/python3*/tkinter "$APP"/runtime/lib/python3*/turtledemo \
   "$APP"/runtime/lib/tcl* "$APP"/runtime/lib/tk* "$APP"/runtime/lib/itcl* \

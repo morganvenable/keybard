@@ -44,14 +44,18 @@ const SITE_EXAMPLE = "example.com";
 
 /** One short line each. */
 const SITE_EMPTY = "Matches the site and addresses under it.";
-const SITE_ELSEWHERE = "Websites work on Windows and Mac for now.";
+/** Linux: an older Keybard Overlay reads no addresses; a desktop without AT-SPI can't share them. */
+const SITE_LINUX_OLD_HOST = "Websites on Linux need a newer Keybard Overlay.";
+const SITE_LINUX_OFF = "Websites need the AT-SPI accessibility service.";
+/** Chrome-based browsers look for accessibility only when they start. */
+const SITE_LINUX_RESTART = "Restart Chrome-based browsers once for websites.";
 const SITE_RETYPE = "Retype this site to edit it.";
 const TOO_LONG = `Names can be at most ${APP_RULE_TEXT_MAX} bytes.`;
 const NO_ROOM = "Not enough room left on the board.";
 const BROWSERS: Record<HostPlatform, string> = {
     windows: "In Chrome, Edge, Brave, Vivaldi and Firefox; other tabs count as the browser.",
     macos: "In Safari, Chrome, Edge, Brave, Arc and Vivaldi; other tabs count as the browser.",
-    linux: "",
+    linux: "In Firefox, Chrome, Chromium, Brave and Edge; other tabs count as the browser.",
 };
 
 function guessPlatform(): HostPlatform {
@@ -167,9 +171,15 @@ function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, 
     const layers = Math.min(keyboard.layers || APP_MASK_LAYERS, APP_MASK_LAYERS);
     const n = index + 1;
     const indent = compact ? "pl-0" : "pl-10";
+    // Linux: websites work only with a Host that reads addresses through AT-SPI, and says so.
+    const linuxSites = platform === "linux" ? hostApps?.sites : undefined;
+    const linuxBlocked = platform === "linux" && linuxSites !== "ready";
     const line = notice ?? (website
-        ? problem ?? (unknown ? SITE_RETYPE : platform === "linux" ? SITE_ELSEWHERE : !rule.appId || !matches ? SITE_EMPTY : matches)
+        ? problem ?? (unknown ? SITE_RETYPE
+            : linuxBlocked ? (linuxSites === "off" ? SITE_LINUX_OFF : SITE_LINUX_OLD_HOST)
+            : !rule.appId || !matches ? SITE_EMPTY : matches)
         : null);
+    const restartLine = website && !notice && !problem && linuxSites === "ready" ? SITE_LINUX_RESTART : null;
     return (
         <li
             ref={liRef}
@@ -251,7 +261,7 @@ function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, 
                             className={cn(fieldClass, "w-full flex-1 font-mono", problem && "border-kb-warn-ink")}
                             value={typedSite}
                             placeholder={unknown && rule.text ? rule.text : SITE_EXAMPLE}
-                            title={matches ? `${matches} ${BROWSERS[platform]}`.trim() : SITE_EMPTY}
+                            title={matches ? `${matches} ${linuxBlocked ? "" : BROWSERS[platform]}`.trim() : SITE_EMPTY}
                             onChange={(e) => onChange(withSite(rule, e.target.value))}
                         />
                     ) : (
@@ -293,6 +303,11 @@ function RuleCard({ keyboard, rule, index, active, hostApps, platform, compact, 
                         className={cn("text-xs leading-snug", indent, notice || problem ? "text-kb-warn-ink" : "text-muted-foreground")}
                     >
                         {line}
+                    </p>
+                )}
+                {restartLine && (
+                    <p data-testid="app-rule-site-restart" className={cn("text-xs leading-snug text-muted-foreground", indent)}>
+                        {restartLine}
                     </p>
                 )}
                 <div className={cn("flex flex-wrap items-end gap-2", indent)}>

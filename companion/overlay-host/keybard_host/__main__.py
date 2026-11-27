@@ -42,7 +42,7 @@ from .colors import ColorsPanel
 from .modifiers import ModifierReader, MODIFIER_NOTE
 from .keyboard_layout import ForegroundHook, LayoutReader
 from .foreground import app_key, foreground_window
-from .address_bar import BROWSERS, TimedReader
+from .address_bar import TimedReader, is_browser
 from .site_rules import PENDING, SiteWatcher, choose_id
 from .server import REMOTE_ORIGINS, load_paranoid_page, make_server, web_base_problem
 from .build import build_info, build_label
@@ -433,7 +433,15 @@ class Host(QObject):
         self.log_app_rules, self.logged_app = log_app_rules, None
         # macOS asks the browser through Apple Events: slower, and no tab title to notice a tab change.
         timing = dict(timeout=0.6, reread=1.0) if sys.platform == 'darwin' else {}
-        self.site_watcher = SiteWatcher(lambda done: TimedReader(done=done), notify=self.site_read.emit, **timing)
+        # Linux: the browser's address comes through AT-SPI, which browsers only serve while the
+        # desktop's accessibility is on: turned on only while a board has a website rule (atspi.py).
+        self.accessibility = None
+        if sys.platform.startswith('linux'):
+            from .atspi import Accessibility
+            try: self.accessibility = Accessibility()
+            except Exception: self.accessibility = None  # noqa: BLE001 - website rules then use the program
+        self.site_watcher = SiteWatcher(lambda done: TimedReader(done=done), notify=self.site_read.emit,
+                                        wanted_hook=self.want_sites, **timing)
         self.site_read.connect(self.poll_foreground)
         self.foreground_hook = ForegroundHook(lambda: self.poll_foreground())
         self.foreground_timer = QTimer(self); self.foreground_timer.timeout.connect(self.poll_foreground); self.foreground_timer.start(250)
@@ -870,17 +878,25 @@ class Host(QObject):
                 board.ready = False; board.default = None
                 self.follow()
 
+    def want_sites(self, on):
+        """SiteWatcher's hook: a board has a website rule now (on), or none has (off)."""
+        if not sys.platform.startswith('linux'): return
+        turned_on = self.accessibility.want(on) if self.accessibility is not None else False
+        if on: print(f'{time.strftime("%H:%M:%S")} app rules: {linux_sites_line(turned_on)}', flush=True)
+
     def poll_foreground(self):
         # A board with App Layers off applies no rule: nothing is read or sent for it.
         workers = [b.worker for b in self.boards.values()
                    if b.worker is not None and b.worker.app_rules and getattr(b.worker, 'app_layers_on', True)]
         if not workers:
             self.foreground_id = None
+            self.site_watcher.set_wanted(False)
             return
         window, front, title = foreground_window()
         program = front[0] if front else None
         # Site rules: the host name in the browser in front, only if some board has a site rule.
         sites = [site for worker in workers for site in worker.sites]
+        self.site_watcher.set_wanted(bool(sites))
         host = self.site_watcher.host_for(window, program, title) if sites and program else None
         if host is PENDING: return  # reading the address bar: the board keeps the app it has, for at most 150 ms
         for worker in workers:
@@ -891,8 +907,12 @@ class Host(QObject):
             # Testing: which rule is sent, never the address or the title.
             site = next((s for s, i in sites if i == chosen), None) if host else None
             line = f'site rule {site}' if site else f'program {program or "none"}'
-            if sites and not site and window and app_key(program) in BROWSERS:
+            if sites and not site and window and is_browser(app_key(program)):
                 line += ', the tab matches no site rule' if host else ', no address read'
+                if not host and sys.platform.startswith('linux'):
+                    line += LINUX_PROBLEMS.get(self.site_watcher.problem(), '')
+            elif sites and not site and not window and program and is_browser(app_key(program)):
+                line += ', no window to read (this desktop does not say which window is in front)'
             known = sorted({s for s, _ in sites})
             if (line, chosen, known) != self.logged_app:
                 self.logged_app = (line, chosen, known)
@@ -1080,6 +1100,24 @@ class Host(QObject):
         self.server.shutdown(); self.server.server_close(); self.controls.close(); self.surface.close(); self.tray.hide()
 
 
+LINUX_PROBLEMS = {
+    'no-bus': ' (no AT-SPI accessibility bus)',
+    'not-found': ' (no address bar on the accessibility bus; a Chrome-based browser started before '
+                 'accessibility was on needs a restart)',
+}
+
+
+def linux_sites_line(turned_on=False):
+    """One line for the log when a board first has a website rule on Linux: whether addresses can
+    be read, and if not, why (browsers then count as their program)."""
+    from .foreground import linux_sites
+    state, reason = linux_sites()
+    if state != 'ready': return f'website rules are off on this desktop: {reason}; browsers count as their program'
+    line = "website rules read the browser's address through AT-SPI"
+    if turned_on: line += '; accessibility turned on for them (restart Chrome-based browsers already open)'
+    return line
+
+
 def running_mode(url):
     """True/False for a running host's paranoid mode, None if it can't be told."""
     from urllib.request import urlopen
@@ -1113,7 +1151,8 @@ def quit_on_signals(app, platform=None):
     sees a signal between bytecodes, so a timer wakes it while Qt's event loop runs."""
     if (platform or sys.platform) == 'win32': return None
     import signal
-    for sig in (signal.SIGINT, signal.SIGTERM): signal.signal(sig, lambda *_: app.quit())
+    # SIGHUP too (a logout): Quit turns accessibility off again if website rules turned it on.
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP): signal.signal(sig, lambda *_: app.quit())
     timer = QTimer(app); timer.timeout.connect(lambda: None); timer.start(300)
     return timer
 
@@ -1145,8 +1184,13 @@ def main():
                         'number (sval:...), never any other; repeat for more')
     parser.add_argument('--log-app-rules', action='store_true', help='testing: print each app rule ID sent to the board, with the site rule '
                         'or program it stands for (never an address or a window title)')
+    parser.add_argument('--probe-sites', action='store_true', help='Linux: check that website rules can read the browser address '
+                        '(prints only the host name), then exit')
     parser.add_argument('--diagnose', action='store_true', help='print a report of the system, display session, Qt and the boards it can see, then exit')
     args = parser.parse_args()
+    if args.probe_sites:
+        from .atspi import probe
+        raise SystemExit(probe())
     if args.diagnose:
         from .diagnose import report
         print(report(), end='')

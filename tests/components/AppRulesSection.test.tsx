@@ -366,14 +366,30 @@ describe("AppRulesSection", () => {
         expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Retype this site to edit it.");
     });
 
-    it("on Linux, a website rule says websites work on Windows and Mac for now; on macOS it matches", async () => {
-        state.hostApps = { platform: "linux", foreground: null, apps: [] };
-        state.keyboard = board([{ ...blank, key: "site:onshape.com", appId: appId("site:onshape.com"), text: "onshape.com", flags: 2 }]);
-        const view = renderSection();
-        await act(async () => { await Promise.resolve(); });
-        view.rerender();
-        expect(screen.getByTestId("app-rule-site-hint").textContent).toBe("Websites work on Windows and Mac for now.");
-        view.unmount();
+    it("on Linux, a website rule says whether websites work there; on macOS it matches", async () => {
+        const site = { ...blank, key: "site:onshape.com", appId: appId("site:onshape.com"), text: "onshape.com", flags: 2 };
+        state.keyboard = board([site]);
+        const linux = async (sites?: "ready" | "off") => {
+            state.hostApps = { platform: "linux", foreground: null, apps: [], ...(sites ? { sites } : {}) };
+            const view = renderSection();
+            await act(async () => { await Promise.resolve(); });
+            view.rerender();
+            const hint = screen.getByTestId("app-rule-site-hint").textContent;
+            const restart = screen.queryByTestId("app-rule-site-restart")?.textContent ?? null;
+            const title = screen.getByLabelText("Rule 1 website").getAttribute("title");
+            view.unmount();
+            return { hint, restart, title };
+        };
+        // An older Keybard Overlay reads no addresses on Linux.
+        expect(await linux()).toEqual({ hint: "Websites on Linux need a newer Keybard Overlay.", restart: null,
+            title: "Matches onshape.com and every address under it." });
+        // No AT-SPI on this desktop.
+        expect((await linux("off")).hint).toBe("Websites need the AT-SPI accessibility service.");
+        // AT-SPI answers: it matches, and Chrome-based browsers need one restart.
+        const ready = await linux("ready");
+        expect(ready.hint).toBe("Matches onshape.com and every address under it.");
+        expect(ready.restart).toBe("Restart Chrome-based browsers once for websites.");
+        expect(ready.title).toMatch(/Firefox, Chrome, Chromium, Brave and Edge/);
         state.hostApps = { platform: "macos", foreground: null, apps: [] };
         const mac = renderSection();
         await act(async () => { await Promise.resolve(); });
