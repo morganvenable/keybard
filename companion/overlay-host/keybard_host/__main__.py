@@ -28,8 +28,8 @@ if sys.platform == 'win32':
     _flags = os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '').split()
     os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = ' '.join(_flags + [f for f in WINDOWS_CHROMIUM_FLAGS if f not in _flags])
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPoint, QPointF
-from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal, QObject, QStandardPaths, QLockFile, QSize, QPoint, QPointF, QRectF
+from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QPainter, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget, QToolButton, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineScript
@@ -50,6 +50,7 @@ from .handoff import hand_off, REFUSED
 from .browser import open_contained
 from .macos import float_window, hide_dock_icon, is_mac
 from . import backdrop, ontop
+from .log import log, set_file as set_log_file
 
 
 class Bridge(QObject):
@@ -59,6 +60,18 @@ class Bridge(QObject):
 class LocalPage(QWebEnginePage):
     def acceptNavigationRequest(self, url, kind, main):
         return url.scheme() in ('http', 'about') and (url.scheme() == 'about' or (url.host() == '127.0.0.1' and url.port() == self.parent().host_port))
+
+    logged = None
+
+    def javaScriptConsoleMessage(self, level, message, line, source):
+        """The overlay page's warnings and errors go to the Host's log (log.py); the same one
+        repeated within 10 s is logged once."""
+        if level == QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel: return
+        now = time.monotonic()
+        if self.logged and self.logged[0] == message and now - self.logged[1] < 10: return
+        self.logged = (message, now)
+        kind = 'error' if level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel else 'warning'
+        log(f'overlay page {kind}: {message[:300]} ({QUrl(source).path() or "page"}:{line})')
 
 
 def prepare_overlay_window(widget, platform=None):
@@ -100,6 +113,9 @@ class Surface(QWebEngineView):
         self.setStyleSheet('background:transparent')
         page = LocalPage(self)
         self.setPage(page)
+        # A renderer that crashed or was killed leaves the overlay empty for good: load it again.
+        page.renderProcessTerminated.connect(self.renderer_gone)
+        self.renderer_losses = []
         page.setBackgroundColor(QColor(Qt.transparent))
         native = QWebEngineScript()
         native.setName('keybard-native-state')
@@ -111,6 +127,18 @@ class Surface(QWebEngineView):
         page.settings().setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, True)
         self.resize(1050, 330)
         self.setUrl(QUrl(f'http://127.0.0.1:{port}/?hostOverlay=1'))
+
+    def renderer_gone(self, status, code):
+        """Log it and load the page again, at once the first time, then after a pause if it
+        keeps dying (more than 3 in a minute), so a renderer that can't start doesn't spin.
+        A normal end is the overlay closing (Quit), never a crash."""
+        if status == QWebEnginePage.RenderProcessTerminationStatus.NormalTerminationStatus: return
+        now = time.monotonic()
+        self.renderer_losses = [t for t in self.renderer_losses if now - t < 60] + [now]
+        delay = 0 if len(self.renderer_losses) <= 3 else 30000
+        log(f'overlay renderer ended ({getattr(status, "name", status)}, exit code {code}); reloading the overlay'
+            + (f' in {delay // 1000} s' if delay else ''))
+        QTimer.singleShot(delay, self.reload)
 
     def pass_clicks_through(self):
         """Every click on the overlay reaches the window underneath; only the handle moves it."""
@@ -141,6 +169,12 @@ def overlay_control_icon(kind):
         painter.drawLine(QPointF(3, 12), QPointF(13, 12))
     elif kind == 'expand':
         painter.drawRect(3, 3, 10, 10)
+    elif kind == 'reload':
+        # A circular arrow, open at the upper right, its head turning clockwise.
+        painter.drawArc(QRectF(3, 3, 10, 10), 0, -300 * 16)
+        painter.setPen(Qt.NoPen); painter.setBrush(QColor('#eeeeee'))
+        end, tangent, normal = QPointF(10.5, 3.67), QPointF(.866, .5), QPointF(.5, -.866)
+        painter.drawPolygon(QPolygonF([end + tangent * 2.6, end + normal * 2.3, end - normal * 2.3]))
     else:
         painter.setPen(Qt.NoPen); painter.setBrush(QColor('#eeeeee'))
         for x in (3, 8, 13): painter.drawEllipse(QPointF(x, 8), 1.2, 1.2)
@@ -257,6 +291,10 @@ class OverlayControls(QWidget):
         layout = QHBoxLayout(self); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(4)
         self.handle = DragHandle(surface, self)
         self.resizer = ResizeHandle(surface, self, get_scale, set_scale)
+        # Reads the board layout again, as Reload board layout in the menu does.
+        self.refresher = QToolButton(self); self.refresher.setIcon(overlay_control_icon('reload')); self.refresher.setIconSize(QSize(16, 16))
+        self.refresher.setToolTip('Reload'); self.refresher.setAccessibleName('Reload board layout')
+        self.refresher.clicked.connect(lambda: reload())
         self.collapser = QToolButton(self); self.collapser.setIconSize(QSize(16, 16))
         self.collapser.clicked.connect(lambda: self.set_collapsed(not self.collapsed))
         self.more = QToolButton(self); self.more.setIcon(overlay_control_icon('more')); self.more.setIconSize(QSize(16, 16)); self.more.setToolTip('Overlay controls'); self.more.setAccessibleName('Overlay controls')
@@ -276,9 +314,11 @@ class OverlayControls(QWidget):
         menu.addAction('Place at bottom', place)
         menu.addAction('Reload board layout', reload)
         self.more.setMenu(menu)
-        for button in (self.handle, self.resizer, self.collapser, self.more):
+        buttons = (self.handle, self.resizer, self.refresher, self.collapser, self.more)
+        for button in buttons:
             button.setFixedSize(24, 24); layout.addWidget(button)
-        self.setFixedSize(108, 24)
+        # Its own window, sized for every button whatever the overlay's size.
+        self.setFixedSize(len(buttons) * 24 + (len(buttons) - 1) * layout.spacing(), 24)
         self.collapsed = False
         self.set_collapsed(False, apply=False)
         surface.geometry_changed.connect(self.reposition)
@@ -470,6 +510,7 @@ class Host(QObject):
         self.published_layout = -1
         self.published_state = None
         if ok: self.publish_state()
+        else: log('overlay page did not load')
 
     def publish_state(self):
         # Native delivery avoids browser timer throttling and a second polling cycle.
@@ -899,8 +940,21 @@ class Host(QObject):
                 print(f'{time.strftime("%H:%M:%S")} app rules: sending {chosen:08X} ({line}); '
                       f'site rules on the board: {", ".join(known) or "none"}', flush=True)
 
+    # Longer than this between ticks (100 ms) is logged: the overlay page pauses itself after 1.2 s without news.
+    STALL = 1.0
+
+    def note_stall(self, now):
+        """After a gap between ticks (a sleep, or a slow step) the overlay page may have paused and
+        dropped its layout: log it, and send the whole layout with the next state."""
+        last, self.last_tick = getattr(self, 'last_tick', None), now
+        if last is None or now - last <= self.STALL: return False
+        log(f'Host was held up {now - last:.1f} s (a sleep, or a slow step); sending the overlay its whole state again')
+        self.published_layout = -1
+        return True
+
     def tick(self):
         now = time.monotonic()
+        self.note_stall(now)
         for board in self.boards.values():
             if now - board.last_state > .6: board.valid = False; board.pressed = []
             if now - board.last_press > .5: board.pressed = []
@@ -938,6 +992,8 @@ class Host(QObject):
         elif op == 'disconnect':
             self.disconnect()
         elif op in ('reload', 'refresh'):
+            # The overlay page gets the whole layout with the next state, even if no board answers.
+            self.published_layout = -1
             # Keybard doesn't say which board it changed: every board reads its layout again.
             for board in self.boards.values():
                 if board.worker is None: continue
@@ -1194,6 +1250,8 @@ def main():
         try: page = load_paranoid_page(args.assets)
         except (OSError, ValueError) as e: return refuse(f'Paranoid mode will not start: {e}.')
     state = HostState(args.settings or folder / 'preferences.json')
+    set_log_file(folder / 'overlay.log')
+    log(f'Keybard Overlay started: {build_label(build_info())}')
     host = Host(app, args.assets, state, args.port, args.allow_origin, args.paranoid, page, log_app_rules=args.log_app_rules, only_boards=args.only_board)
     host.keybard_url = args.keybard_url
     if args.show_pointing: state.config['showPointing'] = True
