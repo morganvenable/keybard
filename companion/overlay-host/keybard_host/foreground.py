@@ -293,6 +293,13 @@ class _Sway:
         node = next((n for n in self.windows() if n.get('focused')), None)
         return self.key_of(node) if node else None
 
+    def foreground_window(self):
+        """(window ID, app, title), for site rules (the title changes with the tab)."""
+        node = next((n for n in self.windows() if n.get('focused')), None)
+        if not node: return None, None, None
+        app = self.key_of(node)
+        return (node.get('id') or None) if app else None, app, node.get('name') or ''
+
     def running(self):
         return [app for app in (self.key_of(n) for n in self.windows()) if app]
 
@@ -306,6 +313,13 @@ class _Hyprland:
         value = _run_json(['hyprctl', 'activewindow', '-j'], self.run)
         key = value.get('class') if isinstance(value, dict) else None
         return (key, value.get('initialTitle') or key) if key else None
+
+    def foreground_window(self):
+        value = _run_json(['hyprctl', 'activewindow', '-j'], self.run)
+        if not isinstance(value, dict) or not value.get('class'): return None, None, None
+        try: window = int(str(value.get('address') or '0'), 16) or None
+        except ValueError: window = None
+        return window, (value['class'], value.get('initialTitle') or value['class']), value.get('title') or ''
 
     def running(self):
         value = _run_json(['hyprctl', 'clients', '-j'], self.run)
@@ -325,10 +339,27 @@ class _Kde:
         key = out.splitlines()[0].strip() if out else ''
         return (key, key) if key else None
 
+    def foreground_window(self):
+        """kdotool gives no stable window ID, so the program stands for its windows: a browser's
+        windows share one, and the address is read again whenever the title changes."""
+        try: out = self.run(['kdotool', 'getactivewindow', 'getwindowclassname', 'getwindowname']) or ''
+        except (OSError, subprocess.SubprocessError): return None, None, None
+        lines = out.splitlines()
+        key = lines[0].strip() if lines else ''
+        if not key: return None, None, None
+        return program_window(key), (key, key), lines[1] if len(lines) > 1 else ''
+
     def running(self):
         # kdotool lists windows only by search: the app in front is offered alone.
         front = self.foreground()
         return [front] if front else []
+
+
+def program_window(key):
+    """A window ID for a window known only by its program (KDE): FNV-1a 64 of the key, never 0."""
+    value = 0xcbf29ce484222325
+    for byte in key.encode('utf-8'): value = ((value ^ byte) * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF
+    return value | 1
 
 
 class _X11:
@@ -361,7 +392,23 @@ class _X11:
         self.root = x.XDefaultRootWindow(self.display)
         self.active = x.XInternAtom(self.display, b'_NET_ACTIVE_WINDOW', 1)
         self.clients = x.XInternAtom(self.display, b'_NET_CLIENT_LIST', 1)
+        self.wm_name = x.XInternAtom(self.display, b'_NET_WM_NAME', 1)
+        self.utf8 = x.XInternAtom(self.display, b'UTF8_STRING', 1)
         self.lock = threading.Lock()
+
+    def title_of(self, window):
+        """The window's title (_NET_WM_NAME, else WM_NAME), only to notice a tab change."""
+        for prop, kind in ((self.wm_name, self.utf8), (39, 31)):  # XA_WM_NAME, XA_STRING
+            if not prop or not kind: continue
+            got, fmt, count, after, data = ctypes.c_ulong(), ctypes.c_int(), ctypes.c_ulong(), ctypes.c_ulong(), ctypes.c_void_p()
+            if self.x.XGetWindowProperty(self.display, window, prop, 0, 1024, 0, kind, ctypes.byref(got), ctypes.byref(fmt),
+                                         ctypes.byref(count), ctypes.byref(after), ctypes.byref(data)) != 0: continue
+            try:
+                if data.value and fmt.value == 8 and count.value:
+                    return ctypes.string_at(data.value, count.value).decode('utf-8', 'replace')
+            finally:
+                if data.value: self.x.XFree(data)
+        return ''
 
     def windows(self, atom):
         if not atom: return []
@@ -389,6 +436,13 @@ class _X11:
         with self.lock:
             active = self.windows(self.active)
             return self.class_of(active[0]) if active else None
+
+    def foreground_window(self):
+        with self.lock:
+            active = self.windows(self.active)
+            if not active: return None, None, None
+            app = self.class_of(active[0])
+            return (active[0] if app else None), app, self.title_of(active[0]) if app else None
 
     def running(self):
         with self.lock:
@@ -450,7 +504,8 @@ def foreground_app(src=None):
 
 def foreground_window(src=None):
     """(window, (key, display name) or None, title) of the window in front. The window and title
-    are None where only the app is known (macOS, Linux): site rules then use the program."""
+    are None where only the app is known (macOS gives no title; GNOME on Wayland says nothing):
+    site rules then use the program."""
     src = src or source()
     try:
         if hasattr(src, 'foreground_window'): return src.foreground_window()
@@ -470,9 +525,32 @@ def running_apps(src=None):
     return out
 
 
-def apps_snapshot(src=None, platform=None):
-    """The /api/host/apps reply."""
+_sites, _sites_at, _sites_lock = None, 0.0, threading.Lock()
+
+
+def linux_sites(src=None, check=None, clock=None):
+    """('ready'|'off', reason) for website rules on Linux: whether the window in front is known and
+    the AT-SPI accessibility bus answers. Checked at most every 30 seconds."""
+    global _sites, _sites_at
+    import time
+    now = (clock or time.monotonic)()
+    with _sites_lock:
+        if _sites is None or now - _sites_at > 30:
+            if check is None:
+                from .atspi import status as check
+            src = src or source()
+            _sites, _sites_at = check(not isinstance(src, _Nothing)), now
+        return _sites
+
+
+def apps_snapshot(src=None, platform=None, sites=linux_sites):
+    """The /api/host/apps reply. On Linux, `sites` says whether website rules can work here:
+    'ready' (AT-SPI answers) or 'off'."""
     front = foreground_app(src)
-    return dict(platform=platform_name(platform),
-                foreground=dict(key=front[0], name=front[1]) if front else None,
-                apps=[dict(key=key, name=name) for key, name in running_apps(src)])
+    out = dict(platform=platform_name(platform),
+               foreground=dict(key=front[0], name=front[1]) if front else None,
+               apps=[dict(key=key, name=name) for key, name in running_apps(src)])
+    if out['platform'] == 'linux':
+        try: out['sites'] = sites(src)[0]
+        except Exception: out['sites'] = 'off'  # noqa: BLE001 - never fail the reply over it
+    return out

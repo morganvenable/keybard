@@ -4,7 +4,8 @@ Windows: the browser's address bar through UI Automation (the accessibility inte
 readers use), so no browser extension is needed. Chrome, Edge, Brave, Vivaldi and Firefox.
 macOS: Safari and the Chromium-based browsers are asked for their front tab through Apple Events
 (osascript), once the person allows it, per browser (MacAddressBar).
-Linux: browsers offer no way without an extension; a site rule's browser counts as the program.
+Linux: the address bar through AT-SPI, the desktop's accessibility bus (atspi.py): Firefox and the
+Chromium-based browsers. Without an accessibility bus a browser counts as its program.
 
 Privacy: only the host name ("cad.onshape.com") leaves this module, never the address, and
 nothing here logs or keeps it. The caller keeps only the site rule it matched.
@@ -30,7 +31,24 @@ MAC_CHROMIUM = frozenset((
     'com.microsoft.edgemac', 'com.microsoft.edgemac.beta', 'com.microsoft.edgemac.dev',
     'com.brave.browser', 'com.brave.browser.beta', 'company.thebrowser.browser', 'com.vivaldi.vivaldi',
     'org.chromium.chromium'))
-BROWSERS = CHROMIUM | FIREFOX | MAC_SAFARI | MAC_CHROMIUM
+# Linux, by X11 class or Wayland app_id (lowered), for deb/rpm, Flatpak and Snap builds; AT-SPI finds
+# the address bar the same way in all of them. Only on Linux: Flatpak Firefox's app_id is also
+# Firefox's macOS bundle ID, and macOS can't read Firefox's address.
+LINUX = frozenset((
+    'firefox', 'firefox-esr', 'firefox_firefox', 'firefox-nightly', 'firefox-developer-edition',
+    'firefoxdeveloperedition', 'org.mozilla.firefox', 'librewolf', 'io.gitlab.librewolf-community',
+    'google-chrome', 'google-chrome-beta', 'google-chrome-unstable', 'google-chrome-for-testing',
+    'chromium', 'chromium-browser', 'org.chromium.chromium', 'brave-browser', 'brave-browser-beta',
+    'com.brave.browser', 'microsoft-edge', 'microsoft-edge-beta', 'microsoft-edge-dev', 'com.microsoft.edge',
+    'vivaldi-stable', 'vivaldi', 'com.vivaldi.vivaldi'))
+LINUX_FIREFOX = frozenset(k for k in LINUX if 'firefox' in k or 'librewolf' in k)
+BROWSERS = CHROMIUM | FIREFOX | MAC_SAFARI | MAC_CHROMIUM | (LINUX if sys.platform.startswith('linux') else frozenset())
+
+
+def is_browser(key, platform=None):
+    """Whether a program key (already app_key-normalized) is a browser whose address is read here."""
+    platform = platform or sys.platform
+    return key in (CHROMIUM | FIREFOX | MAC_SAFARI | MAC_CHROMIUM) or (platform.startswith('linux') and key in LINUX)
 
 KEEP = 'keep'  # the address bar has the keyboard: the person is typing, so keep the last host
 
@@ -56,8 +74,9 @@ def host_of_address(text):
 
 
 class NoAddressBar:
-    """Where the address can't be read (macOS and Linux for now): every browser is its program."""
-    def host(self, window, browser): return None
+    """Where the address can't be read: every browser is its program."""
+    problem = None
+    def host(self, window, browser, title=None): return None
     def forget(self, window): pass
     def close(self): pass
 
@@ -177,7 +196,7 @@ class WindowsAddressBar:
             return found if found else None
         finally: self._release(root)
 
-    def host(self, window, browser):
+    def host(self, window, browser, title=None):
         """The host name in this browser window's address bar, KEEP while the person types in it,
         or None (not found, or not a web page). Raises OSError when UI Automation fails."""
         for attempt in range(2):
@@ -230,7 +249,7 @@ class MacAddressBar:
         self.run = run or (lambda c: subprocess.run(c, capture_output=True, text=True, timeout=self.TIMEOUT))
         self.denied = set()
 
-    def host(self, window, browser):
+    def host(self, window, browser, title=None):
         key = (browser or '').lower()
         if key in self.denied: return None
         script = front_tab_script(browser)
@@ -252,6 +271,9 @@ def make_address_bar(platform=None):
         try: return WindowsAddressBar()
         except (OSError, AttributeError, ValueError): return NoAddressBar()
     if platform == 'darwin': return MacAddressBar()
+    if platform.startswith('linux'):
+        from .atspi import AtspiAddressBar
+        return AtspiAddressBar()
     return NoAddressBar()
 
 
@@ -267,10 +289,11 @@ class TimedReader:
         self.make, self.done, self.clock = make, done, clock
         self.lock = threading.Lock()
         self.wake = threading.Event()
-        self.job = None          # (token, window, browser) waiting to run
+        self.job = None          # (token, window, browser, title) waiting to run
         self.busy_since = None   # when the running read started
         self.closing = False
         self.forgotten = set()  # windows closed: drop their elements on the reader's thread
+        self.problem = None     # the reader's reason for its last empty read (Linux: 'no-bus', 'not-found')
         self.thread = threading.Thread(target=self._run, name='address-bar', daemon=True)
         self.thread.start()
 
@@ -281,11 +304,13 @@ class TimedReader:
         """Whether a read has run longer than `timeout` seconds."""
         with self.lock: return self.busy_since is not None and self.clock() - self.busy_since > timeout
 
-    def request(self, token, window, browser):
-        """Start a read unless one is running or waiting. Returns whether it was started."""
+    def request(self, token, window, browser, title=None):
+        """Start a read unless one is running or waiting. Returns whether it was started. `title` is
+        the window title's hash (site_rules.SiteWatcher.title_hash), for a reader that finds the
+        window by its title (Linux); the title itself never reaches a reader."""
         with self.lock:
             if self.closing or self.busy_since is not None or self.job is not None: return False
-            self.job = (token, window, browser)
+            self.job = (token, window, browser, title)
         self.wake.set()
         return True
 
@@ -307,10 +332,10 @@ class TimedReader:
                 except Exception: reader = NoAddressBar()  # noqa: BLE001 - never let the thread die
             for window in forgotten: reader.forget(window)
             if not job: continue
-            token, window, browser = job
-            try: host = reader.host(window, browser)
+            token, window, browser, title = job
+            try: host = reader.host(window, browser, title)
             except Exception: host = None  # noqa: BLE001 - a failed read is the program, never an error
-            with self.lock: self.busy_since = None
+            with self.lock: self.busy_since = None; self.problem = getattr(reader, 'problem', None)
             if self.done: self.done(token, host)
         if reader is not None:
             try: reader.close()

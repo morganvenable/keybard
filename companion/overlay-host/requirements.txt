@@ -1,3 +1,4 @@
 PySide6-Essentials==6.11.2
 PySide6-Addons==6.11.2
 hidapi==0.15.0
+jeepney==0.9.0; sys_platform == "linux"

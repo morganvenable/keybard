@@ -169,11 +169,11 @@ class LongSiteTests(unittest.TestCase):
 class ManualReader:
     """A TimedReader double: requests wait until the test answers them."""
     def __init__(self, done): self.done, self.jobs, self.busy, self.forgotten = done, [], False, []
-    def request(self, token, window, browser):
+    def request(self, token, window, browser, title=None):
         if self.busy: return False
-        self.jobs.append((token, window, browser)); self.busy = True; return True
+        self.jobs.append((token, window, browser, title)); self.busy = True; return True
     def answer(self, host):
-        token, _, _ = self.jobs[-1]; self.busy = False; self.done(token, host)
+        token = self.jobs[-1][0]; self.busy = False; self.done(token, host)
     def forget(self, window): self.forgotten.append(window)
     def close(self): pass
 
@@ -196,7 +196,8 @@ class WatcherTests(unittest.TestCase):
 
     def test_pending_then_the_host(self):
         self.assertIs(self.watcher.host_for(1, 'chrome.exe', 'Doc | Part Studio'), PENDING)
-        self.assertEqual(self.reader.jobs[0][1:], (1, 'chrome.exe'))
+        self.assertEqual(self.reader.jobs[0][1:3], (1, 'chrome.exe'))
+        self.assertEqual(self.reader.jobs[0][3], SiteWatcher.title_hash('Doc | Part Studio'))  # only the title's hash
         self.reader.answer('cad.onshape.com')
         self.assertEqual(self.notified, [1])
         self.assertEqual(self.watcher.host_for(1, 'chrome.exe', 'Doc | Part Studio'), 'cad.onshape.com')
@@ -275,7 +276,7 @@ class TimedReaderTests(unittest.TestCase):
         results, finished = [], threading.Event()
 
         class Reader(NoAddressBar):
-            def host(self, window, browser): return host_fn(window, browser)
+            def host(self, window, browser, title=None): return host_fn(window, browser)
 
         timed = TimedReader(make=Reader, done=lambda token, host: (results.append((token, host)), finished.set()))
         self.addCleanup(timed.close)
@@ -294,7 +295,7 @@ class TimedReaderTests(unittest.TestCase):
 
     def test_a_hung_read_blocks_only_itself(self):
         release = threading.Event()
-        timed = TimedReader(make=lambda: types.SimpleNamespace(host=lambda w, b: release.wait(5) and 'x', forget=lambda w: None, close=lambda: None),
+        timed = TimedReader(make=lambda: types.SimpleNamespace(host=lambda w, b, t: release.wait(5) and 'x', forget=lambda w: None, close=lambda: None),
                             done=lambda *_: None)
         self.addCleanup(timed.close); self.addCleanup(release.set)
         start = time.monotonic()
@@ -312,8 +313,9 @@ class TimedReaderTests(unittest.TestCase):
         timed.request(1, 1, 'chrome.exe')
         self.assertTrue(finished.wait(2)); self.assertEqual(results, [None])
 
-    def test_linux_reads_nothing(self):
-        self.assertIsInstance(address_bar.make_address_bar('linux'), NoAddressBar)
+    def test_linux_reads_through_atspi(self):
+        from keybard_host.atspi import AtspiAddressBar
+        self.assertIsInstance(address_bar.make_address_bar('linux'), AtspiAddressBar)
 
 
 # ---------------------------------------------------------------- reading the rules from the board
@@ -418,7 +420,9 @@ class HostChoiceTests(unittest.TestCase):
         self.worker = types.SimpleNamespace(app_rules=True, sites=[('onshape.com', ONSHAPE)], sent=[])
         self.worker.set_foreground = self.worker.sent.append
         self.hosts = {}
-        watcher = types.SimpleNamespace(host_for=lambda window, program, title: self.hosts.get(window))
+        self.wanted = []
+        watcher = types.SimpleNamespace(host_for=lambda window, program, title: self.hosts.get(window),
+                                        set_wanted=self.wanted.append, problem=lambda: None)
         self.host = types.SimpleNamespace(boards={'a': types.SimpleNamespace(worker=self.worker)}, site_watcher=watcher,
                                           foreground_id=None, log_app_rules=False, logged_app=None)
 
@@ -445,19 +449,21 @@ class HostChoiceTests(unittest.TestCase):
 
     def test_no_site_rules_no_reading(self):
         self.worker.sites = []
-        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read without site rules'))
+        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read without site rules'),
+                                                       set_wanted=self.wanted.append)
         self.assertEqual(self.poll(1, 'chrome.exe'), app_id('chrome.exe'))
 
     def test_app_layers_off_reads_and_sends_nothing(self):
         self.worker.app_layers_on = False
-        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read while App Layers is off'))
+        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: self.fail('read while App Layers is off'),
+                                                       set_wanted=self.wanted.append)
         original = self.main.foreground_window
         self.main.foreground_window = lambda: self.fail('looked at the window while App Layers is off')
         try: self.main.Host.poll_foreground(self.host)
         finally: self.main.foreground_window = original
         self.assertEqual(self.worker.sent, [])
         self.worker.app_layers_on = True                           # back on: reading and sending resume
-        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: 'cad.onshape.com')
+        self.host.site_watcher = types.SimpleNamespace(host_for=lambda *a: 'cad.onshape.com', set_wanted=self.wanted.append)
         self.assertEqual(self.poll(1, 'chrome.exe'), ONSHAPE)
 
     def test_the_log_names_the_rule_never_the_address(self):
@@ -510,4 +516,4 @@ class MacAddressBarTests(unittest.TestCase):
 
     def test_made_on_macos(self):
         self.assertIsInstance(address_bar.make_address_bar('darwin'), address_bar.MacAddressBar)
-        self.assertIsInstance(address_bar.make_address_bar('linux'), NoAddressBar)
+        self.assertIsInstance(address_bar.make_address_bar('freebsd'), NoAddressBar)

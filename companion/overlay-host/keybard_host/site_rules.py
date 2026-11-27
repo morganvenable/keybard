@@ -18,12 +18,13 @@ counts). A website rule whose text isn't its site (a 13-byte label from format 1
 LONG_MARK and the site's end) still matches by its ID. Keybard's src/services/app-rules.ts
 normalizes sites the same way.
 """
-import hashlib
 import re
+import sys
 import threading
 import time
 
-from .address_bar import BROWSERS, KEEP
+from .address_bar import KEEP, is_browser
+from .atspi import title_hash
 from .foreground import app_id, app_key
 
 SITE_PREFIX = 'site:'
@@ -121,16 +122,30 @@ class SiteWatcher:
     only per window, in memory; nothing is logged.
     """
 
-    def __init__(self, reader_factory, notify=None, clock=time.monotonic, timeout=0.15, reread=5.0):
+    def __init__(self, reader_factory, notify=None, clock=time.monotonic, timeout=0.15, reread=5.0,
+                 wanted_hook=None, platform=None):
         self.clock, self.timeout, self.reread, self.notify = clock, timeout, reread, notify
+        self.platform = platform or sys.platform
+        # Told when site rules start or stop being wanted (a board has a website rule), so a platform
+        # can turn on what its reader needs (Linux: accessibility) only meanwhile.
+        self.wanted_hook, self.wanted = wanted_hook, False
         self.lock = threading.Lock()
         self.windows = {}   # window -> dict(title=hash, host=..., read_at=..., asked_at=..., token=...)
         self.serial = 0
         self.reader = reader_factory(self._done)
 
-    @staticmethod
-    def title_hash(title):
-        return hashlib.blake2s((title or '').encode('utf-8', 'replace'), digest_size=8).digest()
+    title_hash = staticmethod(title_hash)
+
+    def set_wanted(self, wanted):
+        """Whether any board has a website rule now; the hook hears only changes."""
+        wanted = bool(wanted)
+        if wanted != self.wanted:
+            self.wanted = wanted
+            if self.wanted_hook: self.wanted_hook(wanted)
+
+    def problem(self):
+        """The reader's reason for its last empty read, for the log (Linux: 'no-bus', 'not-found')."""
+        return getattr(self.reader, 'problem', None)
 
     def _done(self, token, host):
         with self.lock:
@@ -150,7 +165,7 @@ class SiteWatcher:
 
     def host_for(self, window, program, title):
         browser = app_key(program)
-        if not window or browser not in BROWSERS: return None
+        if not window or not is_browser(browser, self.platform): return None
         now = self.clock()
         title = self.title_hash(title)
         with self.lock:
@@ -165,7 +180,7 @@ class SiteWatcher:
             if due and entry['token'] is None:
                 self.serial += 1
                 token = self.serial
-                if self.reader.request(token, window, browser):
+                if self.reader.request(token, window, browser, title):
                     entry['token'], entry['asked_at'], entry['asked_title'] = token, now, title
             if entry['known']: return entry['host']
             if entry['token'] is not None and now - entry['asked_at'] <= self.timeout: return PENDING
@@ -176,4 +191,5 @@ class SiteWatcher:
         self.reader.forget(window)
 
     def close(self):
+        self.set_wanted(False)
         self.reader.close()
