@@ -84,31 +84,52 @@ export function useHost({ overlay = false, background = false }: { overlay?: boo
         let alive = true, timer: ReturnType<typeof setTimeout>;
         const abort = new AbortController();
         let lastReceived = Date.now();
-        const watchdog = background ? undefined : setInterval(() => { if (current.current && Date.now() - lastReceived > 1200) { current.current = null; setState(null); setError('Connection to the overlay app is stale. The preview is paused.'); } }, 200);
-        function receive(data: HostSnapshot) {
+        // The layoutRevision whose board this page holds; null: none yet, or forgotten. The Overlay
+        // sends the board only when its layout changed, so the page asks for it whenever it lacks it.
+        let knownLayout: number | null = null;
+        let fetching = false;
+        const watchdog = background ? undefined : setInterval(() => {
+            if (current.current && Date.now() - lastReceived > 1200) {
+                // The Overlay app's own window logs this line: a paused Overlay, a stalled app or a sleep.
+                console.warn(`Keybard Overlay: no update for ${Date.now() - lastReceived} ms; the preview is paused`);
+                current.current = null; knownLayout = null; setState(null); setError('Connection to the overlay app is stale. The preview is paused.');
+            }
+        }, 200);
+        /** full: the answer to a request that named another layout, so its board (even null: no board) is the current one. */
+        function receive(data: HostSnapshot, full = false) {
             if (!alive || data.apiVersion !== 1) return;
             lastReceived = Date.now();
             setError(''); // updates are arriving again
             if (current.current?.session !== data.session) current.current = null;
+            if (!current.current) knownLayout = null;
             if (current.current && data.revision < current.current.revision) { data.revision = current.current.revision; data.config = current.current.config; }
-            if (data.layoutRevision === current.current?.layoutRevision && !data.board) data.board = current.current.board;
+            if (data.layoutRevision === current.current?.layoutRevision && !data.board && knownLayout === data.layoutRevision) data.board = current.current.board;
+            if (data.board || full) knownLayout = data.layoutRevision;
             current.current = data; setState(data);
+            // A state event without the board, after the page forgot it (the watchdog above, a new
+            // session): ask for the whole state, or the overlay stays empty until the layout changes.
+            if (native && knownLayout !== data.layoutRevision && !fetching) void poll();
         }
         const native = !!window.__keybardNativeState;
         const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
         const onState = (event: Event) => receive((event as CustomEvent<HostSnapshot>).detail);
-        const onHeartbeat = () => { lastReceived = Date.now(); if (!current.current) void poll(); };
+        const onHeartbeat = () => { lastReceived = Date.now(); if (!current.current && !fetching) void poll(); };
         if (native) {
             window.addEventListener('keybard-host-state', onState);
             window.addEventListener('keybard-host-heartbeat', onHeartbeat);
         }
         async function poll() {
+            fetching = true;
+            const asked = knownLayout ?? -1;
             try {
-                const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}${overlay ? '&overlay=1' : ''}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
+                const r = await fetch(`${base}/api/host/state?layout=${asked}${overlay ? '&overlay=1' : ''}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
                 if (!r.ok) throw new Error('Connection to the overlay app lost');
-                receive(await r.json() as HostSnapshot);
+                const data = await r.json() as HostSnapshot;
+                fetching = false;
+                receive(data, data.layoutRevision !== asked);
             } catch {
-                if (alive) { current.current = null; setState(null); setError('Connection to the overlay app lost. The preview is paused.'); }
+                fetching = false;
+                if (alive) { current.current = null; knownLayout = null; setState(null); setError('Connection to the overlay app lost. The preview is paused.'); }
             }
             if (alive && !native) timer = setTimeout(poll, 80);
         }
@@ -120,12 +141,14 @@ export function useHost({ overlay = false, background = false }: { overlay?: boo
                 if (!current.current && !await bootstrap(abort.signal)) throw new Error('not an overlay');
                 if (!alive) return;
                 if (!local) { try { appStorage.setItem(REMOTE_KEY, '1'); } catch { /* storage unavailable */ } }
-                const r = await fetch(`${base}/api/host/state?layout=${current.current?.layoutRevision ?? -1}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
+                const asked = knownLayout ?? -1;
+                const r = await fetch(`${base}/api/host/state?layout=${asked}`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1200)]), cache: 'no-store' });
                 if (!r.ok) throw new Error('Connection to the overlay app lost');
-                receive(await r.json() as HostSnapshot);
+                const data = await r.json() as HostSnapshot;
+                receive(data, data.layoutRevision !== asked);
                 void watchLayout();
             } catch {
-                if (alive && current.current) { current.current = null; setState(null); }
+                if (alive && current.current) { current.current = null; knownLayout = null; setState(null); }
             }
             if (alive && !native && !hidden()) timer = setTimeout(slowTick, HOST_SLOW_POLL_MS);
         }
