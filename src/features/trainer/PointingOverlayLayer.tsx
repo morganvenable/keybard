@@ -50,7 +50,8 @@ export function PointingOverlayLayer({ keys, pointing, config, look, feed: demoF
     const feed = demoFeed ?? ownFeed;
     const [modes, setModes] = useState({ sniper: false, boost: false });
     const [factors, setFactors] = useState<PointingFactors | null>(null);
-    // The hand that moved last carries the pills; null until one moves (then both show them).
+    // The hand that moved last carries Velocity Scroll; null until one moves.
+    // Sniper and boost are the board's, not a hand's: both devices show them.
     const [moving, setMoving] = useState<'left' | 'right' | null>(null);
 
     useEffect(() => {
@@ -82,7 +83,7 @@ export function PointingOverlayLayer({ keys, pointing, config, look, feed: demoF
 
     if (!frame || (!kinds.left && !kinds.right) || (!cfg.showPointing && !cfg.pointingPills)) return null;
     const ghost = !cfg.showPointing;
-    const modesAt = (side: 'left' | 'right') => moving === null || !kinds[moving] || moving === side;
+    const velocityAt = (side: 'left' | 'right') => moving === null || !kinds[moving] || moving === side;
     return (
         <div className="pointer-events-none" data-host-pointing={ghost ? 'pills' : 'devices'} style={{ position: 'fixed', inset: 0 }}>
             {(['left', 'right'] as const).map(side => {
@@ -104,7 +105,7 @@ export function PointingOverlayLayer({ keys, pointing, config, look, feed: demoF
                         feed={feed}
                         sniper={cfg.pointingPills && m.sniper}
                         boost={cfg.pointingPills && m.boost}
-                        showModes={modesAt(side)}
+                        velocityHand={velocityAt(side)}
                         labels={labels}
                         pillColors={pillColors}
                         velocityColors={velocityColors}

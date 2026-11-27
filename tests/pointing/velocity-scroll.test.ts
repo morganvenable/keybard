@@ -82,8 +82,8 @@ describe("the curve, as the firmware computes it", () => {
 
 describe("where it shows", () => {
     const vs = (padHand: "left" | "right" | null) => velocityStateFor({ x: 0, y: 5 }, padHand);
-    const at = (kind: "ball" | "pad", side: "left" | "right", showModes: boolean, otherKind: "ball" | "pad" | null) =>
-        ({ placement: { kind, side }, showModes, otherKind });
+    const at = (kind: "ball" | "pad", side: "left" | "right", velocityHand: boolean, otherKind: "ball" | "pad" | null) =>
+        ({ placement: { kind, side }, velocityHand, otherKind });
     it("the pad whose finger sets the offset, and no other hand", () => {
         expect(velocityHere(at("pad", "left", false, "ball"), vs("left"))).toBe(true);
         expect(velocityHere(at("ball", "right", true, "pad"), vs("left"))).toBe(false);

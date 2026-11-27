@@ -4,6 +4,11 @@ Keybard Overlay shows your Svalboard layout as a transparent overlay on your des
 
 This release is a portable ZIP for 64-bit Windows 10 and 11, not a signed installer, and a test build for Linux.
 
+## Coming next
+
+- **Reload button:** a circular-arrow button beside the overlay's collapse button reads the board layout again, as **Reload board layout** in the menu does.
+- **Overlay no longer goes blank for good:** after a sleep or a pause, the overlay could stay empty until you reloaded the layout; it now gets its layout back by itself. A crashed overlay page loads again by itself, and the overlay writes `overlay.log` in its data folder.
+
 ## New in x4.6.8
 
 Goes with Svalboard firmware x4.6.8, and bundles the Keybard that next.keybard.svalboard.com now runs:

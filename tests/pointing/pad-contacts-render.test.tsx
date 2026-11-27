@@ -54,7 +54,7 @@ function mount() {
     let send: (r: PointingMotionReport) => void = () => {};
     const feed: PointingFeed = { subscribe: (l) => { send = (r) => l(r, 16); return () => {}; } };
     render(<PointingDevice placement={pad} unitPx={45} ball="silver" gloss={0.25} sparkle={0.75} theme="light" feed={feed}
-        sniper={false} boost={false} showModes={false} labels={{ sniper: "", boost: "" }} pillColors={{ bg: "#000", fg: "#fff" }} />);
+        sniper={false} boost={false} velocityHand={false} labels={{ sniper: "", boost: "" }} pillColors={{ bg: "#000", fg: "#fff" }} />);
     return (r: PointingMotionReport) => act(() => send(r));
 }
 
