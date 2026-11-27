@@ -94,7 +94,7 @@ function FileCard({ release }: { release: FirmwareReleasePin }) {
     );
 }
 
-const RESET = "Press its RESET button twice, between 0.2 and 0.4 seconds apart. A drive named RPI-RP2 opens.";
+const RESET = "Press its RESET button twice, within 0.6 seconds. A drive named RPI-RP2 opens.";
 
 const DRAG = (release: FirmwareReleasePin | null) => release
     ? "Drag the file onto the drive. The half restarts and the drive closes."

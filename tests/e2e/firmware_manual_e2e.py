@@ -350,7 +350,7 @@ def main() -> int:
                 check(dialog.get_by_role("radio", name="Restore my layout").is_checked(), f"{label}: Restore my layout chosen")
                 check(dialog.get_by_role("radio", name="Start from a blank keyboard").count() == 0, f"{label}: no blank keyboard")
                 text = dialog.inner_text()
-                check("between 0.2 and 0.4 seconds apart" in text, f"{label}: the reset timing")
+                check("within 0.6 seconds" in text, f"{label}: the reset timing")
                 check(dialog.locator("[data-file]").count() == 1, f"{label}: one file")
                 check(dialog.locator("[data-file]").get_attribute("download") == "svalboard_sval_x4.uf2", f"{label}: the x4 pair file")
                 steps = dialog.get_by_test_id("manual-steps").locator("li").all_inner_texts()
