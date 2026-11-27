@@ -275,13 +275,13 @@ describe("Install by hand from Settings > Firmware", () => {
         const files = dialog.querySelectorAll("[data-file]");
         expect(files).toHaveLength(1);
         expect(files[0].getAttribute("download")).toBe("svalboard_sval_x4.uf2");
-        expect(dialog.textContent).toContain("Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.");
+        expect(dialog.textContent).toContain("Press its RESET button twice, between 0.2 and 0.4 seconds apart. A drive named RPI-RP2 opens.");
         // Both halves by hand, the other half first so the cable ends in the usual (right) half:
         // a half on Vial or older firmware never gets the file over the split cable.
         const steps = [...screen.getByTestId("manual-steps").querySelectorAll("li")].map((li) => li.textContent);
         expect(steps).toEqual([
             "Plug the USB cable into the left half's U port. Keep the split cable connected.",
-            "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
+            "Press its RESET button twice, between 0.2 and 0.4 seconds apart. A drive named RPI-RP2 opens.",
             "Drag the file onto the drive. The half restarts and the drive closes.",
             "Then the right half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
             "The halves show a rainbow while they work, then both flash green twice, about half a minute later. While a half writes or restarts, its lights may freeze or show other colors until it's running again.",
@@ -300,7 +300,7 @@ describe("Install by hand from Settings > Firmware", () => {
         const steps = [...screen.getByTestId("manual-steps").querySelectorAll("li")].map((li) => li.textContent);
         expect(steps).toEqual([
             "Plug the USB cable into either half's U port. Keep the split cable connected.",
-            "Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens. A drive named RPI-RP2 opens.",
+            "Press its RESET button twice, between 0.2 and 0.4 seconds apart. A drive named RPI-RP2 opens.",
             "Drag the file onto the drive. The half restarts and the drive closes.",
             "Then the other half: move the USB cable to its U port, press its RESET button twice, and drag the same file onto the drive.",
             "The halves show a rainbow while they work, then both flash green twice, about half a minute later. While a half writes or restarts, its lights may freeze or show other colors until it's running again.",

@@ -29,7 +29,7 @@ describe('UnsupportedFirmwareCard', () => {
         expect(card).toHaveTextContent('File > Save current layout');
         fireEvent.click(screen.getByRole('button', { name: 'Install by hand' }));
         const manual = screen.getByTestId('manual-install');
-        expect(manual).toHaveTextContent('Press its RESET button twice, about a quarter of a second apart. Too fast and nothing happens.');
+        expect(manual).toHaveTextContent('Press its RESET button twice, between 0.2 and 0.4 seconds apart.');
         expect(manual).toHaveTextContent('RPI-RP2');
         expect(screen.getByText(/Import Layout/)).toBeInTheDocument();
         // No release carried yet: the manual install links the firmware release
