@@ -64,7 +64,7 @@ describe("ball color persistence (Fragments and the ball menu share it)", () => 
 const ballPlacement: DevicePlacement = { kind: "ball", side: "right", cx: 18, cy: 5, dU: 3.8, sizeU: 4.7, view: 1.24 };
 const baseProps = {
     placement: ballPlacement, unitPx: 45, ball: "silver" as const, gloss: 0.25, sparkle: 0.75, theme: "light" as const,
-    feed: null, sniper: true, boost: false, showModes: true, labels: { sniper: "×0.33", boost: "×2" },
+    feed: null, sniper: true, boost: false, velocityHand: true, labels: { sniper: "×0.33", boost: "×2" },
     pillColors: { bg: "#000", fg: "#fff" },
 };
 

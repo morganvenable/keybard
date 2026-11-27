@@ -32,13 +32,13 @@ import { strokeHair } from "./overlay-draw";
  * no trackball, at the moving hand.
  */
 export function velocityHere(
-    p: { placement: { kind: "ball" | "pad"; side: "left" | "right" }; showModes: boolean; otherKind?: "ball" | "pad" | null },
+    p: { placement: { kind: "ball" | "pad"; side: "left" | "right" }; velocityHand: boolean; otherKind?: "ball" | "pad" | null },
     vs: VelocityScrollState | null | undefined,
 ): boolean {
     if (!vs) return false;
     if (vs.padHand) return vs.padHand === p.placement.side;
-    if (p.placement.kind === "ball") return p.otherKind !== "ball" || p.showModes;
-    return p.otherKind !== "ball" && p.showModes;
+    if (p.placement.kind === "ball") return p.otherKind !== "ball" || p.velocityHand;
+    return p.otherKind !== "ball" && p.velocityHand;
 }
 
 /** The speed marks along each axis: where the speed reaches these shares of the maximum. */
